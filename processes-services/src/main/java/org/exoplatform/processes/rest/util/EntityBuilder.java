@@ -41,8 +41,12 @@ public class EntityBuilder {
       return null;
     }
     return new DemandeType(demandeTypeEntity.getId(),
-                           demandeTypeEntity.getName(),
+                           demandeTypeEntity.getTitle(),
                            demandeTypeEntity.getDescription(),
+                           demandeTypeEntity.getSummary(),
+                           demandeTypeEntity.getImage(),
+                           demandeTypeEntity.getHelpLink(),
+                           demandeTypeEntity.isEnabled(),
                            demandeTypeEntity.getCreatorId(),
                            demandeTypeEntity.getCreatedDate(),
                            demandeTypeEntity.getModifierId(),
@@ -60,8 +64,12 @@ public class EntityBuilder {
                                                               : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""), ","));
     // TODO: add expand properties
     return new DemandeTypeEntity(demandeType.getId(),
-                                 demandeType.getName(),
+                                 demandeType.getTitle(),
                                  demandeType.getDescription(),
+                                 demandeType.getSummary(),
+                                 demandeType.getImage(),
+                                 demandeType.getHelpLink(),
+                                 demandeType.isEnabled(),
                                  demandeType.getCreatorId(),
                                  demandeType.getCreatedDate(),
                                  demandeType.getModifierId(),

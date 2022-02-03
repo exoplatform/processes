@@ -30,9 +30,17 @@ public class DemandeType {
 
   private long              id;
 
-  private String            name;
+  private String            title;
 
   private String            description;
+
+  private String            summary;
+
+  private String            image;
+
+  private String            helpLink;
+
+  private boolean           enabled;
 
   private long              creatorId;
 

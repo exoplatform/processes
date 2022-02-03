@@ -32,12 +32,18 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.-->
             <column name="DEMANDE_TYPE_ID" type="BIGINT" autoIncrement="${autoIncrement}" startWith="1">
                 <constraints nullable="false" primaryKey="true" primaryKeyName="PK_DEMANDE_TYPE"/>
             </column>
-            <column name="NAME" type="NVARCHAR(250)">
+            <column name="TITLE" type="NVARCHAR(250)">
                 <constraints nullable="false"/>
             </column>
             <column name="DESCRIPTION" type="NVARCHAR(2000)">
                 <constraints nullable="false"/>
             </column>
+            <column name="SUMMARY" type="NVARCHAR(2000)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ENABLED" type="BOOLEAN"/>
+            <column name="HELP_LINK" type="NVARCHAR(250)"/>
+            <column name="IMAGE" type="NVARCHAR(250)"/>
             <column name="CREATOR_ID" type="BIGINT"/>
             <column name="CREATED_DATE" type="DATE"/>
             <column name="MODIFIER_ID" type="BIGINT"/>

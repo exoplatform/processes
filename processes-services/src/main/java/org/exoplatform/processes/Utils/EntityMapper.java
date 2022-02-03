@@ -23,8 +23,12 @@ public class EntityMapper {
       return null;
     }
     return new DemandeType(demandeTypeEntity.getId(),
-                           demandeTypeEntity.getName(),
+                           demandeTypeEntity.getTitle(),
                            demandeTypeEntity.getDescription(),
+                           demandeTypeEntity.getSummary(),
+                           demandeTypeEntity.getImage(),
+                           demandeTypeEntity.getHelpLink(),
+                           demandeTypeEntity.isEnabled(),
                            demandeTypeEntity.getCreatorId(),
                            demandeTypeEntity.getCreatedDate(),
                            demandeTypeEntity.getModifierId(),
@@ -40,8 +44,12 @@ public class EntityMapper {
     DemandeTypeEntity demandeTypeEntity = new DemandeTypeEntity();
 
     demandeTypeEntity.setId(demandeType.getId());
-    demandeTypeEntity.setName(demandeType.getName());
+    demandeTypeEntity.setTitle(demandeType.getTitle());
     demandeTypeEntity.setDescription(demandeType.getDescription());
+    demandeTypeEntity.setSummary(demandeType.getSummary());
+    demandeTypeEntity.setImage(demandeType.getImage());
+    demandeTypeEntity.setHelpLink(demandeType.getHelpLink());
+    demandeTypeEntity.setEnabled(demandeType.isEnabled());
     demandeTypeEntity.setCreatorId(demandeType.getCreatorId());
     demandeTypeEntity.setCreatedDate(demandeType.getCreatedDate());
     demandeTypeEntity.setModifierId(demandeType.getModifierId());

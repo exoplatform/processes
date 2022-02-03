@@ -24,11 +24,23 @@ public class DemandeTypeEntity implements Serializable {
   @Column(name = "DEMANDE_TYPE_ID", nullable = false)
   private Long   id;
 
-  @Column(name = "NAME", nullable = false)
-  private String name;
+  @Column(name = "TITLE", nullable = false)
+  private String title;
 
   @Column(name = "DESCRIPTION")
   private String description;
+
+  @Column(name = "SUMMARY")
+  private String summary;
+
+  @Column(name = "ENABLED")
+  private boolean enabled;
+
+  @Column(name = "HELP_LINK")
+  private String helpLink;
+
+  @Column(name = "IMAGE")
+  private String image;
 
   @Column(name = "CREATOR_ID")
   private Long   creatorId;
