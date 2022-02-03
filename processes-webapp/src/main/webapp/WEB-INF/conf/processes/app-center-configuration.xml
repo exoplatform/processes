@@ -26,7 +26,7 @@
             <init-params>
                 <value-param>
                     <name>enabled</name>
-                    <value>${exo.app-center.processes.enabled:false}</value>
+                    <value>${exo.app-center.processes.enabled:true}</value>
                 </value-param>
                 <value-param>
                     <name>imagePath</name>
