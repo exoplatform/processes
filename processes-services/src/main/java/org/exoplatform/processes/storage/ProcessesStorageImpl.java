@@ -29,7 +29,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   @Override
   public List<DemandeType> getDemandeTypes(ProcessesFilter filter, int offset, int limit, long userIdentityId) {
     // TODO: add filter props to the request
-    return EntityMapper.fromEntities(demandeTypeDAO.findAllChallengesByUser(userIdentityId, offset, limit));
+    return EntityMapper.fromEntities(demandeTypeDAO.findAllDemandeTypesByUser(userIdentityId, offset, limit));
   }
 
   @Override
@@ -40,7 +40,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   @Override
   public DemandeType saveDemandeType(DemandeType demandeType, long userId) throws IllegalArgumentException {
     if (demandeType == null) {
-      throw new IllegalArgumentException("saveChallenge argument is null");
+      throw new IllegalArgumentException("demande type argument is null");
     }
     Identity identity = identityManager.getIdentity(String.valueOf(userId));
     if (identity == null) {

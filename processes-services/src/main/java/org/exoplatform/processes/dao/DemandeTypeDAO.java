@@ -10,8 +10,8 @@ import org.exoplatform.processes.entity.DemandeTypeEntity;
 
 public class DemandeTypeDAO extends GenericDAOJPAImpl<DemandeTypeEntity, Long> {
 
-  public List<DemandeTypeEntity> findAllChallengesByUser(long userId, int offset, int limit) {
-    TypedQuery<DemandeTypeEntity> query = getEntityManager().createNamedQuery("DamandeType.findAllDamandeTypesByUser",
+  public List<DemandeTypeEntity> findAllDemandeTypesByUser(long userId, int offset, int limit) {
+    TypedQuery<DemandeTypeEntity> query = getEntityManager().createNamedQuery("DemandeType.findAllDemandeTypesByUser",
                                                                               DemandeTypeEntity.class);
     query.setParameter("userId", userId);
     query.setFirstResult(offset);

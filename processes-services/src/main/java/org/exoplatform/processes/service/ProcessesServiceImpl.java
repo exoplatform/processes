@@ -66,10 +66,10 @@ public class ProcessesServiceImpl implements ProcessesService {
                                                                              ObjectNotFoundException,
                                                                              IllegalAccessException {
     if (demandeType == null) {
-      throw new IllegalArgumentException("Challenge is mandatory");
+      throw new IllegalArgumentException("Demande Type is mandatory");
     }
     if (demandeType.getId() == 0) {
-      throw new IllegalArgumentException("challenge id must not be equal to 0");
+      throw new IllegalArgumentException("demande type id must not be equal to 0");
     }
     // TODO check permissions to update types
 

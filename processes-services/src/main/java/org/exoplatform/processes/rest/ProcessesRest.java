@@ -119,10 +119,10 @@ public class ProcessesRest implements ResourceContainer {
                                                                       currentIdentityId);
       return Response.ok(EntityBuilder.toEntity(newDemandeType, "")).build();
     } catch (IllegalAccessException e) {
-      LOG.warn("User '{}' attempts to create a challenge", e);
+      LOG.warn("User '{}' attempts to create a Demande Type", e);
       return Response.status(Response.Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
-      LOG.warn("Error creating a challenge", e);
+      LOG.warn("Error creating a Demande Type", e);
       return Response.serverError().entity(e.getMessage()).build();
     }
   }

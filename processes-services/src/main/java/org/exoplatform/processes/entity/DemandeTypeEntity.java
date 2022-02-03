@@ -9,12 +9,12 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
 
 import lombok.Data;
 
-@Entity(name = "DamandeType")
+@Entity(name = "DemandeType")
 @ExoEntity
 @Table(name = "PROCESSES_DEMANDE_TYPE")
 @Data
 @NamedQueries({
-    @NamedQuery(name = "DamandeType.findAllDamandeTypesByUser", query = "SELECT DISTINCT c FROM DamandeType c where c.creatorId = :userId order by c.id desc") })
+    @NamedQuery(name = "DemandeType.findAllDemandeTypesByUser", query = "SELECT DISTINCT c FROM DemandeType c where c.creatorId = :userId order by c.id desc") })
 
 public class DemandeTypeEntity implements Serializable {
 

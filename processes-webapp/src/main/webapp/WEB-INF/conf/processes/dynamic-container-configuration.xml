@@ -51,7 +51,7 @@
                             </collection>
                         </field>
                         <field name="title">
-                            <string>>Challenges Portlet</string>
+                            <string>>Processes Portlet</string>
                         </field>
                         <field name="showInfoBar">
                             <boolean>false</boolean>
