@@ -56,7 +56,7 @@ public class ProcessesServiceImpl implements ProcessesService {
       throw new IllegalArgumentException("demandeType id must be equal to 0");
     }
 
-    // TODO check permissions toi create types
+    // TODO check permissions to create types
 
     return processesStorage.saveDemandeType(demandeType, userId);
   }
