@@ -25,6 +25,7 @@ import javax.ws.rs.core.Response;
 
 import org.exoplatform.common.http.HTTPStatus;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.processes.model.Demande;
 import org.exoplatform.processes.model.DemandeType;
 import org.exoplatform.processes.model.ProcessesFilter;
 import org.exoplatform.processes.rest.model.DemandeTypeEntity;
@@ -56,6 +57,7 @@ public class ProcessesRest implements ResourceContainer {
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
+  @Path("/types")
   @ApiOperation(value = "Retrieves the list of demand types for an authenticated user", httpMethod = "GET", response = Response.class, produces = "application/json")
   @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
       @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
@@ -100,6 +102,7 @@ public class ProcessesRest implements ResourceContainer {
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
+  @Path("/types")
   @ApiOperation(value = "Creates a new Demande Type", httpMethod = "POST", response = Response.class, consumes = "application/json")
   @ApiResponses(value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
       @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
@@ -131,6 +134,7 @@ public class ProcessesRest implements ResourceContainer {
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
+  @Path("/types")
   @ApiOperation(value = "Updates a new demande type", httpMethod = "PUT", response = Response.class, consumes = "application/json")
   @ApiResponses(value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
       @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
@@ -161,4 +165,43 @@ public class ProcessesRest implements ResourceContainer {
     }
   }
 
+  @GET
+  @Produces(MediaType.APPLICATION_JSON)
+  @RolesAllowed("users")
+  @Path("/demandes")
+  @ApiOperation(value = "Retrieves the list of demandes for an authenticated user", httpMethod = "GET", response = Response.class, produces = "application/json")
+  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Not found"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
+  public Response getDemandes(@ApiParam(value = "Identity technical identifier", required = false)
+                                  @QueryParam("userId")
+                                          Long userId,
+                                  @ApiParam(value = "Processes properties to expand.", required = false)
+                                  @QueryParam("expand")
+                                          String expand,
+                                  @ApiParam(value = "Offset of results to return", required = false, defaultValue = "0")
+                                  @QueryParam("offset")
+                                          int offset,
+                                  @ApiParam(value = "Limit of results to return", required = false, defaultValue = "10")
+                                  @QueryParam("limit")
+                                          int limit) {
+    try {
+      long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+      if (currentIdentityId == 0) {
+        return Response.status(Response.Status.UNAUTHORIZED).build();
+      }
+
+      long userIdentityId = currentIdentityId;
+      if (userId != null) {
+        userIdentityId = userId;
+      }
+      List<Demande> demandeTypes = processesService.getDemandes(userIdentityId, offset, limit);
+      return Response.ok(EntityBuilder.toDemandeEntityList(processesService, demandeTypes,expand)).build();
+    } catch (Exception e) {
+      LOG.warn("Error retrieving list of demandeTypes", e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
 }

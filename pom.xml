@@ -28,7 +28,9 @@
     <properties>
         <!-- 3rd party libraries versions -->
         <org.exoplatform.ecms.version>6.3.x-SNAPSHOT</org.exoplatform.ecms.version>
+        <org.exoplatform.social.version>6.3.x-SNAPSHOT</org.exoplatform.social.version>
         <org.exoplatform.platform-ui.version>6.3.x-SNAPSHOT</org.exoplatform.platform-ui.version>
+        <org.exoplatform.addons.task.version>3.3.x-SNAPSHOT</org.exoplatform.addons.task.version>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -36,6 +38,13 @@
                 <groupId>org.exoplatform.ecms</groupId>
                 <artifactId>ecms</artifactId>
                 <version>${org.exoplatform.ecms.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.exoplatform.addons.task</groupId>
+                <artifactId>task-management-parent</artifactId>
+                <version>${org.exoplatform.addons.task.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>

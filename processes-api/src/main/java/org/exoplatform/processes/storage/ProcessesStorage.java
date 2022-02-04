@@ -19,6 +19,7 @@ package org.exoplatform.processes.storage;
 import java.util.List;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.processes.model.Demande;
 import org.exoplatform.processes.model.DemandeType;
 import org.exoplatform.processes.model.ProcessesFilter;
 import org.exoplatform.social.core.identity.model.Identity;
@@ -41,9 +42,20 @@ public interface ProcessesStorage {
    *           documents of the designated ownerId
    * @throws ObjectNotFoundException when ownerId doesn't exisits
    */
-  List<DemandeType> getDemandeTypes(ProcessesFilter filter, int offset, int limit, long userIdentityId);
+
+  List<DemandeType> findAllDemandeTypesByUser(ProcessesFilter filter, int offset, int limit, long userIdentityId);
+
+  List<DemandeType> findEnabledDemandeTypesByUser(ProcessesFilter filter, int offset, int limit, long userIdentityId);
+
+  List<DemandeType> findAllDemandeTypes(int offset, int limit);
+
+  List<DemandeType> findEnabledDemandeTypes(int offset, int limit);
 
   DemandeType getDemandeTypeById(long id);
 
+  DemandeType getDemandeTypeByProjectId(long projectId);
+
   DemandeType saveDemandeType(DemandeType demandeType, long userId) throws IllegalArgumentException;
+
+  List<Demande> getDemandes(long userIdentityId, int offset, int limit) throws Exception;
 }

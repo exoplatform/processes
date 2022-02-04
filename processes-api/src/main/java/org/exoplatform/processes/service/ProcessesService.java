@@ -19,6 +19,7 @@ package org.exoplatform.processes.service;
 import java.util.List;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.processes.model.Demande;
 import org.exoplatform.processes.model.DemandeType;
 import org.exoplatform.processes.model.ProcessesFilter;
 import org.exoplatform.social.core.identity.model.Identity;
@@ -44,10 +45,14 @@ public interface ProcessesService {
   List<DemandeType> getDemandeTypes(ProcessesFilter filter,
                                     int offset,
                                     int limit,
-                                    long userIdentityId) throws IllegalAccessException, ObjectNotFoundException;
+                                    long userIdentityId) throws IllegalAccessException;
 
   DemandeType createDemandeType(DemandeType demandeType, long userId) throws IllegalAccessException;
 
   DemandeType updateDemandeType(DemandeType demandeType,
                                 long userId) throws IllegalArgumentException, ObjectNotFoundException, IllegalAccessException;
+
+  List<Demande> getDemandes(long userIdentityId, int offset, int limit) throws Exception;
+
+  DemandeType getDemandeTypeByProjectId(long projectId);
 }

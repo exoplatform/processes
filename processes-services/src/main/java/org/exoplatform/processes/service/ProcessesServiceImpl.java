@@ -19,6 +19,8 @@ package org.exoplatform.processes.service;
 import java.util.List;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.processes.Utils.EntityMapper;
+import org.exoplatform.processes.model.Demande;
 import org.exoplatform.processes.model.DemandeType;
 import org.exoplatform.processes.model.ProcessesFilter;
 import org.exoplatform.processes.storage.ProcessesStorage;
@@ -43,8 +45,8 @@ public class ProcessesServiceImpl implements ProcessesService {
   public List<DemandeType> getDemandeTypes(ProcessesFilter filter,
                                            int offset,
                                            int limit,
-                                           long userIdentityId) throws IllegalAccessException, ObjectNotFoundException {
-    return processesStorage.getDemandeTypes(filter, offset, limit, userIdentityId);
+                                           long userIdentityId) throws IllegalAccessException {
+    return processesStorage.findEnabledDemandeTypesByUser(filter, offset, limit, userIdentityId);
   }
 
   @Override
@@ -82,5 +84,17 @@ public class ProcessesServiceImpl implements ProcessesService {
     }
     return processesStorage.saveDemandeType(demandeType, userId);
   }
+
+  @Override
+  public List<Demande> getDemandes (long userIdentityId, int offset, int limit) throws Exception {
+
+    return processesStorage.getDemandes(userIdentityId, offset, limit);
+  }
+
+  @Override
+  public DemandeType getDemandeTypeByProjectId(long projectId) {
+    return processesStorage.getDemandeTypeByProjectId(projectId);
+  }
+
 
 }

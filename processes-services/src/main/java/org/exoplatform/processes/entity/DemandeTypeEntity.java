@@ -14,7 +14,12 @@ import lombok.Data;
 @Table(name = "PROCESSES_DEMANDE_TYPE")
 @Data
 @NamedQueries({
-    @NamedQuery(name = "DemandeType.findAllDemandeTypesByUser", query = "SELECT DISTINCT c FROM DemandeType c where c.creatorId = :userId order by c.id desc") })
+    @NamedQuery(name = "DemandeType.getDemandeTypeByProjectId", query = "SELECT DISTINCT c FROM DemandeType c where c.projectId = :projectId"),
+    @NamedQuery(name = "DemandeType.findAllDemandeTypesByUser", query = "SELECT DISTINCT c FROM DemandeType c where c.creatorId = :userId order by c.id desc"),
+    @NamedQuery(name = "DemandeType.findEnabledDemandeTypesByUser", query = "SELECT DISTINCT c FROM DemandeType c where c.creatorId = :userId and  c.enabled = true order by c.id desc"),
+    @NamedQuery(name = "DemandeType.findAllDemandeTypes", query = "SELECT DISTINCT c FROM DemandeType c order by c.id desc"),
+    @NamedQuery(name = "DemandeType.findEnabledDemandeTypes", query = "SELECT DISTINCT c FROM DemandeType c where c.enabled = true order by c.id desc"),
+})
 
 public class DemandeTypeEntity implements Serializable {
 
