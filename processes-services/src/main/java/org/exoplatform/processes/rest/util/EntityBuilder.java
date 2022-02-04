@@ -25,10 +25,14 @@ import java.util.stream.Collectors;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
+import org.exoplatform.processes.model.Demande;
 import org.exoplatform.processes.model.DemandeType;
+import org.exoplatform.processes.rest.model.DemandeEntity;
 import org.exoplatform.processes.rest.model.DemandeTypeEntity;
+import org.exoplatform.processes.service.ProcessesService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
+import org.exoplatform.task.dto.TaskDto;
 
 public class EntityBuilder {
   private static final Log LOG = ExoLogger.getExoLogger(EntityBuilder.class);
@@ -99,5 +103,43 @@ public class EntityBuilder {
       return demandeTypeEntities;
     }
   }
+
+  public static DemandeEntity toDemandeEntity(ProcessesService processesService, Demande demande, String expand) {
+    if (demande == null) {
+      return null;
+    }
+    List<String> expandProperties =
+            StringUtils.isBlank(expand) ? Collections.emptyList()
+                    : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""), ","));
+
+    DemandeEntity demandeEntity = new DemandeEntity(demande.getId(),
+            demande.getTitle(),
+            demande.getDescription(),
+            demande.getStatus(),
+            demande.isCompleted(),
+            demande.getCreatedBy(),
+            demande.getCreatedTime(),
+            demande.getProjectId());
+    if (expandProperties.contains("comments")) {
+      // TODO: Add comments
+    }
+
+    if (expandProperties.contains("demandeType")) {
+      demandeEntity.setDemandeType(toEntity(processesService.getDemandeTypeByProjectId(demande.getProjectId()),""));
+    }
+    return demandeEntity;
+  }
+
+  public static List<DemandeEntity> toDemandeEntityList(ProcessesService processesService,List<Demande> demandes, String expand) {
+    if (CollectionUtils.isEmpty(demandes)) {
+      return new ArrayList<>(Collections.emptyList());
+    } else {
+      List<DemandeEntity> demandeEntityList = demandes.stream()
+              .map(demande -> toDemandeEntity(processesService, demande,expand))
+              .collect(Collectors.toList());
+      return demandeEntityList;
+    }
+  }
+
 
 }
