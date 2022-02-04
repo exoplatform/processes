@@ -19,18 +19,18 @@
           mdi-clock
         </v-icon>
       </v-avatar>
-      {{ title }}
+      {{ requestType.title }}
     </v-card-title>
     <v-card-text
       class="text-center">
       <p class="text-truncate-4">
-        {{ description }}
+        {{ requestType.description }}
       </p>
       <v-chip
         class="ma-2 text-truncate"
         color="orange"
         text-color="white">
-        {{ status }}
+        1 Request in progress
       </v-chip>
     </v-card-text>
     <v-divider />
@@ -51,17 +51,11 @@
 <script>
 export default {
   props: {
-    title: {
-      type: String,
-      default: ''
-    },
-    description: {
-      type: String,
-      default: ''
-    },
-    status: {
-      type: String,
-      default: ''
+    requestType: {
+      type: Object,
+      default: function() {
+        return {};
+      },
     }
   },
 };
