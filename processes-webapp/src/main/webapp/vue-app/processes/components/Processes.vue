@@ -27,7 +27,7 @@
           <requests-type-list />
         </v-tab-item>
         <v-tab-item>
-          not yet implemented
+          <my-requests-list />
         </v-tab-item>
       </v-tabs-items>
     </v-card>
