@@ -19,20 +19,18 @@
           mdi-clock
         </v-icon>
       </v-avatar>
-      some request
+      {{ title }}
     </v-card-title>
     <v-card-text
       class="text-center">
       <p class="text-truncate-4">
-        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur id nisl sit amet nisi mollis ultricies eget id eros.
-        Etiam efficitur, lorem et faucibus aliquam, massa urna pulvinar purus, sollicitudin suscipit neque lorem ac mi.
-        Curabitur faucibus ultrices mauris ac bibendum. Donec commodo, magna in finibus rhoncus,
+        {{ description }}
       </p>
       <v-chip
         class="ma-2 text-truncate"
         color="orange"
         text-color="white">
-        1 Request in progress
+        {{ status }}
       </v-chip>
     </v-card-text>
     <v-divider />
