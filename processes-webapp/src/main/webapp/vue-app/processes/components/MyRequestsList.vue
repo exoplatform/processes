@@ -4,13 +4,13 @@
       v-model="panel"
       multiple>
       <v-expansion-panel
-        v-for="item in items"
+        v-for="(item, index) in items"
         :key="item.status"
         class="elevation-0">
         <v-expansion-panel-header
           class="text-md-body-1 font-weight-regular grey--text text--darken-1">
-          <v-icon class="text-md-body-5" v-if="!panel.includes(3)">mdi-chevron-up</v-icon>
-          <v-icon class="text-md-body-5" v-if="panel.includes(3)">mdi-chevron-down</v-icon>
+          <v-icon class="text-md-body-5" v-if="!panel.includes(index)">mdi-chevron-up</v-icon>
+          <v-icon class="text-md-body-5" v-if="panel.includes(index)">mdi-chevron-down</v-icon>
           {{ item.status }} (1)
           <hr class="me-8 ml-5 line-panel-request">
           <template v-slot:actions>
