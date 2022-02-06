@@ -16,11 +16,11 @@
         xl="3"
         lg="3"
         md="3"
-        sm="4">
+        sm="4"
+        v-for="requestType in requestTypes"
+        :key="requestType.id">
         <request-type-card-item
-          title="test title"
-          description="test description"
-          status="1 Request in progress" />
+          :request-type="requestType" />
       </v-col>
     </v-row>
   </v-container>
@@ -28,5 +28,21 @@
 
 <script>
 export default {
+  props: {
+    requestTypes: {
+      type: Object,
+      default: function() {
+        return [];
+      },
+    },
+    hasMore: {
+      type: Boolean,
+      default: false
+    },
+    loading: {
+      type: Boolean,
+      default: false
+    }
+  },
 };
 </script>
