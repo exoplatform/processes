@@ -27,7 +27,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class Demande {
+public class Work {
 
   private long        id;
   private String      title;

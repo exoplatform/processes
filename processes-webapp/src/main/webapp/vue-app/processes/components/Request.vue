@@ -14,7 +14,7 @@
               mdi-clock
             </v-icon>
           </v-avatar>
-          <span>{{ request.demandeType.title }}</span>
+          <span>{{ request.workFlow.title }}</span>
         </v-col>
         <v-col
           cols="6"

@@ -25,10 +25,10 @@ import java.util.stream.Collectors;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
-import org.exoplatform.processes.model.Demande;
-import org.exoplatform.processes.model.DemandeType;
-import org.exoplatform.processes.rest.model.DemandeEntity;
-import org.exoplatform.processes.rest.model.DemandeTypeEntity;
+import org.exoplatform.processes.model.Work;
+import org.exoplatform.processes.model.WorkFlow;
+import org.exoplatform.processes.rest.model.WorkEntity;
+import org.exoplatform.processes.rest.model.WorkFlowEntity;
 import org.exoplatform.processes.service.ProcessesService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -40,104 +40,104 @@ public class EntityBuilder {
   private EntityBuilder() {
   }
 
-  public static DemandeType fromEntity(DemandeTypeEntity demandeTypeEntity) {
-    if (demandeTypeEntity == null) {
+  public static WorkFlow fromEntity(WorkFlowEntity workFlowEntity) {
+    if (workFlowEntity == null) {
       return null;
     }
-    return new DemandeType(demandeTypeEntity.getId(),
-                           demandeTypeEntity.getTitle(),
-                           demandeTypeEntity.getDescription(),
-                           demandeTypeEntity.getSummary(),
-                           demandeTypeEntity.getImage(),
-                           demandeTypeEntity.getHelpLink(),
-                           demandeTypeEntity.isEnabled(),
-                           demandeTypeEntity.getCreatorId(),
-                           demandeTypeEntity.getCreatedDate(),
-                           demandeTypeEntity.getModifierId(),
-                           demandeTypeEntity.getModifiedDate(),
-                           demandeTypeEntity.getProjectId(),
+    return new WorkFlow(workFlowEntity.getId(),
+                           workFlowEntity.getTitle(),
+                           workFlowEntity.getDescription(),
+                           workFlowEntity.getSummary(),
+                           workFlowEntity.getImage(),
+                           workFlowEntity.getHelpLink(),
+                           workFlowEntity.isEnabled(),
+                           workFlowEntity.getCreatorId(),
+                           workFlowEntity.getCreatedDate(),
+                           workFlowEntity.getModifierId(),
+                           workFlowEntity.getModifiedDate(),
+                           workFlowEntity.getProjectId(),
                            null);
   }
 
-  public static DemandeTypeEntity toEntity(DemandeType demandeType, String expand) {
-    if (demandeType == null) {
+  public static WorkFlowEntity toEntity(WorkFlow workFlow, String expand) {
+    if (workFlow == null) {
       return null;
     }
     List<String> expandProperties =
                                   StringUtils.isBlank(expand) ? Collections.emptyList()
                                                               : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""), ","));
     // TODO: add expand properties
-    return new DemandeTypeEntity(demandeType.getId(),
-                                 demandeType.getTitle(),
-                                 demandeType.getDescription(),
-                                 demandeType.getSummary(),
-                                 demandeType.getImage(),
-                                 demandeType.getHelpLink(),
-                                 demandeType.isEnabled(),
-                                 demandeType.getCreatorId(),
-                                 demandeType.getCreatedDate(),
-                                 demandeType.getModifierId(),
-                                 demandeType.getModifiedDate(),
-                                 demandeType.getProjectId(),
+    return new WorkFlowEntity(workFlow.getId(),
+                                 workFlow.getTitle(),
+                                 workFlow.getDescription(),
+                                 workFlow.getSummary(),
+                                 workFlow.getImage(),
+                                 workFlow.getHelpLink(),
+                                 workFlow.isEnabled(),
+                                 workFlow.getCreatorId(),
+                                 workFlow.getCreatedDate(),
+                                 workFlow.getModifierId(),
+                                 workFlow.getModifiedDate(),
+                                 workFlow.getProjectId(),
                                  null);
   }
 
-  public static List<DemandeType> fromRestEntities(List<DemandeTypeEntity> demandeTypeEntities) {
-    if (CollectionUtils.isEmpty(demandeTypeEntities)) {
+  public static List<WorkFlow> fromRestEntities(List<WorkFlowEntity> workFlowEntities) {
+    if (CollectionUtils.isEmpty(workFlowEntities)) {
       return new ArrayList<>(Collections.emptyList());
     } else {
-      List<DemandeType> demandeTypes = demandeTypeEntities.stream()
-                                                          .map(demandeEntity -> fromEntity(demandeEntity))
+      List<WorkFlow> workFlows = workFlowEntities.stream()
+                                                          .map(workEntity -> fromEntity(workEntity))
                                                           .collect(Collectors.toList());
-      return demandeTypes;
+      return workFlows;
     }
   }
 
-  public static List<DemandeTypeEntity> toRestEntities(List<DemandeType> demandeTypeList, String expand) {
-    if (CollectionUtils.isEmpty(demandeTypeList)) {
+  public static List<WorkFlowEntity> toRestEntities(List<WorkFlow> workFlowList, String expand) {
+    if (CollectionUtils.isEmpty(workFlowList)) {
       return new ArrayList<>(Collections.emptyList());
     } else {
-      List<DemandeTypeEntity> demandeTypeEntities = demandeTypeList.stream()
-                                                                   .map(demandeType -> toEntity(demandeType, expand))
+      List<WorkFlowEntity> workFlowEntities = workFlowList.stream()
+                                                                   .map(workFlow -> toEntity(workFlow, expand))
                                                                    .collect(Collectors.toList());
-      return demandeTypeEntities;
+      return workFlowEntities;
     }
   }
 
-  public static DemandeEntity toDemandeEntity(ProcessesService processesService, Demande demande, String expand) {
-    if (demande == null) {
+  public static WorkEntity toWorkEntity(ProcessesService processesService, Work work, String expand) {
+    if (work == null) {
       return null;
     }
     List<String> expandProperties =
             StringUtils.isBlank(expand) ? Collections.emptyList()
                     : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""), ","));
 
-    DemandeEntity demandeEntity = new DemandeEntity(demande.getId(),
-            demande.getTitle(),
-            demande.getDescription(),
-            demande.getStatus(),
-            demande.isCompleted(),
-            demande.getCreatedBy(),
-            demande.getCreatedTime(),
-            demande.getProjectId());
+    WorkEntity workEntity = new WorkEntity(work.getId(),
+            work.getTitle(),
+            work.getDescription(),
+            work.getStatus(),
+            work.isCompleted(),
+            work.getCreatedBy(),
+            work.getCreatedTime(),
+            work.getProjectId());
     if (expandProperties.contains("comments")) {
       // TODO: Add comments
     }
 
-    if (expandProperties.contains("demandeType")) {
-      demandeEntity.setDemandeType(toEntity(processesService.getDemandeTypeByProjectId(demande.getProjectId()),""));
+    if (expandProperties.contains("workFlow")) {
+      workEntity.setWorkFlow(toEntity(processesService.getWorkFlowByProjectId(work.getProjectId()),""));
     }
-    return demandeEntity;
+    return workEntity;
   }
 
-  public static List<DemandeEntity> toDemandeEntityList(ProcessesService processesService,List<Demande> demandes, String expand) {
-    if (CollectionUtils.isEmpty(demandes)) {
+  public static List<WorkEntity> toWorkEntityList(ProcessesService processesService,List<Work> works, String expand) {
+    if (CollectionUtils.isEmpty(works)) {
       return new ArrayList<>(Collections.emptyList());
     } else {
-      List<DemandeEntity> demandeEntityList = demandes.stream()
-              .map(demande -> toDemandeEntity(processesService, demande,expand))
+      List<WorkEntity> workEntityList = works.stream()
+              .map(work -> toWorkEntity(processesService, work,expand))
               .collect(Collectors.toList());
-      return demandeEntityList;
+      return workEntityList;
     }
   }
 

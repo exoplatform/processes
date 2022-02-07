@@ -14,10 +14,11 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <gnu.org/licenses>.
  */
-
-package org.exoplatform.processes.model;
+package org.exoplatform.processes.rest.model;
 
 import java.util.Date;
+
+import org.exoplatform.processes.model.ProcessPermission;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -26,7 +27,8 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class DemandeType {
+
+public class WorkFlowEntity {
 
   private long              id;
 
@@ -40,7 +42,7 @@ public class DemandeType {
 
   private String            helpLink;
 
-  private boolean           enabled;
+  private boolean            enabled;
 
   private long              creatorId;
 

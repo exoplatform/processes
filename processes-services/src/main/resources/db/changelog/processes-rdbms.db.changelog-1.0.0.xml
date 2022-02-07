@@ -28,9 +28,9 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.-->
 
 
     <changeSet author="processes" id="1.0.0-0">
-        <createTable tableName="PROCESSES_DEMANDE_TYPE">
-            <column name="DEMANDE_TYPE_ID" type="BIGINT" autoIncrement="${autoIncrement}" startWith="1">
-                <constraints nullable="false" primaryKey="true" primaryKeyName="PK_DEMANDE_TYPE"/>
+        <createTable tableName="PROCESSES_WORK_FLOW">
+            <column name="WORK_FLOW_ID" type="BIGINT" autoIncrement="${autoIncrement}" startWith="1">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="PK_WORK_FLOW"/>
             </column>
             <column name="TITLE" type="NVARCHAR(250)">
                 <constraints nullable="false"/>
@@ -49,7 +49,7 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.-->
             <column name="MODIFIER_ID" type="BIGINT"/>
             <column name="MODIFIED_DATE" type="DATE"/>
             <column name="PROJECT_ID" type="BIGINT">
-                <constraints unique="true" uniqueConstraintName="UK_PROCESSES_DEMANDE_TYPE_PROJECT_ID"/>
+                <constraints unique="true" uniqueConstraintName="UK_PROCESSES_WORK_FLOW_PROJECT_ID"/>
             </column>
         </createTable>
         <modifySql dbms="mysql">
@@ -58,7 +58,7 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.-->
     </changeSet>
 
     <changeSet author="processes" id="1.0.0-1" dbms="hsqldb,oracle,postgresql">
-        <createSequence sequenceName="SEQ_DEMANDE_TYPE_ID" startValue="1"/>
+        <createSequence sequenceName="SEQ_WORK_FLOW_ID" startValue="1"/>
     </changeSet>
 
 </databaseChangeLog>

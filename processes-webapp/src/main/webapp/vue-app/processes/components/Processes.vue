@@ -79,7 +79,7 @@ export default {
       if (this.query) {
         filter.query = this.query;
       }
-      const expand = 'demandeType';
+      const expand = 'workFlow';
       this.limit = this.limit || this.pageSize;
       this.loading = true;
       return this.$processesService

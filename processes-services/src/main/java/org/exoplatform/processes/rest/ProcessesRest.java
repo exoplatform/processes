@@ -25,10 +25,10 @@ import javax.ws.rs.core.Response;
 
 import org.exoplatform.common.http.HTTPStatus;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
-import org.exoplatform.processes.model.Demande;
-import org.exoplatform.processes.model.DemandeType;
+import org.exoplatform.processes.model.Work;
+import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.model.ProcessesFilter;
-import org.exoplatform.processes.rest.model.DemandeTypeEntity;
+import org.exoplatform.processes.rest.model.WorkFlowEntity;
 import org.exoplatform.processes.rest.util.EntityBuilder;
 import org.exoplatform.processes.rest.util.RestUtils;
 import org.exoplatform.processes.service.ProcessesService;
@@ -40,7 +40,7 @@ import org.exoplatform.social.core.manager.IdentityManager;
 import io.swagger.annotations.*;
 
 @Path("/v1/processes")
-@Api(value = "/v1/processes", description = "Manages processes ") // NOSONAR
+@Api(value = "/v1/processes", description = "Manages processes") // NOSONAR
 public class ProcessesRest implements ResourceContainer {
 
   private static final Log LOG = ExoLogger.getLogger(ProcessesRest.class);
@@ -57,14 +57,14 @@ public class ProcessesRest implements ResourceContainer {
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @Path("/types")
-  @ApiOperation(value = "Retrieves the list of demand types for an authenticated user", httpMethod = "GET", response = Response.class, produces = "application/json")
+  @Path("/workflows")
+  @ApiOperation(value = "Retrieves the list of workFlows for an authenticated user", httpMethod = "GET", response = Response.class, produces = "application/json")
   @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
       @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
       @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Not found"),
       @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
       @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
-  public Response getDemandeTypes(@ApiParam(value = "Identity technical identifier", required = false)
+  public Response getWorkFlows(@ApiParam(value = "Identity technical identifier", required = false)
   @QueryParam("userId")
   Long userId,
                                   @ApiParam(value = "Search query entered by the user", required = false)
@@ -90,10 +90,10 @@ public class ProcessesRest implements ResourceContainer {
       if (userId != null) {
         userIdentityId = userId;
       }
-      List<DemandeType> demandeTypes = processesService.getDemandeTypes(filter, offset, limit, userIdentityId);
-      return Response.ok(EntityBuilder.toRestEntities(demandeTypes, expand)).build();
+      List<WorkFlow> workFlows = processesService.getWorkFlows(filter, offset, limit, userIdentityId);
+      return Response.ok(EntityBuilder.toRestEntities(workFlows, expand)).build();
     } catch (Exception e) {
-      LOG.warn("Error retrieving list of demandeTypes", e);
+      LOG.warn("Error retrieving list of workFlows", e);
       return Response.serverError().entity(e.getMessage()).build();
     }
   }
@@ -102,30 +102,30 @@ public class ProcessesRest implements ResourceContainer {
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @Path("/types")
-  @ApiOperation(value = "Creates a new Demande Type", httpMethod = "POST", response = Response.class, consumes = "application/json")
+  @Path("/workflows")
+  @ApiOperation(value = "Creates a new Work WorkFlow", httpMethod = "POST", response = Response.class, consumes = "application/json")
   @ApiResponses(value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
       @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
       @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
       @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
-  public Response createDemandeType(@ApiParam(value = "Demende Type object to create", required = true)
-  DemandeTypeEntity demandeTypeEntity) {
-    if (demandeTypeEntity == null) {
-      return Response.status(Response.Status.BAD_REQUEST).entity("Demande Type object is mandatory").build();
+  public Response createWorkFlow(@ApiParam(value = "WorkFlow object to create", required = true)
+  WorkFlowEntity workFlowEntity) {
+    if (workFlowEntity == null) {
+      return Response.status(Response.Status.BAD_REQUEST).entity("WorkFlow object is mandatory").build();
     }
     long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
     if (currentIdentityId == 0) {
       return Response.status(Response.Status.UNAUTHORIZED).build();
     }
     try {
-      DemandeType newDemandeType = processesService.createDemandeType(EntityBuilder.fromEntity(demandeTypeEntity),
+      WorkFlow newWorkFlow = processesService.createWorkFlow(EntityBuilder.fromEntity(workFlowEntity),
                                                                       currentIdentityId);
-      return Response.ok(EntityBuilder.toEntity(newDemandeType, "")).build();
+      return Response.ok(EntityBuilder.toEntity(newWorkFlow, "")).build();
     } catch (IllegalAccessException e) {
-      LOG.warn("User '{}' attempts to create a Demande Type", e);
+      LOG.warn("User '{}' attempts to create a Work WorkFlow", e);
       return Response.status(Response.Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
-      LOG.warn("Error creating a Demande Type", e);
+      LOG.warn("Error creating a WorkFlow", e);
       return Response.serverError().entity(e.getMessage()).build();
     }
   }
@@ -134,33 +134,33 @@ public class ProcessesRest implements ResourceContainer {
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @Path("/types")
-  @ApiOperation(value = "Updates a new demande type", httpMethod = "PUT", response = Response.class, consumes = "application/json")
+  @Path("/workflows")
+  @ApiOperation(value = "Updates a new work workFlow", httpMethod = "PUT", response = Response.class, consumes = "application/json")
   @ApiResponses(value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
       @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
       @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
       @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
-  public Response updateDemandeType(@ApiParam(value = "Demende Type object to update", required = true)
-  DemandeTypeEntity demandeTypeEntity) {
-    if (demandeTypeEntity == null) {
-      return Response.status(Response.Status.BAD_REQUEST).entity("Demande Type object is mandatory").build();
+  public Response updateWorkFlow(@ApiParam(value = "WorkFlow object to update", required = true)
+  WorkFlowEntity workFlowEntity) {
+    if (workFlowEntity == null) {
+      return Response.status(Response.Status.BAD_REQUEST).entity("WorkFlow object is mandatory").build();
     }
     long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
     if (currentIdentityId == 0) {
       return Response.status(Response.Status.UNAUTHORIZED).build();
     }
     try {
-      DemandeType newDemandeType = processesService.updateDemandeType(EntityBuilder.fromEntity(demandeTypeEntity),
+      WorkFlow newWorkFlow = processesService.updateWorkFlow(EntityBuilder.fromEntity(workFlowEntity),
                                                                       currentIdentityId);
-      return Response.ok(EntityBuilder.toEntity(newDemandeType, "")).build();
+      return Response.ok(EntityBuilder.toEntity(newWorkFlow, "")).build();
     } catch (ObjectNotFoundException e) {
-      LOG.debug("User '{}' attempts to update a not existing demande type '{}'", currentIdentityId, e);
-      return Response.status(Response.Status.NOT_FOUND).entity("Demande type not found").build();
+      LOG.debug("User '{}' attempts to update a not existing work workFlow '{}'", currentIdentityId, e);
+      return Response.status(Response.Status.NOT_FOUND).entity("Work workFlow not found").build();
     } catch (IllegalAccessException e) {
-      LOG.error("User '{}' attempts to update a demande type for owner '{}'", currentIdentityId, e);
+      LOG.error("User '{}' attempts to update a work workFlow for owner '{}'", currentIdentityId, e);
       return Response.status(Response.Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
-      LOG.warn("Error updating a demande type", e);
+      LOG.warn("Error updating a work workFlow", e);
       return Response.serverError().entity(e.getMessage()).build();
     }
   }
@@ -168,14 +168,14 @@ public class ProcessesRest implements ResourceContainer {
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @Path("/demandes")
-  @ApiOperation(value = "Retrieves the list of demandes for an authenticated user", httpMethod = "GET", response = Response.class, produces = "application/json")
+  @Path("/works")
+  @ApiOperation(value = "Retrieves the list of works for an authenticated user", httpMethod = "GET", response = Response.class, produces = "application/json")
   @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
           @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
           @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Not found"),
           @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
           @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
-  public Response getDemandes(@ApiParam(value = "Identity technical identifier", required = false)
+  public Response getWorks(@ApiParam(value = "Identity technical identifier", required = false)
                                   @QueryParam("userId")
                                           Long userId,
                                   @ApiParam(value = "Processes properties to expand.", required = false)
@@ -197,10 +197,10 @@ public class ProcessesRest implements ResourceContainer {
       if (userId != null) {
         userIdentityId = userId;
       }
-      List<Demande> demandeTypes = processesService.getDemandes(userIdentityId, offset, limit);
-      return Response.ok(EntityBuilder.toDemandeEntityList(processesService, demandeTypes,expand)).build();
+      List<Work> workFlows = processesService.getWorks(userIdentityId, offset, limit);
+      return Response.ok(EntityBuilder.toWorkEntityList(processesService, workFlows,expand)).build();
     } catch (Exception e) {
-      LOG.warn("Error retrieving list of demandeTypes", e);
+      LOG.warn("Error retrieving list of workFlows", e);
       return Response.serverError().entity(e.getMessage()).build();
     }
   }

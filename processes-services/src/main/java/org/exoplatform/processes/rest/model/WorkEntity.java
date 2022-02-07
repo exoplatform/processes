@@ -26,7 +26,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class DemandeEntity {
+public class WorkEntity {
 
   private long        id;
   private String      title;
@@ -39,9 +39,9 @@ public class DemandeEntity {
   private Date        endDate;
   private Date        dueDate;
   private long        projectId;
-  private DemandeTypeEntity   demandeType;
+  private WorkFlowEntity   workFlow;
 
-  public DemandeEntity(long id, String title, String description, String status, boolean completed, String createdBy, Date createdTime, long projectId) {
+  public WorkEntity(long id, String title, String description, String status, boolean completed, String createdBy, Date createdTime, long projectId) {
     this.id = id;
     this.title = title;
     this.description = description;
