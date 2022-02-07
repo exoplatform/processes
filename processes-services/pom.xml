@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <artifactId>processes-parent</artifactId>
-        <groupId>org.exoplaform.processes</groupId>
+        <groupId>org.exoplatform.processes</groupId>
         <version>1.0.x-SNAPSHOT</version>
     </parent>
     <artifactId>processes-services</artifactId>
