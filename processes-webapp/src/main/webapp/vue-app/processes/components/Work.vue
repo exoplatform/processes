@@ -1,10 +1,10 @@
 <template>
   <v-card outlined class="ml-6">
-    <v-container class="pa-0 request_bg_color">
+    <v-container class="pa-0 work-bg-color">
       <v-row align="center pl-4 pr-4" cols="12">
         <v-col
           cols="6"
-          class="pa-0 ma-0 text-align-start text-subtitle-2 font-weight-regular"
+          class="pa-0 ma-0 text-align-start text-subtitle-2 font-weight-regular text-truncate"
           md="3"
           lg="2">
           <v-avatar
@@ -14,14 +14,14 @@
               mdi-clock
             </v-icon>
           </v-avatar>
-          <span>{{ request.workFlow.title }}</span>
+          <span>{{ work.workFlow.title }}</span>
         </v-col>
         <v-col
           cols="6"
           md="4"
           class="pa-0 ma-0 grey--text"
           lg="1">
-          <span>{{ request.created }}</span>
+          <span>{{ work.created }}</span>
         </v-col>
         <v-col
           cols="6"
@@ -33,21 +33,21 @@
             icon>
             <v-icon>mdi-chat-outline</v-icon>
           </v-btn>
-          <span>{{ request.totalComments }}</span>
+          <span>{{ work.totalComments }}</span>
         </v-col>
         <v-col
           cols="6"
           md="3"
           class="pa-0 ma-0 text-truncate grey--text"
           lg="2">
-          <span>Dernier commentaire {{ request.lastCommentDate }}</span>
+          <span>Dernier commentaire {{ work.lastCommentDate }}</span>
         </v-col>
         <v-col
           cols="6"
           md="4"
           class="pa-0 ma-0 text-truncate text-caption"
           lg="3">
-          <span>{{ request.description }}</span>
+          <span>{{ work.description }}</span>
         </v-col>
         <v-col
           cols="4"
@@ -58,7 +58,7 @@
             class="ma-2"
             :color="statusColor"
             text-color="white">
-            {{ request.status }}
+            {{ work.status }}
           </v-chip>
         </v-col>
         <v-col
@@ -80,14 +80,14 @@
 <script>
 export default {
   props: {
-    request: {
+    work: {
       type: Object,
       default: null,
     },
   },
   computed: {
     statusColor() {
-      return this.request.status === 'accepted' || this.request.status === 'Done' ? 'green' : this.request.status === 'pending' || this.request.status === 'WaitingOn' ? 'orange' : this.request.status === 'refused' ? 'red' : 'grey';
+      return this.work.status === 'accepted' || this.work.status === 'Done' ? 'green' : this.work.status === 'pending' || this.work.status === 'WaitingOn' ? 'orange' : this.work.status === 'refused' ? 'red' : 'grey';
     }
   }
 };

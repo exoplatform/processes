@@ -9,10 +9,10 @@
         v-model="tab">
         <v-tabs-slider color="blue" />
         <v-tab>
-          {{ $t('processes.toolbar.label.typeOfRequest') }}
+          {{ $t('processes.toolbar.label.workflow') }}
         </v-tab>
         <v-tab>
-          {{ $t('processes.toolbar.label.myRequests') }}
+          {{ $t('processes.toolbar.label.myWorks') }}
         </v-tab>
       </v-tabs>
     </v-toolbar>
@@ -24,16 +24,23 @@
         class="mt-2 pa-4"
         v-model="tab">
         <v-tab-item>
-          <requests-type-list
-            :request-types="requestTypes"
+          <workflow-list
+            :workflows="workflows"
             :has-more="hasMoreTypes"
             :loading="loading" />
         </v-tab-item>
         <v-tab-item>
-          <my-requests-list :requests="requests" :loading="loading" />
+          <my-work-list :works="works" :loading="loading" />
         </v-tab-item>
       </v-tabs-items>
     </v-card>
+    <v-alert
+      v-model="alert"
+      :type="type"
+      class="processesAlert"
+      dismissible>
+      {{ message }}
+    </v-alert>
   </v-app>
 </template>
 
@@ -42,8 +49,11 @@ export default {
   data () {
     return {
       tab: 0,
-      requestTypes: [],
-      requests: [],
+      alert: false,
+      type: '',
+      message: '',
+      workflows: [],
+      works: [],
       query: null,
       pageSize: 10,
       offset: 0,
@@ -54,11 +64,17 @@ export default {
   },
 
   created() {
-    this.getRequestTypes();
-    this.refreshRequests(); 
+    this.getWorkFlows();
+    this.refreshWorks();
+    this.$root.$on('show-alert', alert => {
+      this.displayMessage(alert);
+    });
+    this.$root.$on('workflow-added', workflow => {
+      this.workflows.push(workflow);
+    });
   },
   methods: {
-    getRequestTypes() {
+    getWorkFlows() {
       const filter = {};
       if (this.query) {
         filter.query = this.query;
@@ -67,14 +83,14 @@ export default {
       this.limit = this.limit || this.pageSize;
       this.loading = true;
       return this.$processesService
-        .getRequestTypes(filter, this.offset, this.limit + 1, expand)
-        .then(requestTypes => {
-          this.requestTypes = requestTypes || [];
-          this.hasMoreTypes = requestTypes && requestTypes.length > this.limit;
+        .getWorkFlows(filter, this.offset, this.limit + 1, expand)
+        .then(workflows => {
+          this.workflows = workflows || [];
+          this.hasMoreTypes = workflows && workflows.length > this.limit;
         })
         .finally(() => this.loading = false);
     },
-    refreshRequests() {
+    refreshWorks() {
       const filter = {};
       if (this.query) {
         filter.query = this.query;
@@ -83,11 +99,17 @@ export default {
       this.limit = this.limit || this.pageSize;
       this.loading = true;
       return this.$processesService
-        .getRequets(filter, 0, 0, expand)
-        .then(requests => {
-          this.requests = requests || [];
+        .getWorks(filter, 0, 0, expand)
+        .then(works => {
+          this.works = works || [];
         })
         .finally(() => this.loading = false);
+    },
+    displayMessage(alert) {
+      this.message = alert.message;
+      this.type = alert.type;
+      this.alert = true;
+      window.setTimeout(() => this.alert = false, 5000);
     },
   }
 };

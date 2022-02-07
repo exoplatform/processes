@@ -1,16 +1,27 @@
 import Processes from './components/Processes.vue';
-import RequestsCard from './components/RequestsTypeList.vue';
-import RequestCardItem from './components/RequestTypeCardItem.vue';
-import MyRequestsList from './components/MyRequestsList.vue';
-import Request from './components/Request.vue';
+import WorkFlowList from './components/WorkFlowList.vue';
+import WorkFlowCardItem from './components/WorkFlowCardItem.vue';
+import MyWorkList from './components/MyWorkList.vue';
+import Work from './components/Work.vue';
+import AddWorkFlowDrawer from './components/AddWorkFlowDrawer.vue';
+
+import * as processesService from './js/ProcessesService.js';
+
 const components = {
   'processes': Processes,
-  'requests-type-list': RequestsCard,
-  'request-type-card-item': RequestCardItem,
-  'my-requests-list': MyRequestsList,
-  'request': Request
+  'workflow-list': WorkFlowList,
+  'workflow-card-item': WorkFlowCardItem,
+  'my-work-list': MyWorkList,
+  'work': Work,
+  'add-workflow-drawer': AddWorkFlowDrawer,
 };
 
 for (const key in components) {
   Vue.component(key, components[key]);
+}
+
+if (!Vue.prototype.$processesService) {
+  window.Object.defineProperty(Vue.prototype, '$processesService', {
+    value: processesService,
+  });
 }

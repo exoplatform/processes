@@ -1,4 +1,4 @@
-export function getRequestTypes(itemsFilter, offset, limit, expand) {
+export function getWorkFlows(itemsFilter, offset, limit, expand) {
   const formData = new FormData();
   if (itemsFilter) {
     Object.keys(itemsFilter).forEach(key => {
@@ -30,7 +30,7 @@ export function getRequestTypes(itemsFilter, offset, limit, expand) {
   });
 
 }
-export function getRequets(itemsFilter, offset, limit, expand) {
+export function getWorks(itemsFilter, offset, limit, expand) {
   const formData = new FormData();
   if (itemsFilter) {
     Object.keys(itemsFilter).forEach(key => {
@@ -60,6 +60,24 @@ export function getRequets(itemsFilter, offset, limit, expand) {
       return resp.json();
     }
   });
+}
 
+export function addNewWorkFlow(workflow) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workflows`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(workflow, (key, value) => {
+      if (value !== null) { return value; }
+    }),
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error while adding a new workflow');
+    } else {
+      return resp.json();
+    }
+  });
 }
 
