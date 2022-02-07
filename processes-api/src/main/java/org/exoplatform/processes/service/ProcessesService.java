@@ -19,40 +19,40 @@ package org.exoplatform.processes.service;
 import java.util.List;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
-import org.exoplatform.processes.model.Demande;
-import org.exoplatform.processes.model.DemandeType;
+import org.exoplatform.processes.model.Work;
+import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.model.ProcessesFilter;
 import org.exoplatform.social.core.identity.model.Identity;
 
 public interface ProcessesService {
 
   /**
-   * Retrieves a list of accessible DemandeTypes, for a selected user, by applying
+   * Retrieves a list of accessible WorkFlows, for a selected user, by applying
    * the designated filter. The returned results will be of type
-   * {@link DemandeType} only. The ownerId of filter object will be used to select
-   * the list of accessible DemandeTypes to retrieve.
+   * {@link WorkFlow} only. The ownerId of filter object will be used to select
+   * the list of accessible WorkFlows to retrieve.
    * 
    * @param filter {@link ProcessesFilter} that contains filtering criteria
    * @param offset Offset of the result list
    * @param limit Limit of the result list
    * @param userIdentityId {@link Identity} technical identifier of the user
    *          acessing files
-   * @return {@link List} of {@link DemandeType}
+   * @return {@link List} of {@link WorkFlow}
    * @throws IllegalAccessException when the user isn't allowed to access
    *           documents of the designated ownerId
    * @throws ObjectNotFoundException when ownerId doesn't exisits
    */
-  List<DemandeType> getDemandeTypes(ProcessesFilter filter,
+  List<WorkFlow> getWorkFlows(ProcessesFilter filter,
                                     int offset,
                                     int limit,
                                     long userIdentityId) throws IllegalAccessException;
 
-  DemandeType createDemandeType(DemandeType demandeType, long userId) throws IllegalAccessException;
+  WorkFlow createWorkFlow(WorkFlow workFlow, long userId) throws IllegalAccessException;
 
-  DemandeType updateDemandeType(DemandeType demandeType,
+  WorkFlow updateWorkFlow(WorkFlow workFlow,
                                 long userId) throws IllegalArgumentException, ObjectNotFoundException, IllegalAccessException;
 
-  List<Demande> getDemandes(long userIdentityId, int offset, int limit) throws Exception;
+  List<Work> getWorks(long userIdentityId, int offset, int limit) throws Exception;
 
-  DemandeType getDemandeTypeByProjectId(long projectId);
+  WorkFlow getWorkFlowByProjectId(long projectId);
 }

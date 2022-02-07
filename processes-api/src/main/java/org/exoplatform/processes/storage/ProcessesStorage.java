@@ -19,43 +19,43 @@ package org.exoplatform.processes.storage;
 import java.util.List;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
-import org.exoplatform.processes.model.Demande;
-import org.exoplatform.processes.model.DemandeType;
+import org.exoplatform.processes.model.Work;
+import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.model.ProcessesFilter;
 import org.exoplatform.social.core.identity.model.Identity;
 
 public interface ProcessesStorage {
 
   /**
-   * Retrieves a list of accessible DemandeTypes, for a selected user, by applying
+   * Retrieves a list of accessible WorkFlows, for a selected user, by applying
    * the designated filter. The returned results will be of type
-   * {@link DemandeType} only. The ownerId of filter object will be used to select
-   * the list of accessible DemandeTypes to retrieve.
+   * {@link WorkFlow} only. The ownerId of filter object will be used to select
+   * the list of accessible WorkFlows to retrieve.
    *
    * @param filter {@link ProcessesFilter} that contains filtering criteria
    * @param offset Offset of the result list
    * @param limit Limit of the result list
    * @param userIdentityId {@link Identity} technical identifier of the user
    *          acessing files
-   * @return {@link List} of {@link DemandeType}
+   * @return {@link List} of {@link WorkFlow}
    * @throws IllegalAccessException when the user isn't allowed to access
    *           documents of the designated ownerId
    * @throws ObjectNotFoundException when ownerId doesn't exisits
    */
 
-  List<DemandeType> findAllDemandeTypesByUser(ProcessesFilter filter, int offset, int limit, long userIdentityId);
+  List<WorkFlow> findAllWorkFlowsByUser(ProcessesFilter filter, int offset, int limit, long userIdentityId);
 
-  List<DemandeType> findEnabledDemandeTypesByUser(ProcessesFilter filter, int offset, int limit, long userIdentityId);
+  List<WorkFlow> findEnabledWorkFlowsByUser(ProcessesFilter filter, int offset, int limit, long userIdentityId);
 
-  List<DemandeType> findAllDemandeTypes(int offset, int limit);
+  List<WorkFlow> findAllWorkFlows(int offset, int limit);
 
-  List<DemandeType> findEnabledDemandeTypes(int offset, int limit);
+  List<WorkFlow> findEnabledWorkFlows(int offset, int limit);
 
-  DemandeType getDemandeTypeById(long id);
+  WorkFlow getWorkFlowById(long id);
 
-  DemandeType getDemandeTypeByProjectId(long projectId);
+  WorkFlow getWorkFlowByProjectId(long projectId);
 
-  DemandeType saveDemandeType(DemandeType demandeType, long userId) throws IllegalArgumentException;
+  WorkFlow saveWorkFlow(WorkFlow workFlow, long userId) throws IllegalArgumentException;
 
-  List<Demande> getDemandes(long userIdentityId, int offset, int limit) throws Exception;
+  List<Work> getWorks(long userIdentityId, int offset, int limit) throws Exception;
 }

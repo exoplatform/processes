@@ -8,9 +8,9 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.collections.CollectionUtils;
 
-import org.exoplatform.processes.entity.DemandeTypeEntity;
-import org.exoplatform.processes.model.Demande;
-import org.exoplatform.processes.model.DemandeType;
+import org.exoplatform.processes.entity.WorkFlowEntity;
+import org.exoplatform.processes.model.Work;
+import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.task.dto.TaskDto;
@@ -21,73 +21,73 @@ public class EntityMapper {
   private EntityMapper() {
   }
 
-  public static DemandeType fromEntity(DemandeTypeEntity demandeTypeEntity) {
-    if (demandeTypeEntity == null) {
+  public static WorkFlow fromEntity(WorkFlowEntity workFlowEntity) {
+    if (workFlowEntity == null) {
       return null;
     }
-    return new DemandeType(demandeTypeEntity.getId(),
-                           demandeTypeEntity.getTitle(),
-                           demandeTypeEntity.getDescription(),
-                           demandeTypeEntity.getSummary(),
-                           demandeTypeEntity.getImage(),
-                           demandeTypeEntity.getHelpLink(),
-                           demandeTypeEntity.isEnabled(),
-                           demandeTypeEntity.getCreatorId(),
-                           demandeTypeEntity.getCreatedDate(),
-                           demandeTypeEntity.getModifierId(),
-                           demandeTypeEntity.getModifiedDate(),
-                           demandeTypeEntity.getProjectId(),
+    return new WorkFlow(workFlowEntity.getId(),
+                           workFlowEntity.getTitle(),
+                           workFlowEntity.getDescription(),
+                           workFlowEntity.getSummary(),
+                           workFlowEntity.getImage(),
+                           workFlowEntity.getHelpLink(),
+                           workFlowEntity.isEnabled(),
+                           workFlowEntity.getCreatorId(),
+                           workFlowEntity.getCreatedDate(),
+                           workFlowEntity.getModifierId(),
+                           workFlowEntity.getModifiedDate(),
+                           workFlowEntity.getProjectId(),
                            null);
   }
 
-  public static DemandeTypeEntity toEntity(DemandeType demandeType) {
-    if (demandeType == null) {
+  public static WorkFlowEntity toEntity(WorkFlow workFlow) {
+    if (workFlow == null) {
       return null;
     }
-    DemandeTypeEntity demandeTypeEntity = new DemandeTypeEntity();
+    WorkFlowEntity workFlowEntity = new WorkFlowEntity();
 
-    demandeTypeEntity.setId(demandeType.getId());
-    demandeTypeEntity.setTitle(demandeType.getTitle());
-    demandeTypeEntity.setDescription(demandeType.getDescription());
-    demandeTypeEntity.setSummary(demandeType.getSummary());
-    demandeTypeEntity.setImage(demandeType.getImage());
-    demandeTypeEntity.setHelpLink(demandeType.getHelpLink());
-    demandeTypeEntity.setEnabled(demandeType.isEnabled());
-    demandeTypeEntity.setCreatorId(demandeType.getCreatorId());
-    demandeTypeEntity.setCreatedDate(demandeType.getCreatedDate());
-    demandeTypeEntity.setModifierId(demandeType.getModifierId());
-    demandeTypeEntity.setModifiedDate(demandeType.getModifiedDate());
-    demandeTypeEntity.setProjectId(demandeType.getProjectId());
-    return demandeTypeEntity;
+    workFlowEntity.setId(workFlow.getId());
+    workFlowEntity.setTitle(workFlow.getTitle());
+    workFlowEntity.setDescription(workFlow.getDescription());
+    workFlowEntity.setSummary(workFlow.getSummary());
+    workFlowEntity.setImage(workFlow.getImage());
+    workFlowEntity.setHelpLink(workFlow.getHelpLink());
+    workFlowEntity.setEnabled(workFlow.isEnabled());
+    workFlowEntity.setCreatorId(workFlow.getCreatorId());
+    workFlowEntity.setCreatedDate(workFlow.getCreatedDate());
+    workFlowEntity.setModifierId(workFlow.getModifierId());
+    workFlowEntity.setModifiedDate(workFlow.getModifiedDate());
+    workFlowEntity.setProjectId(workFlow.getProjectId());
+    return workFlowEntity;
   }
 
-  public static List<DemandeType> fromEntities(List<DemandeTypeEntity> demandeTypeEntities) {
-    if (CollectionUtils.isEmpty(demandeTypeEntities)) {
+  public static List<WorkFlow> fromEntities(List<WorkFlowEntity> workFlowEntities) {
+    if (CollectionUtils.isEmpty(workFlowEntities)) {
       return new ArrayList<>(Collections.emptyList());
     } else {
-      List<DemandeType> demandeTypes = demandeTypeEntities.stream()
-                                                          .map(demandeEntity -> fromEntity(demandeEntity))
+      List<WorkFlow> workFlows = workFlowEntities.stream()
+                                                          .map(workEntity -> fromEntity(workEntity))
                                                           .collect(Collectors.toList());
-      return demandeTypes;
+      return workFlows;
     }
   }
 
-  public static List<DemandeTypeEntity> fromDemandeTypes(List<DemandeType> demandeTypeList) {
-    if (CollectionUtils.isEmpty(demandeTypeList)) {
+  public static List<WorkFlowEntity> fromWorkFlows(List<WorkFlow> workFlowList) {
+    if (CollectionUtils.isEmpty(workFlowList)) {
       return new ArrayList<>(Collections.emptyList());
     } else {
-      List<DemandeTypeEntity> demandeTypeEntities = demandeTypeList.stream()
-                                                                   .map(demandeType -> toEntity(demandeType))
+      List<WorkFlowEntity> workFlowEntities = workFlowList.stream()
+                                                                   .map(workFlow -> toEntity(workFlow))
                                                                    .collect(Collectors.toList());
-      return demandeTypeEntities;
+      return workFlowEntities;
     }
   }
 
-  public static Demande tasktoDemande(TaskDto task) {
+  public static Work tasktoWork(TaskDto task) {
     if (task == null) {
       return null;
     }
-    return new Demande(task.getId(),
+    return new Work(task.getId(),
             task.getTitle(),
             task.getDescription(),
             task.getStatus().getName(),
@@ -100,14 +100,14 @@ public class EntityMapper {
             task.getStatus().getProject().getId());
   }
 
-  public static List<Demande> taskstoDemandeList(List<TaskDto> tasks) {
+  public static List<Work> taskstoWorkList(List<TaskDto> tasks) {
     if (CollectionUtils.isEmpty(tasks)) {
       return new ArrayList<>(Collections.emptyList());
     } else {
-      List<Demande> demandeList = tasks.stream()
-              .map(task -> tasktoDemande(task))
+      List<Work> workList = tasks.stream()
+              .map(task -> tasktoWork(task))
               .collect(Collectors.toList());
-      return demandeList;
+      return workList;
     }
   }
 

@@ -19,7 +19,7 @@
                xmlns="http://www.exoplatform.org/xml/ns/kernel_1_2.xsd">
 
     <component>
-        <type>org.exoplatform.processes.dao.DemandeTypeDAO</type>
+        <type>org.exoplatform.processes.dao.WorkFlowDAO</type>
     </component>
     <component>
         <key>org.exoplatform.processes.storage.ProcessesStorage</key>

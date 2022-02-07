@@ -20,8 +20,8 @@ import java.util.List;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.processes.Utils.EntityMapper;
-import org.exoplatform.processes.model.Demande;
-import org.exoplatform.processes.model.DemandeType;
+import org.exoplatform.processes.model.Work;
+import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.model.ProcessesFilter;
 import org.exoplatform.processes.storage.ProcessesStorage;
 import org.exoplatform.services.log.ExoLogger;
@@ -42,58 +42,58 @@ public class ProcessesServiceImpl implements ProcessesService {
   }
 
   @Override
-  public List<DemandeType> getDemandeTypes(ProcessesFilter filter,
+  public List<WorkFlow> getWorkFlows(ProcessesFilter filter,
                                            int offset,
                                            int limit,
                                            long userIdentityId) throws IllegalAccessException {
-    return processesStorage.findEnabledDemandeTypesByUser(filter, offset, limit, userIdentityId);
+    return processesStorage.findEnabledWorkFlowsByUser(filter, offset, limit, userIdentityId);
   }
 
   @Override
-  public DemandeType createDemandeType(DemandeType demandeType, long userId) throws IllegalAccessException {
-    if (demandeType == null) {
-      throw new IllegalArgumentException("demandeType is mandatory");
+  public WorkFlow createWorkFlow(WorkFlow workFlow, long userId) throws IllegalAccessException {
+    if (workFlow == null) {
+      throw new IllegalArgumentException("workFlow is mandatory");
     }
-    if (demandeType.getId() != 0) {
-      throw new IllegalArgumentException("demandeType id must be equal to 0");
+    if (workFlow.getId() != 0) {
+      throw new IllegalArgumentException("workFlow id must be equal to 0");
     }
 
     // TODO check permissions to create types
 
-    return processesStorage.saveDemandeType(demandeType, userId);
+    return processesStorage.saveWorkFlow(workFlow, userId);
   }
 
   @Override
-  public DemandeType updateDemandeType(DemandeType demandeType, long userId) throws IllegalArgumentException,
+  public WorkFlow updateWorkFlow(WorkFlow workFlow, long userId) throws IllegalArgumentException,
                                                                              ObjectNotFoundException,
                                                                              IllegalAccessException {
-    if (demandeType == null) {
-      throw new IllegalArgumentException("Demande Type is mandatory");
+    if (workFlow == null) {
+      throw new IllegalArgumentException("Work Type is mandatory");
     }
-    if (demandeType.getId() == 0) {
-      throw new IllegalArgumentException("demande type id must not be equal to 0");
+    if (workFlow.getId() == 0) {
+      throw new IllegalArgumentException("work type id must not be equal to 0");
     }
     // TODO check permissions to update types
 
-    DemandeType oldDemandeType = processesStorage.getDemandeTypeById(demandeType.getId());
-    if (oldDemandeType == null) {
-      throw new ObjectNotFoundException("oldDemandeType is not exist");
+    WorkFlow oldWorkFlow = processesStorage.getWorkFlowById(workFlow.getId());
+    if (oldWorkFlow == null) {
+      throw new ObjectNotFoundException("oldWorkFlow is not exist");
     }
-    if (oldDemandeType.equals(demandeType)) {
+    if (oldWorkFlow.equals(workFlow)) {
       throw new IllegalArgumentException("there are no changes to save");
     }
-    return processesStorage.saveDemandeType(demandeType, userId);
+    return processesStorage.saveWorkFlow(workFlow, userId);
   }
 
   @Override
-  public List<Demande> getDemandes (long userIdentityId, int offset, int limit) throws Exception {
+  public List<Work> getWorks (long userIdentityId, int offset, int limit) throws Exception {
 
-    return processesStorage.getDemandes(userIdentityId, offset, limit);
+    return processesStorage.getWorks(userIdentityId, offset, limit);
   }
 
   @Override
-  public DemandeType getDemandeTypeByProjectId(long projectId) {
-    return processesStorage.getDemandeTypeByProjectId(projectId);
+  public WorkFlow getWorkFlowByProjectId(long projectId) {
+    return processesStorage.getWorkFlowByProjectId(projectId);
   }
 
 
