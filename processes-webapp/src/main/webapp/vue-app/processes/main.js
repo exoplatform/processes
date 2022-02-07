@@ -1,13 +1,5 @@
 import './initComponents.js';
 
-
-import * as processesService from './js/ProcessesService.js';
-if (!Vue.prototype.$processesService) {
-  window.Object.defineProperty(Vue.prototype, '$processesService', {
-    value: processesService,
-  });
-}
-
 // get overridden components if exists
 if (extensionRegistry) {
   const components = extensionRegistry.loadComponents('Processes');

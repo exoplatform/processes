@@ -1,5 +1,5 @@
 #ProcessesApplication {
-  .request-card-actions {
+  .work-card-actions {
     width: 100%;
   }
 
@@ -10,24 +10,35 @@
     box-shadow: none;
   }
 
-  .request_bg_color {
+  .work-bg-color {
     background-color: aliceblue; /*e1e8ee6b*/
   }
 
-  .text-align-start{
+  .text-align-start {
     text-align: start !important;
   }
 
-  .text-align-end{
+  .text-align-end {
     text-align: end !important;
   }
 
-  .text-align-center{
+  .text-align-center {
     text-align: center !important;
   }
 
-  .line-panel-request{
+  .line-panel-work {
     flex: 1 !important;
+
+    margin-right: 30px ~'; /** orientation=lt */ ';
+    margin-right: 10px ~'; /** orientation=rt */ ';
+
+    margin-left: 10px ~'; /** orientation=lt */ ';
+    margin-left: 30px ~'; /** orientation=rt */ ';
+  }
+
+  .work-panel-content {
+    margin-right: 24px ~'; /** orientation=rt */ ';
+    margin-left: 24px ~'; /** orientation=lt */ ';
   }
 
   .v-expansion-panel-header > *:not(.v-expansion-panel-header__icon) {
@@ -36,5 +47,13 @@
 
   .v-expansion-panel-content__wrap{
     padding: 0px;
+  }
+
+  .clear-both {
+    clear: both;
+  }
+  .v-application textarea {
+    resize: none;
+    border: 1px solid #e1e8ee !important;
   }
 }

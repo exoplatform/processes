@@ -19,12 +19,12 @@
           mdi-clock
         </v-icon>
       </v-avatar>
-      {{ requestType.title }}
+      {{ workflow.title }}
     </v-card-title>
     <v-card-text
       class="text-center">
       <p class="text-truncate-4">
-        {{ requestType.description }}
+        {{ workflow.description }}
       </p>
       <v-chip
         class="ma-2 text-truncate"
@@ -35,14 +35,14 @@
     </v-card-text>
     <v-divider />
     <v-card-actions
-      class="d-inline-block request-card-actions">
+      class="d-inline-block work-card-actions">
       <v-btn
         class="float-right me-8"
         right
         plain
         depressed
         color="deep-grey lighten-3">
-        {{ $t('processes.requests.label.makeRequest') }}
+        {{ $t('processes.works.label.makeRequest') }}
       </v-btn>
     </v-card-actions>
   </v-card>
@@ -51,7 +51,7 @@
 <script>
 export default {
   props: {
-    requestType: {
+    workflow: {
       type: Object,
       default: function() {
         return {};
