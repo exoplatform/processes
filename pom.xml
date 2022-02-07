@@ -8,7 +8,7 @@
         <groupId>org.exoplatform.addons</groupId>
         <version>15-M03</version>
     </parent>
-    <groupId>org.exoplaform.processes</groupId>
+    <groupId>org.exoplatform.processes</groupId>
     <artifactId>processes-parent</artifactId>
     <version>1.0.x-SNAPSHOT</version>
     <packaging>pom</packaging>
