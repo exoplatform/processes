@@ -58,6 +58,16 @@ public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
     return resultList == null ? Collections.emptyList() : resultList;
   }
 
+  public List<WorkFlowEntity> findDisabledWorkFlows(int offset, int limit) {
+    TypedQuery<WorkFlowEntity> query = getEntityManager().createNamedQuery("WorkFlow.findDisabledWorkFlows",
+            WorkFlowEntity.class);
+    query.setFirstResult(offset);
+    if (limit > 0) {
+      query.setMaxResults(limit);
+    }
+    List<WorkFlowEntity> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList() : resultList;
+  }
 
   public WorkFlowEntity getWorkFlowByProjectId(long projectId) {
     TypedQuery<WorkFlowEntity> query = getEntityManager().createNamedQuery("WorkFlow.getWorkFlowByProjectId",

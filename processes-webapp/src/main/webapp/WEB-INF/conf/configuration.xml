@@ -3,6 +3,7 @@
                xmlns="http://www.exoplatform.org/xml/ns/kernel_1_3.xsd">
 
     <import>war:/conf/processes/portal-configuration.xml</import>
+    <import>war:/conf/processes/organization-configuration.xml</import>
     <import>war:/conf/processes/dynamic-container-configuration.xml</import>
     <import profiles="app-center">war:/conf/processes/app-center-configuration.xml</import>
 </configuration>

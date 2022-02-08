@@ -35,6 +35,14 @@
         <type>org.exoplatform.processes.rest.ProcessesRest</type>
     </component>
 
+    <external-component-plugins>
+        <target-component>org.exoplatform.services.organization.OrganizationService</target-component>
+        <component-plugin>
+            <name>processes.membership.event.listener</name>
+            <set-method>addListenerPlugin</set-method>
+            <type>org.exoplatform.processes.listener.ProcessesMemberShipListener</type>
+        </component-plugin>
+    </external-component-plugins>
 
     <external-component-plugins>
         <target-component>org.exoplatform.commons.api.persistence.DataInitializer</target-component>

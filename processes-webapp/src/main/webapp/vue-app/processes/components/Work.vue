@@ -1,13 +1,21 @@
 <template>
   <v-card outlined class="ml-6">
     <v-container class="pa-0 work-bg-color">
-      <v-row align="center pl-4 pr-4" cols="12">
+      <div
+        :style="'background-color:' + statusColor"
+        class="indicator position-absolute">
+      </div>
+      <v-row
+        align="center"
+        class="pl-4 pr-4"
+        cols="12">
         <v-col
           cols="6"
           class="pa-0 ma-0 text-align-start text-subtitle-2 font-weight-regular text-truncate"
           md="3"
           lg="2">
           <v-avatar
+            class="work-avatar"
             color="blue"
             size="30px">
             <v-icon dark>
@@ -40,14 +48,14 @@
           md="3"
           class="pa-0 ma-0 text-truncate grey--text"
           lg="2">
-          <span>Dernier commentaire {{ work.lastCommentDate }}</span>
+          <span>{{ $t('processes.myWorks.label.lastComment') }} {{ work.lastCommentDate }}</span>
         </v-col>
         <v-col
           cols="6"
           md="4"
           class="pa-0 ma-0 text-truncate text-caption"
           lg="3">
-          <span>{{ work.description }}</span>
+          <span v-sanitized-html="work.description"></span>
         </v-col>
         <v-col
           cols="4"

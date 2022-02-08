@@ -3,7 +3,7 @@ export function getWorkFlows(itemsFilter, offset, limit, expand) {
   if (itemsFilter) {
     Object.keys(itemsFilter).forEach(key => {
       const value = itemsFilter[key];
-      if (value) {
+      if (value != null) {
         formData.append(key, value);
       }
     });
@@ -77,6 +77,72 @@ export function addNewWorkFlow(workflow) {
       throw new Error('Error while adding a new workflow');
     } else {
       return resp.json();
+    }
+  });
+}
+
+export function addWork(work) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/works`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(work, (key, value) => {
+      if (value !== null) { return value; }
+    }),
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error while adding a new work');
+    } else {
+      return resp.json();
+    }
+  });
+}
+
+export function isProcessesManager() {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/permissions`, {
+    method: 'GET',
+    credentials: 'include',
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error while checking user permissions');
+    } else {
+      return resp.text();
+    }
+  });
+}
+
+export function deleteWorkflowById(workflowId) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workflow/${workflowId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error while deleting a workflow');
+    } else {
+      return resp.text();
+    }
+  });
+}
+
+export function updateWorkflow(workflow) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workflows`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(workflow, (key, value) => {
+      if (value !== null) {
+        return value;
+      }
+    }),
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error while deleting a workflow');
+    } else {
+      return resp.text();
     }
   });
 }
