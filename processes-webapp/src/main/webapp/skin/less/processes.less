@@ -11,7 +11,7 @@
   }
 
   .work-bg-color {
-    background-color: aliceblue; /*e1e8ee6b*/
+    background: #F4F6F9 0 0 no-repeat padding-box;
   }
 
   .text-align-start {
@@ -54,6 +54,30 @@
   }
   .v-application textarea {
     resize: none;
-    border: 1px solid #e1e8ee !important;
+  }
+
+  .work-avatar {
+    margin-left: 4px ~'; /** orientation=lt */ ';
+    margin-right: 4px ~'; /** orientation=rt */ ';
+  }
+
+  .indicator {
+    width: 3px;
+    height: 100%;
+  }
+
+  #addWorkDrawer {
+    .v-list-item__content > * {
+      flex: 0 1;
+    }
+
+    .work-detail {
+      min-height: 140px;
+    }
+
+    .work-title {
+      background: rgba(96, 147, 204, 0.67) 0 0 no-repeat padding-box;
+      border-radius: 19px;
+    }
   }
 }
