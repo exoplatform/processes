@@ -1,7 +1,6 @@
 <template>
   <v-card
-    class="ma-1"
-    max-width="400"
+    class="mt-2 mb-2 me-3"
     outlined>
     <v-btn
       outlined
@@ -9,6 +8,13 @@
       class="mb-0"
       icon>
       <v-icon>mdi-information-outline</v-icon>
+    </v-btn>
+    <v-btn
+      outlined
+      color="primary"
+      class="mb-0 float-right"
+      icon>
+      <v-icon>mdi-dots-vertical</v-icon>
     </v-btn>
     <v-card-title
       class="text-center d-block mt-0 text-truncate">
@@ -37,10 +43,11 @@
     <v-card-actions
       class="d-inline-block work-card-actions">
       <v-btn
-        class="float-right me-8"
+        class="float-right me-8 btn"
         right
         plain
         depressed
+        @click="open"
         color="deep-grey lighten-3">
         {{ $t('processes.works.label.makeRequest') }}
       </v-btn>
@@ -58,5 +65,10 @@ export default {
       },
     }
   },
+  methods: {
+    open() {
+      this.$root.$emit('open-add-work-drawer', {usedWorkflow: this.workflow, mode: 'create_work'});
+    }
+  }
 };
 </script>

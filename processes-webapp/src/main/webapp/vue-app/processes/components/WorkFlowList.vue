@@ -22,9 +22,9 @@
       <v-row no-gutters>
         <v-col
           xl="3"
-          lg="3"
-          md="3"
-          sm="4"
+          :lg="lg"
+          md="6"
+          cols="12"
           v-for="workflow in workflows"
           :key="workflow.id">
           <workflow-card-item
@@ -32,6 +32,7 @@
         </v-col>
       </v-row>
       <add-workflow-drawer ref="addWorkFlow" />
+      <add-work-drawer ref="addWork" />
     </v-container>
   </v-main>
 </template>
@@ -53,6 +54,16 @@ export default {
       type: Boolean,
       default: false
     }
+  },
+  computed: {
+    lg () {
+      return this.workflows.length >= 4 ? 3 : this.workflows.length === 3 ? 4 : 6 ;
+    }
+  },
+  created() {
+    this.$root.$on('open-add-work-drawer', event => {
+      this.$refs.addWork.open(event.usedWorkflow, event.mode);
+    });
   },
   methods: {
     open() {
