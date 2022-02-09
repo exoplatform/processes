@@ -140,6 +140,7 @@ public class ProcessesRest implements ResourceContainer {
   @ApiResponses(value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
       @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
       @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+      @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object to update not found"),
       @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
   public Response updateWorkFlow(@ApiParam(value = "WorkFlow object to update", required = true)
   WorkFlowEntity workFlowEntity) {
@@ -173,7 +174,6 @@ public class ProcessesRest implements ResourceContainer {
   @ApiOperation(value = "Retrieves the list of works for an authenticated user", httpMethod = "GET", response = Response.class, produces = "application/json")
   @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
           @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-          @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Not found"),
           @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
           @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
   public Response getWorks(@ApiParam(value = "Identity technical identifier", required = false)
