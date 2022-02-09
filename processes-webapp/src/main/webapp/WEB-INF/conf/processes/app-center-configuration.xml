@@ -59,7 +59,7 @@
                                     <string>*:/platform/administrators</string>
                                 </value>
                                 <value>
-                                    <string>*:/spaces/processes</string>
+                                    <string>*:/spaces/processes_space</string>
                                 </value>
                             </collection>
                         </field>
