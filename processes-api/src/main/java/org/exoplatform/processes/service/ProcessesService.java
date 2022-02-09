@@ -47,6 +47,8 @@ public interface ProcessesService {
                                     int limit,
                                     long userIdentityId) throws IllegalAccessException;
 
+  WorkFlow getWorkFlow(long id) throws IllegalAccessException;
+
   WorkFlow createWorkFlow(WorkFlow workFlow, long userId) throws IllegalAccessException;
 
   WorkFlow updateWorkFlow(WorkFlow workFlow,
@@ -55,4 +57,10 @@ public interface ProcessesService {
   List<Work> getWorks(long userIdentityId, int offset, int limit) throws Exception;
 
   WorkFlow getWorkFlowByProjectId(long projectId);
+
+  Work createWork(Work work, long userId) throws IllegalAccessException;
+
+  Work updateWork(Work work, long userId) throws IllegalArgumentException,
+            ObjectNotFoundException,
+            IllegalAccessException;
 }

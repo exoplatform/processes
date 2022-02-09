@@ -83,6 +83,20 @@ public class EntityMapper {
     }
   }
 
+  public static  TaskDto worktoTask (Work work) {
+    if (work == null) {
+      return null;
+    }
+    TaskDto newTask = new TaskDto();
+    newTask.setId(work.getId());
+    newTask.setTitle(work.getTitle());
+    newTask.setDescription(work.getDescription());
+    newTask.setCompleted(false);
+    newTask.setCreatedBy(work.getCreatedBy());
+    newTask.setCreatedTime(work.getCreatedTime());
+    return newTask;
+  }
+
   public static Work tasktoWork(TaskDto task) {
     if (task == null) {
       return null;

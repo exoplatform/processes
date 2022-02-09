@@ -245,6 +245,13 @@ export default {
       }
     };
   },
+
+  created(){
+    this.$root.$on('workflow-added', () => {
+      this.resetInputs();
+      this.close();
+    });
+  },
   computed: {
     currentForm() {
       return this.$refs && this.$refs[`form${this.stp}`];
@@ -276,17 +283,7 @@ export default {
       this.workflow.enabled = true;
     },
     addNewWorkFlow() {
-      this.saving = true;
-      this.$processesService.addNewWorkFlow(this.workflow).then(workflow => {
-        this.$root.$emit('workflow-added', workflow);
-        this.$root.$emit('show-alert', {type: 'success', message: this.$t('processes.workflow.add.success.message')});
-        this.resetInputs();
-        this.close();
-      }).catch(() => {
-        this.$root.$emit('show-alert', {type: 'error', message: this.$t('processes.workflow.add.error.message')});
-      }).finally(() => {
-        this.saving = false;
-      });
+      this.$root.$emit('add-workflow',this.workflow);
     }
   }
 };

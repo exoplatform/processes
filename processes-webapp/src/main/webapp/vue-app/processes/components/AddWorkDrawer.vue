@@ -18,7 +18,7 @@
                 mdi-clock
               </v-icon>
             </v-avatar>
-            <span class="white--text">{{ this.workflow.title }}</span>
+            <span class="white--text">{{ this.work.workFlow.title }}</span>
           </span>
         </div>
       </template>
@@ -33,7 +33,7 @@
               </v-label>
               <textarea
                 required
-                v-model="work.decsription"
+                v-model="work.description"
                 name="description"
                 rows="30"
                 maxlength="2000"
@@ -63,6 +63,8 @@
           {{ $t('processes.work.saveDraft.label') }}
         </v-btn>
         <v-btn
+          :loading="saving"
+          @click="addWork"
           class="btn btn-primary float-right">
           {{ $t('processes.work.sendWork.label') }}
         </v-btn>
@@ -78,20 +80,36 @@ export default {
     return {
       work: {
         description: '',
+        workFlow: {},
       },
-      workflow: {},
       viewMode: false
     };
   },
+  created(){
+    this.$root.$on('work-added', () => {
+      this.saving = false;
+      this.resetInputs();
+      this.close();
+    });
+  },
   methods: {
     open(workflow, mode) {
-      this.workflow = workflow;
+      this.work.workFlow = workflow;
       this.viewMode = mode !== 'create_work';
       this.$refs.work.open();
     },
     close() {
       this.$refs.work.close();
     },
+    resetInputs() {
+      this.work = {
+        description: '',
+        workFlow: {},
+      };
+    },
+    addWork() {
+      this.$root.$emit('add-work',this.work);
+    }
   }
 };
 </script>

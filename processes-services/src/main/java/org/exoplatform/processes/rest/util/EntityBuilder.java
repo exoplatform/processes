@@ -32,7 +32,6 @@ import org.exoplatform.processes.rest.model.WorkFlowEntity;
 import org.exoplatform.processes.service.ProcessesService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
-import org.exoplatform.task.dto.TaskDto;
 
 public class EntityBuilder {
   private static final Log LOG = ExoLogger.getExoLogger(EntityBuilder.class);
@@ -45,18 +44,18 @@ public class EntityBuilder {
       return null;
     }
     return new WorkFlow(workFlowEntity.getId(),
-                           workFlowEntity.getTitle(),
-                           workFlowEntity.getDescription(),
-                           workFlowEntity.getSummary(),
-                           workFlowEntity.getImage(),
-                           workFlowEntity.getHelpLink(),
-                           workFlowEntity.isEnabled(),
-                           workFlowEntity.getCreatorId(),
-                           workFlowEntity.getCreatedDate(),
-                           workFlowEntity.getModifierId(),
-                           workFlowEntity.getModifiedDate(),
-                           workFlowEntity.getProjectId(),
-                           null);
+                        workFlowEntity.getTitle(),
+                        workFlowEntity.getDescription(),
+                        workFlowEntity.getSummary(),
+                        workFlowEntity.getImage(),
+                        workFlowEntity.getHelpLink(),
+                        workFlowEntity.isEnabled(),
+                        workFlowEntity.getCreatorId(),
+                        workFlowEntity.getCreatedDate(),
+                        workFlowEntity.getModifierId(),
+                        workFlowEntity.getModifiedDate(),
+                        workFlowEntity.getProjectId(),
+                        null);
   }
 
   public static WorkFlowEntity toEntity(WorkFlow workFlow, String expand) {
@@ -68,27 +67,25 @@ public class EntityBuilder {
                                                               : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""), ","));
     // TODO: add expand properties
     return new WorkFlowEntity(workFlow.getId(),
-                                 workFlow.getTitle(),
-                                 workFlow.getDescription(),
-                                 workFlow.getSummary(),
-                                 workFlow.getImage(),
-                                 workFlow.getHelpLink(),
-                                 workFlow.isEnabled(),
-                                 workFlow.getCreatorId(),
-                                 workFlow.getCreatedDate(),
-                                 workFlow.getModifierId(),
-                                 workFlow.getModifiedDate(),
-                                 workFlow.getProjectId(),
-                                 null);
+                              workFlow.getTitle(),
+                              workFlow.getDescription(),
+                              workFlow.getSummary(),
+                              workFlow.getImage(),
+                              workFlow.getHelpLink(),
+                              workFlow.isEnabled(),
+                              workFlow.getCreatorId(),
+                              workFlow.getCreatedDate(),
+                              workFlow.getModifierId(),
+                              workFlow.getModifiedDate(),
+                              workFlow.getProjectId(),
+                              null);
   }
 
   public static List<WorkFlow> fromRestEntities(List<WorkFlowEntity> workFlowEntities) {
     if (CollectionUtils.isEmpty(workFlowEntities)) {
       return new ArrayList<>(Collections.emptyList());
     } else {
-      List<WorkFlow> workFlows = workFlowEntities.stream()
-                                                          .map(workEntity -> fromEntity(workEntity))
-                                                          .collect(Collectors.toList());
+      List<WorkFlow> workFlows = workFlowEntities.stream().map(workEntity -> fromEntity(workEntity)).collect(Collectors.toList());
       return workFlows;
     }
   }
@@ -98,10 +95,39 @@ public class EntityBuilder {
       return new ArrayList<>(Collections.emptyList());
     } else {
       List<WorkFlowEntity> workFlowEntities = workFlowList.stream()
-                                                                   .map(workFlow -> toEntity(workFlow, expand))
-                                                                   .collect(Collectors.toList());
+                                                          .map(workFlow -> toEntity(workFlow, expand))
+                                                          .collect(Collectors.toList());
       return workFlowEntities;
     }
+  }
+
+  public static Work toWork(ProcessesService processesService, WorkEntity workEntity) {
+    if (workEntity == null) {
+      return null;
+    }
+
+    Work work = new Work(workEntity.getId(),
+                         workEntity.getTitle(),
+                         workEntity.getDescription(),
+                         workEntity.getStatus(),
+                         workEntity.isCompleted(),
+                         workEntity.getCreatedBy(),
+                         workEntity.getCreatedTime(),
+                         null,
+                         null,
+                         null,
+                         workEntity.getProjectId());
+    if (workEntity.getWorkFlow() != null) {
+      try {
+        WorkFlow workFlow = processesService.getWorkFlow(workEntity.getWorkFlow().getId());
+        if (workFlow != null) {
+          work.setProjectId(workFlow.getProjectId());
+        }
+      } catch (IllegalAccessException e) {
+        LOG.warn("cannot get workFlow of work {}", work.getId());
+      }
+    }
+    return work;
   }
 
   public static WorkEntity toWorkEntity(ProcessesService processesService, Work work, String expand) {
@@ -109,37 +135,36 @@ public class EntityBuilder {
       return null;
     }
     List<String> expandProperties =
-            StringUtils.isBlank(expand) ? Collections.emptyList()
-                    : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""), ","));
+                                  StringUtils.isBlank(expand) ? Collections.emptyList()
+                                                              : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""), ","));
 
     WorkEntity workEntity = new WorkEntity(work.getId(),
-            work.getTitle(),
-            work.getDescription(),
-            work.getStatus(),
-            work.isCompleted(),
-            work.getCreatedBy(),
-            work.getCreatedTime(),
-            work.getProjectId());
+                                           work.getTitle(),
+                                           work.getDescription(),
+                                           work.getStatus(),
+                                           work.isCompleted(),
+                                           work.getCreatedBy(),
+                                           work.getCreatedTime(),
+                                           work.getProjectId());
     if (expandProperties.contains("comments")) {
       // TODO: Add comments
     }
 
     if (expandProperties.contains("workFlow")) {
-      workEntity.setWorkFlow(toEntity(processesService.getWorkFlowByProjectId(work.getProjectId()),""));
+      workEntity.setWorkFlow(toEntity(processesService.getWorkFlowByProjectId(work.getProjectId()), ""));
     }
     return workEntity;
   }
 
-  public static List<WorkEntity> toWorkEntityList(ProcessesService processesService,List<Work> works, String expand) {
+  public static List<WorkEntity> toWorkEntityList(ProcessesService processesService, List<Work> works, String expand) {
     if (CollectionUtils.isEmpty(works)) {
       return new ArrayList<>(Collections.emptyList());
     } else {
       List<WorkEntity> workEntityList = works.stream()
-              .map(work -> toWorkEntity(processesService, work,expand))
-              .collect(Collectors.toList());
+                                             .map(work -> toWorkEntity(processesService, work, expand))
+                                             .collect(Collectors.toList());
       return workEntityList;
     }
   }
-
 
 }

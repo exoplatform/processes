@@ -58,4 +58,8 @@ public interface ProcessesStorage {
   WorkFlow saveWorkFlow(WorkFlow workFlow, long userId) throws IllegalArgumentException;
 
   List<Work> getWorks(long userIdentityId, int offset, int limit) throws Exception;
+
+  Work getWorkById(long id);
+
+  Work saveWork(Work work, long userId) throws IllegalArgumentException;
 }
