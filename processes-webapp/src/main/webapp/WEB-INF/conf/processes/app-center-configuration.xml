@@ -50,6 +50,22 @@
                         <field name="url">
                             <string>./processes</string>
                         </field>
+                        <field name="permissions">
+                            <collection type="java.util.ArrayList" item-type="java.lang.String">
+                                <value>
+                                    <string>*:/platform/processes</string>
+                                </value>
+                                <value>
+                                    <string>*:/platform/administrators</string>
+                                </value>
+                                <value>
+                                    <string>*:/spaces/processes</string>
+                                </value>
+                            </collection>
+                        </field>
+                        <field name="system">
+                            <boolean>true</boolean>
+                        </field>
                         <field name="description">
                             <string>Processes application</string>
                         </field>
