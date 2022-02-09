@@ -81,3 +81,16 @@ export function addNewWorkFlow(workflow) {
   });
 }
 
+export function getProjects(keyword) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/projects/projects?q=${keyword}`, {
+    method: 'GET',
+    credentials: 'include',
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Response code indicates a server error', resp);
+    } else {
+      return resp.json();
+    }
+  });
+}
+
