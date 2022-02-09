@@ -16,8 +16,11 @@
  */
 package org.exoplatform.processes.service;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 
+import org.apache.commons.lang.StringUtils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.processes.Utils.EntityMapper;
 import org.exoplatform.processes.model.Work;
@@ -46,7 +49,12 @@ public class ProcessesServiceImpl implements ProcessesService {
                                            int offset,
                                            int limit,
                                            long userIdentityId) throws IllegalAccessException {
-    return processesStorage.findEnabledWorkFlowsByUser(filter, offset, limit, userIdentityId);
+    return processesStorage.findEnabledWorkFlows(offset, limit);
+  }
+
+  @Override
+  public WorkFlow getWorkFlow(long id) throws IllegalAccessException {
+    return processesStorage.getWorkFlowById(id);
   }
 
   @Override
@@ -94,6 +102,42 @@ public class ProcessesServiceImpl implements ProcessesService {
   @Override
   public WorkFlow getWorkFlowByProjectId(long projectId) {
     return processesStorage.getWorkFlowByProjectId(projectId);
+  }
+
+
+  @Override
+  public Work createWork(Work work, long userId) throws IllegalAccessException {
+    if (work == null) {
+      throw new IllegalArgumentException("work is mandatory");
+    }
+    if (work.getId() != 0) {
+      throw new IllegalArgumentException("work id must be equal to 0");
+    }
+
+    // TODO check permissions to create types
+    return processesStorage.saveWork(work, userId);
+  }
+
+  @Override
+  public Work updateWork(Work work, long userId) throws IllegalArgumentException,
+          ObjectNotFoundException,
+          IllegalAccessException {
+    if (work == null) {
+      throw new IllegalArgumentException("Work is mandatory");
+    }
+    if (work.getId() == 0) {
+      throw new IllegalArgumentException("work id must not be equal to 0");
+    }
+    // TODO check permissions to update types
+
+    Work oldWork = processesStorage.getWorkById(work.getId());
+    if (oldWork == null) {
+      throw new ObjectNotFoundException("oldWork is not exist");
+    }
+    if (oldWork.equals(work)) {
+      throw new IllegalArgumentException("there are no changes to save");
+    }
+    return processesStorage.saveWork(work, userId);
   }
 
 

@@ -81,3 +81,22 @@ export function addNewWorkFlow(workflow) {
   });
 }
 
+export function addWork(work) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/works`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(work, (key, value) => {
+      if (value !== null) { return value; }
+    }),
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error while adding a new work');
+    } else {
+      return resp.json();
+    }
+  });
+}
+

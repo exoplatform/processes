@@ -65,12 +65,21 @@ export default {
 
   created() {
     this.getWorkFlows();
-    this.refreshWorks();
+    this.getWorks();
     this.$root.$on('show-alert', alert => {
       this.displayMessage(alert);
     });
     this.$root.$on('workflow-added', workflow => {
       this.workflows.push(workflow);
+    });
+    this.$root.$on('add-work', work => {
+      this.addWork(work);
+    });
+    this.$root.$on('add-workflow', workflow => {
+      this.addNewWorkFlow(workflow);
+    });
+    this.$root.$on('refresh-works', () => {
+      this.getWorks();
     });
   },
   methods: {
@@ -90,7 +99,7 @@ export default {
         })
         .finally(() => this.loading = false);
     },
-    refreshWorks() {
+    getWorks() {
       const filter = {};
       if (this.query) {
         filter.query = this.query;
@@ -111,6 +120,30 @@ export default {
       this.alert = true;
       window.setTimeout(() => this.alert = false, 5000);
     },
+
+    
+    addNewWorkFlow(workflow) {
+      this.saving = true;
+      this.$processesService.addNewWorkFlow(workflow).then(workflow => {
+        if (workflow){
+          this.$root.$emit('workflow-added');
+          this.displayMessage({type: 'success', message: this.$t('processes.workflow.add.success.message')});
+        }
+      }).catch(() => {
+        this.displayMessage( {type: 'error', message: this.$t('processes.workflow.add.error.message')});
+      });
+    },
+
+    addWork(work) {
+      this.$processesService.addWork(work).then(work => {
+        if (work){
+          this.$root.$emit('work-added');
+          this.displayMessage({type: 'success', message: this.$t('processes.work.add.success.message')});
+        }
+      }).catch(() => {
+        this.displayMessage({type: 'error', message: this.$t('processes.work.add.error.message')});
+      });
+    }
   }
 };
 </script>
