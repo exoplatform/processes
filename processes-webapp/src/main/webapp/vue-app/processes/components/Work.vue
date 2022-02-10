@@ -55,7 +55,7 @@
           md="4"
           class="pa-0 ma-0 text-truncate text-caption"
           lg="3">
-          <span>{{ work.description }}</span>
+          <span v-sanitized-html="work.description"></span>
         </v-col>
         <v-col
           cols="4"

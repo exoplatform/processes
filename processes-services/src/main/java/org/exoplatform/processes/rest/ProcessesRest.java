@@ -36,6 +36,8 @@ import org.exoplatform.processes.service.ProcessesService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.rest.resource.ResourceContainer;
+import org.exoplatform.services.security.ConversationState;
+import org.exoplatform.services.security.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 
 import io.swagger.annotations.*;
@@ -68,6 +70,8 @@ public class ProcessesRest implements ResourceContainer {
   public Response getWorkFlows(@ApiParam(value = "Identity technical identifier", required = false)
   @QueryParam("userId")
   Long userId,
+                                  @ApiParam(value = "filter workflow by status", required = false)
+                                  @QueryParam("enabled") Boolean enabled,
                                   @ApiParam(value = "Search query entered by the user", required = false)
                                   @QueryParam("query")
                                   String query,
@@ -86,6 +90,9 @@ public class ProcessesRest implements ResourceContainer {
         return Response.status(Response.Status.UNAUTHORIZED).build();
       }
       ProcessesFilter filter = new ProcessesFilter();
+      if (enabled != null) {
+        filter.setEnabled(enabled);
+      }
       filter.setQuery(query);
       long userIdentityId = currentIdentityId;
       if (userId != null) {
@@ -272,6 +279,32 @@ public class ProcessesRest implements ResourceContainer {
       return Response.status(Response.Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error updating a work workFlow", e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
+  @GET
+  @Produces(MediaType.TEXT_PLAIN)
+  @RolesAllowed("users")
+  @Path("/permissions")
+  @ApiOperation(value = "checks is current user is a processes manager", httpMethod = "GET", response = Response.class, produces = "text/plain")
+  @ApiResponses(value = {@ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),})
+  public Response isProcessesManager() {
+
+    long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    if (currentIdentityId == 0) {
+      return Response.status(Response.Status.UNAUTHORIZED).build();
+    }
+    try {
+      Identity identity = ConversationState.getCurrent().getIdentity();
+      boolean isProcessesGroupMember;
+      isProcessesGroupMember = RestUtils.isProcessesGroupMember(identity);
+      return Response.ok(String.valueOf(isProcessesGroupMember)).type(MediaType.TEXT_PLAIN).build();
+    } catch (Exception e) {
+      LOG.warn("Error while checking user permissions", e);
       return Response.serverError().entity(e.getMessage()).build();
     }
   }

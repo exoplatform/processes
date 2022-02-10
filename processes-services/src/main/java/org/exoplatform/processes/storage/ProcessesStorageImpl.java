@@ -78,6 +78,11 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   }
 
   @Override
+  public List<WorkFlow> findDisabledWorkFlows(int offset, int limit) {
+    return EntityMapper.fromEntities(workFlowDAO.findDisabledWorkFlows(offset, limit));
+  }
+
+  @Override
   public WorkFlow getWorkFlowById(long id) {
     return EntityMapper.fromEntity(workFlowDAO.find(id));
   }

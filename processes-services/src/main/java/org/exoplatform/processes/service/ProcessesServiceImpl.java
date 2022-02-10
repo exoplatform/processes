@@ -49,7 +49,12 @@ public class ProcessesServiceImpl implements ProcessesService {
                                            int offset,
                                            int limit,
                                            long userIdentityId) throws IllegalAccessException {
-    return processesStorage.findEnabledWorkFlows(offset, limit);
+    if (filter.getEnabled() != null && filter.getEnabled()) {
+      return processesStorage.findEnabledWorkFlows(offset, limit);
+    } else if (filter.getEnabled() != null && !filter.getEnabled()) {
+      return processesStorage.findDisabledWorkFlows(offset, limit);
+    }
+    return processesStorage.findAllWorkFlows(offset, limit);
   }
 
   @Override
