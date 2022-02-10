@@ -3,7 +3,7 @@ export function getWorkFlows(itemsFilter, offset, limit, expand) {
   if (itemsFilter) {
     Object.keys(itemsFilter).forEach(key => {
       const value = itemsFilter[key];
-      if (value) {
+      if (value != null) {
         formData.append(key, value);
       }
     });
@@ -96,6 +96,19 @@ export function addWork(work) {
       throw new Error('Error while adding a new work');
     } else {
       return resp.json();
+    }
+  });
+}
+
+export function isProcessesManager() {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/permissions`, {
+    method: 'GET',
+    credentials: 'include',
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error while checking user permissions');
+    } else {
+      return resp.text();
     }
   });
 }

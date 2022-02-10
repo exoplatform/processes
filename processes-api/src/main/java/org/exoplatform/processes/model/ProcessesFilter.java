@@ -26,5 +26,6 @@ import lombok.NoArgsConstructor;
 public class ProcessesFilter {
 
   private String query;
+  private Boolean enabled;
 
 }

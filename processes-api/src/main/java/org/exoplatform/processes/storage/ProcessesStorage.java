@@ -51,6 +51,16 @@ public interface ProcessesStorage {
 
   List<WorkFlow> findEnabledWorkFlows(int offset, int limit);
 
+  /**
+   * Retrieves a list of disabled workflows, The returned results will be of type
+   * {@link WorkFlow} only.
+   *
+   * @param offset Offset of the result list
+   * @param limit Limit of the result list
+   * @return {@link List} of {@link WorkFlow}
+   */
+  List<WorkFlow> findDisabledWorkFlows(int offset, int limit);
+
   WorkFlow getWorkFlowById(long id);
 
   WorkFlow getWorkFlowByProjectId(long projectId);

@@ -25,6 +25,7 @@
         v-model="tab">
         <v-tab-item>
           <workflow-list
+            :is-processes-manager="isManager"
             :workflows="workflows"
             :has-more="hasMoreTypes"
             :loading="loading" />
@@ -55,22 +56,25 @@ export default {
       workflows: [],
       works: [],
       query: null,
+      enabled: true,
       pageSize: 10,
       offset: 0,
       limit: 0,
       loading: false,
       hasMoreTypes: false,
+      isManager: false
     };
   },
-
+  beforeCreate() {
+    this.$processesService.isProcessesManager().then(value => {
+      this.isManager = value;
+    });
+  },
   created() {
     this.getWorkFlows();
     this.getWorks();
     this.$root.$on('show-alert', alert => {
       this.displayMessage(alert);
-    });
-    this.$root.$on('workflow-added', workflow => {
-      this.workflows.push(workflow);
     });
     this.$root.$on('add-work', work => {
       this.addWork(work);
@@ -81,6 +85,10 @@ export default {
     this.$root.$on('refresh-works', () => {
       this.getWorks();
     });
+    this.$root.$on('workflow-filter-changed', value => {
+      this.enabled = value;
+      this.getWorkFlows();
+    });
   },
   methods: {
     getWorkFlows() {
@@ -88,6 +96,7 @@ export default {
       if (this.query) {
         filter.query = this.query;
       }
+      filter.enabled = this.enabled;
       const expand = '';
       this.limit = this.limit || this.pageSize;
       this.loading = true;
@@ -126,6 +135,7 @@ export default {
       this.saving = true;
       this.$processesService.addNewWorkFlow(workflow).then(workflow => {
         if (workflow){
+          this.workflows.push(workflow);
           this.$root.$emit('workflow-added');
           this.displayMessage({type: 'success', message: this.$t('processes.workflow.add.success.message')});
         }
