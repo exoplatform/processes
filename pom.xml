@@ -10,7 +10,7 @@
     </parent>
     <groupId>org.exoplatform.processes</groupId>
     <artifactId>processes-parent</artifactId>
-    <version>1.0.x-SNAPSHOT</version>
+    <version>1.0.x-maintenance-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>eXo Processes - Parent POM</name>
     <modules>
@@ -27,13 +27,13 @@
     </scm>
     <properties>
         <!-- 3rd party libraries versions -->
-        <addon.exo.ecms.version>6.3.x-SNAPSHOT</addon.exo.ecms.version>
-        <org.exoplatform.social.version>6.3.x-SNAPSHOT</org.exoplatform.social.version>
-        <org.exoplatform.platform-ui.version>6.3.x-SNAPSHOT</org.exoplatform.platform-ui.version>
-        <addon.exo.tasks.version>3.3.x-SNAPSHOT</addon.exo.tasks.version>
+        <addon.exo.ecms.version>6.3.x-maintenance-SNAPSHOT</addon.exo.ecms.version>
+        <org.exoplatform.social.version>6.3.x-maintenance-SNAPSHOT</org.exoplatform.social.version>
+        <org.exoplatform.platform-ui.version>6.3.x-maintenance-SNAPSHOT</org.exoplatform.platform-ui.version>
+        <addon.exo.tasks.version>3.3.x-maintenance-SNAPSHOT</addon.exo.tasks.version>
         
-        <!-- Sonar properties -->
-    <sonar.organization>exoplatform</sonar.organization>
+	<!-- Sonar properties -->
+    	<sonar.organization>exoplatform</sonar.organization>
     </properties>
     <dependencyManagement>
         <dependencies>
