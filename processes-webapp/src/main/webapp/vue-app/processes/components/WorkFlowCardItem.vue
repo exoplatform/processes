@@ -11,6 +11,8 @@
       <v-icon>mdi-information-outline</v-icon>
     </v-btn>
     <v-menu
+      v-model="showMenu"
+      transition="slide-x-reverse-transition"
       v-if="isProcessesManager"
       :ref="'menu' + workflow.id"
       :close-on-content-click="false"
@@ -29,11 +31,23 @@
         </v-btn>
       </template>
       <v-list>
-        <v-list-item>
-          <v-list-item-title>{{ $t('processes.workflow.edit.label') }}</v-list-item-title>
+        <v-list-item
+          @click="editWorkflow">
+          <v-list-item-title>
+            <v-icon class="work-menu-icon">
+              mdi-square-edit-outline
+            </v-icon>
+            <span>{{ $t('processes.workflow.edit.label') }}</span>
+          </v-list-item-title>
         </v-list-item>
-        <v-list-item>
-          <v-list-item-title>{{ $t('processes.workflow.delete.label') }}</v-list-item-title>
+        <v-list-item
+          @click="deleteWorkflow">
+          <v-list-item-title>
+            <v-icon class="work-menu-icon">
+              mdi-trash-can-outline
+            </v-icon>
+            <span>{{ $t('processes.workflow.delete.label') }}</span>
+          </v-list-item-title>
         </v-list-item>
       </v-list>
     </v-menu>
@@ -83,6 +97,11 @@
 
 <script>
 export default {
+  data () {
+    return {
+      showMenu: false,
+    };
+  },
   props: {
     workflow: {
       type: Object,
@@ -95,7 +114,22 @@ export default {
       default: false
     }
   },
+  created() {
+    $(document).on('mousedown', () => {
+      if (this.showMenu) {
+        window.setTimeout(() => {
+          this.showMenu = false;
+        }, 200);
+      }
+    });
+  },
   methods: {
+    editWorkflow() {
+      this.$root.$emit('open-workflow-drawer', {workflow: this.workflow, mode: 'edit_workflow'});
+    },
+    deleteWorkflow() {
+      this.$root.$emit('show-confirm-action', {model: this.workflow, reason: 'delete_workflow'});
+    },
     open() {
       this.$root.$emit('open-add-work-drawer', {usedWorkflow: this.workflow, mode: 'create_work'});
     }

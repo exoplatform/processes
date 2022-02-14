@@ -1,5 +1,6 @@
 <template>
-  <v-main>
+  <v-main
+    id="workflows">
     <v-container v-if="!loading">
       <v-row
         v-if="isProcessesManager"
@@ -114,6 +115,9 @@ export default {
   created() {
     this.$root.$on('open-add-work-drawer', event => {
       this.$refs.addWork.open(event.usedWorkflow, event.mode);
+    });
+    this.$root.$on('open-workflow-drawer', event => {
+      this.$refs.addWorkFlow.open(event.workflow, event.mode);
     });
   },
   methods: {

@@ -63,4 +63,10 @@ public interface ProcessesService {
   Work updateWork(Work work, long userId) throws IllegalArgumentException,
             ObjectNotFoundException,
             IllegalAccessException;
+  /**
+   * Delete a workflow by its given Id.
+   *
+   * @param workflowId : workflow id
+   */
+  void deleteWorkflowById(Long workflowId);
 }

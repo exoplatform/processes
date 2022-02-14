@@ -6,8 +6,11 @@
       allow-expand
       right>
       <template slot="title">
-        <span>
-          {{ $t('processes.works.label.creatRequestType') }}
+        <span v-if="!editMode">
+          {{ $t('processes.works.label.creatProcessType') }}
+        </span>
+        <span v-if="editMode">
+          {{ $t('processes.works.label.editProcessType') }}
         </span>
       </template>
       <template slot="content">
@@ -215,11 +218,20 @@
       </template>
       <template slot="footer">
         <v-btn
+          v-if="!editMode"
           :loading="saving"
           @click="addNewWorkFlow"
           class="btn btn-primary"
           color="primary">
           {{ $t('processes.works.form.label.save') }}
+        </v-btn>
+        <v-btn
+          v-if="editMode"
+          :loading="saving"
+          @click="updateWorkFlow"
+          class="btn btn-primary"
+          color="primary">
+          {{ $t('processes.workflow.label.update') }}
         </v-btn>
       </template>
     </exo-drawer>
@@ -242,12 +254,19 @@ export default {
         helpUrl: '',
         projectId: null,
         permissions: null,
+        editMode: false
       }
     };
   },
 
   created(){
     this.$root.$on('workflow-added', () => {
+      this.saving = false;
+      this.resetInputs();
+      this.close();
+    });
+    this.$root.$on('workflow-updated', () => {
+      this.saving = false;
       this.resetInputs();
       this.close();
     });
@@ -258,7 +277,14 @@ export default {
     },
   },
   methods: {
-    open() {
+    open(workflow, mode) {
+      if (workflow) {
+        this.workflow = Object.assign({}, workflow);
+        this.editMode = mode === 'edit_workflow';
+      } else {
+        this.resetInputs();
+        this.editMode = false;
+      }
       this.stp = 1;
       this.$refs.workFlow.open();
     },
@@ -284,6 +310,9 @@ export default {
     },
     addNewWorkFlow() {
       this.$root.$emit('add-workflow',this.workflow);
+    },
+    updateWorkFlow() {
+      this.$root.$emit('update-workflow',this.workflow);
     }
   }
 };
