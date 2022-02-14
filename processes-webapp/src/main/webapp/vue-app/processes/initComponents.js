@@ -5,6 +5,7 @@ import MyWorkList from './components/MyWorkList.vue';
 import Work from './components/Work.vue';
 import AddWorkFlowDrawer from './components/AddWorkFlowDrawer.vue';
 import AddWorkDrawer from './components/AddWorkDrawer.vue';
+import EmptyOrLoading from './components/EmptyOrLoading.vue';
 
 import * as processesService from './js/ProcessesService.js';
 
@@ -15,7 +16,8 @@ const components = {
   'my-work-list': MyWorkList,
   'work': Work,
   'add-workflow-drawer': AddWorkFlowDrawer,
-  'add-work-drawer': AddWorkDrawer
+  'add-work-drawer': AddWorkDrawer,
+  'empty-or-loading': EmptyOrLoading
 };
 
 for (const key in components) {

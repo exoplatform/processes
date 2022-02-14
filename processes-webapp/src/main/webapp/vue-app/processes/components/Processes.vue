@@ -67,7 +67,7 @@ export default {
   },
   beforeCreate() {
     this.$processesService.isProcessesManager().then(value => {
-      this.isManager = value;
+      this.isManager = value === 'true';
     });
   },
   created() {
@@ -135,7 +135,9 @@ export default {
       this.saving = true;
       this.$processesService.addNewWorkFlow(workflow).then(workflow => {
         if (workflow){
-          this.workflows.push(workflow);
+          if (workflow.enabled === this.enabled) {
+            this.workflows.unshift(workflow);
+          }
           this.$root.$emit('workflow-added');
           this.displayMessage({type: 'success', message: this.$t('processes.workflow.add.success.message')});
         }
