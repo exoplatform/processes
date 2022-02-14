@@ -1,8 +1,7 @@
 package org.exoplatform.processes.storage;
 
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
@@ -18,12 +17,19 @@ import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.core.space.model.Space;
+import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dao.TaskQuery;
+import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.StatusService;
 import org.exoplatform.task.service.TaskService;
+import org.exoplatform.task.util.ProjectUtil;
+import org.exoplatform.task.util.UserUtil;
+
+import javax.ws.rs.core.Response;
 
 public class ProcessesStorageImpl implements ProcessesStorage {
 
@@ -39,7 +45,11 @@ public class ProcessesStorageImpl implements ProcessesStorage {
 
   private final StatusService    statusService;
 
+  private final SpaceService    spaceService;
+
   private final String           DATE_FORMAT = "yyyy/MM/dd";
+
+  private static final String PROCESSES_SPACE_GROUP_ID      = "/spaces/processes_space";
 
   private final SimpleDateFormat formatter   = new SimpleDateFormat(DATE_FORMAT);
 
@@ -47,12 +57,14 @@ public class ProcessesStorageImpl implements ProcessesStorage {
                               TaskService taskService,
                               ProjectService projectService,
                               StatusService statusService,
-                              IdentityManager identityManager) {
+                              IdentityManager identityManager,
+                              SpaceService spaceService) {
     this.workFlowDAO = workFlowDAO;
     this.identityManager = identityManager;
     this.taskService = taskService;
     this.projectService = projectService;
     this.statusService = statusService;
+    this.spaceService = spaceService;
   }
 
   @Override
@@ -106,6 +118,10 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       workFlowEntity.setId(null);
       workFlowEntity.setCreatedDate(new Date());
       workFlowEntity.setCreatorId(userId);
+      if(workFlow.getProjectId() == 0){
+        long projectId = createProject(workFlow);
+        workFlowEntity.setProjectId(projectId);
+      }
       workFlowEntity = workFlowDAO.create(workFlowEntity);
     } else {
       workFlowEntity.setModifiedDate(new Date());
@@ -173,5 +189,19 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       taskDto = taskService.updateTask(taskDto);
       return EntityMapper.tasktoWork(taskDto);
     }
+  }
+  private long createProject(WorkFlow workFlow){
+    Space processSpace = spaceService.getSpaceByGroupId(PROCESSES_SPACE_GROUP_ID);
+    if(processSpace == null){
+      throw new IllegalArgumentException("Space of processes not exist");
+    }
+
+    List<String> memberships = UserUtil.getSpaceMemberships(processSpace.getGroupId());
+    Set<String> managers = new HashSet<String>(Arrays.asList(memberships.get(0)));
+    Set<String> participators = new HashSet<String>(Arrays.asList(memberships.get(1)));
+    ProjectDto project = ProjectUtil.newProjectInstanceDto(workFlow.getTitle(), workFlow.getDescription(), managers, participators);
+    project = projectService.createProject(project);
+    statusService.createInitialStatuses(project);
+    return  project.getId();
   }
 }

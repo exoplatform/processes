@@ -109,15 +109,15 @@
                 {{ $t('processes.works.form.label.illustrative') }}
                 <v-icon right>mdi-plus-thick</v-icon>
               </v-btn>
-              <v-btn
+              <!-- <v-btn
                 class="btn btn-primary"
                 color="primary"
                 @click="nextStep">
                 {{ $t('processes.works.form.label.continue') }}
-              </v-btn>
+              </v-btn> -->
             </form>
           </v-stepper-content>
-          <v-stepper-step
+          <!-- <v-stepper-step
             class="text-uppercase"
             :complete="stp > 2"
             step="2">
@@ -210,7 +210,7 @@
               </v-icon>
               {{ $t('processes.works.form.label.back') }}
             </v-btn>
-          </v-stepper-content>
+          </v-stepper-content> -->
         </v-stepper>
       </template>
       <template slot="footer">
