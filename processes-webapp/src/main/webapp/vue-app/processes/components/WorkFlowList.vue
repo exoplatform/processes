@@ -1,12 +1,5 @@
 <template>
   <v-main>
-    <v-container v-if="loading">
-      <v-row no-gutters>
-        <v-col cols="12">
-          <span>loading...</span>
-        </v-col>
-      </v-row>
-    </v-container>
     <v-container v-if="!loading">
       <v-row
         v-if="isProcessesManager"
@@ -28,7 +21,6 @@
         <v-col
           cols="6">
           <v-select
-            width="100px"
             ref="filter"
             class="workflow-filter pt-5"
             v-model="filter"
@@ -42,7 +34,9 @@
             outlined />
         </v-col>
       </v-row>
-      <v-row no-gutters>
+      <v-row
+        v-if="workflows.length>0"
+        no-gutters>
         <v-col
           xl="3"
           :lg="lg"
@@ -58,6 +52,25 @@
       <add-workflow-drawer ref="addWorkFlow" />
       <add-work-drawer ref="addWork" />
     </v-container>
+    <empty-or-loading
+      :loading="loading"
+      v-if="workflows.length === 0">
+      <template v-slot:loading>
+        <span>loading...</span>
+      </template>
+      <template v-slot:empty>
+        <div>
+          <v-img
+            width="280px"
+            height="273px"
+            src="/processes/images/noWorkflow.png" />
+          <p
+            class="mt-2">
+            {{ $t('processes.workflow.noProcess.label') }}
+          </p>
+        </div>
+      </template>
+    </empty-or-loading>
   </v-main>
 </template>
 
@@ -67,8 +80,8 @@ export default {
     return {
       filter: {label: this.$t('processes.works.form.label.enabled'), value: true},
       items: [
-        {label: this.$t('processes.works.form.label.enabled'), value: true },
-        {label: this.$t('processes.works.form.label.disabled'), value: false },
+        {label: this.$t('processes.workflow.activated.label'), value: true },
+        {label: this.$t('processes.workflow.deactivated.label'), value: false },
         {label: this.$t('processes.workflow.all.label'), value: null},
       ],
     };
