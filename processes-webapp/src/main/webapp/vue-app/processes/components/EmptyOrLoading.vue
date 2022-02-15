@@ -1,8 +1,8 @@
 <template>
-  <v-container>
+  <v-container align="center">
     <v-row no-gutters>
       <v-col
-        class="mt-12 mb-12"
+        class="mt-15 mb-12"
         cols="12"
         align="center"
         justify="center">

@@ -24,6 +24,8 @@ import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.model.ProcessesFilter;
 import org.exoplatform.social.core.identity.model.Identity;
 
+import javax.persistence.EntityNotFoundException;
+
 public interface ProcessesStorage {
 
   /**
@@ -72,4 +74,12 @@ public interface ProcessesStorage {
   Work getWorkById(long id);
 
   Work saveWork(Work work, long userId) throws IllegalArgumentException;
+
+  /**
+   * Delete a workflow by its given Id.
+   *
+   * @param workflowId : workflow id
+   */
+  void deleteWorkflowById(Long workflowId) throws EntityNotFoundException;
+
 }

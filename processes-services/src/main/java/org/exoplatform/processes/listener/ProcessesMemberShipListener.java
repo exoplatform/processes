@@ -29,6 +29,9 @@ public class ProcessesMemberShipListener extends MembershipEventListener {
   @Override
   public void postSave(Membership m, boolean isNew) throws Exception {
     Space space = spaceService.getSpaceByGroupId(PROCESSES_SPACE_GROUP_ID);
+    if (space == null) {
+      return;
+    }
     if (m.getGroupId().equals(PROCESSES_GROUP_ID) && !spaceService.isManager(space, m.getUserName())) {
       spaceService.setManager(space, m.getUserName(), true);
     }
@@ -43,6 +46,9 @@ public class ProcessesMemberShipListener extends MembershipEventListener {
   @Override
   public void postDelete(Membership m) throws Exception {
     Space space = spaceService.getSpaceByGroupId(PROCESSES_SPACE_GROUP_ID);
+    if (space == null) {
+      return;
+    }
     if (m.getGroupId().equals(PROCESSES_GROUP_ID) && spaceService.isManager(space, m.getUserName())) {
       spaceService.setManager(space, m.getUserName(), false);
     }

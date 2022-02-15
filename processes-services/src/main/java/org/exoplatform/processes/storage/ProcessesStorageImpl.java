@@ -29,7 +29,6 @@ import org.exoplatform.task.service.TaskService;
 import org.exoplatform.task.util.ProjectUtil;
 import org.exoplatform.task.util.UserUtil;
 
-import javax.ws.rs.core.Response;
 
 public class ProcessesStorageImpl implements ProcessesStorage {
 
@@ -190,9 +189,10 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       return EntityMapper.tasktoWork(taskDto);
     }
   }
-  private long createProject(WorkFlow workFlow){
+  
+  private long createProject(WorkFlow workFlow) {
     Space processSpace = spaceService.getSpaceByGroupId(PROCESSES_SPACE_GROUP_ID);
-    if(processSpace == null){
+    if (processSpace == null) {
       throw new IllegalArgumentException("Space of processes not exist");
     }
 
@@ -202,6 +202,23 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     ProjectDto project = ProjectUtil.newProjectInstanceDto(workFlow.getTitle(), workFlow.getDescription(), managers, participators);
     project = projectService.createProject(project);
     statusService.createInitialStatuses(project);
-    return  project.getId();
+    return project.getId();
+  }
+
+  @Override
+  public void deleteWorkflowById(Long workflowId) throws javax.persistence.EntityNotFoundException {
+    WorkFlowEntity workFlowEntity = this.workFlowDAO.find(workflowId);
+    if (workFlowEntity == null) {
+      throw new javax.persistence.EntityNotFoundException("Workflow not found");
+    }
+    try {
+      ProjectDto project = projectService.getProject(workFlowEntity.getProjectId());
+      if (project != null) {
+        projectService.removeProject(project.getId(), true);
+      }
+    } catch (EntityNotFoundException e) {
+      LOG.error("Error while getting workflow project", e);
+    }
+    this.workFlowDAO.delete(workFlowEntity);
   }
 }

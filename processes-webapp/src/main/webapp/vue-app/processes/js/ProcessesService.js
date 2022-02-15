@@ -113,3 +113,37 @@ export function isProcessesManager() {
   });
 }
 
+export function deleteWorkflowById(workflowId) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workflow/${workflowId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error while deleting a workflow');
+    } else {
+      return resp.text();
+    }
+  });
+}
+
+export function updateWorkflow(workflow) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workflows`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(workflow, (key, value) => {
+      if (value !== null) {
+        return value;
+      }
+    }),
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error while deleting a workflow');
+    } else {
+      return resp.text();
+    }
+  });
+}
+

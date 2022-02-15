@@ -167,6 +167,14 @@ public class ProcessesServiceImpl implements ProcessesService, Startable {
     return processesStorage.saveWork(work, userId);
   }
 
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void deleteWorkflowById(Long workflowId) {
+    this.processesStorage.deleteWorkflowById(workflowId);
+  }
+
   @Override
   public void start() {
     LOG.info("Processes Service start and default space initialize...");
@@ -211,7 +219,7 @@ public class ProcessesServiceImpl implements ProcessesService, Startable {
         spaceService.updateSpace(existSpace);
       }
     } catch (Exception e) {
-      LOG.error("Error while initializing Processes app default space");
+      LOG.error("Error while creating Processes app default space", e);
     } finally {
       RequestLifeCycle.end();
       LOG.info("Processes Service started!");

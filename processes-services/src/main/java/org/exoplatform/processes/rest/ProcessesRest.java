@@ -19,6 +19,7 @@ package org.exoplatform.processes.rest;
 import java.util.List;
 
 import javax.annotation.security.RolesAllowed;
+import javax.persistence.EntityNotFoundException;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -206,7 +207,7 @@ public class ProcessesRest implements ResourceContainer {
         userIdentityId = userId;
       }
       List<Work> workFlows = processesService.getWorks(userIdentityId, offset, limit);
-      return Response.ok(EntityBuilder.toWorkEntityList(processesService, workFlows,expand)).build();
+      return Response.ok(EntityBuilder.toWorkEntityList(processesService, workFlows, expand)).build();
     } catch (Exception e) {
       LOG.warn("Error retrieving list of workFlows", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -300,12 +301,43 @@ public class ProcessesRest implements ResourceContainer {
     }
     try {
       Identity identity = ConversationState.getCurrent().getIdentity();
-      boolean isProcessesGroupMember;
-      isProcessesGroupMember = RestUtils.isProcessesGroupMember(identity);
+      boolean isProcessesGroupMember = RestUtils.isProcessesGroupMember(identity);
       return Response.ok(String.valueOf(isProcessesGroupMember)).type(MediaType.TEXT_PLAIN).build();
     } catch (Exception e) {
       LOG.warn("Error while checking user permissions", e);
       return Response.serverError().entity(e.getMessage()).build();
     }
   }
+
+  @DELETE
+  @Produces(MediaType.TEXT_PLAIN)
+  @RolesAllowed("processes")
+  @Path("/workflow/{workflowId}")
+  @ApiOperation(value = "delete a workflow by its id", httpMethod = "DELETE", response = Response.class, produces = "text/plain")
+  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
+  public Response deleteWorkflow(@ApiParam(value = "Workflow id to delete", required = true)
+                                 @PathParam("workflowId") Long workflowId) {
+    if (workflowId == null) {
+      return Response.status(Response.Status.BAD_REQUEST).entity("Workflow id is mandatory").build();
+    }
+    long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    Identity identity = ConversationState.getCurrent().getIdentity();
+    if (currentIdentityId == 0 || !RestUtils.isProcessesGroupMember(identity)) {
+      return Response.status(Response.Status.UNAUTHORIZED).build();
+    }
+    try {
+      this.processesService.deleteWorkflowById(workflowId);
+      return Response.ok("ok").type(MediaType.TEXT_PLAIN).build();
+    } catch (EntityNotFoundException e) {
+      return Response.status(Response.Status.NOT_FOUND).build();
+    } catch (Exception e) {
+      LOG.warn("Error while deleting a workflow", e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
 }
