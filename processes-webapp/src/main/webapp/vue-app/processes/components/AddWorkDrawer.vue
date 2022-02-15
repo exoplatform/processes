@@ -27,21 +27,25 @@
           <p class="font-weight-regular grey--text darken-1 font-italic">{{ $t('processes.work.add.info.message') }}</p>
           <v-divider />
           <div class="mt-5 mb-8">
-            <form ref="form">
+            <v-form
+              v-model="valid"
+              ref="form"
+              id="add-work-form">
               <v-label for="description">
                 {{ $t('processes.works.form.label.workDetail') }}
               </v-label>
-              <textarea
-                required
+              <v-textarea
+                :rules="[rules.maxLength(maxLength)]"
                 v-model="work.description"
                 name="description"
+                outlined
+                auto-grow
                 rows="30"
-                maxlength="2000"
-                noresize
-                class="input-block-level ignore-vuetify-classes my-3 work-detail"
-                :placeholder="$t('processes.works.form.placeholder.workDetail')">
-            </textarea>
-            </form>
+                :counter="maxLength"
+                row-height="15"
+                class="work-detail"
+                :placeholder="$t('processes.works.form.placeholder.workDetail')" />
+            </v-form>
           </div>
           <v-divider />
           <div class="mt-8">
@@ -65,6 +69,7 @@
         <v-btn
           :loading="saving"
           @click="addWork"
+          :disabled="!valid"
           class="btn btn-primary float-right">
           {{ $t('processes.work.sendWork.label') }}
         </v-btn>
@@ -82,7 +87,12 @@ export default {
         description: '',
         workFlow: {},
       },
-      viewMode: false
+      viewMode: false,
+      maxLength: 1350,
+      valid: false,
+      rules: {
+        maxLength: len => v => (v || '').length <= len || this.$t('processes.work.form.description.maxLength.message', {0: len}),
+      },
     };
   },
   created(){
