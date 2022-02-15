@@ -1,5 +1,6 @@
 package org.exoplatform.processes.service;
 
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.processes.model.ProcessesFilter;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.storage.ProcessesStorage;
@@ -15,6 +16,7 @@ import java.util.List;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
+import static org.powermock.api.mockito.PowerMockito.when;
 
 @RunWith(PowerMockRunner.class)
 public class ProcessesServiceImplTest {
@@ -75,5 +77,39 @@ public class ProcessesServiceImplTest {
     assertEquals(1, disabledResult.size());
     assertFalse(disabledResult.get(0).isEnabled());
 
+  }
+
+  @Test
+  public void updateWorkflow() throws ObjectNotFoundException, IllegalAccessException {
+    WorkFlow workFlow = new WorkFlow();
+    WorkFlow updatedWorkflow = new WorkFlow();
+    updatedWorkflow.setId(1L);
+    updatedWorkflow.setDescription("anything");
+    workFlow.setId(0L);
+    Throwable exception1 = assertThrows(IllegalArgumentException.class,
+            () -> this.processesService.updateWorkFlow(null, 1l));
+    assertEquals("Workflow Type is mandatory", exception1.getMessage());
+    verify(processesStorage, times(0)).getWorkById(1L);
+
+    Throwable exception2 = assertThrows(IllegalArgumentException.class,
+            () -> this.processesService.updateWorkFlow(workFlow, 1l));
+    assertEquals("workflow type id must not be equal to 0", exception2.getMessage());
+    verify(processesStorage, times(0)).getWorkById(1L);
+
+    workFlow.setId(1L);
+    when(processesStorage.getWorkFlowById(workFlow.getId())).thenReturn(null);
+    Throwable exception3 = assertThrows(ObjectNotFoundException.class,
+            () -> this.processesService.updateWorkFlow(workFlow, 1l));
+    assertEquals("oldWorkFlow is not exist", exception3.getMessage());
+
+    when(processesStorage.getWorkFlowById(workFlow.getId())).thenReturn(workFlow);
+    Throwable exception4 = assertThrows(IllegalArgumentException.class,
+            () -> this.processesService.updateWorkFlow(workFlow, 1l));
+    assertEquals("there are no changes to save", exception4.getMessage());
+
+
+    when(processesStorage.getWorkFlowById(workFlow.getId())).thenReturn(updatedWorkflow);
+    this.processesService.updateWorkFlow(workFlow, 1l);
+    verify(processesStorage, times(1)).saveWorkFlow(workFlow, 1L);
   }
 }

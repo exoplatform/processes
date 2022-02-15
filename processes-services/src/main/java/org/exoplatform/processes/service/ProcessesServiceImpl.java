@@ -103,10 +103,10 @@ public class ProcessesServiceImpl implements ProcessesService, Startable {
                                                                              ObjectNotFoundException,
                                                                              IllegalAccessException {
     if (workFlow == null) {
-      throw new IllegalArgumentException("Work Type is mandatory");
+      throw new IllegalArgumentException("Workflow Type is mandatory");
     }
     if (workFlow.getId() == 0) {
-      throw new IllegalArgumentException("work type id must not be equal to 0");
+      throw new IllegalArgumentException("workflow type id must not be equal to 0");
     }
     // TODO check permissions to update types
 
