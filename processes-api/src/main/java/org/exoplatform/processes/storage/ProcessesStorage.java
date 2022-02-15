@@ -24,6 +24,8 @@ import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.model.ProcessesFilter;
 import org.exoplatform.social.core.identity.model.Identity;
 
+import javax.persistence.EntityNotFoundException;
+
 public interface ProcessesStorage {
 
   /**
@@ -51,6 +53,16 @@ public interface ProcessesStorage {
 
   List<WorkFlow> findEnabledWorkFlows(int offset, int limit);
 
+  /**
+   * Retrieves a list of disabled workflows, The returned results will be of type
+   * {@link WorkFlow} only.
+   *
+   * @param offset Offset of the result list
+   * @param limit Limit of the result list
+   * @return {@link List} of {@link WorkFlow}
+   */
+  List<WorkFlow> findDisabledWorkFlows(int offset, int limit);
+
   WorkFlow getWorkFlowById(long id);
 
   WorkFlow getWorkFlowByProjectId(long projectId);
@@ -58,4 +70,16 @@ public interface ProcessesStorage {
   WorkFlow saveWorkFlow(WorkFlow workFlow, long userId) throws IllegalArgumentException;
 
   List<Work> getWorks(long userIdentityId, int offset, int limit) throws Exception;
+
+  Work getWorkById(long id);
+
+  Work saveWork(Work work, long userId) throws IllegalArgumentException;
+
+  /**
+   * Delete a workflow by its given Id.
+   *
+   * @param workflowId : workflow id
+   */
+  void deleteWorkflowById(Long workflowId) throws EntityNotFoundException;
+
 }

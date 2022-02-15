@@ -22,6 +22,8 @@ import org.exoplatform.social.core.manager.IdentityManager;
 
 public class RestUtils {
 
+  private static final String PROCESSES_GROUP =  "/platform/processes";
+
   private RestUtils() {
   }
 
@@ -38,5 +40,9 @@ public class RestUtils {
     String currentUser = getCurrentUser();
     Identity identity = identityManager.getOrCreateUserIdentity(currentUser);
     return identity == null ? 0 : Long.parseLong(identity.getId());
+  }
+
+  public static boolean isProcessesGroupMember(org.exoplatform.services.security.Identity identity) {
+    return identity != null && identity.isMemberOf(PROCESSES_GROUP);
   }
 }

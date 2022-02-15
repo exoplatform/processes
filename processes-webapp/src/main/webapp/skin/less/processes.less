@@ -11,7 +11,7 @@
   }
 
   .work-bg-color {
-    background-color: aliceblue; /*e1e8ee6b*/
+    background: #F4F6F9 0 0 no-repeat padding-box;
   }
 
   .text-align-start {
@@ -54,6 +54,68 @@
   }
   .v-application textarea {
     resize: none;
-    border: 1px solid #e1e8ee !important;
+  }
+
+  .work-avatar {
+    margin-left: 10px ~'; /** orientation=lt */ ';
+    margin-right: 10px ~'; /** orientation=rt */ ';
+  }
+
+  .card-footer-btn {
+    bottom: 0;
+    right: 0;
+    position: absolute;
+  }
+
+  .card-content {
+    height: 144px
+  }
+
+  .workflow-card-desc {
+    min-height: 88px;
+  }
+
+  .workflow-filter {
+    width: 100px;
+    margin-right: 50px;
+    position: absolute;
+    right: 0;
+    top: 0;
+
+    .v-input__control {
+      height: 20px;
+    }
+  }
+
+  .indicator {
+    width: 3px;
+    height: 100%;
+  }
+
+  #addWorkDrawer {
+    .v-list-item__content > * {
+      flex: 0 1;
+    }
+
+    .work-detail {
+      min-height: 140px;
+    }
+
+    .work-title {
+      background: rgba(96, 147, 204, 0.67) 0 0 no-repeat padding-box;
+      border-radius: 19px;
+    }
+  }
+
+  #myWorks {
+    min-height: 600px;
+  }
+
+  #workflows {
+    min-height: 600px;
+
+    .work-menu-icon {
+      margin-bottom: 5px;
+    }
   }
 }

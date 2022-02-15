@@ -6,8 +6,11 @@
       allow-expand
       right>
       <template slot="title">
-        <span>
-          {{ $t('processes.works.label.creatRequestType') }}
+        <span v-if="!editMode">
+          {{ $t('processes.works.label.creatProcessType') }}
+        </span>
+        <span v-if="editMode">
+          {{ $t('processes.works.label.editProcessType') }}
         </span>
       </template>
       <template slot="content">
@@ -109,15 +112,15 @@
                 {{ $t('processes.works.form.label.illustrative') }}
                 <v-icon right>mdi-plus-thick</v-icon>
               </v-btn>
-              <v-btn
+              <!-- <v-btn
                 class="btn btn-primary"
                 color="primary"
                 @click="nextStep">
                 {{ $t('processes.works.form.label.continue') }}
-              </v-btn>
+              </v-btn> -->
             </form>
           </v-stepper-content>
-          <v-stepper-step
+          <!-- <v-stepper-step
             class="text-uppercase"
             :complete="stp > 2"
             step="2">
@@ -210,16 +213,25 @@
               </v-icon>
               {{ $t('processes.works.form.label.back') }}
             </v-btn>
-          </v-stepper-content>
+          </v-stepper-content> -->
         </v-stepper>
       </template>
       <template slot="footer">
         <v-btn
+          v-if="!editMode"
           :loading="saving"
           @click="addNewWorkFlow"
           class="btn btn-primary"
           color="primary">
           {{ $t('processes.works.form.label.save') }}
+        </v-btn>
+        <v-btn
+          v-if="editMode"
+          :loading="saving"
+          @click="updateWorkFlow"
+          class="btn btn-primary"
+          color="primary">
+          {{ $t('processes.workflow.label.update') }}
         </v-btn>
       </template>
     </exo-drawer>
@@ -242,8 +254,22 @@ export default {
         helpUrl: '',
         projectId: null,
         permissions: null,
+        editMode: false
       }
     };
+  },
+
+  created(){
+    this.$root.$on('workflow-added', () => {
+      this.saving = false;
+      this.resetInputs();
+      this.close();
+    });
+    this.$root.$on('workflow-updated', () => {
+      this.saving = false;
+      this.resetInputs();
+      this.close();
+    });
   },
   computed: {
     currentForm() {
@@ -251,7 +277,14 @@ export default {
     },
   },
   methods: {
-    open() {
+    open(workflow, mode) {
+      if (workflow) {
+        this.workflow = Object.assign({}, workflow);
+        this.editMode = mode === 'edit_workflow';
+      } else {
+        this.resetInputs();
+        this.editMode = false;
+      }
       this.stp = 1;
       this.$refs.workFlow.open();
     },
@@ -276,17 +309,10 @@ export default {
       this.workflow.enabled = true;
     },
     addNewWorkFlow() {
-      this.saving = true;
-      this.$processesService.addNewWorkFlow(this.workflow).then(workflow => {
-        this.$root.$emit('workflow-added', workflow);
-        this.$root.$emit('show-alert', {type: 'success', message: this.$t('processes.workflow.add.success.message')});
-        this.resetInputs();
-        this.close();
-      }).catch(() => {
-        this.$root.$emit('show-alert', {type: 'error', message: this.$t('processes.workflow.add.error.message')});
-      }).finally(() => {
-        this.saving = false;
-      });
+      this.$root.$emit('add-workflow',this.workflow);
+    },
+    updateWorkFlow() {
+      this.$root.$emit('update-workflow',this.workflow);
     }
   }
 };

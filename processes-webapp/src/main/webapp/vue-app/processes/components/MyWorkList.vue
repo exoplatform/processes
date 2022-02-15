@@ -1,6 +1,27 @@
 <template>
-  <div id="myWorks">
+  <div
+    id="myWorks">
+    <empty-or-loading
+      :loading="loading"
+      v-if="works.length === 0">
+      <template v-slot:loading>
+        <span>loading...</span>
+      </template>
+      <template v-slot:empty>
+        <div>
+          <v-img
+            width="280px"
+            height="273px"
+            src="/processes/images/noRequest.png" />
+          <p
+            class="mt-2">
+            {{ $t('processes.work.noRequest.label') }}
+          </p>
+        </div>
+      </template>
+    </empty-or-loading>
     <v-expansion-panels
+      v-if="works.length>0"
       v-model="panel"
       multiple>
       <v-expansion-panel
@@ -40,6 +61,10 @@ export default {
     works: {
       type: Array,
       default: null,
+    },
+    loading: {
+      type: Boolean,
+      default: false
     },
   },
 

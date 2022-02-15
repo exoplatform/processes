@@ -1,43 +1,92 @@
 <template>
-  <v-main>
-    <v-container v-if="loading">
-      <v-row no-gutters>
-        <v-col cols="12">
-          <span>loading...</span>
-        </v-col>
-      </v-row>
-    </v-container>
+  <v-main
+    id="workflows">
     <v-container v-if="!loading">
-      <v-row no-gutters>
-        <v-col cols="12">
+      <v-row
+        v-if="isProcessesManager"
+        no-gutters>
+        <v-col cols="6">
           <v-btn
             class="ml-1 mt-2 mb-4 btn-primary btn"
             dark
             @click="open"
             color="primary">
+            <v-icon
+              left
+              dark>
+              mdi-plus-thick
+            </v-icon>
             {{ $t('processes.works.label.addRequestType') }}
           </v-btn>
         </v-col>
+        <v-col
+          cols="6">
+          <v-select
+            ref="filter"
+            class="workflow-filter pt-5"
+            v-model="filter"
+            :items="items"
+            item-text="label"
+            item-value="value"
+            return-object
+            @blur="$refs.filter.blur();"
+            @change="updateFilter"
+            dense
+            outlined />
+        </v-col>
       </v-row>
-      <v-row no-gutters>
+      <v-row
+        v-if="workflows.length>0"
+        no-gutters>
         <v-col
           xl="3"
-          lg="3"
-          md="3"
-          sm="4"
+          :lg="lg"
+          md="6"
+          cols="12"
           v-for="workflow in workflows"
           :key="workflow.id">
           <workflow-card-item
+            :is-processes-manager="isProcessesManager"
             :workflow="workflow" />
         </v-col>
       </v-row>
       <add-workflow-drawer ref="addWorkFlow" />
+      <add-work-drawer ref="addWork" />
     </v-container>
+    <empty-or-loading
+      :loading="loading"
+      v-if="workflows.length === 0">
+      <template v-slot:loading>
+        <span>loading...</span>
+      </template>
+      <template v-slot:empty>
+        <div>
+          <v-img
+            width="280px"
+            height="273px"
+            src="/processes/images/noWorkflow.png" />
+          <p
+            class="mt-2">
+            {{ $t('processes.workflow.noProcess.label') }}
+          </p>
+        </div>
+      </template>
+    </empty-or-loading>
   </v-main>
 </template>
 
 <script>
 export default {
+  data () {
+    return {
+      filter: {label: this.$t('processes.works.form.label.enabled'), value: true},
+      items: [
+        {label: this.$t('processes.workflow.activated.label'), value: true },
+        {label: this.$t('processes.workflow.deactivated.label'), value: false },
+        {label: this.$t('processes.workflow.all.label'), value: null},
+      ],
+    };
+  },
   props: {
     workflows: {
       type: Object,
@@ -52,11 +101,31 @@ export default {
     loading: {
       type: Boolean,
       default: false
+    },
+    isProcessesManager: {
+      type: Boolean,
+      default: false
     }
+  },
+  computed: {
+    lg () {
+      return this.workflows.length >= 4 ? 3 : this.workflows.length === 3 ? 4 : 6 ;
+    }
+  },
+  created() {
+    this.$root.$on('open-add-work-drawer', event => {
+      this.$refs.addWork.open(event.usedWorkflow, event.mode);
+    });
+    this.$root.$on('open-workflow-drawer', event => {
+      this.$refs.addWorkFlow.open(event.workflow, event.mode);
+    });
   },
   methods: {
     open() {
       this.$refs.addWorkFlow.open();
+    },
+    updateFilter() {
+      this.$root.$emit('workflow-filter-changed', this.filter.value);
     }
   }
 };

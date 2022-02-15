@@ -25,6 +25,7 @@
         v-model="tab">
         <v-tab-item>
           <workflow-list
+            :is-processes-manager="isManager"
             :workflows="workflows"
             :has-more="hasMoreTypes"
             :loading="loading" />
@@ -41,10 +42,19 @@
       dismissible>
       {{ message }}
     </v-alert>
+    <exo-confirm-dialog
+      ref="confirmDialog"
+      :title="confirmTitle"
+      :message="confirmMessage"
+      :ok-label="$t('processes.workflow.delete.label')"
+      :cancel-label="$t('processes.workflow.cancel.label')"
+      @ok="confirmAction"
+      @dialog-closed="onDialogClosed" />
   </v-app>
 </template>
 
 <script>
+
 export default {
   data () {
     return {
@@ -55,22 +65,48 @@ export default {
       workflows: [],
       works: [],
       query: null,
+      enabled: true,
       pageSize: 10,
       offset: 0,
       limit: 0,
       loading: false,
       hasMoreTypes: false,
+      isManager: false,
+      confirmTitle: this.$t('processes.workflow.action.confirmation.label'),
+      confirmMessage: '',
+      dialogAction: null,
+      targetModel: null
     };
   },
-
+  beforeCreate() {
+    this.$processesService.isProcessesManager().then(value => {
+      this.isManager = value === 'true';
+    });
+  },
   created() {
     this.getWorkFlows();
-    this.refreshWorks();
+    this.getWorks();
     this.$root.$on('show-alert', alert => {
       this.displayMessage(alert);
     });
-    this.$root.$on('workflow-added', workflow => {
-      this.workflows.push(workflow);
+    this.$root.$on('add-work', work => {
+      this.addWork(work);
+    });
+    this.$root.$on('add-workflow', workflow => {
+      this.addNewWorkFlow(workflow);
+    });
+    this.$root.$on('update-workflow', workflow => {
+      this.updateWorkFlow(workflow);
+    });
+    this.$root.$on('refresh-works', () => {
+      this.getWorks();
+    });
+    this.$root.$on('workflow-filter-changed', value => {
+      this.enabled = value;
+      this.getWorkFlows();
+    });
+    this.$root.$on('show-confirm-action', event => {
+      this.showConfirmDialog(event.model, event.reason);
     });
   },
   methods: {
@@ -79,6 +115,7 @@ export default {
       if (this.query) {
         filter.query = this.query;
       }
+      filter.enabled = this.enabled;
       const expand = '';
       this.limit = this.limit || this.pageSize;
       this.loading = true;
@@ -90,7 +127,7 @@ export default {
         })
         .finally(() => this.loading = false);
     },
-    refreshWorks() {
+    getWorks() {
       const filter = {};
       if (this.query) {
         filter.query = this.query;
@@ -111,6 +148,73 @@ export default {
       this.alert = true;
       window.setTimeout(() => this.alert = false, 5000);
     },
+
+    
+    addNewWorkFlow(workflow) {
+      this.saving = true;
+      this.$processesService.addNewWorkFlow(workflow).then(workflow => {
+        if (workflow){
+          if (workflow.enabled === this.enabled) {
+            this.workflows.unshift(workflow);
+          }
+          this.$root.$emit('workflow-added');
+          this.displayMessage({type: 'success', message: this.$t('processes.workflow.add.success.message')});
+        }
+      }).catch(() => {
+        this.displayMessage( {type: 'error', message: this.$t('processes.workflow.add.error.message')});
+      });
+    },
+
+    addWork(work) {
+      this.$processesService.addWork(work).then(work => {
+        if (work){
+          this.$root.$emit('work-added');
+          this.displayMessage({type: 'success', message: this.$t('processes.work.add.success.message')});
+        }
+      }).catch(() => {
+        this.displayMessage({type: 'error', message: this.$t('processes.work.add.error.message')});
+      });
+    },
+    showConfirmDialog(model, reason){
+      if (reason === 'delete_workflow') {
+        this.dialogAction = reason;
+        this.targetModel = model;
+        this.confirmMessage = this.$t('processes.workflow.delete.confirmDialog.message', {0: `<strong>${model.title}</strong>`});
+      }
+      this.$refs.confirmDialog.open();
+    },
+    confirmAction() {
+      if (this.dialogAction && this.dialogAction === 'delete_workflow') {
+        this.deleteWorkflowById(this.targetModel);
+      }
+    },
+    deleteWorkflowById(workflow) {
+      this.$processesService.deleteWorkflowById(workflow.id).then(value => {
+        if (value === 'ok') {
+          this.workflows.splice(this.workflows.indexOf(workflow), 1);
+          this.displayMessage({type: 'success', message: this.$t('processes.workflow.delete.success.message')});
+        }
+      }).catch(() => {
+        this.displayMessage({type: 'error', message: this.$t('processes.workflow.delete.error.message')});
+      });
+    },
+    updateWorkFlow(workflow) {
+      this.saving = true;
+      this.$processesService.updateWorkflow(workflow).then(newWorkflow => {
+        if (newWorkflow) {
+          this.$root.$emit('workflow-updated');
+          this.displayMessage({type: 'success', message: this.$t('processes.workflow.update.success.message')});
+        }
+      }).catch(() => {
+        this.displayMessage({type: 'error', message: this.$t('processes.workflow.update.error.message')});
+      }).finally(() => {
+        this.getWorkFlows();
+      });
+    },
+    onDialogClosed() {
+      this.dialogAction = null;
+      this.targetModel = null;
+    }
   }
 };
 </script>

@@ -19,6 +19,8 @@ import lombok.Data;
         @NamedQuery(name = "WorkFlow.findEnabledWorkFlowsByUser", query = "SELECT DISTINCT c FROM WorkFlow c where c.creatorId = :userId and  c.enabled = true order by c.id desc"),
         @NamedQuery(name = "WorkFlow.findAllWorkFlows", query = "SELECT DISTINCT c FROM WorkFlow c order by c.id desc"),
         @NamedQuery(name = "WorkFlow.findEnabledWorkFlows", query = "SELECT DISTINCT c FROM WorkFlow c where c.enabled = true order by c.id desc"),
+        @NamedQuery(name = "WorkFlow.findDisabledWorkFlows", query = "SELECT DISTINCT c FROM WorkFlow c where c.enabled = false order by c.id desc"),
+
 })
 
 public class WorkFlowEntity implements Serializable {
