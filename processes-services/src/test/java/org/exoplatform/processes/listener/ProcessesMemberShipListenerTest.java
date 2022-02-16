@@ -61,6 +61,9 @@ public class ProcessesMemberShipListenerTest {
     MembershipTypeHandler membershipTypeHandler = mock(MembershipTypeHandler.class);
     MembershipHandler membershipHandler = mock(MembershipHandler.class);
     when(memberShip.getUserName()).thenReturn("user");
+    when(spaceService.getSpaceByGroupId(PROCESSES_SPACE_GROUP_ID)).thenReturn(null);
+    processesMemberShipListener.postSave(memberShip, true);
+    verify(spaceService, times(0)).setManager(processesSpace, "user", true);
     when(spaceService.getSpaceByGroupId(PROCESSES_SPACE_GROUP_ID)).thenReturn(processesSpace);
     when(memberShip.getGroupId()).thenReturn(PROCESSES_GROUP_ID);
     when(spaceService.isManager(processesSpace, "user")).thenReturn(false);
@@ -89,6 +92,9 @@ public class ProcessesMemberShipListenerTest {
     MembershipHandler membershipHandler = mock(MembershipHandler.class);
     Collection<Membership> memberships = new ArrayList<>();
     memberships.add(memberShip);
+    when(spaceService.getSpaceByGroupId(PROCESSES_SPACE_GROUP_ID)).thenReturn(null);
+    processesMemberShipListener.postDelete(memberShip);
+    verify(spaceService, times(0)).setManager(processesSpace, "user", false);
     when(spaceService.getSpaceByGroupId(PROCESSES_SPACE_GROUP_ID)).thenReturn(processesSpace);
     when(memberShip.getGroupId()).thenReturn(PROCESSES_GROUP_ID);
     when(memberShip.getUserName()).thenReturn("user");
