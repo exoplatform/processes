@@ -23,7 +23,24 @@
       </template>
       <template slot="content">
         <div class="pa-4">
-          <p class="font-weight-regular grey--text darken-1 font-italic">{{ $t('processes.work.add.info.message') }}</p>
+          <p
+            v-if="!viewMode"
+            class="font-weight-regular grey--text darken-1 font-italic">
+            {{ $t('processes.work.add.info.message') }}
+          </p>
+          <div
+            class="pb-4"
+            v-if="viewMode">
+            <request-status
+              class="float-right"
+              :status="work.status" />
+            <v-label class="mb-1">
+              {{ $t('processes.works.form.label.requestDate') }}
+            </v-label>
+            <div class="grey--text mt-2">
+              <custom-date-format :timestamp="work.createdTime.time" />
+            </div>
+          </div>
           <v-divider />
           <div class="mt-5 mb-8">
             <v-form
@@ -34,6 +51,7 @@
                 {{ $t('processes.works.form.label.workDetail') }}
               </v-label>
               <v-textarea
+                :readonly="viewMode"
                 :rules="[rules.maxLength(maxLength)]"
                 v-model="work.description"
                 name="description"
@@ -44,6 +62,7 @@
                 class="work-detail"
                 :placeholder="$t('processes.works.form.placeholder.workDetail')" />
               <custom-counter
+                v-if="!viewMode"
                 :value="work.description"
                 :max-length="maxLength" />
             </v-form>
@@ -56,9 +75,12 @@
             <p class="font-weight-regular grey--text darken-1 font-italic mt-1">
               {{ $t('processes.work.add.attachment.info.message') }}
             </p>
-            <a class="viewAllAttachments primary--text font-weight-bold text-decoration-underline">
-              {{ $t('processes.work.add.attachment.label') }}(1)
-            </a>
+            <div class="workAttachments">
+              <attachment-app
+                :entity-id="work.id"
+                :space-id="processesSpaceId"
+                entity-type="task" />
+            </div>
           </div>
         </div>
       </template>
@@ -96,6 +118,12 @@ export default {
       },
     };
   },
+  props: {
+    processesSpaceId: {
+      type: Number,
+      default: null
+    }
+  },
   created(){
     this.$root.$on('work-added', () => {
       this.saving = false;
@@ -104,9 +132,15 @@ export default {
     });
   },
   methods: {
-    open(workflow, mode) {
-      this.work.workFlow = workflow;
-      this.viewMode = mode !== 'create_work';
+    open(object, mode) {
+      if (mode === 'create_work') {
+        this.work = {};
+        this.work.workFlow = object;
+        this.viewMode = false;
+      } else {
+        this.work = object;
+        this.viewMode = true;
+      }
       this.$refs.work.open();
     },
     close() {

@@ -1,15 +1,15 @@
 <template>
   <v-card outlined class="ml-2">
     <v-container class="pa-0 work-bg-color">
-      <div
-        :style="'background-color:' + statusColor"
-        class="indicator position-absolute">
-      </div>
+      <request-status
+        type="indicator"
+        :status="work.status" />
       <v-row
         align="center"
         class="pl-4 pr-4"
         cols="12">
         <v-col
+          @click="openRequest"
           cols="6"
           class="pa-0 ma-0 text-align-start text-subtitle-2 font-weight-regular text-truncate"
           md="3"
@@ -29,7 +29,7 @@
           md="4"
           class="pa-0 ma-0 grey--text"
           lg="1">
-          <span>{{ work.created }}</span>
+          <custom-date-format :timestamp="work.createdTime.time" />
         </v-col>
         <v-col
           cols="6"
@@ -62,12 +62,7 @@
           md="4"
           class="pa-0 ma-0 text-align-center text-truncate"
           lg="1">
-          <v-chip
-            class="ma-2"
-            :color="statusColor"
-            text-color="white">
-            {{ work.status }}
-          </v-chip>
+          <request-status :status="work.status" />
         </v-col>
         <v-col
           cols="2"
@@ -93,9 +88,9 @@ export default {
       default: null,
     },
   },
-  computed: {
-    statusColor() {
-      return this.work.status === 'accepted' || this.work.status === 'Done' ? 'green' : this.work.status === 'pending' || this.work.status === 'WaitingOn' ? 'orange' : this.work.status === 'refused' ? 'red' : 'grey';
+  methods: {
+    openRequest() {
+      this.$root.$emit('open-add-work-drawer', {object: this.work, mode: 'view_work'});
     }
   }
 };

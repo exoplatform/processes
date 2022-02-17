@@ -67,7 +67,6 @@ export default {
       default: false
     },
   },
-
   computed: {
     items() {
       return this.groupByKey(this.works, 'status');

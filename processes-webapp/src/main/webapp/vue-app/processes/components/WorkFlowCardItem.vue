@@ -131,7 +131,7 @@ export default {
       this.$root.$emit('show-confirm-action', {model: this.workflow, reason: 'delete_workflow'});
     },
     open() {
-      this.$root.$emit('open-add-work-drawer', {usedWorkflow: this.workflow, mode: 'create_work'});
+      this.$root.$emit('open-add-work-drawer', {object: this.workflow, mode: 'create_work'});
     }
   }
 };

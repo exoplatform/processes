@@ -50,6 +50,10 @@
       :cancel-label="$t('processes.workflow.cancel.label')"
       @ok="confirmAction"
       @dialog-closed="onDialogClosed" />
+    <add-workflow-drawer ref="addWorkFlow" />
+    <add-work-drawer
+      :processes-space-id="processesSpaceId"
+      ref="addWork" />
   </v-app>
 </template>
 
@@ -75,12 +79,16 @@ export default {
       confirmTitle: this.$t('processes.workflow.action.confirmation.label'),
       confirmMessage: '',
       dialogAction: null,
-      targetModel: null
+      targetModel: null,
+      processesSpaceInfo: null
     };
   },
   beforeCreate() {
     this.$processesService.isProcessesManager().then(value => {
       this.isManager = value === 'true';
+    });
+    this.$processesService.getProcessesSpaceInfo().then(spaceInfo => {
+      this.processesSpaceInfo = spaceInfo;
     });
   },
   created() {
@@ -108,6 +116,17 @@ export default {
     this.$root.$on('show-confirm-action', event => {
       this.showConfirmDialog(event.model, event.reason);
     });
+    this.$root.$on('open-add-work-drawer', event => {
+      this.$refs.addWork.open(event.object, event.mode);
+    });
+    this.$root.$on('open-workflow-drawer', event => {
+      this.$refs.addWorkFlow.open(event.workflow, event.mode);
+    });
+  },
+  computed: {
+    processesSpaceId() {
+      return this.processesSpaceInfo && this.processesSpaceInfo.id;
+    }
   },
   methods: {
     getWorkFlows() {
