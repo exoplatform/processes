@@ -16,9 +16,7 @@
               dark>
               mdi-plus-thick
             </v-icon>
-            <span v-if="!isMobile">
-              {{ $t('processes.works.label.addRequestType') }}
-            </span>
+            {{ $t('processes.works.label.addRequestType') }}
           </v-btn>
         </v-col>
         <v-col
@@ -112,10 +110,7 @@ export default {
   computed: {
     lg () {
       return this.workflows.length >= 4 ? 3 : this.workflows.length === 3 ? 4 : 6 ;
-    },
-    isMobile() {
-      return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
-    },
+    }
   },
   created() {
     this.$root.$on('open-add-work-drawer', event => {
