@@ -3,9 +3,9 @@
     <exo-drawer
       @close="close()"
       ref="workFlow"
-      allow-expand
+      id="addWorkFlowDrawer"
       right>
-      <template slot="title">
+      <template v-slot:title>
         <span v-if="!editMode">
           {{ $t('processes.works.label.creatProcessType') }}
         </span>
@@ -13,7 +13,7 @@
           {{ $t('processes.works.label.editProcessType') }}
         </span>
       </template>
-      <template slot="content">
+      <template v-slot:content>
         <v-stepper
           class="pa-4"
           v-model="stp"
@@ -25,76 +25,71 @@
             {{ $t('processes.works.form.label.description') }}
           </v-stepper-step>
           <v-stepper-content step="1">
-            <form ref="form1" @submit="nextStep">
+            <v-form
+              v-model="valid"
+              ref="form1">
               <v-label for="name">
                 {{ $t('processes.works.form.label.title') }}
               </v-label>
-              <input
-                class="input-block-level ignore-vuetify-classes my-3"
-                type="text"
+              <v-text-field
+                :rules="[rules.required, rules.maxLength(titleMaxLength)]"
+                class="mt-n3 mb-1"
                 name="name"
+                dense
+                outlined
                 v-model="workflow.title"
-                :placeholder="$t('processes.works.form.placeholder.addTitle')"
-                required>
+                :placeholder="$t('processes.works.form.placeholder.addTitle')" />
+              <custom-counter
+                :max-length="titleMaxLength"
+                :value="workflow.title" />
               <v-label for="description">
                 {{ $t('processes.works.form.label.presentation') }}
               </v-label>
-              <textarea
-                required
+              <v-textarea
+                class="mt-n3 mb-1"
+                dense
+                :rules="[rules.required, rules.maxLength(descriptionMaxLength)]"
                 name="description"
                 v-model="workflow.description"
-                rows="20"
-                maxlength="2000"
-                noresize
-                class="input-block-level ignore-vuetify-classes my-3"
-                :placeholder="$t('processes.works.form.placeholder.addPresentation')">
-              </textarea>
-              <p class="font-italic">
-                <v-icon
-                  color="primary">
-                  mdi-information-outline
-                </v-icon>
-                <small class="grey--text text--darken-1">
-                  {{ $t('processes.works.form.label.presentation.info') }}
-                </small>
-              </p>
+                rows="10"
+                outlined
+                auto-grow
+                row-height="8"
+                :placeholder="$t('processes.works.form.placeholder.addPresentation')" />
+              <custom-counter
+                :max-length="descriptionMaxLength"
+                :value="workflow.description" />
               <v-label for="summary">
                 {{ $t('processes.works.form.label.summary') }}
               </v-label>
-              <textarea
-                required
+              <v-textarea
+                :rules="[rules.required, rules.maxLength(summaryMaxLength)]"
+                class="mt-n3 mb-1"
                 v-model="workflow.summary"
                 name="summary"
-                rows="20"
-                maxlength="2000"
-                noresize
-                class="input-block-level ignore-vuetify-classes my-3"
-                :placeholder="$t('processes.works.form.placeholder.addSummary')">
-              </textarea>
-              <p class="font-italic">
-                <v-icon
-                  color="primary">
-                  mdi-information-outline
-                </v-icon>
-                <small class="grey--text text--darken-1">
-                  {{ $t('processes.works.form.label.summary.info') }}
-                </small>
-              </p>
+                rows="12"
+                outlined
+                auto-grow
+                row-height="10"
+                :placeholder="$t('processes.works.form.placeholder.addSummary')" />
+              <custom-counter
+                :max-length="summaryMaxLength"
+                :value="workflow.summary" />
               <v-label
                 class="mt-1"
                 for="status">
                 {{ $t('processes.works.form.label.status') }}
               </v-label>
               <span class="mt-2 float-left grey--text text--darken-1">
-                {{ workflow.enabled? $t('processes.works.form.label.enabled'): $t('processes.works.form.label.disabled') }}
+                {{ requestStatus }}
               </span>
               <v-switch
                 class="float-right mt-n1"
                 color="primary"
                 value
                 name="status"
-                v-model="workflow.enabled" />
-              <v-divider class="clear-both mb-2" />
+                v-model="workflowEnabled" />
+              <!--<v-divider class="clear-both mb-2" />
               <v-label for="helpUrl">
                 {{ $t('processes.works.form.label.help') }}
               </v-label>
@@ -112,13 +107,13 @@
                 {{ $t('processes.works.form.label.illustrative') }}
                 <v-icon right>mdi-plus-thick</v-icon>
               </v-btn>
-              <!-- <v-btn
+              <v-btn
                 class="btn btn-primary"
                 color="primary"
                 @click="nextStep">
                 {{ $t('processes.works.form.label.continue') }}
               </v-btn> -->
-            </form>
+            </v-form>
           </v-stepper-content>
           <!-- <v-stepper-step
             class="text-uppercase"
@@ -216,22 +211,29 @@
           </v-stepper-content> -->
         </v-stepper>
       </template>
-      <template slot="footer">
+      <template v-slot:footer>
         <v-btn
+          :disabled="!valid"
           v-if="!editMode"
           :loading="saving"
           @click="addNewWorkFlow"
-          class="btn btn-primary"
+          class="btn btn-primary float-right"
           color="primary">
           {{ $t('processes.works.form.label.save') }}
         </v-btn>
         <v-btn
+          :disabled="!valid"
           v-if="editMode"
           :loading="saving"
           @click="updateWorkFlow"
-          class="btn btn-primary"
+          class="btn btn-primary float-right"
           color="primary">
           {{ $t('processes.workflow.label.update') }}
+        </v-btn>
+        <v-btn
+          @click="close"
+          class="btn float-right me-4">
+          {{ $t('processes.workflow.cancel.label') }}
         </v-btn>
       </template>
     </exo-drawer>
@@ -244,7 +246,6 @@ export default {
   data () {
     return {
       stp: 1,
-      valid: true,
       saving: false,
       workflow: {
         title: '',
@@ -254,8 +255,17 @@ export default {
         helpUrl: '',
         projectId: null,
         permissions: null,
-        editMode: false
-      }
+      },
+      workflowEnabled: true,
+      editMode: false,
+      valid: false,
+      titleMaxLength: 50,
+      descriptionMaxLength: 250,
+      summaryMaxLength: 250,
+      rules: {
+        maxLength: len => v => (v || '').length <= len || this.$t('processes.work.form.description.maxLength.message', {0: len}),
+        required: v => !!v || this.$t('processes.work.form.required.error.message'),
+      },
     };
   },
 
@@ -275,11 +285,20 @@ export default {
     currentForm() {
       return this.$refs && this.$refs[`form${this.stp}`];
     },
+    requestStatus() {
+      return this.workflowEnabled ? this.$t('processes.works.form.label.enabled') : this.$t('processes.works.form.label.disabled');
+    }
+  },
+  watch: {
+    workflowEnabled(value) {
+      this.workflow.enabled = value;
+    }
   },
   methods: {
     open(workflow, mode) {
       if (workflow) {
         this.workflow = Object.assign({}, workflow);
+        this.workflowEnabled = workflow.enabled;
         this.editMode = mode === 'edit_workflow';
       } else {
         this.resetInputs();

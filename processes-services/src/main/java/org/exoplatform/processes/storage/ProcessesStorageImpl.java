@@ -20,6 +20,7 @@ import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dao.TaskQuery;
+import org.exoplatform.task.domain.Priority;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
@@ -173,6 +174,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       taskDto.setStatus(statusService.getDefaultStatus(work.getProjectId()));
       taskDto.setCreatedBy(identity.getRemoteId());
       taskDto.setCreatedTime(new Date());
+      taskDto.setPriority(Priority.NONE);
       taskDto = taskService.createTask(taskDto);
       return EntityMapper.tasktoWork(taskDto);
     } else {

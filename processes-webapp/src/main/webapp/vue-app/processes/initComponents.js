@@ -6,6 +6,7 @@ import Work from './components/Work.vue';
 import AddWorkFlowDrawer from './components/AddWorkFlowDrawer.vue';
 import AddWorkDrawer from './components/AddWorkDrawer.vue';
 import EmptyOrLoading from './components/EmptyOrLoading.vue';
+import CustomCounter from './components/CustomCounter.vue';
 
 import * as processesService from './js/ProcessesService.js';
 
@@ -17,7 +18,8 @@ const components = {
   'work': Work,
   'add-workflow-drawer': AddWorkFlowDrawer,
   'add-work-drawer': AddWorkDrawer,
-  'empty-or-loading': EmptyOrLoading
+  'empty-or-loading': EmptyOrLoading,
+  'custom-counter': CustomCounter
 };
 
 for (const key in components) {
@@ -29,3 +31,4 @@ if (!Vue.prototype.$processesService) {
     value: processesService,
   });
 }
+
