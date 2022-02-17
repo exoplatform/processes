@@ -1,6 +1,7 @@
 package org.exoplatform.processes.rest;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.processes.model.ProcessesFilter;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.rest.model.WorkFlowEntity;
@@ -11,6 +12,8 @@ import org.exoplatform.services.rest.impl.RuntimeDelegateImpl;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.core.space.model.Space;
+import org.exoplatform.social.core.space.spi.SpaceService;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -31,7 +34,7 @@ import static org.junit.Assert.assertThrows;
 import static org.powermock.api.mockito.PowerMockito.*;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({ RestUtils.class, EntityBuilder.class, ConversationState.class })
+@PrepareForTest({ RestUtils.class, EntityBuilder.class, ConversationState.class, CommonsUtils.class})
 public class ProcessesRestTest {
 
   @Mock
@@ -39,6 +42,9 @@ public class ProcessesRestTest {
 
   @Mock
   private ProcessesService processesService;
+
+  @Mock
+  private SpaceService spaceService;
 
   private ProcessesRest    processesRest;
 
@@ -52,6 +58,7 @@ public class ProcessesRestTest {
     PowerMockito.mockStatic(RestUtils.class);
     PowerMockito.mockStatic(EntityBuilder.class);
     PowerMockito.mockStatic(ConversationState.class);
+    PowerMockito.mockStatic(CommonsUtils.class);
 
     ConversationState conversationState = mock(ConversationState.class);
     when(ConversationState.getCurrent()).thenReturn(conversationState);
@@ -144,5 +151,24 @@ public class ProcessesRestTest {
     when(processesService.updateWorkFlow(workFlow, 1L)).thenThrow(RuntimeException.class);
     Response response = processesRest.updateWorkFlow(workFlowEntity);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(),response.getStatus());
+  }
+
+  @Test
+  public void getProcessesSpaceInfo() {
+    Space processesSpace = new Space();
+    when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
+    Response response1 = processesRest.getProcessesSpaceInfo();
+    assertEquals(response1.getStatus(), Response.Status.UNAUTHORIZED.getStatusCode());
+    when(CommonsUtils.getService(SpaceService.class)).thenReturn(spaceService);
+    when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    when(spaceService.getSpaceByGroupId("/spaces/processes_space")).thenReturn(null);
+    Response response2 = processesRest.getProcessesSpaceInfo();
+    assertEquals(response2.getStatus(), Response.Status.NOT_FOUND.getStatusCode());
+    when(spaceService.getSpaceByGroupId("/spaces/processes_space")).thenReturn(processesSpace);
+    Response response3 = processesRest.getProcessesSpaceInfo();
+    assertEquals(response3.getStatus(), Response.Status.OK.getStatusCode());
+    when(spaceService.getSpaceByGroupId("/spaces/processes_space")).thenThrow(RuntimeException.class);
+    Response response4 = processesRest.getProcessesSpaceInfo();
+    assertEquals(response4.getStatus(), Response.Status.INTERNAL_SERVER_ERROR.getStatusCode());
   }
 }

@@ -5,8 +5,12 @@ import MyWorkList from './components/MyWorkList.vue';
 import Work from './components/Work.vue';
 import AddWorkFlowDrawer from './components/AddWorkFlowDrawer.vue';
 import AddWorkDrawer from './components/AddWorkDrawer.vue';
-import EmptyOrLoading from './components/EmptyOrLoading.vue';
-import CustomCounter from './components/CustomCounter.vue';
+
+import EmptyOrLoading from './components/commons/EmptyOrLoading.vue';
+import CustomCounter from './components/commons/CustomCounter.vue';
+import CustomDateFormat from './components/commons/CustomDateFormat.vue';
+import RequestStatus from './components/commons/RequestStatus.vue';
+
 
 import * as processesService from './js/ProcessesService.js';
 
@@ -19,7 +23,9 @@ const components = {
   'add-workflow-drawer': AddWorkFlowDrawer,
   'add-work-drawer': AddWorkDrawer,
   'empty-or-loading': EmptyOrLoading,
-  'custom-counter': CustomCounter
+  'custom-counter': CustomCounter,
+  'custom-date-format': CustomDateFormat,
+  'request-status': RequestStatus
 };
 
 for (const key in components) {
@@ -31,4 +37,3 @@ if (!Vue.prototype.$processesService) {
     value: processesService,
   });
 }
-
