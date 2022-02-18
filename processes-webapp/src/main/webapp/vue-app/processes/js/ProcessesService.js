@@ -140,7 +140,7 @@ export function updateWorkflow(workflow) {
     }),
   }).then(resp => {
     if (!resp || !resp.ok) {
-      throw new Error('Error while deleting a workflow');
+      throw new Error('Error while updating a workflow');
     } else {
       return resp.text();
     }
