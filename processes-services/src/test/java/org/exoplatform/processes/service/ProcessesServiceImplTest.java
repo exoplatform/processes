@@ -2,6 +2,7 @@ package org.exoplatform.processes.service;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.processes.model.ProcessesFilter;
+import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.storage.ProcessesStorage;
 import org.exoplatform.social.core.manager.IdentityManager;
@@ -111,5 +112,94 @@ public class ProcessesServiceImplTest {
     when(processesStorage.getWorkFlowById(workFlow.getId())).thenReturn(updatedWorkflow);
     this.processesService.updateWorkFlow(workFlow, 1l);
     verify(processesStorage, times(1)).saveWorkFlow(workFlow, 1L);
+  }
+
+  @Test
+  public void createWorkflow() throws IllegalAccessException {
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setId(1L);
+    Throwable exception1 = assertThrows(IllegalArgumentException.class,
+            () -> this.processesService.createWorkFlow(null, 1L));
+    assertEquals("workFlow is mandatory", exception1.getMessage());
+    verify(processesStorage, times(0)).saveWorkFlow(workFlow, 1L);
+
+    Throwable exception2 = assertThrows(IllegalArgumentException.class,
+            () -> this.processesService.createWorkFlow(workFlow, 1L));
+    assertEquals("workFlow id must be equal to 0", exception2.getMessage());
+    verify(processesStorage, times(0)).saveWorkFlow(workFlow, 1L);
+
+    workFlow.setId(0L);
+    processesService.createWorkFlow(workFlow, 1L);
+    verify(processesStorage, times(1)).saveWorkFlow(workFlow, 1L);
+  }
+
+  @Test
+  public void createWork() throws IllegalAccessException {
+    Work work = new Work();
+    work.setId(1L);
+    Throwable exception1 = assertThrows(IllegalArgumentException.class,
+            () -> this.processesService.createWork(null, 1L));
+    assertEquals("work is mandatory", exception1.getMessage());
+    verify(processesStorage, times(0)).saveWork(work, 1L);
+
+    Throwable exception2 = assertThrows(IllegalArgumentException.class,
+            () -> this.processesService.createWork(work, 1L));
+    assertEquals("work id must be equal to 0", exception2.getMessage());
+    verify(processesStorage, times(0)).saveWork(work, 1L);
+
+    work.setId(0L);
+    processesService.createWork(work, 1L);
+    verify(processesStorage, times(1)).saveWork(work, 1L);
+  }
+
+  @Test
+  public void updateWork() throws ObjectNotFoundException, IllegalAccessException {
+    Work work = new Work();
+    work.setId(0L);
+    Throwable exception1 = assertThrows(IllegalArgumentException.class,
+            () -> this.processesService.updateWork(null, 1L));
+    assertEquals("Work is mandatory", exception1.getMessage());
+    verify(processesStorage, times(0)).saveWork(work, 1L);
+
+    Throwable exception2 = assertThrows(IllegalArgumentException.class,
+            () -> this.processesService.updateWork(work, 1L));
+    assertEquals("work id must not be equal to 0", exception2.getMessage());
+    verify(processesStorage, times(0)).saveWork(work, 1L);
+
+    work.setId(1L);
+    when(processesStorage.getWorkById(work.getId())).thenReturn(null);
+    Throwable exception3 = assertThrows(ObjectNotFoundException.class,
+            () -> this.processesService.updateWork(work, 1L));
+    assertEquals("oldWork is not exist", exception3.getMessage());
+    verify(processesStorage, times(0)).saveWork(work, 1L);
+
+    when(processesStorage.getWorkById(work.getId())).thenReturn(work);
+    Throwable exception4 = assertThrows(IllegalArgumentException.class,
+            () -> this.processesService.updateWork(work, 1L));
+    assertEquals("there are no changes to save", exception4.getMessage());
+    verify(processesStorage, times(0)).saveWork(work, 1L);
+
+    Work newWork = new Work();
+    when(processesStorage.getWorkById(work.getId())).thenReturn(work);
+    newWork.setId(work.getId());
+    newWork.setDescription("anything");
+    processesService.updateWork(newWork, 1L);
+    verify(processesStorage, times(1)).saveWork(newWork, 1L);
+  }
+
+  @Test
+  public void countWorksByWorkflow() throws Exception {
+    Throwable exception1 = assertThrows(IllegalArgumentException.class,
+            () -> this.processesService.countWorksByWorkflow(null, false));
+    assertEquals("Project Id is mandatory", exception1.getMessage());
+    verify(processesStorage, times(0)).countWorksByWorkflow(1L, false);
+
+    Throwable exception2 = assertThrows(IllegalArgumentException.class,
+            () -> this.processesService.countWorksByWorkflow(1L, null));
+    assertEquals("isCompleted should not be null", exception2.getMessage());
+    verify(processesStorage, times(0)).countWorksByWorkflow(1L, false);
+
+    processesService.countWorksByWorkflow(1L, false);
+    verify(processesStorage, times(1)).countWorksByWorkflow(1L, false);
   }
 }

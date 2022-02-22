@@ -82,4 +82,12 @@ public interface ProcessesStorage {
    */
   void deleteWorkflowById(Long workflowId) throws EntityNotFoundException;
 
+  /**
+   *
+   * @param projectId: Tasks project id
+   * @param isCompleted: filter by completed and uncompleted tasks
+   * @return: Filtered tasks count
+   * @throws Exception
+   */
+  int countWorksByWorkflow(long projectId, boolean isCompleted) throws Exception;
 }

@@ -175,6 +175,20 @@ public class ProcessesServiceImpl implements ProcessesService, Startable {
     this.processesStorage.deleteWorkflowById(workflowId);
   }
 
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public int countWorksByWorkflow(Long projectId, Boolean isCompleted) throws Exception {
+    if (projectId == null) {
+      throw new IllegalArgumentException("Project Id is mandatory");
+    }
+    if (isCompleted == null) {
+      throw new IllegalArgumentException("isCompleted should not be null");
+    }
+    return processesStorage.countWorksByWorkflow(projectId, isCompleted);
+  }
+
   @Override
   public void start() {
     LOG.info("Processes Service start and default space initialize...");
