@@ -1,5 +1,5 @@
 <template>
-  <v-card outlined class="ml-6">
+  <v-card outlined class="ml-2">
     <v-container class="pa-0 work-bg-color">
       <div
         :style="'background-color:' + statusColor"

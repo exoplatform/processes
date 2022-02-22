@@ -3,7 +3,6 @@
     <exo-drawer
       @close="close"
       ref="work"
-      allow-expand
       right>
       <template slot="title">
         <div>
@@ -41,10 +40,12 @@
                 outlined
                 auto-grow
                 rows="30"
-                :counter="maxLength"
                 row-height="15"
                 class="work-detail"
                 :placeholder="$t('processes.works.form.placeholder.workDetail')" />
+              <custom-counter
+                :value="work.description"
+                :max-length="maxLength" />
             </v-form>
           </div>
           <v-divider />
@@ -88,7 +89,7 @@ export default {
         workFlow: {},
       },
       viewMode: false,
-      maxLength: 1350,
+      maxLength: 1250,
       valid: false,
       rules: {
         maxLength: len => v => (v || '').length <= len || this.$t('processes.work.form.description.maxLength.message', {0: len}),
