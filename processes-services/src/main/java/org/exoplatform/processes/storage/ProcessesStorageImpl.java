@@ -134,7 +134,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
 
   @Override
   public List<Work> getWorks(long userIdentityId, int offset, int limit) throws Exception {
-    List<WorkFlow> workFlows = findEnabledWorkFlows(0, 0);
+    List<WorkFlow> workFlows = findAllWorkFlows(0, 0);
     List<Long> projectsIds = workFlows.stream().map(WorkFlow::getProjectId).collect(Collectors.toList());
     TaskQuery taskQuery = new TaskQuery();
     taskQuery.setProjectIds(projectsIds);
