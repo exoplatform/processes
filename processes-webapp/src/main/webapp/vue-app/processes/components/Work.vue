@@ -11,7 +11,7 @@
         <v-col
           @click="openRequest"
           cols="6"
-          class="pa-0 ma-0 text-align-start text-subtitle-2 font-weight-regular text-truncate"
+          class="request-title pa-0 ma-0 text-align-start text-subtitle-2 font-weight-regular text-truncate"
           md="3"
           lg="2">
           <v-avatar

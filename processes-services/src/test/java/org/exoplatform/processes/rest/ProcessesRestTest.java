@@ -318,4 +318,25 @@ public class ProcessesRestTest {
     Response response6 = processesRest.updateWork(workEntity);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response6.getStatus());
   }
+
+  @Test
+  public void countWorksByWorkflow() throws Exception {
+    WorkFlow workFlow = mock(WorkFlow.class);
+    when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
+    Response response = processesRest.countWorksByWorkflow(null, null);
+    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response.getStatus());
+    when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    Response response1 = processesRest.countWorksByWorkflow(null, null);
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response1.getStatus());
+    when(processesService.getWorkFlowByProjectId(1L)).thenReturn(null);
+    Response response2 = processesRest.countWorksByWorkflow(1L, null);
+    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response2.getStatus());
+    when(processesService.getWorkFlowByProjectId(1L)).thenReturn(workFlow);
+    when(processesService.countWorksByWorkflow(1L, false)).thenReturn(2);
+    Response response3 = processesRest.countWorksByWorkflow(1L, false);
+    assertEquals(Response.Status.OK.getStatusCode(), response3.getStatus());
+    when(processesService.countWorksByWorkflow(1L, false)).thenThrow(RuntimeException.class);
+    Response response4 = processesRest.countWorksByWorkflow(1L, false);
+    assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response4.getStatus());
+  }
 }

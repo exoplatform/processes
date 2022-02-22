@@ -124,4 +124,13 @@ public class ProcessesStorageImplTest {
     this.processesStorage.saveWorkFlow(workFlow, 1L);
     verify(workFlowDAO, times(1)).update(workFlowEntity);
   }
+
+  @Test
+  public void countWorksByWorkflow() throws Exception {
+    processesStorage.countWorksByWorkflow(1L, false);
+    verify(taskService, times(1)).countTasks(any());
+    processesStorage.countWorksByWorkflow(1L, true);
+    verify(taskService, times(2)).countTasks(any());
+
+  }
 }

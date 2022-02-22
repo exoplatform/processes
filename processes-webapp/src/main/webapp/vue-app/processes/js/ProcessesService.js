@@ -160,3 +160,16 @@ export function getProcessesSpaceInfo() {
   });
 }
 
+export function countWorksByWorkflow(workflowId, isCompleted) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/countWorks/${workflowId}?isCompleted=${isCompleted}`, {
+    method: 'GET',
+    credentials: 'include',
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error while getting works count');
+    } else {
+      return resp.text();
+    }
+  });
+}
+
