@@ -69,4 +69,13 @@ public interface ProcessesService {
    * @param workflowId : workflow id
    */
   void deleteWorkflowById(Long workflowId);
+
+  /**
+   *
+   * @param projectId: Tasks project id
+   * @param isCompleted: filter by completed and uncompleted tasks
+   * @return Filtered tasks count
+   * @throws Exception
+   */
+  int countWorksByWorkflow(Long projectId, Boolean isCompleted) throws Exception;
 }

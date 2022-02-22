@@ -372,4 +372,38 @@ public class ProcessesRest implements ResourceContainer {
       return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
     }
   }
+
+  @GET
+  @Produces(MediaType.TEXT_PLAIN)
+  @RolesAllowed("users")
+  @Path("/countWorks/{projectId}")
+  @ApiOperation(value = "Count tasks by completed and uncompleted status", httpMethod = "GET", response = Response.class, produces = "text/plain")
+  @ApiResponses(value = {@ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),})
+  public Response countWorksByWorkflow(@ApiParam(value = "Tasks project id", required = true)
+                                       @PathParam("projectId") Long projectId,
+                                       @ApiParam(value = "Processes properties to expand.")
+                                       @QueryParam("isCompleted") @DefaultValue("true") Boolean isCompleted) {
+    long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    if (currentIdentityId == 0) {
+      return Response.status(Response.Status.UNAUTHORIZED).build();
+    }
+    if (projectId == null) {
+      return Response.status(Response.Status.BAD_REQUEST).entity("Project id is mandatory").build();
+    }
+    try {
+      WorkFlow workFlow = processesService.getWorkFlowByProjectId(projectId);
+      if (workFlow == null) {
+        return Response.status(Response.Status.NOT_FOUND).entity("workflow not found").build();
+      }
+      int worksCount = processesService.countWorksByWorkflow(projectId, isCompleted);
+      return Response.ok(String.valueOf(worksCount)).type(MediaType.TEXT_PLAIN).build();
+    } catch (Exception e) {
+      LOG.error("Error while getting works count", e);
+      return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+    }
+  }
 }

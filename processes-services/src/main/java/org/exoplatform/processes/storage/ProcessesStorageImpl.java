@@ -143,6 +143,18 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     return (EntityMapper.taskstoWorkList(tasks));
   }
 
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public int countWorksByWorkflow(long projectId, boolean isCompleted) throws Exception {
+    TaskQuery taskQuery = new TaskQuery();
+    taskQuery.setProjectIds(Arrays.asList(projectId));
+    taskQuery.setCompleted(isCompleted);
+    int tasksCount = taskService.countTasks(taskQuery);
+    return tasksCount;
+  }
+
   @Override
   public Work getWorkById(long id) {
     try {
