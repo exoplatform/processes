@@ -16,7 +16,9 @@
               dark>
               mdi-plus-thick
             </v-icon>
-            {{ $t('processes.works.label.addRequestType') }}
+            <span v-if="!isMobile">
+              {{ $t('processes.works.label.addRequestType') }}
+            </span>
           </v-btn>
         </v-col>
         <v-col
@@ -110,6 +112,9 @@ export default {
   computed: {
     lg () {
       return this.workflows.length >= 4 ? 3 : this.workflows.length === 3 ? 4 : 6 ;
+    },
+    isMobile() {
+      return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
     }
   },
   methods: {

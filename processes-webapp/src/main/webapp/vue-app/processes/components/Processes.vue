@@ -54,6 +54,10 @@
     <add-work-drawer
       :processes-space-id="processesSpaceId"
       ref="addWork" />
+    <task-comments-drawer
+      ref="taskCommentDrawer"
+      :task="work"
+      :comments="workComments" />
   </v-app>
 </template>
 
@@ -62,6 +66,8 @@
 export default {
   data () {
     return {
+      work: null,
+      workComments: [],
       tab: 0,
       alert: false,
       type: '',
@@ -117,10 +123,17 @@ export default {
       this.showConfirmDialog(event.model, event.reason);
     });
     this.$root.$on('open-add-work-drawer', event => {
+      this.work = event.object;
+      this.workComments = event.object.comments;
       this.$refs.addWork.open(event.object, event.mode);
     });
     this.$root.$on('open-workflow-drawer', event => {
       this.$refs.addWorkFlow.open(event.workflow, event.mode);
+    });
+    this.$root.$on('show-work-comments', (work, comments) => {
+      this.work = work;
+      this.workComments = comments;
+      this.$root.$emit('displayTaskComment');
     });
   },
   computed: {
