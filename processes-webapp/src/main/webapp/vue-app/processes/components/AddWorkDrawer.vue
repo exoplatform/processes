@@ -68,7 +68,7 @@
             </v-form>
           </div>
           <v-divider />
-          <div class="mt-8">
+          <div v-if="viewMode" class="mt-8">
             <v-label for="attachment">
               {{ $t('processes.works.form.label.attachment') }}
             </v-label>

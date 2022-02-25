@@ -186,3 +186,16 @@ export function getWorkComments(workId) {
   });
 }
 
+export function deleteWorkById(workId) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/work/${workId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error while deleting a work');
+    } else {
+      return resp.text();
+    }
+  });
+}
+

@@ -10,6 +10,7 @@ import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dto.ProjectDto;
+import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.StatusService;
@@ -131,6 +132,16 @@ public class ProcessesStorageImplTest {
     verify(taskService, times(1)).countTasks(any());
     processesStorage.countWorksByWorkflow(1L, true);
     verify(taskService, times(2)).countTasks(any());
+  }
 
+  @Test
+  public void deleteWorkById() throws EntityNotFoundException {
+    TaskDto taskDto = mock(TaskDto.class);
+    when(taskService.getTask(1L)).thenReturn(taskDto);
+    processesStorage.deleteWorkById(1L);
+    verify(taskService, times(1)).removeTask(1L);
+    when(taskService.getTask(1L)).thenThrow(EntityNotFoundException.class);
+    processesStorage.deleteWorkById(1L);
+    verify(taskService, times(1)).removeTask(1L);
   }
 }

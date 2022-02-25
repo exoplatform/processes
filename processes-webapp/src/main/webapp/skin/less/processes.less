@@ -88,10 +88,12 @@
   }
 
   .workflow-filter {
-    width: 100px;
-    margin-right: 50px;
+    width: 120px;
+    margin-right: 50px ~'; /** orientation=lt */ ';
+    margin-left: 50px ~'; /** orientation=rt */ ';
     position: absolute;
-    right: 0;
+    right: 0 ~'; /** orientation=lt */ ';
+    left: 0 ~'; /** orientation=rt */ ';
     top: 0;
 
     .v-input__control {
