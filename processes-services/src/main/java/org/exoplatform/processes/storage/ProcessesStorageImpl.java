@@ -13,6 +13,7 @@ import org.exoplatform.processes.entity.WorkFlowEntity;
 import org.exoplatform.processes.model.ProcessesFilter;
 import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFlow;
+import org.exoplatform.processes.rest.model.WorkEntity;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
@@ -219,6 +220,9 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     return project.getId();
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void deleteWorkflowById(Long workflowId) throws javax.persistence.EntityNotFoundException {
     WorkFlowEntity workFlowEntity = this.workFlowDAO.find(workflowId);
@@ -234,5 +238,20 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       LOG.error("Error while getting workflow project", e);
     }
     this.workFlowDAO.delete(workFlowEntity);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void deleteWorkById(Long workId) {
+    try {
+      TaskDto taskDto = taskService.getTask(workId);
+      if (taskDto != null) {
+        taskService.removeTask(workId);
+      }
+    } catch (EntityNotFoundException e) {
+      LOG.error("Work not found", e);
+    }
   }
 }

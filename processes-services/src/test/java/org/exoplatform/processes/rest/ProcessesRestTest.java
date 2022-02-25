@@ -33,6 +33,8 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.*;
 
 @RunWith(PowerMockRunner.class)
@@ -338,5 +340,21 @@ public class ProcessesRestTest {
     when(processesService.countWorksByWorkflow(1L, false)).thenThrow(RuntimeException.class);
     Response response4 = processesRest.countWorksByWorkflow(1L, false);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response4.getStatus());
+  }
+
+  @Test
+  public void deleteWorkById() {
+    when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
+    Response response = processesRest.deleteWork(1L);
+    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response.getStatus());
+    when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    Response response1 = processesRest.deleteWork(null);
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response1.getStatus());
+    Response response2 = processesRest.deleteWork(1L);
+    verify(processesService, times(1)).deleteWorkById(1L);
+    assertEquals(Response.Status.OK.getStatusCode(), response2.getStatus());
+    doThrow(new RuntimeException()).when(processesService).deleteWorkById(1l);
+    Response response3 = processesRest.deleteWork(1L);
+    assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response3.getStatus());
   }
 }

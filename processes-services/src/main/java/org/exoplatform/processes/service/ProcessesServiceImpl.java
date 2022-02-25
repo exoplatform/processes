@@ -189,6 +189,17 @@ public class ProcessesServiceImpl implements ProcessesService, Startable {
     return processesStorage.countWorksByWorkflow(projectId, isCompleted);
   }
 
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void deleteWorkById(Long workId) {
+    if (workId == null) {
+      throw new IllegalArgumentException("Work Id is mandatory");
+    }
+    processesStorage.deleteWorkById(workId);
+  }
+
   @Override
   public void start() {
     LOG.info("Processes Service start and default space initialize...");

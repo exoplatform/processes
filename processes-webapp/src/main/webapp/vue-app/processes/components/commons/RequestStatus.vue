@@ -29,9 +29,21 @@ export default {
   },
   computed: {
     statusColor() {
-      return this.status === 'accepted' || this.status === 'Done' ? 'green'
-        : this.status === 'pending' || this.status === 'WaitingOn' ? 'orange'
-          : this.status === 'refused' ? 'red' : 'grey';
+      switch (this.status.toLowerCase())
+      {
+      case 'accepted':
+      case 'done':
+      case 'validated':
+        return 'green';
+      case 'pending':
+      case 'waitingon':
+      case 'inprogress':
+        return 'orange';
+      case 'refused':
+        return 'red';
+      default:
+        return 'grey';
+      }
     }
   },
 };
