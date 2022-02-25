@@ -81,6 +81,13 @@
                 :space-id="processesSpaceId"
                 entity-type="task" />
             </div>
+            <div v-if="viewMode" class="taskCommentsAndChanges">
+              <v-divider />
+              <task-view-all-comments
+                class="mt-4"
+                :task="this.work"
+                :comments="this.work.comments" />
+            </div>
           </div>
         </div>
       </template>

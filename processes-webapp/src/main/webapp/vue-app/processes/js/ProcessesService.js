@@ -173,3 +173,16 @@ export function countWorksByWorkflow(workflowId, isCompleted) {
   });
 }
 
+export function getWorkComments(workId) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/tasks/comments/${workId}`, {
+    method: 'GET',
+    credentials: 'include',
+  }).then((resp) => {
+    if (resp && resp.ok) {
+      return resp.json();
+    } else {
+      throw new Error('Error when getting task comments');
+    }
+  });
+}
+
