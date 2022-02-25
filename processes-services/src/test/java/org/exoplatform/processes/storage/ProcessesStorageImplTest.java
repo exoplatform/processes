@@ -1,15 +1,18 @@
 package org.exoplatform.processes.storage;
 
+import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.processes.Utils.EntityMapper;
 import org.exoplatform.processes.dao.WorkFlowDAO;
 import org.exoplatform.processes.entity.WorkFlowEntity;
 import org.exoplatform.processes.model.WorkFlow;
-import org.exoplatform.processes.rest.util.EntityBuilder;
+import org.exoplatform.services.listener.ListenerService;
+import org.exoplatform.services.rest.impl.RuntimeDelegateImpl;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dto.ProjectDto;
+import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.service.ProjectService;
@@ -20,12 +23,13 @@ import org.exoplatform.task.util.UserUtil;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import javax.ws.rs.ext.RuntimeDelegate;
 import java.util.*;
 
 import static org.junit.Assert.*;
@@ -55,11 +59,22 @@ public class ProcessesStorageImplTest {
   @Mock
   private SpaceService spaceService;
 
+  private ListenerService listenerService;
+
   private ProcessesStorage processesStorage;
 
   @Before
   public void setUp() throws Exception {
-    this.processesStorage = new ProcessesStorageImpl(workFlowDAO, taskService, projectService, statusService, identityManager, spaceService);
+    RuntimeDelegate.setInstance(new RuntimeDelegateImpl());
+    listenerService = new ListenerService(new ExoContainerContext(null));
+    listenerService = spy(listenerService);
+    this.processesStorage = new ProcessesStorageImpl(workFlowDAO,
+                                                     taskService,
+                                                     projectService,
+                                                     statusService,
+                                                     identityManager,
+                                                     spaceService,
+                                                     listenerService);
     PowerMockito.mockStatic(EntityMapper.class);
     PowerMockito.mockStatic(UserUtil.class);
     PowerMockito.mockStatic(ProjectUtil.class);
@@ -137,7 +152,11 @@ public class ProcessesStorageImplTest {
   @Test
   public void deleteWorkById() throws EntityNotFoundException {
     TaskDto taskDto = mock(TaskDto.class);
+    ProjectDto projectDto = mock(ProjectDto.class);
+    StatusDto statusDto = mock(StatusDto.class);
     when(taskService.getTask(1L)).thenReturn(taskDto);
+    when(taskDto.getStatus()).thenReturn(statusDto);
+    when(statusDto.getProject()).thenReturn(projectDto);
     processesStorage.deleteWorkById(1L);
     verify(taskService, times(1)).removeTask(1L);
     when(taskService.getTask(1L)).thenThrow(EntityNotFoundException.class);
