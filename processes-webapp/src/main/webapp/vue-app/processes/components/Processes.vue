@@ -200,6 +200,7 @@ export default {
     addWork(work) {
       this.$processesService.addWork(work).then(work => {
         if (work){
+          this.$root.$emit('refresh-works');
           this.$root.$emit('work-added');
           this.displayMessage({type: 'success', message: this.$t('processes.work.add.success.message')});
         }
@@ -208,16 +209,20 @@ export default {
       });
     },
     showConfirmDialog(model, reason){
+      this.dialogAction = reason;
+      this.targetModel = model;
       if (reason === 'delete_workflow') {
-        this.dialogAction = reason;
-        this.targetModel = model;
         this.confirmMessage = this.$t('processes.workflow.delete.confirmDialog.message', {0: `<strong>${model.title}</strong>`});
+      } else if (reason === 'delete_work') {
+        this.confirmMessage = this.$t('processes.work.delete.confirmDialog.message');
       }
       this.$refs.confirmDialog.open();
     },
     confirmAction() {
       if (this.dialogAction && this.dialogAction === 'delete_workflow') {
         this.deleteWorkflowById(this.targetModel);
+      } else if (this.dialogAction && this.dialogAction === 'delete_work'){
+        this.deleteWorkById(this.targetModel);
       }
     },
     deleteWorkflowById(workflow) {
@@ -246,7 +251,17 @@ export default {
     onDialogClosed() {
       this.dialogAction = null;
       this.targetModel = null;
-    }
+    },
+    deleteWorkById(work) {
+      this.$processesService.deleteWorkById(work.id).then(value => {
+        if (value === 'ok') {
+          this.works.splice(this.works.indexOf(work), 1);
+          this.displayMessage({type: 'success', message: this.$t('processes.work.delete.success.message')});
+        }
+      }).catch(() => {
+        this.displayMessage({type: 'error', message: this.$t('processes.work.delete.error.message')});
+      });
+    },
   }
 };
 </script>

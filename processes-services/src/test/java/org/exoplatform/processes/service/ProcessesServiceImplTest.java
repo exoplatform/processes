@@ -202,4 +202,14 @@ public class ProcessesServiceImplTest {
     processesService.countWorksByWorkflow(1L, false);
     verify(processesStorage, times(1)).countWorksByWorkflow(1L, false);
   }
+
+  @Test
+  public void deleteWorkById() {
+    Throwable exception1 = assertThrows(IllegalArgumentException.class,
+            () -> this.processesService.deleteWorkById(null));
+    assertEquals("Work Id is mandatory", exception1.getMessage());
+    verify(processesStorage, times(0)).deleteWorkById(anyLong());
+    processesService.deleteWorkById(1L);
+    verify(processesStorage, times(1)).deleteWorkById(1L);
+  }
 }
