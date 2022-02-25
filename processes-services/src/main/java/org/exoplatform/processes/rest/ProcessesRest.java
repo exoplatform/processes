@@ -26,6 +26,7 @@ import javax.ws.rs.core.Response;
 
 import org.exoplatform.common.http.HTTPStatus;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.model.ProcessesFilter;
@@ -42,6 +43,8 @@ import org.exoplatform.services.security.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 
 import io.swagger.annotations.*;
+import org.exoplatform.social.core.space.model.Space;
+import org.exoplatform.social.core.space.spi.SpaceService;
 
 @Path("/v1/processes")
 @Api(value = "/v1/processes", description = "Manages processes") // NOSONAR
@@ -52,6 +55,9 @@ public class ProcessesRest implements ResourceContainer {
   private ProcessesService processesService;
 
   private IdentityManager  identityManager;
+
+  private static final String PROCESSES_SPACE_GROUP_ID      = "/spaces/processes_space";
+
 
   public ProcessesRest(ProcessesService processesService, IdentityManager identityManager) {
     this.processesService = processesService;
@@ -340,4 +346,30 @@ public class ProcessesRest implements ResourceContainer {
     }
   }
 
+  @GET
+  @Produces(MediaType.APPLICATION_JSON)
+  @RolesAllowed("users")
+  @Path("/processesSpace/info")
+  @ApiOperation(value = "get Processes Space info", httpMethod = "GET", response = Response.class, produces = "application/json")
+  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+            @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
+            @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+            @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
+  public Response getProcessesSpaceInfo() {
+    long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    if (currentIdentityId == 0) {
+      return Response.status(Response.Status.UNAUTHORIZED).build();
+    }
+    try {
+      SpaceService spaceService = CommonsUtils.getService(SpaceService.class);
+      Space processesSpace = spaceService.getSpaceByGroupId(PROCESSES_SPACE_GROUP_ID);
+      if (processesSpace == null) {
+        return Response.status(Response.Status.NOT_FOUND).build();
+      }
+      return Response.ok(processesSpace).type(MediaType.APPLICATION_JSON_TYPE).build();
+    } catch (Exception e) {
+      LOG.error("Error while getting processes space info", e);
+      return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+    }
+  }
 }
