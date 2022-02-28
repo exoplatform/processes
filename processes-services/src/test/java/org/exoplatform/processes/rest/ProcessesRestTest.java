@@ -69,7 +69,7 @@ public class ProcessesRestTest {
   }
 
   @Test
-  public void getWorkFlows() throws IllegalAccessException {
+  public void getWorkFlows() throws Exception {
     List<WorkFlow> workFlows = new ArrayList<>();
     List<WorkFlowEntity> workFlowEntities = new ArrayList<>();
     ProcessesFilter processesFilter = new ProcessesFilter();
@@ -79,8 +79,12 @@ public class ProcessesRestTest {
     when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
     when(processesService.getWorkFlows(processesFilter, 0, 10, 1L)).thenReturn(workFlows);
     when(EntityBuilder.toRestEntities(workFlows, null)).thenReturn(workFlowEntities);
-    Response response2 = processesRest.getWorkFlows(1L, null, null, null, 0, 10);
+    Response response2 = processesRest.getWorkFlows(1L, true, null, null, 0, 10);
     assertEquals(response2.getStatus(), Response.Status.OK.getStatusCode());
+    when(processesService.getWorkFlows(processesFilter, 0, 10, 1L)).thenThrow(RuntimeException.class);
+    Response response3 = processesRest.getWorkFlows(1L, null, null, null, 0, 10);
+    assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response3.getStatus());
+
   }
 
   @Test
@@ -93,10 +97,15 @@ public class ProcessesRestTest {
     Response response2 = processesRest.isProcessesManager();
     assertEquals(response2.getStatus(), Response.Status.OK.getStatusCode());
     assertEquals("true", response2.getEntity());
+    when(RestUtils.isProcessesGroupMember(identity)).thenThrow(RuntimeException.class);
+    Response response3 = processesRest.isProcessesManager();
+    assertEquals(response3.getStatus(), Response.Status.INTERNAL_SERVER_ERROR.getStatusCode());
   }
 
   @Test
   public void deleteWorkflow() {
+    Response response = processesRest.deleteWorkflow(null);
+    assertEquals(response.getStatus(), Response.Status.BAD_REQUEST.getStatusCode());
     when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
     Response response1 = processesRest.deleteWorkflow(1l);
     assertEquals(response1.getStatus(), Response.Status.UNAUTHORIZED.getStatusCode());
@@ -111,6 +120,9 @@ public class ProcessesRestTest {
     doThrow(new EntityNotFoundException()).when(processesService).deleteWorkflowById(1l);
     Response response4 = processesRest.deleteWorkflow(1l);
     assertEquals(response4.getStatus(), Response.Status.NOT_FOUND.getStatusCode());
+    doThrow(new RuntimeException()).when(processesService).deleteWorkflowById(1l);
+    Response response5 = processesRest.deleteWorkflow(1l);
+    assertEquals(response5.getStatus(), Response.Status.INTERNAL_SERVER_ERROR.getStatusCode());
   }
 
   @Test
