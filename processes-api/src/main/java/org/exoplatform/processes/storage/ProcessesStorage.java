@@ -90,4 +90,11 @@ public interface ProcessesStorage {
    * @throws Exception
    */
   int countWorksByWorkflow(long projectId, boolean isCompleted) throws Exception;
+
+  /**
+   * Delete a work by its given id
+   *
+   * @param workId: Work id
+   */
+  void deleteWorkById(Long workId);
 }

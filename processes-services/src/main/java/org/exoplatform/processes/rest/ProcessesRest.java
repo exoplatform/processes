@@ -406,4 +406,31 @@ public class ProcessesRest implements ResourceContainer {
       return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
     }
   }
+  @DELETE
+  @Produces(MediaType.TEXT_PLAIN)
+  @RolesAllowed("users")
+  @Path("/work/{workId}")
+  @ApiOperation(value = "delete a work by its id", httpMethod = "DELETE", response = Response.class, produces = "text/plain")
+  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
+  public Response deleteWork(@ApiParam(value = "work id to delete", required = true)
+                             @PathParam("workId") Long workId) {
+
+    if (workId == null) {
+      return Response.status(Response.Status.BAD_REQUEST).entity("work id is mandatory").build();
+    }
+    long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    if (currentIdentityId == 0) {
+      return Response.status(Response.Status.UNAUTHORIZED).build();
+    }
+    try {
+      processesService.deleteWorkById(workId);
+      return Response.ok("ok").type(MediaType.TEXT_PLAIN).build();
+    } catch (Exception e) {
+      LOG.error("Error while deleting a work", e);
+      return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+    }
+  }
 }

@@ -75,6 +75,8 @@
           class="pa-0 ma-0 text-align-end"
           lg="2">
           <v-btn
+            :disabled="!allowDeleteWork"
+            @click="deleteWork"
             color="blue"
             icon>
             <v-icon>mdi-trash-can-outline</v-icon>
@@ -102,6 +104,9 @@ export default {
   computed: {
     lastCommentDate() {
       return this.comments && this.comments[this.comments.length-1] && this.comments[this.comments.length-1].comment.createdTime.time;
+    },
+    allowDeleteWork() {
+      return this.work && this.work.status.toLowerCase() !== 'validated' && this.work.status.toLowerCase() !== 'refused';
     }
   },
   created() {
@@ -121,6 +126,9 @@ export default {
           this.comments = comments;
         });
       }
+    },
+    deleteWork() {
+      this.$root.$emit('show-confirm-action', {model: this.work, reason: 'delete_work'});
     }
   }
 };
