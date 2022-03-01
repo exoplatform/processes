@@ -185,6 +185,21 @@ public class ProcessesServiceImplTest {
     newWork.setDescription("anything");
     processesService.updateWork(newWork, 1L);
     verify(processesStorage, times(1)).saveWork(newWork, 1L);
+  }
 
+  @Test
+  public void countWorksByWorkflow() throws Exception {
+    Throwable exception1 = assertThrows(IllegalArgumentException.class,
+            () -> this.processesService.countWorksByWorkflow(null, false));
+    assertEquals("Project Id is mandatory", exception1.getMessage());
+    verify(processesStorage, times(0)).countWorksByWorkflow(1L, false);
+
+    Throwable exception2 = assertThrows(IllegalArgumentException.class,
+            () -> this.processesService.countWorksByWorkflow(1L, null));
+    assertEquals("isCompleted should not be null", exception2.getMessage());
+    verify(processesStorage, times(0)).countWorksByWorkflow(1L, false);
+
+    processesService.countWorksByWorkflow(1L, false);
+    verify(processesStorage, times(1)).countWorksByWorkflow(1L, false);
   }
 }

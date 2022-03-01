@@ -112,14 +112,6 @@ export default {
       return this.workflows.length >= 4 ? 3 : this.workflows.length === 3 ? 4 : 6 ;
     }
   },
-  created() {
-    this.$root.$on('open-add-work-drawer', event => {
-      this.$refs.addWork.open(event.usedWorkflow, event.mode);
-    });
-    this.$root.$on('open-workflow-drawer', event => {
-      this.$refs.addWorkFlow.open(event.workflow, event.mode);
-    });
-  },
   methods: {
     open() {
       this.$refs.addWorkFlow.open();

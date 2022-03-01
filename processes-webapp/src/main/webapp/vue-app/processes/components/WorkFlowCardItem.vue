@@ -72,10 +72,14 @@
       </div>
       <div>
         <v-chip
+          v-if="completedWorksCount>0 && isProcessesManager"
           class="text-truncate"
           color="orange"
+          :href="projectLink(workflow.projectId)"
+          target="_blank"
+          :loading="!completedWorksCount"
           text-color="white">
-          1 Request in progress
+          {{ completedWorksCount }} {{ $t('processes.works.status.inProgress') }}
         </v-chip>
       </div>
     </v-card-text>
@@ -96,10 +100,12 @@
 </template>
 
 <script>
+
 export default {
   data () {
     return {
       showMenu: false,
+      completedWorksCount: null,
     };
   },
   props: {
@@ -122,6 +128,7 @@ export default {
         }, 200);
       }
     });
+    this.countWorksByWorkflow(false);
   },
   methods: {
     editWorkflow() {
@@ -132,6 +139,16 @@ export default {
     },
     open() {
       this.$root.$emit('open-add-work-drawer', {object: this.workflow, mode: 'create_work'});
+    },
+    countWorksByWorkflow(isCompleted) {
+      if (this.workflow) {
+        this.$processesService.countWorksByWorkflow(this.workflow.projectId, isCompleted).then(value => {
+          this.completedWorksCount = value;
+        });
+      }
+    },
+    projectLink(projectId) {
+      return `${eXo.env.portal.context}/${eXo.env.portal.portalName}/tasks/projectDetail/${projectId}`;
     }
   }
 };
