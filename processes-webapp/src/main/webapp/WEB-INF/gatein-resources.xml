@@ -19,6 +19,9 @@
                 <path>/js/processes.bundle.js</path>
             </script>
             <depends>
+                <module>taskCommentsDrawer</module>
+            </depends>
+            <depends>
                 <module>commonVueComponents</module>
             </depends>
             <depends>
