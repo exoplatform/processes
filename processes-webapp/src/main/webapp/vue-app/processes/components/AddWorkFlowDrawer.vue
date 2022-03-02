@@ -1,7 +1,7 @@
 <template>
   <v-app>
     <exo-drawer
-      @close="close()"
+      @closed="close()"
       ref="workFlow"
       id="addWorkFlowDrawer"
       right>

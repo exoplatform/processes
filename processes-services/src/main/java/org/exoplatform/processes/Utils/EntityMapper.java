@@ -2,13 +2,14 @@ package org.exoplatform.processes.Utils;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import org.apache.commons.collections.CollectionUtils;
 
+import org.exoplatform.processes.entity.WorkEntity;
 import org.exoplatform.processes.entity.WorkFlowEntity;
+import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.services.log.ExoLogger;
@@ -40,6 +41,20 @@ public class EntityMapper {
                            null);
   }
 
+  public static Work fromEntity(WorkEntity WorkEntity) {
+    if (WorkEntity == null) {
+      return null;
+    }
+    return new Work(WorkEntity.getId(),
+                         WorkEntity.getTitle(),
+                         WorkEntity.getDescription(),
+                         WorkEntity.getCreatorId(),
+                         WorkEntity.getCreatedDate(),
+                         WorkEntity.getModifiedDate(),
+                         WorkEntity.getTaskId(),
+                         fromEntity(WorkEntity.getWorkFlow()));
+  }
+
   public static WorkFlowEntity toEntity(WorkFlow workFlow) {
     if (workFlow == null) {
       return null;
@@ -61,7 +76,25 @@ public class EntityMapper {
     return workFlowEntity;
   }
 
-  public static List<WorkFlow> fromEntities(List<WorkFlowEntity> workFlowEntities) {
+  public static WorkEntity toEntity(Work work) {
+    if (work == null) {
+      return null;
+    }
+    WorkEntity WorkEntity = new WorkEntity();
+
+    WorkEntity.setId(work.getId());
+    WorkEntity.setTitle(work.getTitle());
+    WorkEntity.setDescription(work.getDescription());
+    WorkEntity.setCreatorId(work.getCreatorId());
+    WorkEntity.setCreatedDate(work.getCreatedDate());
+    WorkEntity.setModifiedDate(work.getModifiedDate());
+    WorkEntity.setTaskId(work.getTaskId());
+    WorkEntity.setIsDraft(work.getIsDraft());
+    WorkEntity.setWorkFlow(toEntity(work.getWorkFlow()));
+    return WorkEntity;
+  }
+
+  public static List<WorkFlow> fromWorkflowEntities(List<WorkFlowEntity> workFlowEntities) {
     if (CollectionUtils.isEmpty(workFlowEntities)) {
       return new ArrayList<>(Collections.emptyList());
     } else {
@@ -69,6 +102,17 @@ public class EntityMapper {
                                                           .map(workEntity -> fromEntity(workEntity))
                                                           .collect(Collectors.toList());
       return workFlows;
+    }
+  }
+
+  public static List<Work> fromWorkEntities(List<WorkEntity> workDraftEntities) {
+    if (CollectionUtils.isEmpty(workDraftEntities)) {
+      return new ArrayList<>(Collections.emptyList());
+    } else {
+      List<Work> works = workDraftEntities.stream()
+              .map(WorkEntity -> fromEntity(WorkEntity))
+              .collect(Collectors.toList());
+      return works;
     }
   }
 
@@ -83,7 +127,7 @@ public class EntityMapper {
     }
   }
 
-  public static  TaskDto worktoTask (Work work) {
+  public static  TaskDto workToTask(Work work) {
     if (work == null) {
       return null;
     }
@@ -93,11 +137,11 @@ public class EntityMapper {
     newTask.setDescription(work.getDescription());
     newTask.setCompleted(false);
     newTask.setCreatedBy(work.getCreatedBy());
-    newTask.setCreatedTime(work.getCreatedTime());
+    newTask.setCreatedTime(work.getCreatedDate());
     return newTask;
   }
 
-  public static Work tasktoWork(TaskDto task) {
+  public static Work taskToWork(TaskDto task) {
     if (task == null) {
       return null;
     }
@@ -111,15 +155,17 @@ public class EntityMapper {
             task.getStartDate(),
             task.getEndDate(),
             task.getDueDate(),
+            false,
+            null,
             task.getStatus().getProject().getId());
   }
 
-  public static List<Work> taskstoWorkList(List<TaskDto> tasks) {
+  public static List<Work> tasksToWorkList(List<TaskDto> tasks) {
     if (CollectionUtils.isEmpty(tasks)) {
       return new ArrayList<>(Collections.emptyList());
     } else {
       List<Work> workList = tasks.stream()
-              .map(task -> tasktoWork(task))
+              .map(task -> taskToWork(task))
               .collect(Collectors.toList());
       return workList;
     }

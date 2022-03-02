@@ -28,20 +28,48 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class WorkEntity {
 
-  private long        id;
-  private String      title;
-  private String      description;
-  private String      status;
-  private boolean     completed;
-  private String      createdBy;
-  private Date        createdTime;
-  private Date        startDate;
-  private Date        endDate;
-  private Date        dueDate;
-  private long        projectId;
-  private WorkFlowEntity   workFlow;
+  private long           id;
 
-  public WorkEntity(long id, String title, String description, String status, boolean completed, String createdBy, Date createdTime, long projectId) {
+  private String         title;
+
+  private String         description;
+
+  private String         status;
+
+  private boolean        completed;
+
+  private String         createdBy;
+
+  private Date           createdTime;
+
+  private Date           modifiedTime;
+
+  private Date           startDate;
+
+  private Date           endDate;
+
+  private Date           dueDate;
+
+  private long           projectId;
+
+  private WorkFlowEntity workFlow;
+
+  private long           creatorId;
+
+  private Long           draftId;
+
+  private Long           taskId;
+
+  private Boolean        isDraft;
+
+  public WorkEntity(long id,
+                    String title,
+                    String description,
+                    String status,
+                    boolean completed,
+                    String createdBy,
+                    Date createdTime,
+                    long projectId) {
     this.id = id;
     this.title = title;
     this.description = description;
@@ -50,5 +78,25 @@ public class WorkEntity {
     this.createdBy = createdBy;
     this.createdTime = createdTime;
     this.projectId = projectId;
+  }
+
+  public WorkEntity(long id,
+                    String title,
+                    String description,
+                    long creatorId,
+                    Date createdTime,
+                    Date modifiedTime,
+                    Long taskId,
+                    Boolean isDraft,
+                    WorkFlowEntity workFlow) {
+    this.id = id;
+    this.title = title;
+    this.description = description;
+    this.creatorId = creatorId;
+    this.createdTime = createdTime;
+    this.modifiedTime = modifiedTime;
+    this.taskId = taskId;
+    this.isDraft = isDraft;
+    this.workFlow = workFlow;
   }
 }

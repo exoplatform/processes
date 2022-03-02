@@ -4,7 +4,9 @@ import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.processes.model.ProcessesFilter;
 import org.exoplatform.processes.model.Work;
+import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFlow;
+import org.exoplatform.processes.rest.model.WorkEntity;
 import org.exoplatform.processes.rest.model.WorkEntity;
 import org.exoplatform.processes.rest.model.WorkFlowEntity;
 import org.exoplatform.processes.rest.util.EntityBuilder;
@@ -33,6 +35,7 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.*;
@@ -356,5 +359,81 @@ public class ProcessesRestTest {
     doThrow(new RuntimeException()).when(processesService).deleteWorkById(1l);
     Response response3 = processesRest.deleteWork(1L);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response3.getStatus());
+  }
+
+  @Test
+  public void createWorkDraft() {
+    WorkEntity WorkEntity = new WorkEntity();
+    Work work = mock(Work.class);
+    when(EntityBuilder.fromEntity(WorkEntity)).thenReturn(work);
+    when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
+    Response response = processesRest.createWorkDraft(null);
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+    Response response1 = processesRest.createWorkDraft(WorkEntity);
+    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response1.getStatus());
+    when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    when(processesService.createWorkDraft(work, 1L)).thenReturn(work);
+    Response response2 = processesRest.createWorkDraft(WorkEntity);
+    assertEquals(Response.Status.OK.getStatusCode(), response2.getStatus());
+    doThrow(new RuntimeException()).when(processesService).createWorkDraft(work, 1L);
+    Response response3 = processesRest.createWorkDraft(WorkEntity);
+    assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response3.getStatus());
+  }
+
+  @Test
+  public void getWorkDrafts() {
+    List<Work> works = new ArrayList<>();
+    List<WorkEntity> WorkEntityList = new ArrayList<>();
+    when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
+    Response response = processesRest.getWorkDrafts(0L,"",0, 10);
+    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response.getStatus());
+    when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    when(processesService.getWorkDrafts(1L,0, 10)).thenReturn(works);
+    when(EntityBuilder.toWorkEntityList(works)).thenReturn(WorkEntityList);
+    Response response1 = processesRest.getWorkDrafts(null,"",0, 10);
+    assertEquals(Response.Status.OK.getStatusCode(), response1.getStatus());
+    doThrow(new RuntimeException()).when(processesService).getWorkDrafts(1L, 0, 10);
+    Response response2 = processesRest.getWorkDrafts(null,"",0, 10);
+    assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response2.getStatus());
+  }
+
+  @Test
+  public void updateWorkDraft() throws ObjectNotFoundException {
+    WorkEntity WorkEntity = new WorkEntity();
+    Work work = mock(Work.class);
+    when(EntityBuilder.fromEntity(WorkEntity)).thenReturn(work);
+    when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
+    Response response = processesRest.updateWorkDraft(null);
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+    Response response1 = processesRest.updateWorkDraft(WorkEntity);
+    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response1.getStatus());
+    when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    when(EntityBuilder.fromEntity(WorkEntity)).thenReturn(work);
+    when(EntityBuilder.toEntity(work)).thenReturn(WorkEntity);
+    when(processesService.updateWorkDraft(work, 1L)).thenReturn(work);
+    Response response2 = processesRest.updateWorkDraft(WorkEntity);
+    assertEquals(Response.Status.OK.getStatusCode(), response2.getStatus());
+    doThrow(new RuntimeException()).when(processesService).updateWorkDraft(work, 1L);
+    Response response3 = processesRest.updateWorkDraft(WorkEntity);
+    assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response3.getStatus());
+  }
+
+  @Test
+  public void deleteWorkDraft() {
+    when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
+    Response response = processesRest.deleteWorkDraft(null);
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+    Response response1 = processesRest.deleteWorkDraft(1L);
+    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response1.getStatus());
+    when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    Response response2 = processesRest.deleteWorkDraft(1L);
+    verify(processesService, times(1)).deleteWorkDraftById(1L);
+    assertEquals(Response.Status.OK.getStatusCode(), response2.getStatus());
+    doThrow(new EntityNotFoundException()).when(processesService).deleteWorkDraftById(1L);
+    Response response3 = processesRest.deleteWorkDraft(1L);
+    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response3.getStatus());
+    doThrow(new RuntimeException()).when(processesService).deleteWorkDraftById(1L);
+    Response response4 = processesRest.deleteWorkDraft(1L);
+    assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response4.getStatus());
   }
 }

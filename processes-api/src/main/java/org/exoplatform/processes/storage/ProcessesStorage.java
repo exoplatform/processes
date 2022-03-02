@@ -19,9 +19,7 @@ package org.exoplatform.processes.storage;
 import java.util.List;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
-import org.exoplatform.processes.model.Work;
-import org.exoplatform.processes.model.WorkFlow;
-import org.exoplatform.processes.model.ProcessesFilter;
+import org.exoplatform.processes.model.*;
 import org.exoplatform.social.core.identity.model.Identity;
 
 import javax.persistence.EntityNotFoundException;
@@ -34,14 +32,14 @@ public interface ProcessesStorage {
    * {@link WorkFlow} only. The ownerId of filter object will be used to select
    * the list of accessible WorkFlows to retrieve.
    *
-   * @param filter {@link ProcessesFilter} that contains filtering criteria
-   * @param offset Offset of the result list
-   * @param limit Limit of the result list
+   * @param filter         {@link ProcessesFilter} that contains filtering criteria
+   * @param offset         Offset of the result list
+   * @param limit          Limit of the result list
    * @param userIdentityId {@link Identity} technical identifier of the user
-   *          acessing files
+   *                       acessing files
    * @return {@link List} of {@link WorkFlow}
-   * @throws IllegalAccessException when the user isn't allowed to access
-   *           documents of the designated ownerId
+   * @throws IllegalAccessException  when the user isn't allowed to access
+   *                                 documents of the designated ownerId
    * @throws ObjectNotFoundException when ownerId doesn't exisits
    */
 
@@ -58,7 +56,7 @@ public interface ProcessesStorage {
    * {@link WorkFlow} only.
    *
    * @param offset Offset of the result list
-   * @param limit Limit of the result list
+   * @param limit  Limit of the result list
    * @return {@link List} of {@link WorkFlow}
    */
   List<WorkFlow> findDisabledWorkFlows(int offset, int limit);
@@ -73,6 +71,14 @@ public interface ProcessesStorage {
 
   Work getWorkById(long id);
 
+  /**
+   * Saving a work and deletes its related draft if it was created from draft
+   *
+   * @param work Work Object
+   * @param userId user Id
+   * @return {@link Work}
+   * @throws IllegalArgumentException
+   */
   Work saveWork(Work work, long userId) throws IllegalArgumentException;
 
   /**
@@ -83,11 +89,10 @@ public interface ProcessesStorage {
   void deleteWorkflowById(Long workflowId) throws EntityNotFoundException;
 
   /**
-   *
-   * @param projectId: Tasks project id
+   * @param projectId:   Tasks project id
    * @param isCompleted: filter by completed and uncompleted tasks
-   * @return: Filtered tasks count
    * @throws Exception
+   * @return: Filtered tasks count
    */
   int countWorksByWorkflow(long projectId, boolean isCompleted) throws Exception;
 
@@ -97,4 +102,38 @@ public interface ProcessesStorage {
    * @param workId: Work id
    */
   void deleteWorkById(Long workId);
+
+  /**
+   * Retrieves a list of accessible WorkDraft, for a selected user.
+   *
+   * @param offset         Offset of the result list
+   * @param limit          Limit of the result list
+   * @param userIdentityId {@link Identity} technical identifier of the user
+   * @return {@link List} of {@link Work}
+   */
+  List<Work> findAllWorkDraftsByUser(int offset, int limit, long userIdentityId);
+
+  /**
+   * Save a draft of a work
+   *
+   * @param work work draft object
+   * @param userId user id of the creator
+   * @return {@link Work}
+   */
+  Work saveWorkDraft(Work work, long userId);
+
+  /**
+   * Retrieves a work draft by its given id
+   *
+   * @param id Work draft id
+   * @return {@link Work}
+   */
+  Work getWorkDraftyId(long id);
+
+  /**
+   * Delete a work draft by its given id
+   *
+   * @param id Work draft id
+   */
+  void deleteWorkDraftById(long id) throws EntityNotFoundException;
 }

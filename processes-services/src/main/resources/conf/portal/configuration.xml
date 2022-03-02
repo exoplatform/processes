@@ -22,6 +22,9 @@
         <type>org.exoplatform.processes.dao.WorkFlowDAO</type>
     </component>
     <component>
+        <type>org.exoplatform.processes.dao.WorkDraftDAO</type>
+    </component>
+    <component>
         <key>org.exoplatform.processes.storage.ProcessesStorage</key>
         <type>org.exoplatform.processes.storage.ProcessesStorageImpl</type>
     </component>

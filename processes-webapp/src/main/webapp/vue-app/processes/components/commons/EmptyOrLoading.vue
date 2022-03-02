@@ -6,7 +6,11 @@
         cols="12"
         align="center"
         justify="center">
-        <slot v-if="loading" name="loading"></slot>
+        <v-progress-circular
+          v-if="loading"
+          :size="50"
+          color="primary"
+          indeterminate />
         <slot v-if="!loading" name="empty"></slot>
       </v-col>
     </v-row>

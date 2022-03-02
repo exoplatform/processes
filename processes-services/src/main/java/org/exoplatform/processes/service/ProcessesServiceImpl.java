@@ -24,9 +24,7 @@ import org.exoplatform.commons.utils.PropertyManager;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.portal.config.UserACL;
-import org.exoplatform.processes.model.Work;
-import org.exoplatform.processes.model.WorkFlow;
-import org.exoplatform.processes.model.ProcessesFilter;
+import org.exoplatform.processes.model.*;
 import org.exoplatform.processes.storage.ProcessesStorage;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -132,6 +130,9 @@ public class ProcessesServiceImpl implements ProcessesService, Startable {
   }
 
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public Work createWork(Work work, long userId) throws IllegalAccessException {
     if (work == null) {
@@ -200,6 +201,61 @@ public class ProcessesServiceImpl implements ProcessesService, Startable {
     processesStorage.deleteWorkById(workId);
   }
 
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Work createWorkDraft(Work work, long userId) throws IllegalArgumentException {
+    if (work == null) {
+      throw new IllegalArgumentException("WorkDraft is mandatory");
+    }
+    if (work.getId() != 0) {
+      throw new IllegalArgumentException("WorkDraft id must be equal to 0");
+    }
+    return processesStorage.saveWorkDraft(work, userId);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Work updateWorkDraft(Work work, long userId) throws IllegalArgumentException, ObjectNotFoundException {
+    if (work == null) {
+      throw new IllegalArgumentException("WorkDraft Type is mandatory");
+    }
+    if (work.getId() == 0) {
+      throw new IllegalArgumentException("WorkDraft type id must not be equal to 0");
+    }
+
+    Work oldWork = processesStorage.getWorkDraftyId(work.getId());
+    if (oldWork == null) {
+      throw new ObjectNotFoundException("oldWorkDraft is not exist");
+    }
+    if (oldWork.equals(work)) {
+      throw new IllegalArgumentException("there are no changes to save");
+    }
+    return processesStorage.saveWorkDraft(work, userId);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<Work> getWorkDrafts(long userIdentityId, int offset, int limit) {
+    return processesStorage.findAllWorkDraftsByUser(offset, limit, userIdentityId);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void deleteWorkDraftById(Long draftId) {
+    if (draftId == null) {
+      throw new IllegalArgumentException("WorkDraft id is mandatory");
+    }
+    processesStorage.deleteWorkDraftById(draftId);
+  }
+  
   @Override
   public void start() {
     LOG.info("Processes Service start and default space initialize...");

@@ -1,13 +1,21 @@
 package org.exoplatform.processes.storage;
 
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.processes.Utils.EntityMapper;
+import org.exoplatform.processes.dao.WorkDraftDAO;
 import org.exoplatform.processes.dao.WorkFlowDAO;
 import org.exoplatform.processes.entity.WorkFlowEntity;
+import org.exoplatform.processes.model.Work;
+import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFlow;
+import org.exoplatform.processes.notification.utils.NotificationUtils;
+import org.exoplatform.services.attachments.model.Attachment;
+import org.exoplatform.services.attachments.service.AttachmentService;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.rest.impl.RuntimeDelegateImpl;
 import org.exoplatform.social.core.identity.model.Identity;
+import org.exoplatform.social.core.identity.model.Profile;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
@@ -24,7 +32,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -38,12 +45,15 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.powermock.api.mockito.PowerMockito.when;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({EntityMapper.class, UserUtil.class, ProjectUtil.class})
+@PrepareForTest({EntityMapper.class, UserUtil.class, ProjectUtil.class, NotificationUtils.class})
 public class ProcessesStorageImplTest {
 
   @Mock
   private WorkFlowDAO      workFlowDAO;
 
+  @Mock
+  private WorkDraftDAO    workDraftDAO;
+  
   @Mock
   private IdentityManager  identityManager;
 
@@ -61,6 +71,9 @@ public class ProcessesStorageImplTest {
 
   private ListenerService listenerService;
 
+  @Mock
+  private AttachmentService attachmentService;
+
   private ProcessesStorage processesStorage;
 
   @Before
@@ -69,15 +82,18 @@ public class ProcessesStorageImplTest {
     listenerService = new ListenerService(new ExoContainerContext(null));
     listenerService = spy(listenerService);
     this.processesStorage = new ProcessesStorageImpl(workFlowDAO,
+                                                     workDraftDAO,
                                                      taskService,
                                                      projectService,
                                                      statusService,
                                                      identityManager,
                                                      spaceService,
-                                                     listenerService);
+                                                     listenerService,
+                                                     attachmentService);
     PowerMockito.mockStatic(EntityMapper.class);
     PowerMockito.mockStatic(UserUtil.class);
     PowerMockito.mockStatic(ProjectUtil.class);
+    PowerMockito.mockStatic(NotificationUtils.class);
   }
 
   @Test
@@ -162,5 +178,100 @@ public class ProcessesStorageImplTest {
     when(taskService.getTask(1L)).thenThrow(EntityNotFoundException.class);
     processesStorage.deleteWorkById(1L);
     verify(taskService, times(1)).removeTask(1L);
+  }
+
+  @Test
+  public void saveWork() throws EntityNotFoundException, IllegalAccessException, ObjectNotFoundException {
+    List<Attachment> attachments = new ArrayList<>();
+    Attachment attachment = new Attachment();
+    attachment.setId("1");
+    attachments.add(attachment);
+    Work work = new Work();
+    ProjectDto projectDto = mock(ProjectDto.class);
+    StatusDto statusDto = mock(StatusDto.class);
+    TaskDto taskDto = mock(TaskDto.class);
+    Identity identity = mock(Identity.class);
+    Profile profile = new Profile();
+    profile.setProperty("fullName", "Root root");
+    org.exoplatform.processes.entity.WorkEntity WorkEntity = mock(org.exoplatform.processes.entity.WorkEntity.class);
+    when(identity.getProfile()).thenReturn(profile);
+    when(taskDto.getStatus()).thenReturn(statusDto);
+    when(statusDto.getProject()).thenReturn(projectDto);
+    Throwable exception1 = assertThrows(IllegalArgumentException.class,
+            () -> this.processesStorage.saveWork(null, 1l));
+    assertEquals("work argument is null", exception1.getMessage());
+    when(identityManager.getIdentity("1")).thenReturn(null);
+    Throwable exception2 = assertThrows(IllegalArgumentException.class,
+            () -> this.processesStorage.saveWork(work, 1l));
+    assertEquals("identity is not exist", exception2.getMessage());
+    work.setId(0L);
+    work.setProjectId(1L);
+    when(identityManager.getIdentity("1")).thenReturn(identity);
+    when(projectService.getProject(work.getProjectId())).thenReturn(projectDto);
+    when(EntityMapper.workToTask(work)).thenReturn(taskDto);
+    when(EntityMapper.taskToWork(taskDto)).thenReturn(work);
+    when(taskDto.getTitle()).thenReturn("");
+    when(taskService.createTask(taskDto)).thenReturn(taskDto);
+    processesStorage.saveWork(work, 1L);
+    PowerMockito.verifyStatic(NotificationUtils.class, times(1));
+    NotificationUtils.broadcast(listenerService, "exo.process.request.created", work, projectDto);
+
+    work.setIsDraft(true);
+    work.setId(0);
+    work.setDraftId(1L);
+    when(taskDto.getId()).thenReturn(1L);
+    when(workDraftDAO.find(1L)).thenReturn(WorkEntity);
+    when(attachmentService.getAttachmentsByEntity(1L, 1L, "workdraft")).thenReturn(attachments);
+    processesStorage.saveWork(work, 1L);
+    verify(attachmentService, times(1)).linkAttachmentToEntity(1L, 1L, "task", "1");
+    verify(attachmentService, times(1)).deleteAllEntityAttachments(1L, 1L, "workdraft");
+    verify(workDraftDAO, times(1)).delete(WorkEntity);
+    when(projectService.getProject(work.getProjectId())).thenThrow(EntityNotFoundException.class);
+
+    work.setId(1L);
+    when(taskService.getTask(work.getId())).thenReturn(taskDto);
+    processesStorage.saveWork(work, 1L);
+    verify(taskService, times(1)).updateTask(taskDto);
+
+    when(taskService.getTask(work.getId())).thenThrow(EntityNotFoundException.class);
+    Throwable exception3 = assertThrows(IllegalArgumentException.class,
+            () -> this.processesStorage.saveWork(work, 1l));
+    assertEquals("Task not found", exception3.getMessage());
+
+    work.setId(0L);
+    Throwable exception4 = assertThrows(IllegalArgumentException.class,
+            () -> this.processesStorage.saveWork(work, 1l));
+    assertEquals("Task's project not found", exception4.getMessage());
+  }
+
+  @Test
+  public void saveWorkDraft() {
+    Work work = new Work();
+    work.setId(0L);
+    org.exoplatform.processes.entity.WorkEntity WorkEntity = new org.exoplatform.processes.entity.WorkEntity();
+    Identity identity = mock(Identity.class);
+    when(identityManager.getIdentity("1")).thenReturn(null);
+    Throwable exception1 = assertThrows(IllegalArgumentException.class,
+            () -> this.processesStorage.saveWorkDraft(work, 1l));
+    assertEquals("identity is not exist", exception1.getMessage());
+    when(EntityMapper.toEntity(work)).thenReturn(WorkEntity);
+    when(identityManager.getIdentity("1")).thenReturn(identity);
+    processesStorage.saveWorkDraft(work, 1L);
+    verify(workDraftDAO, times(1)).create(WorkEntity);
+    work.setId(1L);
+    processesStorage.saveWorkDraft(work, 1L);
+    verify(workDraftDAO, times(1)).update(WorkEntity);
+  }
+
+  @Test
+  public void deleteWorkDraftById() {
+    org.exoplatform.processes.entity.WorkEntity WorkEntity = new org.exoplatform.processes.entity.WorkEntity();
+    when(workDraftDAO.find(1L)).thenReturn(null);
+    Throwable exception1 = assertThrows(javax.persistence.EntityNotFoundException.class,
+            () -> this.processesStorage.deleteWorkDraftById(1l));
+    assertEquals("Work Draft not found", exception1.getMessage());
+    when(workDraftDAO.find(1L)).thenReturn(WorkEntity);
+    processesStorage.deleteWorkDraftById(1L);
+    verify(workDraftDAO, times(1)).delete(WorkEntity);
   }
 }

@@ -1,7 +1,7 @@
 <template>
   <v-app id="addWorkDrawer">
     <exo-drawer
-      @close="close"
+      @closed="updateDraft"
       ref="work"
       right>
       <template slot="title">
@@ -46,6 +46,7 @@
             v-if="viewMode">
             <request-status
               class="float-right"
+              :is-draft="editDraft || viewDraft"
               :status="work.status" />
             <v-label class="mb-1">
               {{ $t('processes.works.form.label.requestDate') }}
@@ -83,7 +84,7 @@
             </v-form>
           </div>
           <v-divider />
-          <div v-if="viewMode" class="mt-8">
+          <div v-if="viewMode || editDraft" class="mt-8">
             <v-label for="attachment">
               {{ $t('processes.works.form.label.attachment') }}
             </v-label>
@@ -92,11 +93,12 @@
             </p>
             <div class="workAttachments">
               <attachment-app
+                ref="workAttachments"
                 :entity-id="work.id"
                 :space-id="processesSpaceId"
-                entity-type="task" />
+                :entity-type="entityType" />
             </div>
-            <div v-if="viewMode" class="taskCommentsAndChanges">
+            <div v-if="viewMode && !viewDraft" class="taskCommentsAndChanges">
               <v-divider />
               <task-view-all-comments
                 class="mt-4"
@@ -106,16 +108,18 @@
           </div>
         </div>
       </template>
-      <template slot="footer">
+      <template slot="footer" v-if="!viewMode">
         <v-btn
-          v-if="false"
+          @click="updateDraft"
+          :disabled="!valid || !canUpdateDraft"
+          :loading="savingDraft"
           class="btn">
-          {{ $t('processes.work.saveDraft.label') }}
+          {{ draftButtonLabel }}
         </v-btn>
         <v-btn
           :loading="saving"
           @click="addWork"
-          :disabled="!valid"
+          :disabled="!validWorkDescription"
           class="btn btn-primary float-right">
           {{ $t('processes.work.sendWork.label') }}
         </v-btn>
@@ -133,11 +137,18 @@ export default {
       work: {
         description: '',
         workFlow: {},
+        draftId: null,
+        isDraft: false
       },
+      oldWork: {},
+      workDraft: {},
       viewMode: false,
+      viewDraft: false,
+      editDraft: false,
       maxLength: 1250,
       valid: false,
       saving: false,
+      savingDraft: false,
       rules: {
         maxLength: len => v => (v || '').length <= len || this.$t('processes.work.form.description.maxLength.message', {0: len}),
       },
@@ -155,14 +166,46 @@ export default {
       this.resetInputs();
       this.close();
     });
+    this.$root.$on('work-draft-added', () => {
+      this.savingDraft = false;
+      this.resetInputs();
+      this.close();
+    });
+    this.$root.$on('work-draft-updated', () => {
+      this.savingDraft = false;
+      this.resetInputs();
+      this.close();
+    });
+  },
+  computed: {
+    entityType() {
+      return this.editDraft || this.viewDraft ? 'workdraft' : 'task';
+    },
+    canUpdateDraft() {
+      return this.valid && this.work.description && this.work.description.length > 0 && JSON.stringify(this.work) !== JSON.stringify(this.oldWork);
+    },
+    draftButtonLabel() {
+      return this.editDraft ? this.$t('processes.work.updateDraft.label') : this.$t('processes.work.saveDraft.label');
+    },
+    validWorkDescription() {
+      return this.work && this.work.description && this.$utils.htmlToText(this.work.description).length <= this.maxLength;
+    }
   },
   methods: {
-    open(object, mode) {
+    open(object, mode, isDraft) {
       if (mode === 'create_work') {
         this.work = {};
         this.work.workFlow = object;
+        this.editDraft = false;
         this.viewMode = false;
+      } else if (mode === 'edit_work_draft') {
+        this.work = Object.assign({}, object);
+        this.oldWork = Object.assign({}, this.work);
+        this.viewMode = false;
+        this.editDraft = true;
       } else {
+        this.viewDraft = isDraft || false;
+        this.editDraft = false;
         this.work = object;
         this.viewMode = true;
       }
@@ -189,7 +232,32 @@ export default {
       }
     },
     addWork() {
-      this.$root.$emit('add-work',this.work);
+      this.saving = true;
+      if (this.editDraft) {
+        this.work.draftId = this.work.id;
+        this.work.id = 0;
+      }
+      this.$root.$emit('add-work', this.work);
+    },
+    toWorkDraft(work) {
+      this.workDraft.id = this.work.id || 0;
+      this.workDraft.title = work.title || '';
+      this.workDraft.createdTime = work.createdTime;
+      this.workDraft.creatorId = work.creatorId;
+      this.workDraft.description = work.description || '';
+      this.workDraft.workFlow = work.workFlow;
+      this.workDraft.isDraft = true;
+    },
+    updateDraft() {
+      if (!this.viewMode && this.canUpdateDraft) {
+        this.savingDraft = true;
+        this.toWorkDraft(this.work);
+        if (this.workDraft.id && this.workDraft.id !== 0) {
+          this.$root.$emit('update-work-draft', this.workDraft);
+        } else {
+          this.$root.$emit('create-work-draft', this.workDraft);
+        }
+      }
     }
   }
 };
