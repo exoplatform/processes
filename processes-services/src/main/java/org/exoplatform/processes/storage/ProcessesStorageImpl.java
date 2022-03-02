@@ -13,7 +13,8 @@ import org.exoplatform.processes.entity.WorkFlowEntity;
 import org.exoplatform.processes.model.ProcessesFilter;
 import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFlow;
-import org.exoplatform.processes.rest.model.WorkEntity;
+import org.exoplatform.processes.notification.utils.NotificationUtils;
+import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
@@ -47,6 +48,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   private final StatusService    statusService;
 
   private final SpaceService    spaceService;
+  
+  private final ListenerService listenerService;
 
   private final String           DATE_FORMAT = "yyyy/MM/dd";
 
@@ -59,13 +62,15 @@ public class ProcessesStorageImpl implements ProcessesStorage {
                               ProjectService projectService,
                               StatusService statusService,
                               IdentityManager identityManager,
-                              SpaceService spaceService) {
+                              SpaceService spaceService,
+                              ListenerService listenerService) {
     this.workFlowDAO = workFlowDAO;
     this.identityManager = identityManager;
     this.taskService = taskService;
     this.projectService = projectService;
     this.statusService = statusService;
     this.spaceService = spaceService;
+    this.listenerService = listenerService;
   }
 
   @Override
@@ -170,17 +175,19 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     if (work == null) {
       throw new IllegalArgumentException("work argument is null");
     }
+    TaskDto taskDto = null;
     Identity identity = identityManager.getIdentity(String.valueOf(userId));
     if (identity == null) {
       throw new IllegalArgumentException("identity is not exist");
     }
+    ProjectDto projectDto = null;
     if (work.getId() == 0) {
       try {
-        projectService.getProject(work.getProjectId());
+        projectDto = projectService.getProject(work.getProjectId());
       } catch (EntityNotFoundException e) {
         throw new IllegalArgumentException("Task's project not found");
       }
-      TaskDto taskDto = EntityMapper.worktoTask(work);
+      taskDto = EntityMapper.worktoTask(work);
       if (StringUtils.isEmpty(taskDto.getTitle())) {
         taskDto.setTitle(formatter.format(new Date()) + " - " + identity.getProfile().getFullName());
       }
@@ -189,9 +196,10 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       taskDto.setCreatedTime(new Date());
       taskDto.setPriority(Priority.NONE);
       taskDto = taskService.createTask(taskDto);
-      return EntityMapper.tasktoWork(taskDto);
+      Work newWork = EntityMapper.tasktoWork(taskDto);
+      NotificationUtils.broadcast(listenerService, "exo.process.request.created", newWork, projectDto);
+      return  newWork;
     } else {
-      TaskDto taskDto = null;
       try {
         taskDto = taskService.getTask(work.getId());
       } catch (EntityNotFoundException e) {
@@ -201,10 +209,11 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       taskDto.setTitle(work.getTitle());
       taskDto.setCompleted(work.isCompleted());
       taskDto = taskService.updateTask(taskDto);
-      return EntityMapper.tasktoWork(taskDto);
+      Work newWork = EntityMapper.tasktoWork(taskDto);
+      return newWork;
     }
   }
-  
+
   private long createProject(WorkFlow workFlow) {
     Space processSpace = spaceService.getSpaceByGroupId(PROCESSES_SPACE_GROUP_ID);
     if (processSpace == null) {
@@ -249,6 +258,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       TaskDto taskDto = taskService.getTask(workId);
       if (taskDto != null) {
         taskService.removeTask(workId);
+        ProjectDto projectDto = taskDto.getStatus().getProject();
+        NotificationUtils.broadcast(listenerService, "exo.process.request.removed", taskDto, projectDto);
       }
     } catch (EntityNotFoundException e) {
       LOG.error("Work not found", e);

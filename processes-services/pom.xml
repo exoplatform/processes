@@ -64,6 +64,11 @@
             <artifactId>task-management-services</artifactId>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>org.exoplatform.social</groupId>
+            <artifactId>social-component-notification</artifactId>
+            <scope>provided</scope>
+        </dependency>
         <!-- Test -->
         <dependency>
             <groupId>junit</groupId>
