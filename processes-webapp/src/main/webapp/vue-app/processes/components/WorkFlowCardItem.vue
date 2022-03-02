@@ -6,7 +6,7 @@
     <v-btn
       outlined
       color="primary"
-      class="mb-0"
+      class="mb-0 invisible"
       icon>
       <v-icon>mdi-information-outline</v-icon>
     </v-btn>

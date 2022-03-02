@@ -6,4 +6,5 @@
     <import>war:/conf/processes/organization-configuration.xml</import>
     <import>war:/conf/processes/dynamic-container-configuration.xml</import>
     <import profiles="app-center">war:/conf/processes/app-center-configuration.xml</import>
+    <import>war:/conf/processes/notification-configuration.xml</import>
 </configuration>
