@@ -93,6 +93,7 @@
       </template>
       <template slot="footer">
         <v-btn
+          v-if="false"
           class="btn">
           {{ $t('processes.work.saveDraft.label') }}
         </v-btn>
