@@ -5,21 +5,34 @@
       ref="work"
       right>
       <template slot="title">
-        <div>
-          <span class="ml-2 mr-2">{{ $t('processes.works.work.label') }}</span>
-          <span class="work-title pa-2">
-            <v-avatar
-              class="me-1"
-              color="blue"
-              size="30px">
-              <v-icon
-                dark>
-                mdi-clock
-              </v-icon>
-            </v-avatar>
-            <span class="white--text">{{ this.work.workFlow.title }}</span>
-          </span>
-        </div>
+        <v-container
+          class="pa-0"
+          no-gutters>
+          <v-row
+            class="pa-0"
+            align="center">
+            <v-col
+              cols="3">
+              <span>{{ $t('processes.works.work.label') }}</span>
+            </v-col>
+            <v-col
+              cols="8"
+              class="pa-0 text-align-start col-work-title">
+              <p class="work-title white--text text-truncate pa-2">
+                <v-avatar
+                  class="me-1"
+                  color="blue"
+                  size="30px">
+                  <v-icon
+                    dark>
+                    mdi-clock
+                  </v-icon>
+                </v-avatar>
+                <span class="white--text">{{ this.work.workFlow.title }}</span>
+              </p>
+            </v-col>
+          </v-row>
+        </v-container>
       </template>
       <template slot="content">
         <div class="pa-4">
@@ -50,18 +63,20 @@
               <v-label for="description">
                 {{ $t('processes.works.form.label.workDetail') }}
               </v-label>
-              <v-textarea
-                :readonly="viewMode"
-                :rules="[rules.maxLength(maxLength)]"
-                v-model="work.description"
-                name="description"
-                outlined
-                auto-grow
-                rows="30"
-                row-height="15"
-                class="work-detail"
-                :placeholder="$t('processes.works.form.placeholder.workDetail')" />
+              <div
+                class="text-truncate-8 pa-2 mt-3 work-description"
+                v-if="viewMode"
+                v-sanitized-html="work.description"></div>
+              <request-editor
+                class="mt-4"
+                v-if="!viewMode"
+                required
+                ref="requestEditor"
+                id="request-editor"
+                :placeholder="$t('processes.works.form.placeholder.workDetail')"
+                v-model="work.description" />
               <custom-counter
+                class="mt-n4 me-4"
                 v-if="!viewMode"
                 :value="work.description"
                 :max-length="maxLength" />
@@ -110,6 +125,7 @@
 </template>
 
 <script>
+
 export default {
 
   data () {
@@ -121,6 +137,7 @@ export default {
       viewMode: false,
       maxLength: 1250,
       valid: false,
+      saving: false,
       rules: {
         maxLength: len => v => (v || '').length <= len || this.$t('processes.work.form.description.maxLength.message', {0: len}),
       },
@@ -149,7 +166,15 @@ export default {
         this.work = object;
         this.viewMode = true;
       }
+      this.initEditor();
       this.$refs.work.open();
+    },
+    initEditor() {
+      this.$nextTick().then(() => {
+        if (this.$refs.requestEditor) {
+          this.$refs.requestEditor.initCKEditor(false);
+        }
+      });
     },
     close() {
       this.$refs.work.close();
@@ -159,6 +184,9 @@ export default {
         description: '',
         workFlow: {},
       };
+      if (this.$refs.requestEditor) {
+        this.$refs.requestEditor.initCKEditorData('');
+      }
     },
     addWork() {
       this.$root.$emit('add-work',this.work);

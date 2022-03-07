@@ -60,7 +60,9 @@
           md="4"
           class="pa-0 ma-0 text-truncate text-caption"
           lg="3">
-          <span v-sanitized-html="work.description"></span>
+          <span>
+            {{ this.$utils.htmlToText(work.description) }}
+          </span>
         </v-col>
         <v-col
           cols="4"
@@ -130,6 +132,7 @@ export default {
     deleteWork() {
       this.$root.$emit('show-confirm-action', {model: this.work, reason: 'delete_work'});
     }
-  }
+  },
+
 };
 </script>
