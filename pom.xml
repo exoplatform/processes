@@ -31,6 +31,9 @@
         <org.exoplatform.social.version>6.3.x-SNAPSHOT</org.exoplatform.social.version>
         <org.exoplatform.platform-ui.version>6.3.x-SNAPSHOT</org.exoplatform.platform-ui.version>
         <addon.exo.tasks.version>3.3.x-SNAPSHOT</addon.exo.tasks.version>
+        
+        <!-- Sonar properties -->
+    <sonar.organization>exoplatform</sonar.organization>
     </properties>
     <dependencyManagement>
         <dependencies>
