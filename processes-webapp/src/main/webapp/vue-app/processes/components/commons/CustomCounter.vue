@@ -3,7 +3,7 @@
     :class="textColor">
     <small
       class="mt-n1 float-right">
-      {{ value.length }} / {{ maxLength }}
+      {{ toPlainText(value).length }} / {{ maxLength }}
       <v-icon
         :color="iconColor"
         x-small>
@@ -27,13 +27,18 @@ export default {
   },
   computed: {
     validLength() {
-      return this.value.length <= this.maxLength;
+      return this.toPlainText(this.value).length <= this.maxLength;
     },
     textColor() {
       return this.validLength ? 'grey--text custom-counter': 'red--text custom-counter';
     },
     iconColor() {
       return this.validLength ? 'green': 'red';
+    }
+  },
+  methods: {
+    toPlainText(value) {
+      return this.$utils.htmlToText(value);
     }
   }
 };
