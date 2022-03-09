@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
 
+import org.exoplatform.commons.api.persistence.ExoTransactional;
 import org.exoplatform.processes.Utils.EntityMapper;
 import org.exoplatform.processes.Utils.Utils;
 import org.exoplatform.processes.dao.WorkDraftDAO;
@@ -286,6 +287,10 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       }
     } catch (EntityNotFoundException e) {
       LOG.error("Error while getting workflow project", e);
+    }
+    List<WorkEntity> drafts = this.workDraftDAO.getDraftsByWorkflowId(workflowId);
+    if (drafts.size() != 0) {
+      workDraftDAO.deleteAll(drafts);
     }
     this.workFlowDAO.delete(workFlowEntity);
   }

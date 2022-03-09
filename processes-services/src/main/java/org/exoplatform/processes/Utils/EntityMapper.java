@@ -41,18 +41,19 @@ public class EntityMapper {
                            null);
   }
 
-  public static Work fromEntity(WorkEntity WorkEntity) {
-    if (WorkEntity == null) {
+  public static Work fromEntity(WorkEntity workEntity) {
+    if (workEntity == null) {
       return null;
     }
-    return new Work(WorkEntity.getId(),
-                         WorkEntity.getTitle(),
-                         WorkEntity.getDescription(),
-                         WorkEntity.getCreatorId(),
-                         WorkEntity.getCreatedDate(),
-                         WorkEntity.getModifiedDate(),
-                         WorkEntity.getTaskId(),
-                         fromEntity(WorkEntity.getWorkFlow()));
+    return new Work(workEntity.getId(),
+                    workEntity.getTitle(),
+                    workEntity.getDescription(),
+                    workEntity.getCreatorId(),
+                    workEntity.getCreatedDate(),
+                    workEntity.getModifiedDate(),
+                    workEntity.getTaskId(),
+                    workEntity.getIsDraft(),
+                    fromEntity(workEntity.getWorkFlow()));
   }
 
   public static WorkFlowEntity toEntity(WorkFlow workFlow) {
