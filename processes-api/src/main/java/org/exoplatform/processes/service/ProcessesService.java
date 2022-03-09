@@ -19,9 +19,7 @@ package org.exoplatform.processes.service;
 import java.util.List;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
-import org.exoplatform.processes.model.Work;
-import org.exoplatform.processes.model.WorkFlow;
-import org.exoplatform.processes.model.ProcessesFilter;
+import org.exoplatform.processes.model.*;
 import org.exoplatform.social.core.identity.model.Identity;
 
 public interface ProcessesService {
@@ -58,6 +56,14 @@ public interface ProcessesService {
 
   WorkFlow getWorkFlowByProjectId(long projectId);
 
+  /**
+   * Creates a work from new work object or from exiting work draft
+   *
+   * @param work Work Object
+   * @param userId user id
+   * @return {@link Work}
+   * @throws IllegalAccessException
+   */
   Work createWork(Work work, long userId) throws IllegalAccessException;
 
   Work updateWork(Work work, long userId) throws IllegalArgumentException,
@@ -85,4 +91,41 @@ public interface ProcessesService {
    */
   public void deleteWorkById(Long workId);
 
+  /**
+   * Creates a work draft
+   *
+   * @param work Work draft object
+   * @param userId user identity
+   * @return {@link Work}
+   * @throws IllegalArgumentException
+   */
+  Work createWorkDraft(Work work, long userId) throws IllegalArgumentException;
+
+  /**
+   * Updates a work draft
+   *
+   * @param work Work draft object
+   * @param userId user identity
+   * @return {@link Work}
+   * @throws IllegalArgumentException
+   * @throws ObjectNotFoundException
+   */
+  Work updateWorkDraft(Work work, long userId) throws IllegalArgumentException, ObjectNotFoundException;
+
+  /**
+   * Retrieves a list of accessible WorkDraft, for a selected user
+   *
+   * @param userIdentityId user identity
+   * @param offset Offset of the result list
+   * @param limit Limit of the result list
+   * @return {@link List} of {@link Work}
+   */
+  List<Work> getWorkDrafts(long userIdentityId, int offset, int limit);
+
+  /**
+   * Deletes a work draft by its given id
+   *
+   * @param id Work draft id
+   */
+  void deleteWorkDraftById(Long id);
 }

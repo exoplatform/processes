@@ -3,10 +3,7 @@
     id="myWorks">
     <empty-or-loading
       :loading="loading"
-      v-if="works.length === 0">
-      <template v-slot:loading>
-        <span>loading...</span>
-      </template>
+      v-if="works.length === 0 && workDrafts.length === 0">
       <template v-slot:empty>
         <div>
           <v-img
@@ -21,7 +18,7 @@
       </template>
     </empty-or-loading>
     <v-expansion-panels
-      v-if="works.length>0"
+      v-if="works.length>0 || workDrafts.length>0"
       v-model="panel"
       multiple>
       <v-expansion-panel
@@ -46,6 +43,28 @@
             :work="work" />
         </v-expansion-panel-content>
       </v-expansion-panel>
+      <v-expansion-panel
+        v-if="workDrafts.length>0"
+        class="elevation-0 ml-n5">
+        <v-expansion-panel-header
+          class="text-md-body-1 font-weight-regular grey--text text--darken-1">
+          <v-icon class="text-md-body-5" v-if="!panel.includes(this.items.length)">mdi-chevron-up</v-icon>
+          <v-icon class="text-md-body-5" v-if="panel.includes(this.items.length)">mdi-chevron-down</v-icon>
+          {{ this.$t('processes.myWorks.status.draft') }} ({{ workDrafts.length }})
+          <hr class="line-panel-work">
+          <template v-slot:actions>
+            <v-icon />
+          </template>
+        </v-expansion-panel-header>
+        <v-expansion-panel-content
+          class="elevation-0 work-panel-content">
+          <work
+            v-for="draft in workDrafts"
+            :is-draft="true"
+            :key="draft.id"
+            :work="draft" />
+        </v-expansion-panel-content>
+      </v-expansion-panel>
     </v-expansion-panels>
   </div>
 </template>
@@ -54,7 +73,7 @@
 export default {
   data () {
     return {
-      panel: [0,1],
+      panel: [0,1,2],
     };
   },
   props: {
@@ -62,10 +81,36 @@ export default {
       type: Array,
       default: null,
     },
+    workDrafts: {
+      type: Array,
+      default: null,
+    },
     loading: {
       type: Boolean,
       default: false
     },
+  },
+  created() {
+    this.$root.$on('work-draft-added', (draft) => {
+      this.workDrafts.push(draft);
+    });
+    this.$root.$on('work-draft-updated', (draft) => {
+      draft = JSON.parse(draft);
+      const index = this.workDrafts.map(draft => draft.id).indexOf(draft.id);
+      this.workDrafts.splice(index, 1, draft);
+    });
+    this.$root.$on('work-draft-removed', (draft) => {
+      this.workDrafts.splice(this.workDrafts.indexOf(draft), 1);
+    });
+    this.$root.$on('work-added', (event) => {
+      this.works.push(event.work);
+      if (event.draftId) {
+        this.workDrafts.splice(this.workDrafts.indexOf(event.draftId), 1);
+      }
+    });
+    this.$root.$on('work-removed', (work) => {
+      this.works.splice(this.works.indexOf(work), 1);
+    });
   },
   computed: {
     items() {
