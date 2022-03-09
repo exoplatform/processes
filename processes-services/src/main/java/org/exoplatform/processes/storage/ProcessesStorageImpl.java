@@ -286,6 +286,10 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     } catch (EntityNotFoundException e) {
       LOG.error("Error while getting workflow project", e);
     }
+    List<WorkEntity> drafts = this.workDraftDAO.getDraftsByWorkflowId(workflowId);
+    if (!drafts.isEmpty()) {
+      workDraftDAO.deleteAll(drafts);
+    }
     this.workFlowDAO.delete(workFlowEntity);
   }
 

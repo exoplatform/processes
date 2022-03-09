@@ -63,13 +63,14 @@ public class EntityBuilder {
       return null;
     }
     return new Work(workEntity.getId(),
-                    workEntity.getTitle(),
-                    workEntity.getDescription(),
-                    workEntity.getCreatorId(),
-                    workEntity.getCreatedTime(),
-                    workEntity.getModifiedTime(),
-                    workEntity.getTaskId(),
-                    fromEntity(workEntity.getWorkFlow()));
+            workEntity.getTitle(),
+            workEntity.getDescription(),
+            workEntity.getCreatorId(),
+            workEntity.getCreatedTime(),
+            workEntity.getModifiedTime(),
+            workEntity.getTaskId(),
+            workEntity.getIsDraft(),
+            fromEntity(workEntity.getWorkFlow()));
   }
 
   public static WorkFlowEntity toEntity(WorkFlow workFlow, String expand) {

@@ -5,7 +5,17 @@
       class="ma-2"
       :color="statusColor"
       text-color="white">
-      {{ statusLabel }}
+      <v-tooltip bottom>
+        <template v-slot:activator="{ on, attrs }">
+          <span
+            v-bind="attrs"
+            v-on="on"
+            class="text-truncate work-status">
+            {{ statusLabel }}
+          </span>
+        </template>
+        <span>{{ statusLabel }}</span>
+      </v-tooltip>
     </v-chip>
     <div
       v-if="type === 'indicator'"

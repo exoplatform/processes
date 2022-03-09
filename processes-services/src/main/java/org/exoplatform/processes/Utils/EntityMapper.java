@@ -51,6 +51,7 @@ public class EntityMapper {
                     workEntity.getCreatedDate(),
                     workEntity.getModifiedDate(),
                     workEntity.getTaskId(),
+                    workEntity.getIsDraft(),
                     fromEntity(workEntity.getWorkFlow()));
   }
 

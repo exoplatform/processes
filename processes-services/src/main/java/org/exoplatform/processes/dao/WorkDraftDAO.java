@@ -36,4 +36,12 @@ public class WorkDraftDAO extends GenericDAOJPAImpl<WorkEntity, Long> {
         List<WorkEntity> resultList = query.getResultList();
         return resultList == null ? Collections.emptyList() : resultList;
     }
-}
+
+    public List<WorkEntity> getDraftsByWorkflowId(long workflowId) {
+      TypedQuery<WorkEntity> query = getEntityManager().createNamedQuery("Work.findAllWorkDraftsByWorkflowId", WorkEntity.class);
+      query.setParameter("workflowId", workflowId);
+      List<WorkEntity> resultList = query.getResultList();
+      return resultList == null ? Collections.emptyList() : resultList;
+
+    }
+  }
