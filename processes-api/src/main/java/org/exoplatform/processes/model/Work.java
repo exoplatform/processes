@@ -62,6 +62,7 @@ public class Work {
   private WorkFlow workFlow;
 
   /**
+   * constructor for Work task object
    *
    * @param id Work id
    * @param title Work title
@@ -124,6 +125,7 @@ public class Work {
               Date createdDate,
               Date modifiedDate,
               Long taskId,
+              Boolean isDraft,
               WorkFlow workFlow) {
     
     this.id = id;
@@ -133,6 +135,7 @@ public class Work {
     this.createdDate = createdDate;
     this.modifiedDate = modifiedDate;
     this.taskId = taskId;
+    this.isDraft = isDraft;
     this.workFlow = workFlow;
   }
   

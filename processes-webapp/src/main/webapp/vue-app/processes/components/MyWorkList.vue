@@ -22,34 +22,12 @@
       v-model="panel"
       multiple>
       <v-expansion-panel
-        v-for="(item, index) in items"
-        :key="item.status"
-        class="elevation-0 ml-n5">
-        <v-expansion-panel-header
-          class="text-md-body-1 font-weight-regular grey--text text--darken-1">
-          <v-icon class="text-md-body-5" v-if="!panel.includes(index)">mdi-chevron-up</v-icon>
-          <v-icon class="text-md-body-5" v-if="panel.includes(index)">mdi-chevron-down</v-icon>
-          {{ item.status }} ({{ item.works.length }})
-          <hr class="line-panel-work">
-          <template v-slot:actions>
-            <v-icon />
-          </template>
-        </v-expansion-panel-header>
-        <v-expansion-panel-content
-          class="elevation-0 work-panel-content">
-          <work
-            v-for="work in item.works"
-            :key="work.id"
-            :work="work" />
-        </v-expansion-panel-content>
-      </v-expansion-panel>
-      <v-expansion-panel
         v-if="workDrafts.length>0"
         class="elevation-0 ml-n5">
         <v-expansion-panel-header
           class="text-md-body-1 font-weight-regular grey--text text--darken-1">
-          <v-icon class="text-md-body-5" v-if="!panel.includes(this.items.length)">mdi-chevron-up</v-icon>
-          <v-icon class="text-md-body-5" v-if="panel.includes(this.items.length)">mdi-chevron-down</v-icon>
+          <v-icon class="text-md-body-5" v-if="!panel.includes(0)">mdi-chevron-up</v-icon>
+          <v-icon class="text-md-body-5" v-if="panel.includes(0)">mdi-chevron-down</v-icon>
           {{ this.$t('processes.myWorks.status.draft') }} ({{ workDrafts.length }})
           <hr class="line-panel-work">
           <template v-slot:actions>
@@ -63,6 +41,28 @@
             :is-draft="true"
             :key="draft.id"
             :work="draft" />
+        </v-expansion-panel-content>
+      </v-expansion-panel>
+      <v-expansion-panel
+        v-for="(item, index) in items"
+        :key="item.status"
+        class="elevation-0 ml-n5">
+        <v-expansion-panel-header
+          class="text-md-body-1 font-weight-regular grey--text text--darken-1">
+          <v-icon class="text-md-body-5" v-if="!panel.includes(index + 1)">mdi-chevron-up</v-icon>
+          <v-icon class="text-md-body-5" v-if="panel.includes(index + 1)">mdi-chevron-down</v-icon>
+          {{ item.status }} ({{ item.works.length }})
+          <hr class="line-panel-work">
+          <template v-slot:actions>
+            <v-icon />
+          </template>
+        </v-expansion-panel-header>
+        <v-expansion-panel-content
+          class="elevation-0 work-panel-content">
+          <work
+            v-for="work in item.works"
+            :key="work.id"
+            :work="work" />
         </v-expansion-panel-content>
       </v-expansion-panel>
     </v-expansion-panels>
