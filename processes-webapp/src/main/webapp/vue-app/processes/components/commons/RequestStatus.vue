@@ -5,7 +5,7 @@
       class="ma-2"
       :color="statusColor"
       text-color="white">
-      {{ status }}
+      {{ statusLabel }}
     </v-chip>
     <div
       v-if="type === 'indicator'"
@@ -22,6 +22,10 @@ export default {
       type: String,
       default: null
     },
+    isDraft: {
+      type: Boolean,
+      default: false
+    },
     type: {
       type: String,
       default: 'chip'
@@ -29,7 +33,7 @@ export default {
   },
   computed: {
     statusColor() {
-      switch (this.status.toLowerCase())
+      switch (this.statusLabel.toLowerCase())
       {
       case 'accepted':
       case 'done':
@@ -44,6 +48,9 @@ export default {
       default:
         return 'grey';
       }
+    },
+    statusLabel() {
+      return !this.isDraft ? this.status : this.$t('processes.myWorks.status.draftLabel');
     }
   },
 };

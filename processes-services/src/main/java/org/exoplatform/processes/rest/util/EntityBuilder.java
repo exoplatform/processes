@@ -58,6 +58,20 @@ public class EntityBuilder {
                         null);
   }
 
+  public static Work fromEntity(WorkEntity workEntity) {
+    if (workEntity == null) {
+      return null;
+    }
+    return new Work(workEntity.getId(),
+                    workEntity.getTitle(),
+                    workEntity.getDescription(),
+                    workEntity.getCreatorId(),
+                    workEntity.getCreatedTime(),
+                    workEntity.getModifiedTime(),
+                    workEntity.getTaskId(),
+                    fromEntity(workEntity.getWorkFlow()));
+  }
+
   public static WorkFlowEntity toEntity(WorkFlow workFlow, String expand) {
     if (workFlow == null) {
       return null;
@@ -79,6 +93,27 @@ public class EntityBuilder {
                               workFlow.getModifiedDate(),
                               workFlow.getProjectId(),
                               null);
+  }
+
+  public static WorkFlowEntity toEntity(WorkFlow workFlow) {
+    if (workFlow == null) {
+      return null;
+    }
+     WorkFlowEntity workFlowEntity = new WorkFlowEntity();
+
+    workFlowEntity.setId(workFlow.getId());
+    workFlowEntity.setTitle(workFlow.getTitle());
+    workFlowEntity.setDescription(workFlow.getDescription());
+    workFlowEntity.setSummary(workFlow.getSummary());
+    workFlowEntity.setImage(workFlow.getImage());
+    workFlowEntity.setHelpLink(workFlow.getHelpLink());
+    workFlowEntity.setEnabled(workFlow.isEnabled());
+    workFlowEntity.setCreatorId(workFlow.getCreatorId());
+    workFlowEntity.setCreatedDate(workFlow.getCreatedDate());
+    workFlowEntity.setModifierId(workFlow.getModifierId());
+    workFlowEntity.setModifiedDate(workFlow.getModifiedDate());
+    workFlowEntity.setProjectId(workFlow.getProjectId());
+    return workFlowEntity;
   }
 
   public static List<WorkFlow> fromRestEntities(List<WorkFlowEntity> workFlowEntities) {
@@ -116,6 +151,8 @@ public class EntityBuilder {
                          null,
                          null,
                          null,
+                         workEntity.getIsDraft(),
+                         workEntity.getDraftId(),
                          workEntity.getProjectId());
     if (workEntity.getWorkFlow() != null) {
       try {
@@ -144,7 +181,7 @@ public class EntityBuilder {
                                            work.getStatus(),
                                            work.isCompleted(),
                                            work.getCreatedBy(),
-                                           work.getCreatedTime(),
+                                           work.getCreatedDate(),
                                            work.getProjectId());
     if (expandProperties.contains("comments")) {
       // TODO: Add comments
@@ -156,14 +193,35 @@ public class EntityBuilder {
     return workEntity;
   }
 
+  public static WorkEntity toEntity(Work work) {
+    if (work == null) {
+      return null;
+    }
+
+    return new WorkEntity(work.getId(),
+                          work.getTitle(),
+                          work.getDescription(),
+                          work.getCreatorId(),
+                          work.getCreatedDate(),
+                          work.getModifiedDate(),
+                          work.getTaskId(),
+                          work.getIsDraft(),
+                          toEntity(work.getWorkFlow()));
+  }
+
   public static List<WorkEntity> toWorkEntityList(ProcessesService processesService, List<Work> works, String expand) {
     if (CollectionUtils.isEmpty(works)) {
       return new ArrayList<>(Collections.emptyList());
     } else {
-      List<WorkEntity> workEntityList = works.stream()
-                                             .map(work -> toWorkEntity(processesService, work, expand))
-                                             .collect(Collectors.toList());
-      return workEntityList;
+      return works.stream().map(work -> toWorkEntity(processesService, work, expand)).collect(Collectors.toList());
+    }
+  }
+
+  public static List<WorkEntity> toWorkEntityList(List<Work> works) {
+    if (CollectionUtils.isEmpty(works)) {
+      return new ArrayList<>(Collections.emptyList());
+    } else {
+      return works.stream().map(EntityBuilder::toEntity).collect(Collectors.toList());
     }
   }
 

@@ -27,9 +27,7 @@ import javax.ws.rs.core.Response;
 import org.exoplatform.common.http.HTTPStatus;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.CommonsUtils;
-import org.exoplatform.processes.model.Work;
-import org.exoplatform.processes.model.WorkFlow;
-import org.exoplatform.processes.model.ProcessesFilter;
+import org.exoplatform.processes.model.*;
 import org.exoplatform.processes.rest.model.WorkEntity;
 import org.exoplatform.processes.rest.model.WorkFlowEntity;
 import org.exoplatform.processes.rest.util.EntityBuilder;
@@ -212,8 +210,8 @@ public class ProcessesRest implements ResourceContainer {
       if (userId != null) {
         userIdentityId = userId;
       }
-      List<Work> workFlows = processesService.getWorks(userIdentityId, offset, limit);
-      return Response.ok(EntityBuilder.toWorkEntityList(processesService, workFlows, expand)).build();
+      List<Work> works = processesService.getWorks(userIdentityId, offset, limit);
+      return Response.ok(EntityBuilder.toWorkEntityList(processesService, works, expand)).build();
     } catch (Exception e) {
       LOG.warn("Error retrieving list of workFlows", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -245,7 +243,7 @@ public class ProcessesRest implements ResourceContainer {
     }
     try {
       Work newWork = processesService.createWork(EntityBuilder.toWork(processesService,workEntity),currentIdentityId);
-      return Response.ok(EntityBuilder.toWorkEntity(processesService, newWork, "")).build();
+      return Response.ok(EntityBuilder.toWorkEntity(processesService, newWork, "workFlow")).build();
     } catch (IllegalAccessException e) {
       LOG.warn("User '{}' attempts to create a Work Work", e);
       return Response.status(Response.Status.UNAUTHORIZED).entity(e.getMessage()).build();
@@ -275,9 +273,8 @@ public class ProcessesRest implements ResourceContainer {
       return Response.status(Response.Status.UNAUTHORIZED).build();
     }
     try {
-      Work newWork = processesService.updateWork(EntityBuilder.toWork(processesService, workEntity),
-              currentIdentityId);
-      return Response.ok(EntityBuilder.toWorkEntity(processesService,newWork, "")).build();
+      Work newWork = processesService.updateWork(EntityBuilder.toWork(processesService, workEntity), currentIdentityId);
+      return Response.ok(EntityBuilder.toWorkEntity(processesService, newWork, "")).build();
     } catch (ObjectNotFoundException e) {
       LOG.debug("User '{}' attempts to update a not existing work workFlow '{}'", currentIdentityId, e);
       return Response.status(Response.Status.NOT_FOUND).entity("Work workFlow not found").build();
@@ -431,6 +428,129 @@ public class ProcessesRest implements ResourceContainer {
     } catch (Exception e) {
       LOG.error("Error while deleting a work", e);
       return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+    }
+  }
+
+  @POST
+  @Consumes(MediaType.APPLICATION_JSON)
+  @Produces(MediaType.APPLICATION_JSON)
+  @RolesAllowed("users")
+  @Path("/workDraft")
+  @ApiOperation(value = "Creates a new WorkDraft", httpMethod = "POST", response = Response.class, consumes = "application/json")
+  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+                          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+                          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+                          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
+  public Response createWorkDraft(@ApiParam(value = "WorkDaft object to create", required = true)
+  WorkEntity workEntity) {
+    if (workEntity == null) {
+      return Response.status(Response.Status.BAD_REQUEST).entity("workDraft object is mandatory").build();
+    }
+    long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    if (currentIdentityId == 0) {
+      return Response.status(Response.Status.UNAUTHORIZED).build();
+    }
+    try {
+      Work newWork = processesService.createWorkDraft(EntityBuilder.fromEntity(workEntity), currentIdentityId);
+      return Response.ok(EntityBuilder.toEntity(newWork)).build();
+    } catch (Exception e) {
+      LOG.warn("Error creating a work draft", e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
+  @PUT
+  @Consumes(MediaType.APPLICATION_JSON)
+  @Produces(MediaType.APPLICATION_JSON)
+  @RolesAllowed("users")
+  @Path("/workDraft")
+  @ApiOperation(value = "Updates a new workDraft", httpMethod = "PUT", response = Response.class, consumes = "application/json")
+  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+                          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+                          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+                          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
+  public Response updateWorkDraft(@ApiParam(value = "Work object to update", required = true)
+  WorkEntity workEntity) {
+    if (workEntity == null) {
+      return Response.status(Response.Status.BAD_REQUEST).entity("workDraft object is mandatory").build();
+    }
+    long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    if (currentIdentityId == 0) {
+      return Response.status(Response.Status.UNAUTHORIZED).build();
+    }
+    try {
+      Work newWork = processesService.updateWorkDraft(EntityBuilder.fromEntity(workEntity), currentIdentityId);
+      return Response.ok(EntityBuilder.toEntity(newWork)).build();
+    } catch (ObjectNotFoundException e) {
+      LOG.debug("User '{}' attempts to update a not existing Work draft '{}'", currentIdentityId, e);
+      return Response.status(Response.Status.NOT_FOUND).entity("Work draft not found").build();
+    } catch (Exception e) {
+      LOG.warn("Error updating a Work draft", e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
+  @GET
+  @Produces(MediaType.APPLICATION_JSON)
+  @RolesAllowed("users")
+  @Path("/workDrafts")
+  @ApiOperation(value = "Retrieves the list of workDrafts for an authenticated user", httpMethod = "GET", response = Response.class, produces = "application/json")
+  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
+  public Response getWorkDrafts(@ApiParam(value = "Identity technical identifier", required = false)
+                                @QueryParam("userId") Long userId,
+                                @ApiParam(value = "Processes properties to expand.", required = false)
+                                @QueryParam("expand") String expand,
+                                @ApiParam(value = "Offset of results to return", required = false, defaultValue = "0")
+                                @QueryParam("offset") int offset,
+                                @ApiParam(value = "Limit of results to return", required = false, defaultValue = "10")
+                                @QueryParam("limit") int limit) {
+    try {
+      long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+      if (currentIdentityId == 0) {
+        return Response.status(Response.Status.UNAUTHORIZED).build();
+      }
+
+      long userIdentityId = currentIdentityId;
+      if (userId != null) {
+        userIdentityId = userId;
+      }
+      List<Work> works = processesService.getWorkDrafts(userIdentityId, offset, limit);
+      return Response.ok(EntityBuilder.toWorkEntityList(works)).build();
+    } catch (Exception e) {
+      LOG.warn("Error retrieving list of work drafts", e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
+  @DELETE
+  @Produces(MediaType.TEXT_PLAIN)
+  @RolesAllowed("users")
+  @Path("/workDraft/{draftId}")
+  @ApiOperation(value = "delete a work draft by its id", httpMethod = "DELETE", response = Response.class, produces = "text/plain")
+  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
+  public Response deleteWorkDraft(@ApiParam(value = "Work draft id to delete", required = true)
+                                 @PathParam("draftId") Long workflowId) {
+    if (workflowId == null) {
+      return Response.status(Response.Status.BAD_REQUEST).entity("Work draft id is mandatory").build();
+    }
+    long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    if (currentIdentityId == 0) {
+      return Response.status(Response.Status.UNAUTHORIZED).build();
+    }
+    try {
+      this.processesService.deleteWorkDraftById(workflowId);
+      return Response.ok("ok").type(MediaType.TEXT_PLAIN).build();
+    } catch (EntityNotFoundException e) {
+      return Response.status(Response.Status.NOT_FOUND).entity("Work draft not found").build();
+    } catch (Exception e) {
+      LOG.warn("Error while deleting a work draft", e);
+      return Response.serverError().entity(e.getMessage()).build();
     }
   }
 }

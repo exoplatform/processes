@@ -199,3 +199,79 @@ export function deleteWorkById(workId) {
   });
 }
 
+export function getWorkDrafts(offset, limit, expand) {
+  const formData = new FormData();
+  if (expand) {
+    formData.append('expand', expand);
+  }
+  if (offset) {
+    formData.append('offset', offset);
+  }
+  if (limit) {
+    formData.append('limit', limit);
+  }
+  const params = new URLSearchParams(formData).toString();
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workDrafts?${params}`, {
+    method: 'GET',
+    credentials: 'include',
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error while getting work drafts');
+    } else {
+      return resp.json();
+    }
+  });
+}
+
+export function createWorkDraft(workDraft) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workDraft`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(workDraft, (key, value) => {
+      if (value !== null) { return value; }
+    }),
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error while creating a new work draft');
+    } else {
+      return resp.json();
+    }
+  });
+}
+
+export function updateWorkDraft(workDraft) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workDraft`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(workDraft, (key, value) => {
+      if (value !== null) {
+        return value;
+      }
+    }),
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error while updating a work draft');
+    } else {
+      return resp.text();
+    }
+  });
+}
+
+export function deleteWorkDraftById(draftId) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workDraft/${draftId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error while deleting a work draft');
+    } else {
+      return resp.text();
+    }
+  });
+}

@@ -8,7 +8,6 @@ import javax.persistence.TypedQuery;
 
 import org.exoplatform.commons.persistence.impl.GenericDAOJPAImpl;
 import org.exoplatform.processes.entity.WorkFlowEntity;
-import org.exoplatform.processes.model.WorkFlow;
 
 public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
 

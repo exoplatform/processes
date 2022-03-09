@@ -58,9 +58,6 @@
     <empty-or-loading
       :loading="loading"
       v-if="workflows.length === 0">
-      <template v-slot:loading>
-        <span>loading...</span>
-      </template>
       <template v-slot:empty>
         <div>
           <v-img
@@ -108,6 +105,21 @@ export default {
       type: Boolean,
       default: false
     }
+  },
+  created() {
+    this.$root.$on('workflow-added', (event) => {
+      if (event.workflow.enabled === event.filter) {
+        this.workflows.unshift(event.workflow);
+      }
+    });
+    this.$root.$on('workflow-updated', (workflow) => {
+      const object = JSON.parse(workflow);
+      const index = this.workflows.map(object => object.id).indexOf(object.id);
+      this.workflows.splice(index, 1, object);
+    });
+    this.$root.$on('workflow-removed', (workflow) => {
+      this.workflows.splice(this.workflows.indexOf(workflow), 1);
+    });
   },
   computed: {
     lg () {
