@@ -53,7 +53,9 @@
       :cancel-label="$t('processes.workflow.cancel.label')"
       @ok="confirmAction"
       @dialog-closed="onDialogClosed" />
-    <add-workflow-drawer ref="addWorkFlow" />
+    <add-workflow-drawer
+      ref="addWorkFlow"
+      :processes-space-id="processesSpaceId" />
     <add-work-drawer
       :processes-space-id="processesSpaceId"
       ref="addWork" />
@@ -140,8 +142,8 @@ export default {
       this.workComments = comments;
       this.$root.$emit('displayTaskComment');
     });
-    this.$root.$on('create-work-draft', draft => {
-      this.createWorkDraft(draft);
+    this.$root.$on('create-work-draft', event => {
+      this.createWorkDraft(event.draft, event.preSave);
     });
     this.$root.$on('update-work-draft', draft => {
       this.updateWorkDraft(draft);
@@ -215,18 +217,27 @@ export default {
 
     addWork(work) {
       this.$processesService.addWork(work).then(newWork => {
-        if (newWork){
+        if (newWork) {
           this.$root.$emit('work-added', {work: newWork, draftId: work.draftId});
+          this.works.push(newWork);
+          if (work.draftId) {
+            this.workDrafts.splice(this.workDrafts.indexOf(work.draftId), 1);
+          }
           this.displayMessage({type: 'success', message: this.$t('processes.work.add.success.message')});
         }
       }).catch(() => {
         this.displayMessage({type: 'error', message: this.$t('processes.work.add.error.message')});
       });
     },
-    createWorkDraft(workDraft) {
+    createWorkDraft(workDraft, preSave) {
       this.$processesService.createWorkDraft(workDraft).then(draft => {
         if (draft) {
-          this.$root.$emit('work-draft-added', draft);
+          if (preSave) {
+            this.$root.$emit('pre-save-work-draft-added', draft);
+          } else {
+            this.$root.$emit('work-draft-added', draft);
+          }
+          this.workDrafts.unshift(draft);
           this.displayMessage({type: 'success', message: this.$t('processes.workDraft.add.success.message')});
         }
       }).catch(() => {

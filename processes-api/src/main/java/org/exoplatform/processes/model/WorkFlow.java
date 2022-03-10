@@ -18,6 +18,7 @@
 package org.exoplatform.processes.model;
 
 import java.util.Date;
+import org.exoplatform.services.attachments.model.Attachment;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -53,5 +54,8 @@ public class WorkFlow {
   private long              projectId;
 
   private ProcessPermission acl;
+
+  private Attachment[]     attachments;
+
 
 }

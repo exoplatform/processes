@@ -52,8 +52,6 @@
             :workflow="workflow" />
         </v-col>
       </v-row>
-      <add-workflow-drawer ref="addWorkFlow" />
-      <add-work-drawer ref="addWork" />
     </v-container>
     <empty-or-loading
       :loading="loading"
@@ -131,7 +129,7 @@ export default {
   },
   methods: {
     open() {
-      this.$refs.addWorkFlow.open();
+      this.$root.$emit('open-workflow-drawer', {workflow: null, mode: 'create_workflow'});
     },
     updateFilter() {
       this.$root.$emit('workflow-filter-changed', this.filter.value);

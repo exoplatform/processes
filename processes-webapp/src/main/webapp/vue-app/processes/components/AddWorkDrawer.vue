@@ -1,7 +1,7 @@
 <template>
   <v-app id="addWorkDrawer">
     <exo-drawer
-      @closed="updateDraft"
+      @closed="close"
       ref="work"
       right>
       <template slot="title">
@@ -56,48 +56,103 @@
             </div>
           </div>
           <v-divider />
-          <div class="mt-5 mb-8">
+          <div
+            v-if="!viewMode"
+            class="mt-5 mb-8">
             <v-form
               v-model="valid"
               ref="form"
               id="add-work-form">
-              <v-label for="description">
-                {{ $t('processes.works.form.label.workDetail') }}
-              </v-label>
-              <div
-                class="text-truncate-8 pa-2 mt-3 work-description"
-                v-if="viewMode"
-                v-sanitized-html="work.description"></div>
-              <request-editor
-                class="mt-4"
-                v-if="!viewMode"
-                required
-                ref="requestEditor"
-                id="request-editor"
-                :placeholder="$t('processes.works.form.placeholder.workDetail')"
-                v-model="work.description" />
-              <custom-counter
-                class="mt-n4 me-4"
-                v-if="!viewMode"
-                :value="work.description"
-                :max-length="maxLength" />
+              <v-stepper
+                class="pe-4"
+                v-model="stp"
+                vertical>
+                <v-stepper-step
+                  class="text-uppercase"
+                  :complete="stp > 1"
+                  step="1">
+                  {{ $t('processes.works.form.label.description') }}
+                </v-stepper-step>
+                <v-stepper-content
+                  class="pe-6"
+                  step="1">
+                  <request-editor
+                    required
+                    ref="requestEditor"
+                    id="request-editor"
+                    :placeholder="$t('processes.works.form.placeholder.workDetail')"
+                    v-model="work.description" />
+                  <custom-counter
+                    class="mt-n4 me-4"
+                    :value="work.description"
+                    :max-length="maxLength" />
+                  <v-btn
+                    :disabled="!validWorkDescription"
+                    :loading="preSaving"
+                    class="mt-1 btn btn-primary v-btn--outlined float-right"
+                    color="primary"
+                    @click="nextStep">
+                    {{ $t('processes.works.form.label.continue') }}
+                  </v-btn>
+                </v-stepper-content>
+                <v-stepper-step
+                  class="text-uppercase"
+                  :complete="stp > 2"
+                  step="2">
+                  {{ $t('processes.works.form.label.documents') }}
+                </v-stepper-step>
+                <v-stepper-content
+                  class="pt-0 pb-0 pe-3"
+                  step="2">
+                  <p class="font-weight-regular grey--text darken-1 font-italic mt-1">
+                    {{ $t('processes.work.add.attachment.info.message') }}
+                  </p>
+                  <processes-attachments
+                    v-model="attachments"
+                    :processes-space-id="processesSpaceId"
+                    :edit-mode="this.editDraft"
+                    :entity-id="work.id"
+                    :entity-type="entityType" />
+                  <v-btn
+                    class="btn mt-4"
+                    @click="previousStep"
+                    text>
+                    <v-icon size="18" class="me-2">
+                      {{ $vuetify.rtl && 'fa-caret-right' || 'fa-caret-left' }}
+                    </v-icon>
+                    {{ $t('processes.works.form.label.back') }}
+                  </v-btn>
+                </v-stepper-content>
+              </v-stepper>
             </v-form>
           </div>
-          <v-divider />
-          <div v-if="viewMode || editDraft" class="mt-8">
+          <div
+            v-if="viewMode"
+            class="mt-5 mb-6">
+            <v-label for="description">
+              {{ $t('processes.works.form.label.workDetail') }}
+            </v-label>
+            <div
+              class="text-truncate-8 pa-2 mt-3 work-description"
+              v-if="viewMode"
+              v-sanitized-html="work.description"></div>
+          </div>
+          <v-divider v-if="viewMode" />
+          <div
+            v-if="viewMode"
+            class="mt-4">
             <v-label for="attachment">
               {{ $t('processes.works.form.label.attachment') }}
             </v-label>
             <p class="font-weight-regular grey--text darken-1 font-italic mt-1">
               {{ $t('processes.work.add.attachment.info.message') }}
             </p>
-            <div class="workAttachments">
-              <attachment-app
-                ref="workAttachments"
-                :entity-id="work.id"
-                :space-id="processesSpaceId"
-                :entity-type="entityType" />
-            </div>
+            <processes-attachments
+              v-model="attachments"
+              :processes-space-id="processesSpaceId"
+              :edit-mode="viewMode"
+              :entity-id="work.id"
+              :entity-type="entityType" />
             <div v-if="viewMode && !viewDraft" class="taskCommentsAndChanges">
               <v-divider />
               <task-view-all-comments
@@ -134,12 +189,16 @@ export default {
 
   data () {
     return {
+      stp: 1,
       work: {
         description: '',
         workFlow: {},
         draftId: null,
         isDraft: false
       },
+      preSavedDraftId: null,
+      preSaving: false,
+      attachments: [],
       oldWork: {},
       workDraft: {},
       viewMode: false,
@@ -176,6 +235,16 @@ export default {
       this.resetInputs();
       this.close();
     });
+    this.$root.$on('pre-save-work-draft-added', (draft) => {
+      this.work = draft;
+      this.editDraft = true;
+      this.$root.$emit('init-list-attachments', {
+        entityId: draft.id,
+        entityType: this.entityType
+      });
+      this.preSaving = false;
+      this.stp++;
+    });
   },
   computed: {
     entityType() {
@@ -209,7 +278,12 @@ export default {
         this.work = object;
         this.viewMode = true;
       }
+      this.$root.$emit('init-list-attachments', {
+        entityId: this.work && this.work.id || null,
+        entityType: this.entityType
+      });
       this.initEditor();
+      this.stp = 1;
       this.$refs.work.open();
     },
     initEditor() {
@@ -220,7 +294,9 @@ export default {
       });
     },
     close() {
+      this.updateDraft();
       this.$refs.work.close();
+      this.$root.$emit('reset-list-attachments');
     },
     resetInputs() {
       this.work = {
@@ -231,12 +307,21 @@ export default {
         this.$refs.requestEditor.initCKEditorData('');
       }
     },
+    nextStep() {
+      if (this.valid) {
+        this.preSaveWork();
+      }
+    },
+    previousStep() {
+      this.stp--;
+    },
     addWork() {
       this.saving = true;
       if (this.editDraft) {
         this.work.draftId = this.work.id;
         this.work.id = 0;
       }
+      this.toWorkDraft(this.work);
       this.$root.$emit('add-work', this.work);
     },
     toWorkDraft(work) {
@@ -255,8 +340,20 @@ export default {
         if (this.workDraft.id && this.workDraft.id !== 0) {
           this.$root.$emit('update-work-draft', this.workDraft);
         } else {
-          this.$root.$emit('create-work-draft', this.workDraft);
+          this.$root.$emit('create-work-draft', {draft: this.workDraft});
         }
+      }
+    },
+    preSaveWork() {
+      // pre save a draft when continue to step 2 in order to attach the workflow attachments to the work draft
+      // before save the work and link the drat attachments to the real work object when saving
+      this.preSaving = true;
+      this.toWorkDraft(this.work);
+      if (this.workDraft.id === 0) {
+        this.$root.$emit('create-work-draft', {draft: this.workDraft, preSave: true});
+      } else {
+        this.preSaving = false;
+        this.stp ++;
       }
     }
   }

@@ -22,7 +22,7 @@
             class="text-uppercase"
             :complete="stp > 1"
             step="1">
-            {{ $t('processes.works.form.label.description') }}
+            {{ $t('processes.workflow.form.label.description') }}
           </v-stepper-step>
           <v-stepper-content step="1">
             <v-form
@@ -89,118 +89,32 @@
                 value
                 name="status"
                 v-model="workflowEnabled" />
-              <!--<v-divider class="clear-both mb-2" />
-              <v-label for="helpUrl">
-                {{ $t('processes.works.form.label.help') }}
-              </v-label>
-              <input
-                class="input-block-level ignore-vuetify-classes my-3"
-                type="text"
-                name="helpUrl"
-                v-model="workflow.helpUrl"
-                :placeholder="$t('processes.works.form.placeholder.addHelpLink')">
-              <v-btn
-                class="mb-2"
-                link
-                color="primary"
-                text>
-                {{ $t('processes.works.form.label.illustrative') }}
-                <v-icon right>mdi-plus-thick</v-icon>
-              </v-btn>
-              <v-btn
-                class="btn btn-primary"
-                color="primary"
-                @click="nextStep">
-                {{ $t('processes.works.form.label.continue') }}
-              </v-btn> -->
+              <div class="mt-10">
+                <v-btn
+                  :disabled="!valid"
+                  class="btn btn-primary v-btn--outlined float-right"
+                  color="primary"
+                  @click="nextStep">
+                  {{ $t('processes.works.form.label.continue') }}
+                </v-btn>
+              </div>
             </v-form>
           </v-stepper-content>
-          <!-- <v-stepper-step
+          <v-stepper-step
             class="text-uppercase"
             :complete="stp > 2"
             step="2">
-            {{ $t('processes.works.form.label.tasksProject') }}
-          </v-stepper-step>
-          <v-stepper-content step="2">
-            <form ref="form2" @submit="nextStep">
-              <v-label for="taskProject">
-                {{ $t('processes.works.form.label.addProject') }}
-              </v-label>
-              <input
-                class="input-block-level ignore-vuetify-classes my-3"
-                type="text"
-                name="taskProject"
-                v-model="workflow.projectId"
-                :placeholder="$t('processes.works.form.placeholder.addTaskProject')"
-                required>
-            </form>
-            <v-btn
-              class="btn"
-              @click="previousStep"
-              text>
-              <v-icon size="18" class="me-2">
-                {{ $vuetify.rtl && 'fa-caret-right' || 'fa-caret-left' }}
-              </v-icon>
-              {{ $t('processes.works.form.label.back') }}
-            </v-btn>
-            <v-btn
-              color="primary"
-              class="btn btn-primary"
-              @click="nextStep">
-              {{ $t('processes.works.form.label.continue') }}
-            </v-btn>
-          </v-stepper-content>
-          <v-stepper-step
-            class="text-uppercase"
-            :complete="stp > 3"
-            step="3">
-            {{ $t('processes.works.form.label.permissions') }}
-          </v-stepper-step>
-          <v-stepper-content step="3">
-            <form ref="form3" @submit="nextStep">
-              <v-label for="permissions">
-                {{ $t('processes.works.form.label.selectPermissions') }}
-              </v-label>
-              <input
-                class="input-block-level ignore-vuetify-classes my-3"
-                type="text"
-                name="permissions"
-                v-model="workflow.permissions"
-                :placeholder="$t('processes.works.form.placeholder.selectPermissions')">
-            </form>
-            <v-btn
-              class="btn"
-              @click="previousStep"
-              text>
-              <v-icon size="18" class="me-2">
-                {{ $vuetify.rtl && 'fa-caret-right' || 'fa-caret-left' }}
-              </v-icon>
-              {{ $t('processes.works.form.label.back') }}
-            </v-btn>
-            <v-btn
-              color="primary"
-              class="btn btn-primary"
-              @click="nextStep">
-              {{ $t('processes.works.form.label.continue') }}
-            </v-btn>
-          </v-stepper-content>
-          <v-stepper-step
-            class="text-uppercase"
-            step="4">
             {{ $t('processes.works.form.label.documents') }}
           </v-stepper-step>
-          <v-stepper-content step="4">
+          <v-stepper-content step="2">
+            <processes-attachments
+              v-model="attachments"
+              :processes-space-id="processesSpaceId"
+              :edit-mode="editMode"
+              :entity-id="workflow.id"
+              entity-type="workflow" />
             <v-btn
-              class="mb-2"
-              link
-              color="primary"
-              text>
-              {{ $t('processes.works.form.label.addModel') }}
-              <v-icon right>mdi-plus-thick</v-icon>
-            </v-btn>
-            <br>
-            <v-btn
-              class="btn"
+              class="btn mt-4"
               @click="previousStep"
               text>
               <v-icon size="18" class="me-2">
@@ -208,7 +122,7 @@
               </v-icon>
               {{ $t('processes.works.form.label.back') }}
             </v-btn>
-          </v-stepper-content> -->
+          </v-stepper-content>
         </v-stepper>
       </template>
       <template v-slot:footer>
@@ -243,6 +157,12 @@
 <script>
 
 export default {
+  props: {
+    processesSpaceId: {
+      type: Number,
+      default: null
+    }
+  },
   data () {
     return {
       stp: 1,
@@ -256,6 +176,7 @@ export default {
         projectId: null,
         permissions: null,
       },
+      attachments: [],
       workflowEnabled: true,
       editMode: false,
       valid: false,
@@ -268,7 +189,6 @@ export default {
       },
     };
   },
-
   created(){
     this.$root.$on('workflow-added', () => {
       this.saving = false;
@@ -282,9 +202,6 @@ export default {
     });
   },
   computed: {
-    currentForm() {
-      return this.$refs && this.$refs[`form${this.stp}`];
-    },
     requestStatus() {
       return this.workflowEnabled ? this.$t('processes.works.form.label.enabled') : this.$t('processes.works.form.label.disabled');
     }
@@ -305,18 +222,15 @@ export default {
         this.editMode = false;
       }
       this.stp = 1;
+      this.$root.$emit('init-list-attachments', {entityId: workflow && workflow.id || -1});
       this.$refs.workFlow.open();
     },
     close() {
       this.$refs.workFlow.close();
+      this.$root.$emit('reset-list-attachments');
     },
     nextStep() {
-      if (event) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-
-      if (this.currentForm && this.currentForm.reportValidity()) {
+      if (this.valid) {
         this.stp++;
       }
     },
@@ -328,11 +242,14 @@ export default {
       this.workflow.enabled = true;
     },
     addNewWorkFlow() {
+      this.saving = true;
+      this.workflow.attachments = this.attachments;
       this.$root.$emit('add-workflow',this.workflow);
     },
     updateWorkFlow() {
+      this.saving = true;
       this.$root.$emit('update-workflow',this.workflow);
     }
-  }
+  },
 };
 </script>

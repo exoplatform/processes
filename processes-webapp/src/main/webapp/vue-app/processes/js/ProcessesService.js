@@ -275,3 +275,16 @@ export function deleteWorkDraftById(draftId) {
     }
   });
 }
+
+export function getEntityAttachments(entityType, entityId) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/attachments/${entityType}/${entityId}`, {
+    credentials: 'include',
+    method: 'GET',
+  }).then((resp) => {
+    if (resp || resp.ok) {
+      return resp.json();
+    } else {
+      throw new Error('Error getting entity\'s linked attachments');
+    }
+  });
+}
