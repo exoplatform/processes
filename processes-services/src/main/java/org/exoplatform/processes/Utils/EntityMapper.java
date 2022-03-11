@@ -38,6 +38,7 @@ public class EntityMapper {
                            workFlowEntity.getModifierId(),
                            workFlowEntity.getModifiedDate(),
                            workFlowEntity.getProjectId(),
+                           null,
                            null);
   }
 

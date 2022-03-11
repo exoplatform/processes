@@ -140,6 +140,17 @@ public class ProcessesStorageImpl implements ProcessesStorage {
         workFlowEntity.setProjectId(projectId);
       }
       workFlowEntity = workFlowDAO.create(workFlowEntity);
+      Attachment[] attachments = workFlow.getAttachments();
+      long entityId = workFlowEntity.getId();
+      if (attachments != null && attachments.length > 0) {
+        Arrays.stream(attachments).map(Attachment::getId).forEach(attachmentId -> {
+          try {
+            attachmentService.linkAttachmentToEntity(userId, entityId, "workflow", attachmentId);
+          } catch (Exception e) {
+            LOG.error("Error while attaching files to workflow entity", e);
+          }
+        });
+      }
     } else {
       workFlowEntity.setModifiedDate(new Date());
       workFlowEntity.setModifierId(userId);
@@ -329,18 +340,33 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     if (identity == null) {
       throw new IllegalArgumentException("identity is not exist");
     }
-    WorkEntity WorkEntity = EntityMapper.toEntity(work);
+    WorkEntity workEntity = EntityMapper.toEntity(work);
     if (work.getId() == 0) {
-      WorkEntity.setId(null);
-      WorkEntity.setCreatedDate(new Date());
-      WorkEntity.setCreatorId(userId);
-      WorkEntity = workDraftDAO.create(WorkEntity);
+      workEntity.setId(null);
+      workEntity.setCreatedDate(new Date());
+      workEntity.setCreatorId(userId);
+      workEntity = workDraftDAO.create(workEntity);
+      try {
+        long draftId = workEntity.getId();
+        List<Attachment> attachments = attachmentService.getAttachmentsByEntity(userId, work.getWorkFlow().getId(), "workflow");
+        if (attachments != null) {
+          attachments.stream().map(Attachment::getId).forEach(attachmentId -> {
+            try {
+              attachmentService.linkAttachmentToEntity(userId, draftId, "workdraft", attachmentId);
+            } catch (IllegalAccessException e) {
+              LOG.error("Error while attaching workflow attachments to work draft");
+            }
+          });
+        }
+      } catch (Exception e) {
+        LOG.error("Error while getting workflow attachments");
+      }
     } else {
-      WorkEntity.setModifiedDate(new Date());
-      WorkEntity = workDraftDAO.update(WorkEntity);
+      workEntity.setModifiedDate(new Date());
+      workEntity = workDraftDAO.update(workEntity);
     }
 
-    return EntityMapper.fromEntity(WorkEntity);
+    return EntityMapper.fromEntity(workEntity);
   }
 
   /**

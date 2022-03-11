@@ -11,6 +11,7 @@ import EmptyOrLoading from './components/commons/EmptyOrLoading.vue';
 import CustomCounter from './components/commons/CustomCounter.vue';
 import CustomDateFormat from './components/commons/CustomDateFormat.vue';
 import RequestStatus from './components/commons/RequestStatus.vue';
+import ProcessesAttachments from './components/attachments-integration/ProcessesAttachments.vue';
 
 
 import * as processesService from './js/ProcessesService.js';
@@ -25,6 +26,7 @@ const components = {
   'add-workflow-drawer': AddWorkFlowDrawer,
   'add-work-drawer': AddWorkDrawer,
   'request-editor': RequestEditor,
+  'processes-attachments': ProcessesAttachments,
   'empty-or-loading': EmptyOrLoading,
   'custom-counter': CustomCounter,
   'custom-date-format': CustomDateFormat,

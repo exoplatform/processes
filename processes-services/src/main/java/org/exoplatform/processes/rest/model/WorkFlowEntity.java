@@ -23,6 +23,7 @@ import org.exoplatform.processes.model.ProcessPermission;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.exoplatform.services.attachments.model.Attachment;
 
 @Data
 @AllArgsConstructor
@@ -53,6 +54,8 @@ public class WorkFlowEntity {
   private Date              modifiedDate;
 
   private long              projectId;
+
+  private Attachment[]     attachments;
 
   private ProcessPermission acl;
 
