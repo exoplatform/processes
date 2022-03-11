@@ -55,7 +55,8 @@ public class EntityBuilder {
                         workFlowEntity.getModifierId(),
                         workFlowEntity.getModifiedDate(),
                         workFlowEntity.getProjectId(),
-                        null);
+                        null,
+                        workFlowEntity.getAttachments());
   }
 
   public static Work fromEntity(WorkEntity workEntity) {
@@ -93,6 +94,7 @@ public class EntityBuilder {
                               workFlow.getModifierId(),
                               workFlow.getModifiedDate(),
                               workFlow.getProjectId(),
+                              workFlow.getAttachments(),
                               null);
   }
 

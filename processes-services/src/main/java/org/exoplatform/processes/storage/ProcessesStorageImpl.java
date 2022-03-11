@@ -57,9 +57,11 @@ public class ProcessesStorageImpl implements ProcessesStorage {
 
   private final AttachmentService attachmentService;
 
-  private final String           DATE_FORMAT = "yyyy/MM/dd";
+  private final String            DATE_FORMAT              = "yyyy/MM/dd";
 
-  private static final String PROCESSES_SPACE_GROUP_ID      = "/spaces/processes_space";
+  private static final String     PROCESSES_SPACE_GROUP_ID = "/spaces/processes_space";
+
+  private static final String     WORK_DRAFT_ENTITY_TYPE   = "workdraft";
 
   private final SimpleDateFormat formatter   = new SimpleDateFormat(DATE_FORMAT);
 
@@ -139,6 +141,17 @@ public class ProcessesStorageImpl implements ProcessesStorage {
         workFlowEntity.setProjectId(projectId);
       }
       workFlowEntity = workFlowDAO.create(workFlowEntity);
+      Attachment[] attachments = workFlow.getAttachments();
+      long entityId = workFlowEntity.getId();
+      if (attachments != null && attachments.length > 0) {
+        Arrays.stream(attachments).map(Attachment::getId).forEach(attachmentId -> {
+          try {
+            attachmentService.linkAttachmentToEntity(userId, entityId, "workflow", attachmentId);
+          } catch (Exception e) {
+            LOG.error("Error while attaching files to workflow entity", e);
+          }
+        });
+      }
     } else {
       workFlowEntity.setModifiedDate(new Date());
       workFlowEntity.setModifierId(userId);
@@ -215,7 +228,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   
   private void linkDraftAttachmentsToTask(long userId, long draftId, long taskId) {
     try {
-      List<Attachment> attachments = attachmentService.getAttachmentsByEntity(userId, draftId, "workdraft");
+      List<Attachment> attachments = attachmentService.getAttachmentsByEntity(userId, draftId, WORK_DRAFT_ENTITY_TYPE);
       attachments.stream().map(Attachment::getId).forEach(attachmentId -> {
         try {
           attachmentService.linkAttachmentToEntity(userId, taskId, "task", attachmentId);
@@ -223,7 +236,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
           LOG.error("Error while attaching files to task entity", e);
         }
       });
-      attachmentService.deleteAllEntityAttachments(userId, draftId, "workdraft");
+      attachmentService.deleteAllEntityAttachments(userId, draftId, WORK_DRAFT_ENTITY_TYPE);
     } catch (Exception e) {
       LOG.error("Error while getting attachments of work draft", e);
     }
@@ -333,6 +346,21 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       workEntity.setCreatedDate(new Date());
       workEntity.setCreatorId(userId);
       workEntity = workDraftDAO.create(workEntity);
+      try {
+        long draftId = workEntity.getId();
+        List<Attachment> attachments = attachmentService.getAttachmentsByEntity(userId, work.getWorkFlow().getId(), "workflow");
+        if (attachments != null) {
+          attachments.stream().map(Attachment::getId).forEach(attachmentId -> {
+            try {
+              attachmentService.linkAttachmentToEntity(userId, draftId, WORK_DRAFT_ENTITY_TYPE, attachmentId);
+            } catch (IllegalAccessException e) {
+              LOG.error("Error while attaching workflow attachments to work draft");
+            }
+          });
+        }
+      } catch (Exception e) {
+        LOG.error("Error while getting workflow attachments");
+      }
     } else {
       workEntity.setModifiedDate(new Date());
       workEntity = workDraftDAO.update(workEntity);

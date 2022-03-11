@@ -91,9 +91,6 @@ export default {
     },
   },
   created() {
-    this.$root.$on('work-draft-added', (draft) => {
-      this.workDrafts.push(draft);
-    });
     this.$root.$on('work-draft-updated', (draft) => {
       const object = JSON.parse(draft);
       const index = this.workDrafts.map(object => object.id).indexOf(object.id);
@@ -101,12 +98,6 @@ export default {
     });
     this.$root.$on('work-draft-removed', (draft) => {
       this.workDrafts.splice(this.workDrafts.indexOf(draft), 1);
-    });
-    this.$root.$on('work-added', (event) => {
-      this.works.push(event.work);
-      if (event.draftId) {
-        this.workDrafts.splice(this.workDrafts.indexOf(event.draftId), 1);
-      }
     });
     this.$root.$on('work-removed', (work) => {
       this.works.splice(this.works.indexOf(work), 1);
