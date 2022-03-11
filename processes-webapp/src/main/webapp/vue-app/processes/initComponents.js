@@ -5,6 +5,7 @@ import MyWorkList from './components/MyWorkList.vue';
 import Work from './components/Work.vue';
 import AddWorkFlowDrawer from './components/AddWorkFlowDrawer.vue';
 import AddWorkDrawer from './components/AddWorkDrawer.vue';
+import RequestEditor from './components/RequestEditor.vue';
 
 import EmptyOrLoading from './components/commons/EmptyOrLoading.vue';
 import CustomCounter from './components/commons/CustomCounter.vue';
@@ -13,6 +14,7 @@ import RequestStatus from './components/commons/RequestStatus.vue';
 
 
 import * as processesService from './js/ProcessesService.js';
+import * as utils from './js/utils.js';
 
 const components = {
   'processes': Processes,
@@ -22,6 +24,7 @@ const components = {
   'work': Work,
   'add-workflow-drawer': AddWorkFlowDrawer,
   'add-work-drawer': AddWorkDrawer,
+  'request-editor': RequestEditor,
   'empty-or-loading': EmptyOrLoading,
   'custom-counter': CustomCounter,
   'custom-date-format': CustomDateFormat,
@@ -35,5 +38,10 @@ for (const key in components) {
 if (!Vue.prototype.$processesService) {
   window.Object.defineProperty(Vue.prototype, '$processesService', {
     value: processesService,
+  });
+}
+if (!Vue.prototype.$utils) {
+  window.Object.defineProperty(Vue.prototype, '$utils', {
+    value: utils,
   });
 }
