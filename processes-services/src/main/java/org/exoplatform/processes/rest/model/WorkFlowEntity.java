@@ -17,6 +17,7 @@
 package org.exoplatform.processes.rest.model;
 
 import java.util.Date;
+import java.util.List;
 
 import org.exoplatform.processes.model.ProcessPermission;
 
@@ -24,6 +25,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.exoplatform.services.attachments.model.Attachment;
+import org.exoplatform.task.dto.StatusDto;
 
 @Data
 @AllArgsConstructor
@@ -55,7 +57,9 @@ public class WorkFlowEntity {
 
   private long              projectId;
 
-  private Attachment[]     attachments;
+  private Attachment[]      attachments;
+
+  private List<StatusDto>   statuses;
 
   private ProcessPermission acl;
 

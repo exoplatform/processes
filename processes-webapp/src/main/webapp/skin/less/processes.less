@@ -58,7 +58,7 @@
 
   .v-expansion-panel-header {
     padding-bottom: 0px;
-    padding-top: 5px !important;
+    padding-top: 0px !important;
   }
 
   .clear-both {
@@ -87,17 +87,53 @@
     min-height: 88px;
   }
 
-  .workflow-filter {
+  .work-filter {
     width: 130px;
-    margin-right: 50px ~'; /** orientation=lt */ ';
-    margin-left: 50px ~'; /** orientation=rt */ ';
-    position: absolute;
-    right: 0 ~'; /** orientation=lt */ ';
-    left: 0 ~'; /** orientation=rt */ ';
-    top: 0;
 
     .v-input__control {
       height: 20px;
+    }
+  }
+
+  .workflow-filter {
+    margin-right: 50px ~'; /** orientation=lt */ ';
+    margin-left: 50px ~'; /** orientation=rt */ ';
+    width: 130px;
+
+    .v-input__control {
+      height: 20px;
+    }
+  }
+
+  .add-process-btn {
+    min-width: 20px !important;
+  }
+
+  .workflow-filter-query {
+    padding-top: 10px !important;
+    max-width: 200px;
+
+    .v-input__icon.v-input__icon--prepend-inner i {
+      font-size: 20px !important;
+      margin-top: 2px;
+    }
+    .v-input__slot {
+      height: 32px;
+    }
+  }
+
+  .work-filter-query {
+    width: 200px;
+    padding-top: 26px;
+    float: right;
+    margin: 0 0 -5px 0;
+
+    .v-input__icon.v-input__icon--prepend-inner i {
+      font-size: 20px !important;
+      margin-top: 2px;
+    }
+    .v-input__slot {
+      height: 32px;
     }
   }
 
@@ -167,6 +203,15 @@
   .plus-process-attachment {
     font-size: 20px;
   }
+
+  .custom-icon-size {
+    font-size: 20px !important;
+  }
+
+  .custom-icon-color {
+    color: #5F708A;
+  }
+
   #myWorks {
     min-height: 600px;
   }

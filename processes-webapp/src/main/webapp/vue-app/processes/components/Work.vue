@@ -84,16 +84,21 @@
           <v-btn
             v-if="isDraft"
             @click="openDraft"
-            color="blue"
+            class="custom-icon-color"
             icon>
-            <v-icon>mdi-square-edit-outline</v-icon>
+            <v-icon
+              class="custom-icon-size">
+              mdi-square-edit-outline
+            </v-icon>
           </v-btn>
           <v-btn
-            :disabled="!allowDeleteWork && !isDraft"
             @click="deleteWork"
-            color="blue"
+            class="custom-icon-color"
             icon>
-            <v-icon>mdi-trash-can-outline</v-icon>
+            <v-icon
+              class="custom-icon-size">
+              mdi-trash-can-outline
+            </v-icon>
           </v-btn>
         </v-col>
       </v-row>
@@ -122,9 +127,6 @@ export default {
   computed: {
     lastCommentDate() {
       return this.comments && this.comments[this.comments.length-1] && this.comments[this.comments.length-1].comment.createdTime.time;
-    },
-    allowDeleteWork() {
-      return this.work && this.work.status && this.work.status.toLowerCase() !== 'validated' && this.work.status.toLowerCase() !== 'refused';
     }
   },
   created() {

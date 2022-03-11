@@ -29,7 +29,6 @@ import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.processes.model.*;
 import org.exoplatform.processes.rest.model.WorkEntity;
-import org.exoplatform.processes.rest.model.WorkEntity;
 import org.exoplatform.processes.rest.model.WorkFlowEntity;
 import org.exoplatform.processes.rest.util.EntityBuilder;
 import org.exoplatform.processes.rest.util.RestUtils;
@@ -99,7 +98,9 @@ public class ProcessesRest implements ResourceContainer {
       if (enabled != null) {
         filter.setEnabled(enabled);
       }
-      filter.setQuery(query);
+      if (query != null) {
+        filter.setQuery(query);
+      }
       long userIdentityId = currentIdentityId;
       if (userId != null) {
         userIdentityId = userId;
@@ -195,6 +196,8 @@ public class ProcessesRest implements ResourceContainer {
                                   @ApiParam(value = "Processes properties to expand.", required = false)
                                   @QueryParam("expand")
                                           String expand,
+                                  @ApiParam("Works status") @QueryParam("status") String status,
+                                  @ApiParam("Works query") @QueryParam("query") String query,
                                   @ApiParam(value = "Offset of results to return", required = false, defaultValue = "0")
                                   @QueryParam("offset")
                                           int offset,
@@ -211,7 +214,14 @@ public class ProcessesRest implements ResourceContainer {
       if (userId != null) {
         userIdentityId = userId;
       }
-      List<Work> works = processesService.getWorks(userIdentityId, offset, limit);
+      WorkFilter workFilter = new WorkFilter();
+      if (status != null) {
+        workFilter.setStatus(status);
+      }
+      if(query != null) {
+        workFilter.setQuery(query);
+      }
+      List<Work> works = processesService.getWorks(userIdentityId, workFilter, offset, limit);
       return Response.ok(EntityBuilder.toWorkEntityList(processesService, works, expand)).build();
     } catch (Exception e) {
       LOG.warn("Error retrieving list of workFlows", e);
@@ -503,6 +513,8 @@ public class ProcessesRest implements ResourceContainer {
                                 @QueryParam("userId") Long userId,
                                 @ApiParam(value = "Processes properties to expand.", required = false)
                                 @QueryParam("expand") String expand,
+                                @ApiParam(value = "Work query.", required = false)
+                                @QueryParam("query") String query,
                                 @ApiParam(value = "Offset of results to return", required = false, defaultValue = "0")
                                 @QueryParam("offset") int offset,
                                 @ApiParam(value = "Limit of results to return", required = false, defaultValue = "10")
@@ -517,7 +529,12 @@ public class ProcessesRest implements ResourceContainer {
       if (userId != null) {
         userIdentityId = userId;
       }
-      List<Work> works = processesService.getWorkDrafts(userIdentityId, offset, limit);
+      WorkFilter workFilter = new WorkFilter();
+      if (query != null) {
+        workFilter.setQuery(query);
+      }
+      workFilter.setIsDraft(true);
+      List<Work> works = processesService.getWorkDrafts(userIdentityId, workFilter, offset, limit);
       return Response.ok(EntityBuilder.toWorkEntityList(works)).build();
     } catch (Exception e) {
       LOG.warn("Error retrieving list of work drafts", e);
@@ -551,6 +568,28 @@ public class ProcessesRest implements ResourceContainer {
       return Response.status(Response.Status.NOT_FOUND).entity("Work draft not found").build();
     } catch (Exception e) {
       LOG.warn("Error while deleting a work draft", e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
+  @GET
+  @Produces(MediaType.APPLICATION_JSON)
+  @RolesAllowed("users")
+  @Path("/works/statuses")
+  @ApiOperation(value = "Retrieves the list of workDrafts for an authenticated user", httpMethod = "GET", response = Response.class, produces = "application/json")
+  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
+  public Response getAvailableWorkStatuses() {
+    try {
+      long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+      if (currentIdentityId == 0) {
+        return Response.status(Response.Status.UNAUTHORIZED).build();
+      }
+      List<WorkStatus> statuses = processesService.getAvailableWorkStatuses();
+      return Response.ok(statuses).type(MediaType.APPLICATION_JSON_TYPE).build();
+    } catch (Exception e) {
+      LOG.warn("Error retrieving list of work drafts", e);
       return Response.serverError().entity(e.getMessage()).build();
     }
   }

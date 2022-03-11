@@ -2,11 +2,8 @@ package org.exoplatform.processes.rest;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.CommonsUtils;
-import org.exoplatform.processes.model.ProcessesFilter;
+import org.exoplatform.processes.model.*;
 import org.exoplatform.processes.model.Work;
-import org.exoplatform.processes.model.Work;
-import org.exoplatform.processes.model.WorkFlow;
-import org.exoplatform.processes.rest.model.WorkEntity;
 import org.exoplatform.processes.rest.model.WorkEntity;
 import org.exoplatform.processes.rest.model.WorkFlowEntity;
 import org.exoplatform.processes.rest.util.EntityBuilder;
@@ -224,15 +221,18 @@ public class ProcessesRestTest {
   @Test
   public void getWorks() throws Exception {
     List<Work> works = new ArrayList<>();
+    WorkFilter workFilter = new WorkFilter();
+    workFilter.setStatus("ToDo");
+    workFilter.setQuery("test");
     when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
-    Response response1 = processesRest.getWorks(0L, "", 0, 10);
+    Response response1 = processesRest.getWorks(0L, "","ToDo", "test",0, 10);
     assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response1.getStatus());
     when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
-    when(processesService.getWorks(1L, 0, 10)).thenReturn(works);
-    Response response2 = processesRest.getWorks(null, "", 0, 10);
+    when(processesService.getWorks(1L, workFilter,0, 10)).thenReturn(works);
+    Response response2 = processesRest.getWorks(null, "","ToDo", "test",0, 10);
     assertEquals(Response.Status.OK.getStatusCode(), response2.getStatus());
-    when(processesService.getWorks(1L, 0, 10)).thenThrow(RuntimeException.class);
-    Response response3 = processesRest.getWorks(1L, "", 0, 10);
+    when(processesService.getWorks(1L, workFilter, 0, 10)).thenThrow(RuntimeException.class);
+    Response response3 = processesRest.getWorks(1L, "", "ToDo","test",0, 10);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response3.getStatus());
   }
 
@@ -383,17 +383,20 @@ public class ProcessesRestTest {
   @Test
   public void getWorkDrafts() {
     List<Work> works = new ArrayList<>();
+    WorkFilter workFilter = new WorkFilter();
+    workFilter.setIsDraft(true);
+    workFilter.setQuery("test");
     List<WorkEntity> WorkEntityList = new ArrayList<>();
     when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
-    Response response = processesRest.getWorkDrafts(0L,"",0, 10);
+    Response response = processesRest.getWorkDrafts(0L,"", "test", 0, 10);
     assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response.getStatus());
     when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
-    when(processesService.getWorkDrafts(1L,0, 10)).thenReturn(works);
+    when(processesService.getWorkDrafts(1L, workFilter, 0, 10)).thenReturn(works);
     when(EntityBuilder.toWorkEntityList(works)).thenReturn(WorkEntityList);
-    Response response1 = processesRest.getWorkDrafts(null,"",0, 10);
+    Response response1 = processesRest.getWorkDrafts(null,"","test", 0, 10);
     assertEquals(Response.Status.OK.getStatusCode(), response1.getStatus());
-    doThrow(new RuntimeException()).when(processesService).getWorkDrafts(1L, 0, 10);
-    Response response2 = processesRest.getWorkDrafts(null,"",0, 10);
+    doThrow(new RuntimeException()).when(processesService).getWorkDrafts(1L, workFilter, 0, 10);
+    Response response2 = processesRest.getWorkDrafts(null,"", "test", 0, 10);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response2.getStatus());
   }
 

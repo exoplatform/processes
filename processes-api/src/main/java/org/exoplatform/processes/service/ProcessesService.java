@@ -52,7 +52,17 @@ public interface ProcessesService {
   WorkFlow updateWorkFlow(WorkFlow workFlow,
                                 long userId) throws IllegalArgumentException, ObjectNotFoundException, IllegalAccessException;
 
-  List<Work> getWorks(long userIdentityId, int offset, int limit) throws Exception;
+  /**
+   * Retrieves list of filtered works
+   *
+   * @param userIdentityId user identity id
+   * @param workFilter works filter
+   * @param offset offset of the work lits result
+   * @param limit limit of the queried result list
+   * @return {@link List} of {@link Work}
+   * @throws Exception
+   */
+  List<Work> getWorks(long userIdentityId, WorkFilter workFilter, int offset, int limit) throws Exception;
 
   WorkFlow getWorkFlowByProjectId(long projectId);
 
@@ -116,11 +126,12 @@ public interface ProcessesService {
    * Retrieves a list of accessible WorkDraft, for a selected user
    *
    * @param userIdentityId user identity
+   * @param workFilter work filter
    * @param offset Offset of the result list
    * @param limit Limit of the result list
    * @return {@link List} of {@link Work}
    */
-  List<Work> getWorkDrafts(long userIdentityId, int offset, int limit);
+  List<Work> getWorkDrafts(long userIdentityId, WorkFilter workFilter, int offset, int limit);
 
   /**
    * Deletes a work draft by its given id
@@ -128,4 +139,11 @@ public interface ProcessesService {
    * @param id Work draft id
    */
   void deleteWorkDraftById(Long id);
+
+  /**
+   * Retrieves the list of available statuses in all workflows
+   *
+   * @return {@link List} of {@link WorkStatus}
+   */
+  List<WorkStatus> getAvailableWorkStatuses();
 }

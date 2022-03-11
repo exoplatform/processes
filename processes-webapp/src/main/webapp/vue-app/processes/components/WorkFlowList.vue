@@ -1,13 +1,17 @@
 <template>
   <v-main
     id="workflows">
-    <v-container v-if="!loading">
+    <v-container>
       <v-row
+        class="pe-10"
         v-if="isProcessesManager"
         no-gutters>
-        <v-col cols="6">
+        <v-col
+          cols="2"
+          md="9"
+          lg="9">
           <v-btn
-            class="ml-1 mt-2 mb-4 btn-primary btn"
+            class="ml-1 mt-2 mb-4 btn-primary btn add-process-btn"
             dark
             @click="open"
             color="primary">
@@ -22,10 +26,23 @@
           </v-btn>
         </v-col>
         <v-col
-          cols="6">
+          cols="5"
+          md="2"
+          lg="2">
+          <v-text-field
+            class="me-3 float-right workflow-filter-query"
+            @keyup="updateFilter"
+            v-model="query"
+            :placeholder="$t('processes.workflow.filter.query.placeholder')"
+            prepend-inner-icon="mdi-filter" />
+        </v-col>
+        <v-col
+          cols="4"
+          md="1"
+          lg="1">
           <v-select
             ref="filter"
-            class="workflow-filter pt-5"
+            class="pt-5 workflow-filter mt-n3"
             v-model="filter"
             :items="items"
             item-text="label"
@@ -37,6 +54,10 @@
             outlined />
         </v-col>
       </v-row>
+    </v-container>
+    <v-container
+      v-if="!loading"
+      no-gutters>
       <v-row
         v-if="workflows.length>0"
         no-gutters>
@@ -82,6 +103,7 @@ export default {
         {label: this.$t('processes.workflow.deactivated.label'), value: false },
         {label: this.$t('processes.workflow.all.label'), value: null},
       ],
+      query: null,
     };
   },
   props: {
@@ -113,7 +135,11 @@ export default {
     this.$root.$on('workflow-updated', (workflow) => {
       workflow = JSON.parse(workflow);
       const index = this.workflows.map(workflow => workflow.id).indexOf(workflow.id);
-      this.workflows.splice(index, 1, workflow);
+      if (this.filter.value === workflow.enabled) {
+        this.workflows.splice(index, 1, workflow);
+      } else {
+        this.workflows.splice(this.workflows.indexOf(workflow), 1);
+      }
     });
     this.$root.$on('workflow-removed', (workflow) => {
       this.workflows.splice(this.workflows.indexOf(workflow), 1);
@@ -132,7 +158,7 @@ export default {
       this.$root.$emit('open-workflow-drawer', {workflow: null, mode: 'create_workflow'});
     },
     updateFilter() {
-      this.$root.$emit('workflow-filter-changed', this.filter.value);
+      this.$root.$emit('workflow-filter-changed', {filter: this.filter.value, query: this.query});
     }
   }
 };
