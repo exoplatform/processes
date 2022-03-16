@@ -8,12 +8,14 @@ import org.apache.commons.lang.StringUtils;
 
 import org.exoplatform.processes.Utils.EntityMapper;
 import org.exoplatform.processes.Utils.Utils;
+import org.exoplatform.processes.dao.WorkDraftDAO;
 import org.exoplatform.processes.dao.WorkFlowDAO;
+import org.exoplatform.processes.entity.WorkEntity;
 import org.exoplatform.processes.entity.WorkFlowEntity;
-import org.exoplatform.processes.model.ProcessesFilter;
-import org.exoplatform.processes.model.Work;
-import org.exoplatform.processes.model.WorkFlow;
+import org.exoplatform.processes.model.*;
 import org.exoplatform.processes.notification.utils.NotificationUtils;
+import org.exoplatform.services.attachments.model.Attachment;
+import org.exoplatform.services.attachments.service.AttachmentService;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -39,6 +41,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
 
   private final WorkFlowDAO      workFlowDAO;
 
+  private final WorkDraftDAO     workDraftDAO;
+
   private final IdentityManager  identityManager;
 
   private final TaskService      taskService;
@@ -51,6 +55,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   
   private final ListenerService listenerService;
 
+  private final AttachmentService attachmentService;
+
   private final String           DATE_FORMAT = "yyyy/MM/dd";
 
   private static final String PROCESSES_SPACE_GROUP_ID      = "/spaces/processes_space";
@@ -58,46 +64,50 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   private final SimpleDateFormat formatter   = new SimpleDateFormat(DATE_FORMAT);
 
   public ProcessesStorageImpl(WorkFlowDAO workFlowDAO,
+                              WorkDraftDAO workDraftDAO,
                               TaskService taskService,
                               ProjectService projectService,
                               StatusService statusService,
                               IdentityManager identityManager,
                               SpaceService spaceService,
-                              ListenerService listenerService) {
+                              ListenerService listenerService, 
+                              AttachmentService attachmentService) {
     this.workFlowDAO = workFlowDAO;
+    this.workDraftDAO = workDraftDAO;
     this.identityManager = identityManager;
     this.taskService = taskService;
     this.projectService = projectService;
     this.statusService = statusService;
     this.spaceService = spaceService;
     this.listenerService = listenerService;
+    this.attachmentService = attachmentService;
   }
 
   @Override
   public List<WorkFlow> findAllWorkFlowsByUser(ProcessesFilter filter, int offset, int limit, long userIdentityId) {
     // TODO: add filter props to the request
-    return EntityMapper.fromEntities(workFlowDAO.findAllWorkFlowsByUser(userIdentityId, offset, limit));
+    return EntityMapper.fromWorkflowEntities(workFlowDAO.findAllWorkFlowsByUser(userIdentityId, offset, limit));
   }
 
   @Override
   public List<WorkFlow> findEnabledWorkFlowsByUser(ProcessesFilter filter, int offset, int limit, long userIdentityId) {
     // TODO: add filter props to the request
-    return EntityMapper.fromEntities(workFlowDAO.findEnabledWorkFlowsByUser(userIdentityId, offset, limit));
+    return EntityMapper.fromWorkflowEntities(workFlowDAO.findEnabledWorkFlowsByUser(userIdentityId, offset, limit));
   }
 
   @Override
   public List<WorkFlow> findAllWorkFlows(int offset, int limit) {
-    return EntityMapper.fromEntities(workFlowDAO.findAllWorkFlows(offset, limit));
+    return EntityMapper.fromWorkflowEntities(workFlowDAO.findAllWorkFlows(offset, limit));
   }
 
   @Override
   public List<WorkFlow> findEnabledWorkFlows(int offset, int limit) {
-    return EntityMapper.fromEntities(workFlowDAO.findEnabledWorkFlows(offset, limit));
+    return EntityMapper.fromWorkflowEntities(workFlowDAO.findEnabledWorkFlows(offset, limit));
   }
 
   @Override
   public List<WorkFlow> findDisabledWorkFlows(int offset, int limit) {
-    return EntityMapper.fromEntities(workFlowDAO.findDisabledWorkFlows(offset, limit));
+    return EntityMapper.fromWorkflowEntities(workFlowDAO.findDisabledWorkFlows(offset, limit));
   }
 
   @Override
@@ -146,7 +156,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     taskQuery.setProjectIds(projectsIds);
     taskQuery.setCreatedBy(Utils.getUserNameByIdentityId(identityManager, userIdentityId));
     List<TaskDto> tasks = taskService.findTasks(taskQuery, offset, limit);
-    return (EntityMapper.taskstoWorkList(tasks));
+    return (EntityMapper.tasksToWorkList(tasks));
   }
 
   /**
@@ -164,53 +174,83 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   @Override
   public Work getWorkById(long id) {
     try {
-      return EntityMapper.tasktoWork(taskService.getTask(id));
+      return EntityMapper.taskToWork(taskService.getTask(id));
     } catch (EntityNotFoundException e) {
       return null;
     }
   }
 
+  private TaskDto createWorkTask(Work work, Identity identity) {
+    TaskDto taskDto;
+    try {
+      projectService.getProject(work.getProjectId());
+    } catch (EntityNotFoundException e) {
+      throw new IllegalArgumentException("Task's project not found");
+    }
+    taskDto = EntityMapper.workToTask(work);
+    if (StringUtils.isEmpty(taskDto.getTitle())) {
+      taskDto.setTitle(formatter.format(new Date()) + " - " + identity.getProfile().getFullName());
+    }
+    taskDto.setStatus(statusService.getDefaultStatus(work.getProjectId()));
+    taskDto.setCreatedBy(identity.getRemoteId());
+    taskDto.setCreatedTime(new Date());
+    taskDto.setPriority(Priority.NONE);
+    taskDto = taskService.createTask(taskDto);
+    return taskDto;
+  }
+
+  private TaskDto updateWorkTask(Work work) {
+    TaskDto taskDto;
+    try {
+      taskDto = taskService.getTask(work.getId());
+    } catch (EntityNotFoundException e) {
+      throw new IllegalArgumentException("Task not found");
+    }
+    taskDto.setDescription(work.getDescription());
+    taskDto.setTitle(work.getTitle());
+    taskDto.setCompleted(work.isCompleted());
+    taskDto = taskService.updateTask(taskDto);
+    return taskDto;
+  }
+  
+  private void linkDraftAttachmentsToTask(long userId, long draftId, long taskId) {
+    try {
+      List<Attachment> attachments = attachmentService.getAttachmentsByEntity(userId, draftId, "workdraft");
+      attachments.stream().map(Attachment::getId).forEach(attachmentId -> {
+        try {
+          attachmentService.linkAttachmentToEntity(userId, taskId, "task", attachmentId);
+        } catch (IllegalAccessException e) {
+          LOG.error("Error while attaching files to task entity", e);
+        }
+      });
+      attachmentService.deleteAllEntityAttachments(userId, draftId, "workdraft");
+    } catch (Exception e) {
+      LOG.error("Error while getting attachments of work draft", e);
+    }
+    deleteWorkDraftById(draftId);
+  }
+  
   @Override
   public Work saveWork(Work work, long userId) throws IllegalArgumentException {
     if (work == null) {
       throw new IllegalArgumentException("work argument is null");
     }
-    TaskDto taskDto = null;
     Identity identity = identityManager.getIdentity(String.valueOf(userId));
     if (identity == null) {
       throw new IllegalArgumentException("identity is not exist");
     }
-    ProjectDto projectDto = null;
     if (work.getId() == 0) {
-      try {
-        projectDto = projectService.getProject(work.getProjectId());
-      } catch (EntityNotFoundException e) {
-        throw new IllegalArgumentException("Task's project not found");
+      TaskDto taskDto = createWorkTask(work, identity);
+      ProjectDto projectDto = taskDto.getStatus().getProject();
+      if (work.getDraftId() != null) {
+        linkDraftAttachmentsToTask(userId, work.getDraftId(), taskDto.getId());
       }
-      taskDto = EntityMapper.worktoTask(work);
-      if (StringUtils.isEmpty(taskDto.getTitle())) {
-        taskDto.setTitle(formatter.format(new Date()) + " - " + identity.getProfile().getFullName());
-      }
-      taskDto.setStatus(statusService.getDefaultStatus(work.getProjectId()));
-      taskDto.setCreatedBy(identity.getRemoteId());
-      taskDto.setCreatedTime(new Date());
-      taskDto.setPriority(Priority.NONE);
-      taskDto = taskService.createTask(taskDto);
-      Work newWork = EntityMapper.tasktoWork(taskDto);
+      Work newWork = EntityMapper.taskToWork(taskDto);
       NotificationUtils.broadcast(listenerService, "exo.process.request.created", newWork, projectDto);
-      return  newWork;
-    } else {
-      try {
-        taskDto = taskService.getTask(work.getId());
-      } catch (EntityNotFoundException e) {
-        throw new IllegalArgumentException("Task not found");
-      }
-      taskDto.setDescription(work.getDescription());
-      taskDto.setTitle(work.getTitle());
-      taskDto.setCompleted(work.isCompleted());
-      taskDto = taskService.updateTask(taskDto);
-      Work newWork = EntityMapper.tasktoWork(taskDto);
       return newWork;
+    } else {
+      TaskDto taskDto = updateWorkTask(work);
+      return EntityMapper.taskToWork(taskDto);
     }
   }
 
@@ -265,4 +305,56 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       LOG.error("Work not found", e);
     }
   }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<Work> findAllWorkDraftsByUser(int offset, int limit, long userIdentityId) {
+    return EntityMapper.fromWorkEntities(workDraftDAO.findAllWorkDraftsByUser(userIdentityId, offset, limit));
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Work saveWorkDraft(Work work, long userId) {
+    Identity identity = identityManager.getIdentity(String.valueOf(userId));
+    if (identity == null) {
+      throw new IllegalArgumentException("identity is not exist");
+    }
+    WorkEntity workEntity = EntityMapper.toEntity(work);
+    if (work.getId() == 0) {
+      workEntity.setId(null);
+      workEntity.setCreatedDate(new Date());
+      workEntity.setCreatorId(userId);
+      workEntity = workDraftDAO.create(workEntity);
+    } else {
+      workEntity.setModifiedDate(new Date());
+      workEntity = workDraftDAO.update(workEntity);
+    }
+
+    return EntityMapper.fromEntity(workEntity);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Work getWorkDraftyId(long id) {
+    return EntityMapper.fromEntity(workDraftDAO.find(id));
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void deleteWorkDraftById(long id) throws javax.persistence.EntityNotFoundException{
+    WorkEntity workEntity = workDraftDAO.find(id);
+    if (workEntity == null) {
+      throw new javax.persistence.EntityNotFoundException("Work Draft not found");
+    }
+    workDraftDAO.delete(workEntity);
+  }
+
 }

@@ -69,6 +69,11 @@
             <artifactId>social-component-notification</artifactId>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>org.exoplatform.ecms</groupId>
+            <artifactId>ecms-core-services</artifactId>
+            <scope>provided</scope>
+        </dependency>
         <!-- Test -->
         <dependency>
             <groupId>junit</groupId>

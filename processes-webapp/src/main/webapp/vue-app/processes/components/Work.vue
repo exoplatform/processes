@@ -3,6 +3,7 @@
     <v-container class="pa-0 work-bg-color">
       <request-status
         type="indicator"
+        :is-draft="isDraft"
         :status="work.status" />
       <v-row
         align="center"
@@ -37,26 +38,28 @@
           class="pa-0 ma-0"
           lg="1">
           <v-btn
+            v-if="!isDraft"
             @click="openCommentsDrawer"
             color="grey"
             icon>
             <v-icon>mdi-chat-outline</v-icon>
           </v-btn>
-          <span>{{ comments.length }}</span>
+          <span v-if="!isDraft">{{ comments.length }}</span>
         </v-col>
         <v-col
           cols="6"
           md="3"
           class="pa-0 ma-0 text-truncate grey--text"
           lg="2">
-          <span v-if="lastCommentDate">
+          <span
+            v-if="!isDraft && lastCommentDate">
             {{ $t('processes.myWorks.label.lastComment') }}
             <custom-date-format
               :timestamp="lastCommentDate" />
           </span>
         </v-col>
         <v-col
-          cols="6"
+          cols="12"
           md="4"
           class="pa-0 ma-0 text-truncate text-caption"
           lg="3">
@@ -65,19 +68,28 @@
           </span>
         </v-col>
         <v-col
-          cols="4"
+          cols="6"
           md="4"
           class="pa-0 ma-0 text-align-center text-truncate"
           lg="1">
-          <request-status :status="work.status" />
+          <request-status
+            :is-draft="isDraft"
+            :status="work.status" />
         </v-col>
         <v-col
-          cols="2"
+          cols="6"
           md="4"
           class="pa-0 ma-0 text-align-end"
           lg="2">
           <v-btn
-            :disabled="!allowDeleteWork"
+            v-if="isDraft"
+            @click="openDraft"
+            color="blue"
+            icon>
+            <v-icon>mdi-square-edit-outline</v-icon>
+          </v-btn>
+          <v-btn
+            :disabled="!allowDeleteWork && !isDraft"
             @click="deleteWork"
             color="blue"
             icon>
@@ -102,13 +114,17 @@ export default {
       type: Object,
       default: null,
     },
+    isDraft: {
+      type: Boolean,
+      default: false
+    }
   },
   computed: {
     lastCommentDate() {
       return this.comments && this.comments[this.comments.length-1] && this.comments[this.comments.length-1].comment.createdTime.time;
     },
     allowDeleteWork() {
-      return this.work && this.work.status.toLowerCase() !== 'validated' && this.work.status.toLowerCase() !== 'refused';
+      return this.work && this.work.status && this.work.status.toLowerCase() !== 'validated' && this.work.status.toLowerCase() !== 'refused';
     }
   },
   created() {
@@ -117,20 +133,27 @@ export default {
   methods: {
     openRequest() {
       this.work.comments = this.comments;
-      this.$root.$emit('open-add-work-drawer', {object: this.work, mode: 'view_work'});
+      this.$root.$emit('open-add-work-drawer', {object: this.work, mode: 'view_work', isDraft: this.isDraft});
+    },
+    openDraft() {
+      this.$root.$emit('open-add-work-drawer', {object: this.work, mode: 'edit_work_draft'});
     },
     openCommentsDrawer() {
       this.$root.$emit('show-work-comments', this.work, this.comments);
     },
     getWorkComments() {
-      if (this.work) {
+      if (this.work && !this.isDraft) {
         this.$processesService.getWorkComments(this.work.id).then(comments => {
           this.comments = comments;
         });
       }
     },
     deleteWork() {
-      this.$root.$emit('show-confirm-action', {model: this.work, reason: 'delete_work'});
+      if (this.isDraft) {
+        this.$root.$emit('show-confirm-action', {model: this.work, reason: 'delete_work_draft'});
+      } else {
+        this.$root.$emit('show-confirm-action', {model: this.work, reason: 'delete_work'});
+      }
     }
   },
 

@@ -31,7 +31,10 @@
             :loading="loading" />
         </v-tab-item>
         <v-tab-item>
-          <my-work-list :works="works" :loading="loading" />
+          <my-work-list
+            :works="works"
+            :work-drafts="workDrafts"
+            :loading="loading" />
         </v-tab-item>
       </v-tabs-items>
     </v-card>
@@ -74,6 +77,7 @@ export default {
       message: '',
       workflows: [],
       works: [],
+      workDrafts: [],
       query: null,
       enabled: true,
       pageSize: 10,
@@ -100,6 +104,7 @@ export default {
   created() {
     this.getWorkFlows();
     this.getWorks();
+    this.getWorkDrafts();
     this.$root.$on('show-alert', alert => {
       this.displayMessage(alert);
     });
@@ -125,7 +130,7 @@ export default {
     this.$root.$on('open-add-work-drawer', event => {
       this.work = event.object;
       this.workComments = event.object.comments;
-      this.$refs.addWork.open(event.object, event.mode);
+      this.$refs.addWork.open(event.object, event.mode, event.isDraft);
     });
     this.$root.$on('open-workflow-drawer', event => {
       this.$refs.addWorkFlow.open(event.workflow, event.mode);
@@ -134,6 +139,12 @@ export default {
       this.work = work;
       this.workComments = comments;
       this.$root.$emit('displayTaskComment');
+    });
+    this.$root.$on('create-work-draft', draft => {
+      this.createWorkDraft(draft);
+    });
+    this.$root.$on('update-work-draft', draft => {
+      this.updateWorkDraft(draft);
     });
   },
   computed: {
@@ -174,6 +185,14 @@ export default {
         })
         .finally(() => this.loading = false);
     },
+    getWorkDrafts() {
+      const expand = '';
+      this.limit = this.limit || this.pageSize;
+      this.loading = true;
+      return this.$processesService.getWorkDrafts(this.offset, this.limit , expand).then(drafts => {
+        this.workDrafts = drafts || [];
+      }).finally(() => this.loading = false);
+    },
     displayMessage(alert) {
       this.message = alert.message;
       this.type = alert.type;
@@ -186,10 +205,7 @@ export default {
       this.saving = true;
       this.$processesService.addNewWorkFlow(workflow).then(workflow => {
         if (workflow){
-          if (workflow.enabled === this.enabled) {
-            this.workflows.unshift(workflow);
-          }
-          this.$root.$emit('workflow-added');
+          this.$root.$emit('workflow-added', {workflow: workflow, filter: this.enabled});
           this.displayMessage({type: 'success', message: this.$t('processes.workflow.add.success.message')});
         }
       }).catch(() => {
@@ -198,14 +214,33 @@ export default {
     },
 
     addWork(work) {
-      this.$processesService.addWork(work).then(work => {
-        if (work){
-          this.$root.$emit('refresh-works');
-          this.$root.$emit('work-added');
+      this.$processesService.addWork(work).then(newWork => {
+        if (newWork){
+          this.$root.$emit('work-added', {work: newWork, draftId: work.draftId});
           this.displayMessage({type: 'success', message: this.$t('processes.work.add.success.message')});
         }
       }).catch(() => {
         this.displayMessage({type: 'error', message: this.$t('processes.work.add.error.message')});
+      });
+    },
+    createWorkDraft(workDraft) {
+      this.$processesService.createWorkDraft(workDraft).then(draft => {
+        if (draft) {
+          this.$root.$emit('work-draft-added', draft);
+          this.displayMessage({type: 'success', message: this.$t('processes.workDraft.add.success.message')});
+        }
+      }).catch(() => {
+        this.displayMessage({type: 'error', message: this.$t('processes.workDraft.save.error.message')});
+      });
+    },
+    updateWorkDraft(workDraft) {
+      this.$processesService.updateWorkDraft(workDraft).then(draft => {
+        if (draft) {
+          this.$root.$emit('work-draft-updated', draft);
+          this.displayMessage({type: 'success', message: this.$t('processes.workDraft.update.success.message')});
+        }
+      }).catch(() => {
+        this.displayMessage({type: 'error', message: this.$t('processes.workDraft.save.error.message')});
       });
     },
     showConfirmDialog(model, reason){
@@ -213,22 +248,40 @@ export default {
       this.targetModel = model;
       if (reason === 'delete_workflow') {
         this.confirmMessage = this.$t('processes.workflow.delete.confirmDialog.message', {0: `<strong>${model.title}</strong>`});
-      } else if (reason === 'delete_work') {
+      }
+      if (reason === 'delete_work') {
         this.confirmMessage = this.$t('processes.work.delete.confirmDialog.message');
+      }
+      if (reason === 'delete_work_draft') {
+        this.confirmMessage = this.$t('processes.work.draft.delete.confirmDialog.message');
       }
       this.$refs.confirmDialog.open();
     },
     confirmAction() {
       if (this.dialogAction && this.dialogAction === 'delete_workflow') {
         this.deleteWorkflowById(this.targetModel);
-      } else if (this.dialogAction && this.dialogAction === 'delete_work'){
+      }
+      if (this.dialogAction && this.dialogAction === 'delete_work') {
         this.deleteWorkById(this.targetModel);
       }
+      if (this.dialogAction && this.dialogAction === 'delete_work_draft') {
+        this.deleteWorkDraftById(this.targetModel);
+      }
+    },
+    deleteWorkDraftById(workDraft) {
+      this.$processesService.deleteWorkDraftById(workDraft.id).then(value => {
+        if (value === 'ok') {
+          this.$root.$emit('work-draft-removed', workDraft);
+          this.displayMessage({type: 'success', message: this.$t('processes.work.draft.delete.success.message')});
+        }
+      }).catch(() => {
+        this.displayMessage({type: 'error', message: this.$t('processes.work.draft.delete.error.message')});
+      });
     },
     deleteWorkflowById(workflow) {
       this.$processesService.deleteWorkflowById(workflow.id).then(value => {
         if (value === 'ok') {
-          this.workflows.splice(this.workflows.indexOf(workflow), 1);
+          this.$root.$emit('workflow-removed', workflow);
           this.displayMessage({type: 'success', message: this.$t('processes.workflow.delete.success.message')});
         }
       }).catch(() => {
@@ -239,13 +292,11 @@ export default {
       this.saving = true;
       this.$processesService.updateWorkflow(workflow).then(newWorkflow => {
         if (newWorkflow) {
-          this.$root.$emit('workflow-updated');
+          this.$root.$emit('workflow-updated', newWorkflow);
           this.displayMessage({type: 'success', message: this.$t('processes.workflow.update.success.message')});
         }
       }).catch(() => {
         this.displayMessage({type: 'error', message: this.$t('processes.workflow.update.error.message')});
-      }).finally(() => {
-        this.getWorkFlows();
       });
     },
     onDialogClosed() {
@@ -255,7 +306,7 @@ export default {
     deleteWorkById(work) {
       this.$processesService.deleteWorkById(work.id).then(value => {
         if (value === 'ok') {
-          this.works.splice(this.works.indexOf(work), 1);
+          this.$root.$emit('work-removed', work);
           this.displayMessage({type: 'success', message: this.$t('processes.work.delete.success.message')});
         }
       }).catch(() => {
