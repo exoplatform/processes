@@ -67,7 +67,17 @@ public interface ProcessesStorage {
 
   WorkFlow saveWorkFlow(WorkFlow workFlow, long userId) throws IllegalArgumentException;
 
-  List<Work> getWorks(long userIdentityId, int offset, int limit) throws Exception;
+  /**
+   * Retrieves list of filtered works
+   *
+   * @param userIdentityId user identity ide
+   * @param workFilter works filter
+   * @param offset Offset of the result list
+   * @param limit Limit of the result list
+   * @return {@link List} of {@link Work}
+   * @throws Exception
+   */
+  List<Work> getWorks(long userIdentityId, WorkFilter workFilter, int offset, int limit) throws Exception;
 
   Work getWorkById(long id);
 
@@ -106,12 +116,13 @@ public interface ProcessesStorage {
   /**
    * Retrieves a list of accessible WorkDraft, for a selected user.
    *
-   * @param offset         Offset of the result list
-   * @param limit          Limit of the result list
+   * @param workFilter work filter
+   * @param offset Offset of the result list
+   * @param limit Limit of the result list
    * @param userIdentityId {@link Identity} technical identifier of the user
    * @return {@link List} of {@link Work}
    */
-  List<Work> findAllWorkDraftsByUser(int offset, int limit, long userIdentityId);
+  List<Work> findAllWorkDraftsByUser(WorkFilter workFilter, int offset, int limit, long userIdentityId);
 
   /**
    * Save a draft of a work
@@ -136,4 +147,21 @@ public interface ProcessesStorage {
    * @param id Work draft id
    */
   void deleteWorkDraftById(long id) throws EntityNotFoundException;
+
+  /**
+   * Retrieves the list of available statuses in all workflows
+   *
+   * @return {@link List} of {@link WorkStatus}
+   */
+  List<WorkStatus> getAvailableWorkStatuses();
+
+  /**
+   * Retrieves list fo filtered workflows
+   * 
+   * @param processesFilter processes filter
+   * @param offset Offset of result list
+   * @param limit limit of result list
+   * @return {@link List} of {@link WorkFlow}
+   */
+  List<WorkFlow> findWorkFlows(ProcessesFilter processesFilter, int offset, int limit);
 }

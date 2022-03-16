@@ -3,7 +3,7 @@ package org.exoplatform.processes.service;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.processes.model.ProcessesFilter;
 import org.exoplatform.processes.model.Work;
-import org.exoplatform.processes.model.Work;
+import org.exoplatform.processes.model.WorkFilter;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.storage.ProcessesStorage;
 import org.exoplatform.social.core.manager.IdentityManager;
@@ -58,26 +58,14 @@ public class ProcessesServiceImplTest {
   public void getWorkFlows() throws IllegalAccessException {
 
     ProcessesFilter processesFilter = new ProcessesFilter();
-
-    when(processesStorage.findAllWorkFlows(0, 10)).thenReturn(allWorkFlowList);
-    when(processesStorage.findEnabledWorkFlows(0, 10)).thenReturn(enabledWorkFlowList);
-    when(processesStorage.findDisabledWorkFlows(0, 10)).thenReturn(disabledWorkFlowList);
-
-    List<WorkFlow> allResult = processesService.getWorkFlows(processesFilter, 0, 10, 0L);
-    assertEquals(allWorkFlowList, allResult);
-    assertEquals(2, allResult.size());
-
     processesFilter.setEnabled(true);
+    processesFilter.setQuery("test");
+    when(processesStorage.findWorkFlows(processesFilter,0, 10)).thenReturn(enabledWorkFlowList);
+
     List<WorkFlow> enabledResult = processesService.getWorkFlows(processesFilter, 0, 10, 0L);
     assertEquals(enabledWorkFlowList, enabledResult);
     assertEquals(1, enabledResult.size());
     assertTrue(enabledResult.get(0).isEnabled());
-
-    processesFilter.setEnabled(false);
-    List<WorkFlow> disabledResult = processesService.getWorkFlows(processesFilter, 0, 10, 0L);
-    assertEquals(disabledWorkFlowList, disabledResult);
-    assertEquals(1, disabledResult.size());
-    assertFalse(disabledResult.get(0).isEnabled());
 
   }
 
@@ -258,10 +246,13 @@ public class ProcessesServiceImplTest {
   @Test
   public void getWorkDrafts() {
     List<Work> workList = new ArrayList<>();
+    WorkFilter workFilter = new WorkFilter();
+    workFilter.setIsDraft(true);
+    workFilter.setQuery("test");
     workList.add(new Work());
-    when(processesStorage.findAllWorkDraftsByUser(0, 10, 1L)).thenReturn(workList);
-    List<Work> list = processesService.getWorkDrafts(1L, 0, 10);
-    verify(processesStorage, times(1)).findAllWorkDraftsByUser(0, 10, 1L);
+    when(processesStorage.findAllWorkDraftsByUser(workFilter, 0, 10, 1L)).thenReturn(workList);
+    List<Work> list = processesService.getWorkDrafts(1L, workFilter, 0, 10);
+    verify(processesStorage, times(1)).findAllWorkDraftsByUser(workFilter, 0, 10, 1L);
     assertEquals(list, workList);
   }
 

@@ -12,8 +12,10 @@ import org.exoplatform.processes.entity.WorkFlowEntity;
 import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFlow;
+import org.exoplatform.processes.model.WorkStatus;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
+import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.dto.TaskDto;
 
 public class EntityMapper {
@@ -55,6 +57,20 @@ public class EntityMapper {
                     workEntity.getTaskId(),
                     workEntity.getIsDraft(),
                     fromEntity(workEntity.getWorkFlow()));
+  }
+
+  public static WorkStatus toWorkStatus(StatusDto statusDto) {
+    if (statusDto == null) {
+      return null;
+    }
+    return new WorkStatus(statusDto.getId(), statusDto.getName(), statusDto.getRank());
+  }
+
+  public static List<WorkStatus> toWorkStatuses(List<StatusDto> statuses) {
+    if (CollectionUtils.isEmpty(statuses)) {
+      return new ArrayList<>(Collections.emptyList());
+    }
+    return statuses.stream().map(EntityMapper::toWorkStatus).collect(Collectors.toList());
   }
 
   public static WorkFlowEntity toEntity(WorkFlow workFlow) {
@@ -101,7 +117,7 @@ public class EntityMapper {
       return new ArrayList<>(Collections.emptyList());
     } else {
       List<WorkFlow> workFlows = workFlowEntities.stream()
-                                                          .map(workEntity -> fromEntity(workEntity))
+                                                          .map(workflowEntity -> fromEntity(workflowEntity))
                                                           .collect(Collectors.toList());
       return workFlows;
     }
