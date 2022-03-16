@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
+import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.rest.model.WorkEntity;
@@ -32,6 +33,8 @@ import org.exoplatform.processes.rest.model.WorkFlowEntity;
 import org.exoplatform.processes.service.ProcessesService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
+import org.exoplatform.commons.utils.HTMLSanitizer;
+import org.exoplatform.task.service.StatusService;
 
 public class EntityBuilder {
   private static final Log LOG = ExoLogger.getExoLogger(EntityBuilder.class);
@@ -78,6 +81,7 @@ public class EntityBuilder {
     if (workFlow == null) {
       return null;
     }
+    StatusService statusService = CommonsUtils.getService(StatusService.class);
     List<String> expandProperties =
                                   StringUtils.isBlank(expand) ? Collections.emptyList()
                                                               : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""), ","));
@@ -95,6 +99,7 @@ public class EntityBuilder {
                               workFlow.getModifiedDate(),
                               workFlow.getProjectId(),
                               workFlow.getAttachments(),
+                              statusService.getStatuses(workFlow.getProjectId()),
                               null);
   }
 
@@ -190,6 +195,11 @@ public class EntityBuilder {
       // TODO: Add comments
     }
 
+    try {
+      workEntity.setDescription(HTMLSanitizer.sanitize(work.getDescription()));
+    } catch (Exception e) {
+      LOG.warn("Work description cannot be sanitized", e);
+    }
     if (expandProperties.contains("workFlow")) {
       workEntity.setWorkFlow(toEntity(processesService.getWorkFlowByProjectId(work.getProjectId()), ""));
     }

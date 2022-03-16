@@ -32,6 +32,7 @@
         </v-tab-item>
         <v-tab-item>
           <my-work-list
+            :available-work-statuses="availableWorkStatuses"
             :works="works"
             :work-drafts="workDrafts"
             :loading="loading" />
@@ -73,6 +74,7 @@ export default {
     return {
       work: null,
       workComments: [],
+      availableWorkStatuses: null,
       tab: 0,
       alert: false,
       type: '',
@@ -82,6 +84,7 @@ export default {
       workDrafts: [],
       query: null,
       enabled: true,
+      status: null,
       pageSize: 10,
       offset: 0,
       limit: 0,
@@ -101,6 +104,9 @@ export default {
     });
     this.$processesService.getProcessesSpaceInfo().then(spaceInfo => {
       this.processesSpaceInfo = spaceInfo;
+    });
+    this.$processesService.getAvailableWorkStatuses().then(statuses => {
+      this.availableWorkStatuses = statuses;
     });
   },
   created() {
@@ -122,8 +128,9 @@ export default {
     this.$root.$on('refresh-works', () => {
       this.getWorks();
     });
-    this.$root.$on('workflow-filter-changed', value => {
-      this.enabled = value;
+    this.$root.$on('workflow-filter-changed', event => {
+      this.enabled = event.filter;
+      this.query = event.query;
       this.getWorkFlows();
     });
     this.$root.$on('show-confirm-action', event => {
@@ -147,6 +154,20 @@ export default {
     });
     this.$root.$on('update-work-draft', draft => {
       this.updateWorkDraft(draft);
+    });
+    this.$root.$on('work-filter-changed', event => {
+      this.status = event.status;
+      this.query = event.query;
+      if (this.status === 'drafts') {
+        this.works = [];
+        this.getWorkDrafts();
+      } else if (this.status === null) {
+        this.getWorkDrafts();
+        this.getWorks();
+      } else {
+        this.workDrafts = [];
+        this.getWorks();
+      }
     });
   },
   computed: {
@@ -177,6 +198,7 @@ export default {
       if (this.query) {
         filter.query = this.query;
       }
+      filter.status = this.status;
       const expand = 'workFlow';
       this.limit = this.limit || this.pageSize;
       this.loading = true;
@@ -188,10 +210,14 @@ export default {
         .finally(() => this.loading = false);
     },
     getWorkDrafts() {
+      const filter = {};
+      if (this.query) {
+        filter.query = this.query;
+      }
       const expand = '';
       this.limit = this.limit || this.pageSize;
       this.loading = true;
-      return this.$processesService.getWorkDrafts(this.offset, this.limit , expand).then(drafts => {
+      return this.$processesService.getWorkDrafts(filter, this.offset, this.limit , expand).then(drafts => {
         this.workDrafts = drafts || [];
       }).finally(() => this.loading = false);
     },

@@ -1,6 +1,31 @@
 <template>
   <div
     id="myWorks">
+    <v-container class="pa-0">
+      <v-row no-gutters>
+        <v-col
+          height="150">
+          <v-select
+            ref="filter"
+            class="work-filter pt-5 me-9 float-right"
+            v-model="filter"
+            :items="filterItems"
+            item-text="label"
+            item-value="value"
+            return-object
+            @blur="$refs.filter.blur();"
+            @change="updateFilter"
+            dense
+            outlined />
+          <v-text-field
+            class="work-filter-query me-3"
+            @keyup="updateFilter"
+            v-model="query"
+            :placeholder="$t('processes.work.filter.query.placeholder')"
+            prepend-inner-icon="mdi-filter" />
+        </v-col>
+      </v-row>
+    </v-container>
     <empty-or-loading
       :loading="loading"
       v-if="works.length === 0 && workDrafts.length === 0">
@@ -18,6 +43,7 @@
       </template>
     </empty-or-loading>
     <v-expansion-panels
+      class="mt-0"
       v-if="works.length>0 || workDrafts.length>0"
       v-model="panel"
       multiple>
@@ -73,7 +99,9 @@
 export default {
   data () {
     return {
-      panel: [0,1,2],
+      panel: [0, 1, 2],
+      filter: {label: this.$t('processes.workflow.all.label'), value: null},
+      query: null
     };
   },
   props: {
@@ -89,6 +117,12 @@ export default {
       type: Boolean,
       default: false
     },
+    availableWorkStatuses: {
+      type: Object,
+      default: () => {
+        return {};
+      }
+    }
   },
   created() {
     this.$root.$on('work-draft-updated', (draft) => {
@@ -103,13 +137,35 @@ export default {
       this.works.splice(this.works.indexOf(work), 1);
     });
   },
+  updated() {
+    window.setTimeout(() => {
+      this.panel = [0, 1, 2];
+    }, 500);
+  },
   computed: {
     items() {
       return this.groupByKey(this.works, 'status');
     },
+    filterItems() {
+      const items = [];
+      items.push({label: this.$t('processes.workflow.all.label'), value: null});
+      this.availableWorkStatuses.forEach((value) => {
+        if (!items.find(object => object.value === value.name)) {
+          items.push({label: this.statusI18n(value.name), value: value.name});
+        }
+      });
+      items.push({label: this.$t('processes.myWorks.status.draft'), value: 'drafts'});
+      return items;
+    }
   },
   methods: {
+    statusI18n(value){
+      const key = `tasks.status.${value}`;
+      const translation = this.$t(key);
+      return translation === key && value || translation;
+    },
     groupByKey(arr, prop) {
+      arr = this.sortWorks(arr);
       const statuses = [];
       const map = new Map(Array.from(arr, obj => [obj[prop], []]));
       arr.forEach(obj => map.get(obj[prop]).push(obj));
@@ -117,8 +173,27 @@ export default {
         statuses.push({status: x,works: map.get(x)});
       }
       return statuses;
+    },
+    statusList() {
+      const statusList = new Set();
+      this.works.map(work => work.workFlow).map(workflow => workflow.statuses)
+        .filter(statuses => statuses && statuses.length > 0).forEach(statuses => {
+          statuses.forEach(status => {
+            if (status) {
+              statusList.add(status.name);
+            }
+          });
+        });
+      return Array.from(statusList);
+    },
+    sortWorks(works) {
+      const statusList = this.statusList();
+      return works.sort((a, b) => statusList.indexOf(a['status']) - statusList.indexOf(b['status']));
+    },
+    updateFilter() {
+      this.loading = true;
+      this.$root.$emit('work-filter-changed', {status: this.filter.value, query: this.query});
     }
-  },
-
+  }
 };
 </script>

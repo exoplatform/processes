@@ -162,11 +162,17 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   }
 
   @Override
-  public List<Work> getWorks(long userIdentityId, int offset, int limit) throws Exception {
+  public List<Work> getWorks(long userIdentityId, WorkFilter workFilter, int offset, int limit) throws Exception {
     List<WorkFlow> workFlows = findAllWorkFlows(0, 0);
     List<Long> projectsIds = workFlows.stream().map(WorkFlow::getProjectId).collect(Collectors.toList());
     TaskQuery taskQuery = new TaskQuery();
     taskQuery.setProjectIds(projectsIds);
+    if (workFilter.getStatus() != null) {
+      taskQuery.setStatusName(workFilter.getStatus());
+    }
+    if (workFilter.getQuery() != null) {
+      taskQuery.setKeyword(workFilter.getQuery());
+    }
     taskQuery.setCreatedBy(Utils.getUserNameByIdentityId(identityManager, userIdentityId));
     List<TaskDto> tasks = taskService.findTasks(taskQuery, offset, limit);
     return (EntityMapper.tasksToWorkList(tasks));
@@ -232,11 +238,13 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       attachments.stream().map(Attachment::getId).forEach(attachmentId -> {
         try {
           attachmentService.linkAttachmentToEntity(userId, taskId, "task", attachmentId);
-        } catch (IllegalAccessException e) {
+        } catch (Exception e) {
           LOG.error("Error while attaching files to task entity", e);
         }
       });
-      attachmentService.deleteAllEntityAttachments(userId, draftId, WORK_DRAFT_ENTITY_TYPE);
+      if (attachments.size() != 0) {
+        attachmentService.deleteAllEntityAttachments(userId, draftId, WORK_DRAFT_ENTITY_TYPE);
+      }
     } catch (Exception e) {
       LOG.error("Error while getting attachments of work draft", e);
     }
@@ -327,8 +335,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    * {@inheritDoc}
    */
   @Override
-  public List<Work> findAllWorkDraftsByUser(int offset, int limit, long userIdentityId) {
-    return EntityMapper.fromWorkEntities(workDraftDAO.findAllWorkDraftsByUser(userIdentityId, offset, limit));
+  public List<Work> findAllWorkDraftsByUser(WorkFilter workFilter, int offset, int limit, long userIdentityId) {
+    return EntityMapper.fromWorkEntities(workDraftDAO.findAllWorkDraftsByUser(workFilter, userIdentityId, offset, limit));
   }
 
   /**
@@ -389,4 +397,23 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     workDraftDAO.delete(workEntity);
   }
 
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<WorkStatus> getAvailableWorkStatuses() {
+    List<WorkStatus> statuses = new ArrayList<>();
+    List<WorkFlow> workFlows = findAllWorkFlows(0, 0);
+    List<Long> projectsIds = workFlows.stream().map(WorkFlow::getProjectId).collect(Collectors.toList());
+    projectsIds.stream().forEach(projectId -> {
+      statuses.addAll(EntityMapper.toWorkStatuses(statusService.getStatuses(projectId)));
+    });
+    statuses.sort(Comparator.comparing(WorkStatus::getRank));
+    return statuses;
+  }
+
+  @Override
+  public List<WorkFlow> findWorkFlows(ProcessesFilter processesFilter, int offset, int limit) {
+    return EntityMapper.fromWorkflowEntities(workFlowDAO.findWorkFlows(processesFilter, offset, limit));
+  }
 }
