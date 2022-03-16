@@ -170,25 +170,6 @@ public class ProcessesRestTest {
   }
 
   @Test
-  public void getProcessesSpaceInfo() {
-    Space processesSpace = new Space();
-    when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
-    Response response1 = processesRest.getProcessesSpaceInfo();
-    assertEquals(response1.getStatus(), Response.Status.UNAUTHORIZED.getStatusCode());
-    when(CommonsUtils.getService(SpaceService.class)).thenReturn(spaceService);
-    when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
-    when(spaceService.getSpaceByGroupId("/spaces/processes_space")).thenReturn(null);
-    Response response2 = processesRest.getProcessesSpaceInfo();
-    assertEquals(response2.getStatus(), Response.Status.NOT_FOUND.getStatusCode());
-    when(spaceService.getSpaceByGroupId("/spaces/processes_space")).thenReturn(processesSpace);
-    Response response3 = processesRest.getProcessesSpaceInfo();
-    assertEquals(response3.getStatus(), Response.Status.OK.getStatusCode());
-    when(spaceService.getSpaceByGroupId("/spaces/processes_space")).thenThrow(RuntimeException.class);
-    Response response4 = processesRest.getProcessesSpaceInfo();
-    assertEquals(response4.getStatus(), Response.Status.INTERNAL_SERVER_ERROR.getStatusCode());
-  }
-
-  @Test
   public void createWorkflow() throws IllegalAccessException {
     WorkFlow workFlow = mock(WorkFlow.class);
     WorkFlowEntity workFlowEntity = mock(WorkFlowEntity.class);

@@ -137,10 +137,13 @@ export default {
       this.works.splice(this.works.indexOf(work), 1);
     });
   },
-  updated() {
-    window.setTimeout(() => {
-      this.panel = [0, 1, 2];
-    }, 500);
+  watch: {
+    works() {
+      this.initPanels();
+    },
+    workDrafts() {
+      this.initPanels();
+    }
   },
   computed: {
     items() {
@@ -193,6 +196,11 @@ export default {
     updateFilter() {
       this.loading = true;
       this.$root.$emit('work-filter-changed', {status: this.filter.value, query: this.query});
+    },
+    initPanels() {
+      window.setTimeout(() => {
+        this.panel = [0, 1, 2];
+      }, 500);
     }
   }
 };

@@ -7,15 +7,14 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang.StringUtils;
 
 import org.exoplatform.processes.Utils.EntityMapper;
-import org.exoplatform.processes.Utils.Utils;
+import org.exoplatform.processes.Utils.ProcessesUtils;
 import org.exoplatform.processes.dao.WorkDraftDAO;
 import org.exoplatform.processes.dao.WorkFlowDAO;
 import org.exoplatform.processes.entity.WorkEntity;
 import org.exoplatform.processes.entity.WorkFlowEntity;
 import org.exoplatform.processes.model.*;
 import org.exoplatform.processes.notification.utils.NotificationUtils;
-import org.exoplatform.services.attachments.model.Attachment;
-import org.exoplatform.services.attachments.service.AttachmentService;
+import org.exoplatform.processes.service.ProcessesAttachmentService;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -23,6 +22,7 @@ import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
+import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.domain.Priority;
 import org.exoplatform.task.dto.ProjectDto;
@@ -54,8 +54,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   private final SpaceService    spaceService;
   
   private final ListenerService listenerService;
-
-  private final AttachmentService attachmentService;
+  
+  private final ProcessesAttachmentService processesAttachmentService;
 
   private final String           DATE_FORMAT = "yyyy/MM/dd";
 
@@ -70,8 +70,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
                               StatusService statusService,
                               IdentityManager identityManager,
                               SpaceService spaceService,
-                              ListenerService listenerService, 
-                              AttachmentService attachmentService) {
+                              ListenerService listenerService,
+                              ProcessesAttachmentService processesAttachmentService) {
     this.workFlowDAO = workFlowDAO;
     this.workDraftDAO = workDraftDAO;
     this.identityManager = identityManager;
@@ -80,7 +80,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     this.statusService = statusService;
     this.spaceService = spaceService;
     this.listenerService = listenerService;
-    this.attachmentService = attachmentService;
+    this.processesAttachmentService = processesAttachmentService;
   }
 
   @Override
@@ -139,23 +139,16 @@ public class ProcessesStorageImpl implements ProcessesStorage {
         workFlowEntity.setProjectId(projectId);
       }
       workFlowEntity = workFlowDAO.create(workFlowEntity);
-      Attachment[] attachments = workFlow.getAttachments();
-      long entityId = workFlowEntity.getId();
-      if (attachments != null && attachments.length > 0) {
-        Arrays.stream(attachments).map(Attachment::getId).forEach(attachmentId -> {
-          try {
-            attachmentService.linkAttachmentToEntity(userId, entityId, "workflow", attachmentId);
-          } catch (Exception e) {
-            LOG.error("Error while attaching files to workflow entity", e);
-          }
-        });
-      }
     } else {
       workFlowEntity.setModifiedDate(new Date());
       workFlowEntity.setModifierId(userId);
       workFlowEntity = workFlowDAO.update(workFlowEntity);
     }
-
+    processesAttachmentService.linkAttachmentsToEntity(workFlow.getAttachments(),
+                                                       userId,
+                                                       workFlowEntity.getId(),
+                                                       "workflow",
+                                                       workFlowEntity.getProjectId());
     return EntityMapper.fromEntity(workFlowEntity);
   }
 
@@ -171,7 +164,10 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     if (workFilter.getQuery() != null) {
       taskQuery.setKeyword(workFilter.getQuery());
     }
-    taskQuery.setCreatedBy(Utils.getUserNameByIdentityId(identityManager, userIdentityId));
+    List<OrderBy> orderByList = new ArrayList<>();
+    orderByList.add(new OrderBy("id", false));
+    taskQuery.setOrderBy(orderByList);
+    taskQuery.setCreatedBy(ProcessesUtils.getUserNameByIdentityId(identityManager, userIdentityId));
     List<TaskDto> tasks = taskService.findTasks(taskQuery, offset, limit);
     return (EntityMapper.tasksToWorkList(tasks));
   }
@@ -230,25 +226,6 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     return taskDto;
   }
   
-  private void linkDraftAttachmentsToTask(long userId, long draftId, long taskId) {
-    try {
-      List<Attachment> attachments = attachmentService.getAttachmentsByEntity(userId, draftId, "workdraft");
-      attachments.stream().map(Attachment::getId).forEach(attachmentId -> {
-        try {
-          attachmentService.linkAttachmentToEntity(userId, taskId, "task", attachmentId);
-        } catch (Exception e) {
-          LOG.error("Error while attaching files to task entity", e);
-        }
-      });
-      if (attachments.size() != 0) {
-        attachmentService.deleteAllEntityAttachments(userId, draftId, "workdraft");
-      }
-    } catch (Exception e) {
-      LOG.error("Error while getting attachments of work draft", e);
-    }
-    deleteWorkDraftById(draftId);
-  }
-  
   @Override
   public Work saveWork(Work work, long userId) throws IllegalArgumentException {
     if (work == null) {
@@ -262,7 +239,13 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       TaskDto taskDto = createWorkTask(work, identity);
       ProjectDto projectDto = taskDto.getStatus().getProject();
       if (work.getDraftId() != null) {
-        linkDraftAttachmentsToTask(userId, work.getDraftId(), taskDto.getId());
+        processesAttachmentService.moveAttachmentsToEntity(userId,
+                                                           work.getDraftId(),
+                                                           "workdraft",
+                                                           taskDto.getId(),
+                                                           "task",
+                                                           projectDto.getId());
+        deleteWorkDraftById(work.getDraftId());
       }
       Work newWork = EntityMapper.taskToWork(taskDto);
       NotificationUtils.broadcast(listenerService, "exo.process.request.created", newWork, projectDto);
@@ -353,21 +336,11 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       workEntity.setCreatedDate(new Date());
       workEntity.setCreatorId(userId);
       workEntity = workDraftDAO.create(workEntity);
-      try {
-        long draftId = workEntity.getId();
-        List<Attachment> attachments = attachmentService.getAttachmentsByEntity(userId, work.getWorkFlow().getId(), "workflow");
-        if (attachments != null) {
-          attachments.stream().map(Attachment::getId).forEach(attachmentId -> {
-            try {
-              attachmentService.linkAttachmentToEntity(userId, draftId, "workdraft", attachmentId);
-            } catch (IllegalAccessException e) {
-              LOG.error("Error while attaching workflow attachments to work draft");
-            }
-          });
-        }
-      } catch (Exception e) {
-        LOG.error("Error while getting workflow attachments");
-      }
+      processesAttachmentService.copyAttachmentsToEntity(userId,
+                                                         work.getWorkFlow().getId(),
+                                                         "workflow",
+                                                         workEntity.getId(),
+                                                         "workdraft", work.getWorkFlow().getProjectId());
     } else {
       workEntity.setModifiedDate(new Date());
       workEntity = workDraftDAO.update(workEntity);

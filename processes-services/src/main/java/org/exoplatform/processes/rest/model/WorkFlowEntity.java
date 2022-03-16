@@ -25,6 +25,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.exoplatform.services.attachments.model.Attachment;
+import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.task.dto.StatusDto;
 
 @Data
@@ -62,5 +63,7 @@ public class WorkFlowEntity {
   private List<StatusDto>   statuses;
 
   private ProcessPermission acl;
+
+  private Space             parentSpace;
 
 }

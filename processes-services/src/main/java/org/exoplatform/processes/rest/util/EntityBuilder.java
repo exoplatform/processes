@@ -26,6 +26,7 @@ import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.commons.utils.CommonsUtils;
+import org.exoplatform.processes.Utils.ProcessesUtils;
 import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.rest.model.WorkEntity;
@@ -100,7 +101,8 @@ public class EntityBuilder {
                               workFlow.getProjectId(),
                               workFlow.getAttachments(),
                               statusService.getStatuses(workFlow.getProjectId()),
-                              null);
+                              null,
+                              ProcessesUtils.getProjectParentSpace(workFlow.getProjectId()));
   }
 
   public static WorkFlowEntity toEntity(WorkFlow workFlow) {
