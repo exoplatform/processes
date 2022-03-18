@@ -355,33 +355,6 @@ public class ProcessesRest implements ResourceContainer {
   }
 
   @GET
-  @Produces(MediaType.APPLICATION_JSON)
-  @RolesAllowed("users")
-  @Path("/processesSpace/info")
-  @ApiOperation(value = "get Processes Space info", httpMethod = "GET", response = Response.class, produces = "application/json")
-  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-            @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
-            @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-            @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
-  public Response getProcessesSpaceInfo() {
-    long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
-    if (currentIdentityId == 0) {
-      return Response.status(Response.Status.UNAUTHORIZED).build();
-    }
-    try {
-      SpaceService spaceService = CommonsUtils.getService(SpaceService.class);
-      Space processesSpace = spaceService.getSpaceByGroupId(PROCESSES_SPACE_GROUP_ID);
-      if (processesSpace == null) {
-        return Response.status(Response.Status.NOT_FOUND).build();
-      }
-      return Response.ok(processesSpace).type(MediaType.APPLICATION_JSON_TYPE).build();
-    } catch (Exception e) {
-      LOG.error("Error while getting processes space info", e);
-      return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
-    }
-  }
-
-  @GET
   @Produces(MediaType.TEXT_PLAIN)
   @RolesAllowed("users")
   @Path("/countWorks/{projectId}")

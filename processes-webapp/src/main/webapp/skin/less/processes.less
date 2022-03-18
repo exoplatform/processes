@@ -1,3 +1,6 @@
+@import "variables.less";
+@import "mixins.less";
+
 #ProcessesApplication {
 
   overflow-x: hidden;
@@ -169,6 +172,20 @@
       border-radius: 2%;
       min-height: 150px;
       word-break: break-word;
+
+      ul li {
+        list-style-position: inside;
+        list-style-type: disc;
+      }
+
+      .uiIconMessageLength {
+        font-size: 14px;
+        color: @primaryColor;
+
+        &:before {
+          content: "\e910";
+        }
+      }
     }
 
     textarea {

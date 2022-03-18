@@ -109,7 +109,7 @@
                   </p>
                   <processes-attachments
                     v-model="attachments"
-                    :processes-space-id="processesSpaceId"
+                    :workflow-parent-space-id="workflowParentSpaceId"
                     :edit-mode="this.editDraft"
                     :entity-id="work.id"
                     :entity-type="entityType" />
@@ -149,7 +149,7 @@
             </p>
             <processes-attachments
               v-model="attachments"
-              :processes-space-id="processesSpaceId"
+              :workflow-parent-space-id="workflowParentSpaceId"
               :edit-mode="viewMode"
               :entity-id="work.id"
               :entity-type="entityType" />
@@ -213,12 +213,6 @@ export default {
       },
     };
   },
-  props: {
-    processesSpaceId: {
-      type: Number,
-      default: null
-    }
-  },
   created(){
     this.$root.$on('work-added', () => {
       this.saving = false;
@@ -258,6 +252,9 @@ export default {
     },
     validWorkDescription() {
       return this.work && this.work.description && this.$utils.htmlToText(this.work.description).length <= this.maxLength;
+    },
+    workflowParentSpaceId() {
+      return this.work && this.work.workflow && this.work.workflow.parentSpace && this.work.workflow.parentSpace.id;
     }
   },
   methods: {
@@ -344,8 +341,6 @@ export default {
       }
     },
     preSaveWork() {
-      // pre save a draft when continue to step 2 in order to attach the workflow attachments to the work draft
-      // before save the work and link the drat attachments to the real work object when saving
       this.preSaving = true;
       this.toWorkDraft(this.work);
       if (this.workDraft.id === 0) {
