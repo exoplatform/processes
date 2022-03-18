@@ -27,10 +27,10 @@
     </scm>
     <properties>
         <!-- 3rd party libraries versions -->
-        <addon.exo.ecms.version>6.3.x-SNAPSHOT</addon.exo.ecms.version>
-        <org.exoplatform.social.version>6.3.x-SNAPSHOT</org.exoplatform.social.version>
-        <org.exoplatform.platform-ui.version>6.3.x-SNAPSHOT</org.exoplatform.platform-ui.version>
-        <addon.exo.tasks.version>3.3.x-SNAPSHOT</addon.exo.tasks.version>
+        <addon.exo.ecms.version>6.3.0-M28</addon.exo.ecms.version>
+        <org.exoplatform.social.version>6.3.0-M28</org.exoplatform.social.version>
+        <org.exoplatform.platform-ui.version>6.3.0-M28</org.exoplatform.platform-ui.version>
+        <addon.exo.tasks.version>3.3.0-M28</addon.exo.tasks.version>
         
         <!-- Sonar properties -->
     <sonar.organization>exoplatform</sonar.organization>
