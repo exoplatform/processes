@@ -152,11 +152,13 @@ export default {
     filterItems() {
       const items = [];
       items.push({label: this.$t('processes.workflow.all.label'), value: null});
-      this.availableWorkStatuses.forEach((value) => {
-        if (!items.find(object => object.value === value.name)) {
-          items.push({label: this.statusI18n(value.name), value: value.name});
-        }
-      });
+      if (this.availableWorkStatuses) {
+        this.availableWorkStatuses.forEach((value) => {
+          if (!items.find(object => object.value === value.name)) {
+            items.push({label: this.statusI18n(value.name), value: value.name});
+          }
+        });
+      }
       items.push({label: this.$t('processes.myWorks.status.draft'), value: 'drafts'});
       return items;
     }

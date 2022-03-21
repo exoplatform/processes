@@ -16,7 +16,9 @@
  */
 package org.exoplatform.processes.service;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.ListAccess;
@@ -253,11 +255,21 @@ public class ProcessesServiceImpl implements ProcessesService, Startable {
 
   /**
    * {@inheritDoc}
-   * @return
    */
   @Override
   public List<WorkStatus> getAvailableWorkStatuses() {
     return processesStorage.getAvailableWorkStatuses();
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Work getWorkById(long userIdentityId, Long workId) {
+    if (workId == null) {
+      throw new IllegalArgumentException("Work id is mandatory");
+    }
+    return processesStorage.getWorkById(userIdentityId, workId);
   }
 
   @Override
