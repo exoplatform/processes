@@ -90,6 +90,7 @@
         class="float-right me-8 btn card-footer-btn mt-2 mb-2"
         right
         plain
+        :disabled="!workflow.enabled"
         depressed
         @click="open"
         color="deep-grey lighten-3">
