@@ -178,6 +178,29 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     return (EntityMapper.tasksToWorkList(tasks));
   }
 
+  @Override
+  public Work getWorkById(long userIdentityId, long workId) {
+    Identity identity = identityManager.getIdentity(String.valueOf(userIdentityId));
+    if (identity == null) {
+      throw new IllegalArgumentException("identity is not exist");
+    }
+    TaskDto taskDto = null;
+    TaskQuery taskQuery = new TaskQuery();
+    try {
+      taskQuery.setId(workId);
+      taskQuery.setCreatedBy(identity.getRemoteId());
+      List<TaskDto> list = taskService.findTasks(taskQuery,0,0);
+      if(!list.isEmpty()) {
+        taskDto = list.get(0);
+      }
+    } catch (EntityNotFoundException e) {
+      throw new javax.persistence.EntityNotFoundException("work not found");
+    } catch (Exception e) {
+      LOG.error("Error while getting work");
+    }
+    return EntityMapper.taskToWork(taskDto);
+  }
+
   /**
    * {@inheritDoc}
    */

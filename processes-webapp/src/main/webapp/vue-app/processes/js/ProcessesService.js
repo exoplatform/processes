@@ -296,3 +296,39 @@ export function getAvailableWorkStatuses() {
     }
   });
 }
+
+export function getWorkById(workId, expand) {
+  const formData = new FormData();
+  if (expand) {
+    formData.append('expand', expand);
+  }
+  const params = new URLSearchParams(formData).toString();
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/works/${workId}?${params}`, {
+    method: 'GET',
+    credentials: 'include',
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error while getting work');
+    } else {
+      return resp.json();
+    }
+  });
+}
+
+export function getWorkflowById(workflowId, expand) {
+  const formData = new FormData();
+  if (expand) {
+    formData.append('expand', expand);
+  }
+  const params = new URLSearchParams(formData).toString();
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workflows/${workflowId}?${params}`, {
+    method: 'GET',
+    credentials: 'include',
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error while getting workflow');
+    } else {
+      return resp.json();
+    }
+  });
+}

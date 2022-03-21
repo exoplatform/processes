@@ -1,6 +1,6 @@
 <template>
   <v-card outlined class="ml-2">
-    <v-container class="pa-0 work-bg-color">
+    <v-container class="pa-0 work">
       <request-status
         type="indicator"
         :is-draft="isDraft"
