@@ -239,6 +239,9 @@ export default {
       this.preSaving = false;
       this.stp++;
     });
+    this.$root.$on('close-work-drawer', () => {
+      this.close();
+    });
   },
   computed: {
     entityType() {
@@ -258,12 +261,20 @@ export default {
     }
   },
   methods: {
+    updateUrlPath(data, path, replace) {
+      if (replace) {
+        window.history.replaceState(data, '', `${eXo.env.portal.context}/${eXo.env.portal.portalName}/processes${path}`);
+      } else {
+        window.history.pushState(data, '', `${eXo.env.portal.context}/${eXo.env.portal.portalName}/processes${path}`);
+      }
+    },
     open(object, mode, isDraft) {
       if (mode === 'create_work') {
         this.work = {};
         this.work.workFlow = object;
         this.editDraft = false;
         this.viewMode = false;
+        this.updateUrlPath('createRequest', `/${this.work.workFlow.id}/createRequest`);
       } else if (mode === 'edit_work_draft') {
         this.work = Object.assign({}, object);
         this.oldWork = Object.assign({}, this.work);
@@ -274,6 +285,9 @@ export default {
         this.editDraft = false;
         this.work = object;
         this.viewMode = true;
+        if (!this.viewDraft) {
+          this.updateUrlPath('requestDetails', `/myRequests/requestDetails/${this.work.id}`);
+        }
       }
       this.$root.$emit('init-list-attachments', {
         entityId: this.work && this.work.id || null,
@@ -294,6 +308,11 @@ export default {
       this.updateDraft();
       this.$refs.work.close();
       this.$root.$emit('reset-list-attachments');
+      if (document.location.pathname.includes('myRequests')) {
+        this.updateUrlPath('myRequest', '/myRequests');
+      } else {
+        this.updateUrlPath('processes', '');
+      }
     },
     resetInputs() {
       this.work = {

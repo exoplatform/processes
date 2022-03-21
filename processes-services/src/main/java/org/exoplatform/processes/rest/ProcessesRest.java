@@ -224,7 +224,7 @@ public class ProcessesRest implements ResourceContainer {
       List<Work> works = processesService.getWorks(userIdentityId, workFilter, offset, limit);
       return Response.ok(EntityBuilder.toWorkEntityList(processesService, works, expand)).build();
     } catch (Exception e) {
-      LOG.warn("Error retrieving list of workFlows", e);
+      LOG.warn("Error retrieving list of works", e);
       return Response.serverError().entity(e.getMessage()).build();
     }
   }
@@ -563,6 +563,71 @@ public class ProcessesRest implements ResourceContainer {
       return Response.ok(statuses).type(MediaType.APPLICATION_JSON_TYPE).build();
     } catch (Exception e) {
       LOG.warn("Error retrieving list of work drafts", e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
+  @GET
+  @Produces(MediaType.APPLICATION_JSON)
+  @RolesAllowed("users")
+  @Path("/works/{workId}")
+  @ApiOperation(value = "Retrieves a work by its given id", httpMethod = "GET", response = Response.class, produces = "application/json")
+  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
+  public Response getWorkById(@ApiParam(value = "Work id.", required = true)
+                              @PathParam("workId") Long workId,
+                              @ApiParam(value = "Processes properties to expand.")
+                              @QueryParam("expand") String expand) {
+    try {
+      long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+      if (currentIdentityId == 0) {
+        return Response.status(Response.Status.UNAUTHORIZED).build();
+      }
+      if (workId == null) {
+        return Response.status(Response.Status.BAD_REQUEST).build();
+      }
+      Work work = processesService.getWorkById(currentIdentityId, workId);
+      return Response.ok(EntityBuilder.toWorkEntity(processesService, work, expand)).build();
+    } catch (EntityNotFoundException e) {
+      return Response.status(Response.Status.NOT_FOUND).build();
+    } catch (Exception e) {
+      LOG.warn("Error while getting work", e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
+  @GET
+  @Produces(MediaType.APPLICATION_JSON)
+  @RolesAllowed("users")
+  @Path("/workflows/{workflowId}")
+  @ApiOperation(value = "Retrieves a workflow by its given id", httpMethod = "GET", response = Response.class, produces = "application/json")
+  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+      @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+      @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Not found"),
+      @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+      @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
+  public Response getWorkFlowById(@ApiParam(value = "workflow id", required = true)
+                               @PathParam("workflowId") Long workflowId,
+                               @ApiParam(value = "Processes properties to expand")
+                               @QueryParam("expand") String expand) {
+    try {
+      long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+      if (currentIdentityId == 0) {
+        return Response.status(Response.Status.UNAUTHORIZED).build();
+      }
+      if (workflowId == null) {
+        return Response.status(Response.Status.BAD_REQUEST).build();
+      }
+      WorkFlow workFlow = processesService.getWorkFlow(workflowId);
+      if (workFlow == null) {
+        return Response.status(Response.Status.NOT_FOUND).build();
+      }
+      return Response.ok(EntityBuilder.toEntity(workFlow, expand)).build();
+    } catch (Exception e) {
+      LOG.warn("Error while getting workflow", e);
       return Response.serverError().entity(e.getMessage()).build();
     }
   }

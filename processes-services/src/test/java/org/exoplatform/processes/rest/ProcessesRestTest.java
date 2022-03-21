@@ -420,4 +420,48 @@ public class ProcessesRestTest {
     Response response4 = processesRest.deleteWorkDraft(1L);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response4.getStatus());
   }
+
+  @Test
+  public void getWorkById() {
+    Work work = mock(Work.class);
+    WorkEntity workEntity = mock(WorkEntity.class);
+    when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
+    Response response = processesRest.getWorkById(null, "");
+    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response.getStatus());
+    when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    Response response1 = processesRest.getWorkById(null, "");
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response1.getStatus());
+    when(processesService.getWorkById(1L, 1L)).thenReturn(work);
+    when(EntityBuilder.toWorkEntity(processesService, work, "workFlow")).thenReturn(workEntity);
+    Response response2 = processesRest.getWorkById(1L, "");
+    assertEquals(Response.Status.OK.getStatusCode(), response2.getStatus());
+    doThrow(new EntityNotFoundException()).when(processesService).getWorkById(1L, 1L);
+    Response response3 = processesRest.getWorkById(1L, "");
+    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response3.getStatus());
+    doThrow(new RuntimeException()).when(processesService).getWorkById(1L, 1L);
+    Response response4 = processesRest.getWorkById(1L, "");
+    assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response4.getStatus());
+  }
+
+  @Test
+  public void getWorkflowById() throws IllegalAccessException {
+    WorkFlow workFlow = mock(WorkFlow.class);
+    WorkFlowEntity workFlowEntity = mock(WorkFlowEntity.class);
+    when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
+    Response response = processesRest.getWorkFlowById(null, "");
+    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response.getStatus());
+    when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    Response response1 = processesRest.getWorkFlowById(null, "");
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response1.getStatus());
+    when(processesService.getWorkFlow(1L)).thenReturn(null);
+    Response response2 = processesRest.getWorkFlowById(1L, "");
+    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response2.getStatus());
+    when(processesService.getWorkFlow(1L)).thenReturn(workFlow);
+    when(EntityBuilder.toEntity(workFlow, "")).thenReturn(workFlowEntity);
+    Response response3 = processesRest.getWorkFlowById(1L, "");
+    assertEquals(Response.Status.OK.getStatusCode(), response3.getStatus());
+    doThrow(new RuntimeException()).when(processesService).getWorkFlow(1L);
+    Response response4 = processesRest.getWorkFlowById(1L, "");
+    assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response4.getStatus());
+  }
 }
