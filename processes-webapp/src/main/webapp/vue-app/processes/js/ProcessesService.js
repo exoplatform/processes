@@ -199,8 +199,16 @@ export function deleteWorkById(workId) {
   });
 }
 
-export function getWorkDrafts(offset, limit, expand) {
+export function getWorkDrafts(itemsFilter, offset, limit, expand) {
   const formData = new FormData();
+  if (itemsFilter) {
+    Object.keys(itemsFilter).forEach(key => {
+      const value = itemsFilter[key];
+      if (value != null) {
+        formData.append(key, value);
+      }
+    });
+  }
   if (expand) {
     formData.append('expand', expand);
   }
@@ -285,6 +293,19 @@ export function getEntityAttachments(entityType, entityId) {
       return resp.json();
     } else {
       throw new Error('Error getting entity\'s linked attachments');
+    }
+  });
+}
+
+export function getAvailableWorkStatuses() {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/works/statuses`, {
+    credentials: 'include',
+    method: 'GET',
+  }).then((resp) => {
+    if (resp || resp.ok) {
+      return resp.json();
+    } else {
+      throw new Error('Error getting available work statuses');
     }
   });
 }

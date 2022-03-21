@@ -69,12 +69,7 @@ public class ProcessesServiceImpl implements ProcessesService, Startable {
                                            int offset,
                                            int limit,
                                            long userIdentityId) throws IllegalAccessException {
-    if (filter.getEnabled() != null && filter.getEnabled()) {
-      return processesStorage.findEnabledWorkFlows(offset, limit);
-    } else if (filter.getEnabled() != null && !filter.getEnabled()) {
-      return processesStorage.findDisabledWorkFlows(offset, limit);
-    }
-    return processesStorage.findAllWorkFlows(offset, limit);
+   return processesStorage.findWorkFlows(filter, offset, limit);
   }
 
   @Override
@@ -119,9 +114,9 @@ public class ProcessesServiceImpl implements ProcessesService, Startable {
   }
 
   @Override
-  public List<Work> getWorks (long userIdentityId, int offset, int limit) throws Exception {
+  public List<Work> getWorks (long userIdentityId, WorkFilter workFilter, int offset, int limit) throws Exception {
 
-    return processesStorage.getWorks(userIdentityId, offset, limit);
+    return processesStorage.getWorks(userIdentityId, workFilter, offset, limit);
   }
 
   @Override
@@ -241,8 +236,8 @@ public class ProcessesServiceImpl implements ProcessesService, Startable {
    * {@inheritDoc}
    */
   @Override
-  public List<Work> getWorkDrafts(long userIdentityId, int offset, int limit) {
-    return processesStorage.findAllWorkDraftsByUser(offset, limit, userIdentityId);
+  public List<Work> getWorkDrafts(long userIdentityId, WorkFilter workFilter, int offset, int limit) {
+    return processesStorage.findAllWorkDraftsByUser(workFilter, offset, limit, userIdentityId);
   }
 
   /**
@@ -255,7 +250,16 @@ public class ProcessesServiceImpl implements ProcessesService, Startable {
     }
     processesStorage.deleteWorkDraftById(draftId);
   }
-  
+
+  /**
+   * {@inheritDoc}
+   * @return
+   */
+  @Override
+  public List<WorkStatus> getAvailableWorkStatuses() {
+    return processesStorage.getAvailableWorkStatuses();
+  }
+
   @Override
   public void start() {
     LOG.info("Processes Service start and default space initialize...");

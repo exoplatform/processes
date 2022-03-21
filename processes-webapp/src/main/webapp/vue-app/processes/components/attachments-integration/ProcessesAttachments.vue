@@ -139,7 +139,7 @@ export default {
       }
     },
     initEntityAttachmentsList() {
-      if (this.entityType && this.entityId) {
+      if (this.entityType && this.entityId && this.entityId !== -1) {
         this.$processesService.getEntityAttachments(this.entityType, this.entityId).then(attachments => {
           attachments.forEach(attachment => {
             attachment.name = attachment.title;
