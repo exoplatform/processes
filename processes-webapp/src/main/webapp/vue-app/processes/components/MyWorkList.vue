@@ -43,7 +43,7 @@
       </template>
     </empty-or-loading>
     <v-expansion-panels
-      class="mt-0"
+      class="mt-5"
       v-if="works.length>0 || workDrafts.length>0"
       v-model="panel"
       multiple>
