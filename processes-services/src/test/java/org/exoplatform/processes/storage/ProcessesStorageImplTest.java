@@ -116,7 +116,10 @@ public class ProcessesStorageImplTest {
 
   @Test
   public void saveWorkflow() throws Exception {
-
+    List<Attachment> attachments = new ArrayList<>();
+    Attachment attachment = new Attachment();
+    attachment.setId("1");
+    attachments.add(attachment);
     Identity identity = mock(Identity.class);
     WorkFlow workFlow = mock(WorkFlow.class);
     List<String > memberships = new ArrayList<>();
@@ -126,7 +129,7 @@ public class ProcessesStorageImplTest {
     Set<String> participators = new HashSet<String>(Arrays.asList(memberships.get(1)));
     ProjectDto projectDto = mock(ProjectDto.class);
     Space space = mock(Space.class);
-    WorkFlowEntity workFlowEntity = mock(WorkFlowEntity.class);
+    WorkFlowEntity workFlowEntity = new WorkFlowEntity();
     Throwable exception1 = assertThrows(IllegalArgumentException.class,
             () -> this.processesStorage.saveWorkFlow(null, 1l));
     assertEquals("workflow argument is null", exception1.getMessage());
@@ -150,8 +153,14 @@ public class ProcessesStorageImplTest {
     projectDto.setId(1L);
     when(projectService.createProject(projectDto)).thenReturn(projectDto);
     PowerMockito.doNothing().when(statusService).createInitialStatuses(projectDto);
+    when(workFlow.getAttachments()).thenReturn(attachments.toArray(new Attachment[attachments.size()]));
+    when(EntityMapper.toEntity(workFlow)).thenReturn(workFlowEntity);
+    WorkFlowEntity newWorkFlowEntity = new WorkFlowEntity();
+    newWorkFlowEntity.setId(1L);
+    when(workFlowDAO.create(workFlowEntity)).thenReturn(newWorkFlowEntity);
     this.processesStorage.saveWorkFlow(workFlow, 1L);
     verify(workFlowDAO, times(1)).create(workFlowEntity);
+    verify(attachmentService, times(1)).linkAttachmentToEntity(1L, 1L, "workflow", "1");
     when(workFlow.getId()).thenReturn(1L);
     this.processesStorage.saveWorkFlow(workFlow, 1L);
     verify(workFlowDAO, times(1)).update(workFlowEntity);
