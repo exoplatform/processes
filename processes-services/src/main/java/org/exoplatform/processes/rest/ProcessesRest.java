@@ -248,6 +248,9 @@ public class ProcessesRest implements ResourceContainer {
     if (workEntity.getProjectId() == 0 && workEntity.getWorkFlow().getProjectId() == 0 ) {
       return Response.status(Response.Status.BAD_REQUEST).entity("Work projectId object is mandatory").build();
     }
+    if (!workEntity.getWorkFlow().isEnabled()) {
+      return Response.status(Response.Status.BAD_REQUEST).entity("Workflow is disabled").build();
+    }
     long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
     if (currentIdentityId == 0) {
       return Response.status(Response.Status.UNAUTHORIZED).build();

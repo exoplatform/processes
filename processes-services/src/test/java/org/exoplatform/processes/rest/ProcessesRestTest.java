@@ -232,6 +232,10 @@ public class ProcessesRestTest {
     when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
     workEntity.setProjectId(1L);
     workEntity.getWorkFlow().setProjectId(1L);
+    workEntity.getWorkFlow().setEnabled(false);
+    Response response6 = processesRest.createWork(workEntity);
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response6.getStatus());
+    workEntity.getWorkFlow().setEnabled(true);
     Response response3 = processesRest.createWork(workEntity);
     assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response3.getStatus());
     when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
@@ -253,6 +257,7 @@ public class ProcessesRestTest {
     workEntity.setWorkFlow(workFlowEntity);
     workEntity.setProjectId(1L);
     workEntity.getWorkFlow().setProjectId(1L);
+    workEntity.getWorkFlow().setEnabled(true);
     when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
     when(EntityBuilder.toWork(processesService, workEntity)).thenReturn(work);
     when(EntityBuilder.toWorkEntity(processesService, work, "")).thenReturn(workEntity);
