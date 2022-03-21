@@ -66,7 +66,7 @@ export default {
       type: Number,
       default: null
     },
-    processesSpaceId: {
+    workflowParentSpaceId: {
       type: Number,
       default: null
     },
@@ -94,7 +94,7 @@ export default {
         defaultFolder: 'Documents',
         sourceApp: 'processesApp',
         attachments: JSON.parse(JSON.stringify(this.attachments)),
-        spaceId: this.processesSpaceId,
+        spaceId: this.workflowParentSpaceId,
         attachToEntity: this.editMode,
       };
     },
@@ -121,7 +121,7 @@ export default {
       this.attachments = [];
     });
     this.$root.$on('init-list-attachments', event => {
-      if (event.entityId) {
+      if (event.entityId && event.entityId !== -1) {
         this.entityId = event.entityId;
       }
       if (event.entityType) {

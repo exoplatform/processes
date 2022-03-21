@@ -147,19 +147,6 @@ export function updateWorkflow(workflow) {
   });
 }
 
-export function getProcessesSpaceInfo() {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/processesSpace/info`, {
-    method: 'GET',
-    credentials: 'include',
-  }).then(resp => {
-    if (!resp || !resp.ok) {
-      throw new Error('Error while getting processes space info');
-    } else {
-      return resp.json();
-    }
-  });
-}
-
 export function countWorksByWorkflow(workflowId, isCompleted) {
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/countWorks/${workflowId}?isCompleted=${isCompleted}`, {
     method: 'GET',

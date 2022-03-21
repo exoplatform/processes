@@ -52,7 +52,7 @@ public class WorkDraftDAO extends GenericDAOJPAImpl<WorkEntity, Long> {
       predicates.add(criteriaBuilder.and(criteriaBuilder.equal(root.get("creatorId"), userId)));
     }
     criteriaQuery.select(root).where(predicates.toArray(new Predicate[0]));
-
+    criteriaQuery.orderBy(criteriaBuilder.desc(root.get("id")));
     Query query = getEntityManager().createQuery(criteriaQuery);
     return query;
   }

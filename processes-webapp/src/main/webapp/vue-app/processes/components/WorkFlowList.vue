@@ -8,7 +8,7 @@
         no-gutters>
         <v-col
           cols="2"
-          md="9"
+          md="8"
           lg="9">
           <v-btn
             class="ml-1 mt-2 mb-4 btn-primary btn add-process-btn"
@@ -38,7 +38,7 @@
         </v-col>
         <v-col
           cols="4"
-          md="1"
+          md="2"
           lg="1">
           <v-select
             ref="filter"

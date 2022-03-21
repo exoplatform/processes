@@ -55,10 +55,8 @@
       @ok="confirmAction"
       @dialog-closed="onDialogClosed" />
     <add-workflow-drawer
-      ref="addWorkFlow"
-      :processes-space-id="processesSpaceId" />
+      ref="addWorkFlow" />
     <add-work-drawer
-      :processes-space-id="processesSpaceId"
       ref="addWork" />
     <task-comments-drawer
       ref="taskCommentDrawer"
@@ -95,15 +93,11 @@ export default {
       confirmMessage: '',
       dialogAction: null,
       targetModel: null,
-      processesSpaceInfo: null
     };
   },
   beforeCreate() {
     this.$processesService.isProcessesManager().then(value => {
       this.isManager = value === 'true';
-    });
-    this.$processesService.getProcessesSpaceInfo().then(spaceInfo => {
-      this.processesSpaceInfo = spaceInfo;
     });
     this.$processesService.getAvailableWorkStatuses().then(statuses => {
       this.availableWorkStatuses = statuses;
@@ -169,11 +163,6 @@ export default {
         this.getWorks();
       }
     });
-  },
-  computed: {
-    processesSpaceId() {
-      return this.processesSpaceInfo && this.processesSpaceInfo.id;
-    }
   },
   methods: {
     getWorkFlows() {
@@ -245,7 +234,7 @@ export default {
       this.$processesService.addWork(work).then(newWork => {
         if (newWork) {
           this.$root.$emit('work-added', {work: newWork, draftId: work.draftId});
-          this.works.push(newWork);
+          this.works.unshift(newWork);
           if (work.draftId) {
             this.workDrafts.splice(this.workDrafts.indexOf(work.draftId), 1);
           }

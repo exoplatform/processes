@@ -70,7 +70,7 @@ public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
       predicates.add(criteriaBuilder.and(criteriaBuilder.equal(root.get("enabled"), enabled)));
     }
     criteriaQuery.select(root).where(predicates.toArray(new Predicate[0]));
-
+    criteriaQuery.orderBy(criteriaBuilder.desc(root.get("id")));
     Query query = getEntityManager().createQuery(criteriaQuery);
     return query;
   }

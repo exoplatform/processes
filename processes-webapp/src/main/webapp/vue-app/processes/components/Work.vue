@@ -141,7 +141,11 @@ export default {
       this.$root.$emit('open-add-work-drawer', {object: this.work, mode: 'edit_work_draft'});
     },
     openCommentsDrawer() {
-      this.$root.$emit('show-work-comments', this.work, this.comments);
+      const mappedWork = Object.assign({}, this.work);
+      mappedWork.status = {
+        project: {}
+      };
+      this.$root.$emit('show-work-comments', mappedWork, this.comments);
     },
     getWorkComments() {
       if (this.work && !this.isDraft) {

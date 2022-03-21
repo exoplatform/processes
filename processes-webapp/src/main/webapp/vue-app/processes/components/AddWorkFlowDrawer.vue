@@ -109,7 +109,7 @@
           <v-stepper-content step="2">
             <processes-attachments
               v-model="attachments"
-              :processes-space-id="processesSpaceId"
+              :workflow-parent-space-id="parentSpaceId"
               :edit-mode="editMode"
               :entity-id="workflow.id"
               entity-type="workflow" />
@@ -157,12 +157,6 @@
 <script>
 
 export default {
-  props: {
-    processesSpaceId: {
-      type: Number,
-      default: null
-    }
-  },
   data () {
     return {
       stp: 1,
@@ -204,6 +198,9 @@ export default {
   computed: {
     requestStatus() {
       return this.workflowEnabled ? this.$t('processes.works.form.label.enabled') : this.$t('processes.works.form.label.disabled');
+    },
+    parentSpaceId() {
+      return this.workflow && this.workflow.parentSpace && this.workflow.parentSpace.id;
     }
   },
   watch: {

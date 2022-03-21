@@ -35,6 +35,11 @@
     </component>
 
     <component>
+        <key>org.exoplatform.processes.service.ProcessesAttachmentService</key>
+        <type>org.exoplatform.processes.service.ProcessesAttachmentServiceImpl</type>
+    </component>
+
+    <component>
         <type>org.exoplatform.processes.rest.ProcessesRest</type>
     </component>
 
