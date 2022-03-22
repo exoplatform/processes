@@ -1,7 +1,7 @@
 <template>
   <div
     id="myWorks">
-    <v-container class="pa-0">
+    <v-container class="pa-0 work-controls">
       <v-row no-gutters>
         <v-col
           height="150">
@@ -52,8 +52,8 @@
         class="elevation-0 ml-n5">
         <v-expansion-panel-header
           class="text-md-body-1 font-weight-regular grey--text text--darken-1">
-          <v-icon class="text-md-body-5" v-if="!panel.includes(0)">mdi-chevron-up</v-icon>
-          <v-icon class="text-md-body-5" v-if="panel.includes(0)">mdi-chevron-down</v-icon>
+          <v-icon class="text-md-body-5" v-if="!panel.includes(0)">mdi-chevron-down</v-icon>
+          <v-icon class="text-md-body-5" v-if="panel.includes(0)">mdi-chevron-up</v-icon>
           {{ this.$t('processes.myWorks.status.draft') }} ({{ workDrafts.length }})
           <hr class="line-panel-work">
           <template v-slot:actions>
@@ -75,8 +75,8 @@
         class="elevation-0 ml-n5">
         <v-expansion-panel-header
           class="text-md-body-1 font-weight-regular grey--text text--darken-1">
-          <v-icon class="text-md-body-5" v-if="!panel.includes(index + 1)">mdi-chevron-up</v-icon>
-          <v-icon class="text-md-body-5" v-if="panel.includes(index + 1)">mdi-chevron-down</v-icon>
+          <v-icon class="text-md-body-5" v-if="!panel.includes(index + 1)">mdi-chevron-down</v-icon>
+          <v-icon class="text-md-body-5" v-if="panel.includes(index + 1)">mdi-chevron-up</v-icon>
           {{ item.status }} ({{ item.works.length }})
           <hr class="line-panel-work">
           <template v-slot:actions>
