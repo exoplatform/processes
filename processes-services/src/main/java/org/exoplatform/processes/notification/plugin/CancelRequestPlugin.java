@@ -31,12 +31,14 @@ public class CancelRequestPlugin extends BaseNotificationPlugin {
   @Override
   protected NotificationInfo makeNotification(NotificationContext notificationContext) {
     String requester = notificationContext.value(NotificationArguments.REQUEST_CREATOR);
-    String process = notificationContext.value(NotificationArguments.PROCESS_URL);
+    String processUrl = notificationContext.value(NotificationArguments.PROCESS_URL);
+    String requestUrl = notificationContext.value(NotificationArguments.REQUEST_URL);
     return NotificationInfo.instance()
                            .setFrom(requester)
                            .to(NotificationUtils.getProcessAdmins(requester))
                            .with(NotificationArguments.REQUEST_CREATOR.getKey(), requester)
-                           .with(NotificationArguments.PROCESS_URL.getKey(), process)
+                           .with(NotificationArguments.PROCESS_URL.getKey(), processUrl)
+                           .with(NotificationArguments.REQUEST_URL.getKey(), requestUrl)
                            .key(getKey())
                            .end();
   }
