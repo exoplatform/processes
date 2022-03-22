@@ -24,7 +24,7 @@
         </div>
         <div class="media-body">
             <%
-            String URL = PROCESS_URL;
+            String URL = REQUEST_URL;
             String msg = "";
 
             String profileUrl = "<a class=\"user-name text-bold\" href=\"" + PROFILE_URL + "\">" + USER + "</a>";
