@@ -43,6 +43,7 @@ public class WebTemplateProvider extends TemplateProvider {
       String pluginId = notificationInfo.getKey().getId();
       String requester = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_CREATOR.getKey());
       String processUrl = notificationInfo.getValueOwnerParameter(NotificationArguments.PROCESS_URL.getKey());
+      String requestUrl = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_URL.getKey());
       Profile userProfile = NotificationUtils.getUserProfile(requester);
       String language = getLanguage(notificationInfo);
       TemplateContext templateContext = TemplateContext.newChannelInstance(getChannelKey(), pluginId, language);
@@ -53,6 +54,7 @@ public class WebTemplateProvider extends TemplateProvider {
         templateContext.put("PROCESS_TITLE", processTitle);
       }
       templateContext.put("PROCESS_URL", processUrl);
+      templateContext.put("REQUEST_URL", requestUrl);
       templateContext.put("AVATAR", userProfile.getAvatarUrl());
       Calendar lastModified = Calendar.getInstance();
       lastModified.setTimeInMillis(notificationInfo.getLastModifiedDate());
