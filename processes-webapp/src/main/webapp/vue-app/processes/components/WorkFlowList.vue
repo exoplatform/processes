@@ -1,16 +1,16 @@
 <template>
   <v-main
     id="workflows">
-    <v-container>
+    <v-container class="workflow-controls">
       <v-row
-        class="pe-10"
-        v-if="isProcessesManager"
+        class="pe-0"
         no-gutters>
         <v-col
-          cols="2"
-          md="8"
-          lg="9">
+          :cols="3"
+          md="4"
+          lg="6">
           <v-btn
+            v-if="isProcessesManager"
             class="ml-1 mt-2 mb-4 btn-primary btn add-process-btn"
             dark
             @click="open"
@@ -26,23 +26,13 @@
           </v-btn>
         </v-col>
         <v-col
-          cols="5"
-          md="2"
-          lg="2">
-          <v-text-field
-            class="me-3 float-right workflow-filter-query"
-            @keyup="updateFilter"
-            v-model="query"
-            :placeholder="$t('processes.workflow.filter.query.placeholder')"
-            prepend-inner-icon="mdi-filter" />
-        </v-col>
-        <v-col
-          cols="4"
-          md="2"
-          lg="1">
+          :cols="9"
+          md="8"
+          lg="6">
           <v-select
+            v-if="isProcessesManager"
             ref="filter"
-            class="pt-5 workflow-filter mt-n3"
+            class="pt-5 workflow-filter mt-n3 float-right"
             v-model="filter"
             :items="items"
             item-text="label"
@@ -52,6 +42,26 @@
             @change="updateFilter"
             dense
             outlined />
+          <v-text-field
+            v-if="!isXSmall"
+            class="me-3 float-right workflow-filter-query filter-query-width"
+            @keyup="updateFilter"
+            v-model="query"
+            :placeholder="$t('processes.workflow.filter.query.placeholder')"
+            prepend-inner-icon="mdi-filter" />
+        </v-col>
+      </v-row>
+      <v-row>
+        <v-col
+          class="d-flex"
+          cols="12">
+          <v-text-field
+            v-if="isXSmall"
+            class="me-10 float-right workflow-filter-query"
+            @keyup="updateFilter"
+            v-model="query"
+            :placeholder="$t('processes.workflow.filter.query.placeholder')"
+            prepend-inner-icon="mdi-filter" />
         </v-col>
       </v-row>
     </v-container>
@@ -148,6 +158,9 @@ export default {
   computed: {
     lg () {
       return this.workflows.length >= 4 ? 3 : this.workflows.length === 3 ? 4 : 6 ;
+    },
+    isXSmall() {
+      return this.$vuetify.breakpoint.name === 'xs';
     },
     isMobile() {
       return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
