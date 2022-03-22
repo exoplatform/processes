@@ -201,8 +201,8 @@ export default {
       if (value === 1) {
         window.history.pushState('myRequests', '', `${eXo.env.portal.context}/${eXo.env.portal.portalName}/processes/myRequests`);
         if (!this.myRequestsTabVisited) {
-          this.getWorks();
           this.getWorkDrafts();
+          this.getWorks();
           this.myRequestsTabVisited = 1;
         }
       } else {
