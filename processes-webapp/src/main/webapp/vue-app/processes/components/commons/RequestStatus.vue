@@ -43,13 +43,14 @@ export default {
   },
   computed: {
     statusColor() {
-      switch (this.statusLabel.toLowerCase())
+      switch (this.status.toLowerCase())
       {
       case 'accepted':
       case 'done':
       case 'validated':
         return 'green';
       case 'pending':
+      case 'requestinprogress':
       case 'waitingon':
       case 'inprogress':
         return 'orange';
@@ -60,8 +61,15 @@ export default {
       }
     },
     statusLabel() {
-      return !this.isDraft ? this.status : this.$t('processes.myWorks.status.draftLabel');
+      return !this.isDraft ? this.statusI18n(this.status) : this.$t('processes.myWorks.status.draftLabel');
     }
   },
+  methods: {
+    statusI18n(value){
+      const key = `tasks.status.${value}`;
+      const translation = this.$t(key);
+      return translation === key && value || translation;
+    },
+  }
 };
 </script>
