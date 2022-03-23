@@ -64,6 +64,11 @@
             <set-method>addListener</set-method>
             <type>org.exoplatform.processes.listener.CancelRequestNotificationListener</type>
         </component-plugin>
+        <component-plugin>
+            <name>exo.task.taskCommentCreation</name>
+            <set-method>addListener</set-method>
+            <type>org.exoplatform.processes.listener.RequestCommentNotificationListener</type>
+        </component-plugin>
     </external-component-plugins>
 
     <external-component-plugins>

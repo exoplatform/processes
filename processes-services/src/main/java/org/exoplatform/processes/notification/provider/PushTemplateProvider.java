@@ -13,6 +13,7 @@ import org.exoplatform.commons.notification.template.TemplateUtils;
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.processes.notification.plugin.CancelRequestPlugin;
 import org.exoplatform.processes.notification.plugin.CreateRequestPlugin;
+import org.exoplatform.processes.notification.plugin.RequestCommentPlugin;
 import org.exoplatform.processes.notification.utils.NotificationArguments;
 import org.exoplatform.processes.notification.utils.NotificationUtils;
 import org.exoplatform.social.core.identity.model.Profile;
@@ -21,13 +22,14 @@ import java.io.Writer;
 
 @TemplateConfigs(templates = {
     @TemplateConfig(pluginId = CreateRequestPlugin.ID, template = "war:/notification/templates/push/CreateRequestPlugin.gtmpl"),
-    @TemplateConfig(pluginId = CancelRequestPlugin.ID, template = "war:/notification/templates/push/CancelRequestPlugin.gtmpl"), })
+    @TemplateConfig(pluginId = CancelRequestPlugin.ID, template = "war:/notification/templates/push/CancelRequestPlugin.gtmpl"),
+    @TemplateConfig(pluginId = RequestCommentPlugin.ID, template = "war:/notification/templates/push/RequestCommentPlugin.gtmpl"),})
 public class PushTemplateProvider extends TemplateProvider {
   public PushTemplateProvider(InitParams initParams) {
     super(initParams);
     this.templateBuilders.put(PluginKey.key(CreateRequestPlugin.ID), new TemplateBuilder());
     this.templateBuilders.put(PluginKey.key(CancelRequestPlugin.ID), new TemplateBuilder());
-
+    this.templateBuilders.put(PluginKey.key(RequestCommentPlugin.ID), new TemplateBuilder());
   }
 
   private class TemplateBuilder extends AbstractTemplateBuilder {
@@ -41,8 +43,17 @@ public class PushTemplateProvider extends TemplateProvider {
       String requester = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_CREATOR.getKey());
       String processTitle = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_PROCESS.getKey());
 
-      Profile userProfile = NotificationUtils.getUserProfile(requester);
-      templateContext.put("USER", userProfile.getFullName());
+      if (pluginId.equals(RequestCommentPlugin.ID)) {
+        String requestTitle = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_TITLE.getKey());
+        String commentAuthor = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_COMMENT_AUTHOR.getKey());
+        Profile userProfile = NotificationUtils.getUserProfile(commentAuthor);
+        templateContext.put("REQUEST_TITLE", requestTitle);
+        templateContext.put("REQUEST_COMMENT_AUTHOR", commentAuthor);
+        templateContext.put("USER", userProfile.getFullName());
+      } else {
+        Profile userProfile = NotificationUtils.getUserProfile(requester);
+        templateContext.put("USER", userProfile.getFullName());
+      }
       templateContext.put("PROCESS_TITLE", processTitle);
       String body = TemplateUtils.processGroovy(templateContext);
       notificationContext.setException(templateContext.getException());

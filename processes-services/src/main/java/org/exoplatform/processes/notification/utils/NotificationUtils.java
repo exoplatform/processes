@@ -82,4 +82,19 @@ public class NotificationUtils {
       LOG.error("Error while broadcasting event: {}", eventName, e);
     }
   }
+
+  public static Object getRequestCommentsLink(Long taskId) {
+    StringBuilder stringBuilder = new StringBuilder();
+    String portalOwner = CommonsUtils.getCurrentPortalOwner();
+    String domain = CommonsUtils.getCurrentDomain();
+    stringBuilder.append(domain)
+            .append("/")
+            .append(LinkProvider.getPortalName(null))
+            .append("/")
+            .append(portalOwner)
+            .append("/processes/myRequests/requestDetails/")
+            .append(taskId)
+            .append("/comments");
+    return stringBuilder.toString();
+  }
 }

@@ -11,10 +11,10 @@
             v-bind="attrs"
             v-on="on"
             class="text-truncate work-status">
-            {{ statusLabel }}
+            {{ translatedLabel }}
           </span>
         </template>
-        <span>{{ statusLabel }}</span>
+        <span>{{ translatedLabel }}</span>
       </v-tooltip>
     </v-chip>
     <div
@@ -43,7 +43,7 @@ export default {
   },
   computed: {
     statusColor() {
-      switch (this.status.toLowerCase())
+      switch (this.statusLabel.toLowerCase())
       {
       case 'accepted':
       case 'done':
@@ -61,7 +61,10 @@ export default {
       }
     },
     statusLabel() {
-      return !this.isDraft ? this.statusI18n(this.status) : this.$t('processes.myWorks.status.draftLabel');
+      return !this.isDraft ? this.status: this.$t('processes.myWorks.status.draftLabel');
+    },
+    translatedLabel() {
+      return this.statusLabel && !this.isDraft && this.statusI18n(this.statusLabel) || this.statusLabel;
     }
   },
   methods: {

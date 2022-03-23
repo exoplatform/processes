@@ -31,7 +31,7 @@
                 <tr>
                     <td  height="45" valign="middle" style="margin:0;height:45px;font-weight:bold;vertical-align:middle;;background-color: #efefef;font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif;color:#2f5e92;font-size:18px;text-align:center">
                         <a href="#" style="font-size: 18px;">
-                            <%=_ctx.appRes("Notification.title.CreateRequestPlugin")%>
+                            <%=_ctx.appRes("Notification.title.RequestCommentPlugin")%>
                         </a>
                     </td>
                 </tr>
@@ -64,7 +64,7 @@
                                                             <p style="margin: 0 0 10px; color: #333333; font-size: 13px; line-height: 18px;">
                                                                 <%
                                                                 String profileUrl = "<a href=\""+ PROFILE_URL + "\"><strong>" + USER + "</strong></a>";
-                                                                def msg = _ctx.appRes("Notification.process.request.created", profileUrl, PROCESS_TITLE);
+                                                                msg = _ctx.appRes("Notification.process.request.commented", profileUrl, "<b>" + REQUEST_TITLE + "</b>", "<b>" + PROCESS_TITLE + "</b>");
                                                                 %>
                                                                 <%=msg%>:
                                                             </p>
@@ -73,13 +73,13 @@
                                                                 <tr>
                                                                     <td align="left" valign="top" bgcolor="#f9f9f9" style="vertical-align: top; background-color: #f9f9f9; padding: 10px 15px;">
                                                                         <p style="margin: 0 0 10px; color: #333333; font-size: 13px; line-height: 18px;">
-                                                                            <a href="$REQUEST_URL">
+                                                                            <a href="$REQUEST_COMMENT_URL">
                                                                                 <strong>$REQUEST_TITLE</strong>
                                                                             </a>
                                                                         </p>
-                                                                        <%if (REQUEST_DESCRIPTION != null && !REQUEST_DESCRIPTION.isEmpty()) { %>
+                                                                        <%if (REQUEST_COMMENT != null && !REQUEST_COMMENT.isEmpty()) { %>
                                                                         <p style="margin: 0; color: #333333; font-size: 13px; line-height: 18px;">
-                                                                            $REQUEST_DESCRIPTION
+                                                                            $REQUEST_COMMENT
                                                                         </p>
                                                                         <%} %>
                                                                     </td>
@@ -110,7 +110,7 @@
                                                                                 box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 1px 2px rgba(0,0,0,.05);
                                                                                 vertical-align: middle;
                                                                                 margin-left: 3px;
-                                                                                " href="$REQUEST_URL" target="_blank"><%=_ctx.appRes("Notification.label.openRequest")%></a>
+                                                                                " href="$REQUEST_COMMENT_URL" target="_blank"><%=_ctx.appRes("Notification.label.openProcess")%></a>
                                                                         </p>
                                                                     </td>
                                                                 </tr>
