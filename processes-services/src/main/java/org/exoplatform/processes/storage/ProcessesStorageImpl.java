@@ -67,6 +67,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
 
   private static final String              WORKFLOW_ENTITY_TYPE     = "workflow";
 
+  private static final String[]            DEFAULT_PROCESS_STATUS   = { "Request", "RequestInProgress", "Validated", "Refused" };
+
   private final SimpleDateFormat formatter   = new SimpleDateFormat(DATE_FORMAT);
 
   public ProcessesStorageImpl(WorkFlowDAO workFlowDAO,
@@ -296,7 +298,9 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     Set<String> participators = new HashSet<String>(Arrays.asList(memberships.get(1)));
     ProjectDto project = ProjectUtil.newProjectInstanceDto(workFlow.getTitle(), workFlow.getDescription(), managers, participators);
     project = projectService.createProject(project);
-    statusService.createInitialStatuses(project);
+    for (String statusName : DEFAULT_PROCESS_STATUS) {
+      statusService.createStatus(project, statusName);
+    }
     return project.getId();
   }
 
