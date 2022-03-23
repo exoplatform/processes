@@ -148,6 +148,8 @@ export default {
       this.work = work;
       this.workComments = comments;
       this.$root.$emit('displayTaskComment');
+      const url = `${eXo.env.portal.context}/${eXo.env.portal.portalName}/processes/myRequests/requestDetails/${this.work.id}/comments`;
+      window.history.pushState('requestComments', '', url);
     });
     this.$root.$on('create-work-draft', event => {
       this.createWorkDraft(event.draft, event.preSave);
@@ -169,6 +171,10 @@ export default {
         this.getWorks();
       }
     });
+    document.addEventListener('Task-comments-drawer-closed', () => {
+      const url = `${eXo.env.portal.context}/${eXo.env.portal.portalName}/processes/myRequests`;
+      window.history.pushState('myRequests', '', url);
+    });
   },
   methods: {
     handleTabChanges() {
@@ -181,7 +187,7 @@ export default {
         this.tab = 1;
         this.$root.$emit('close-work-drawer');
       }
-      if (path.includes('/requestDetails')) {
+      if (path.includes('/requestDetails') && !path.endsWith('/comments')) {
         this.tab = 1;
         const workId = path.split('requestDetails/')[1].split(/\D/)[0];
         this.openWorkDetails(workId);
@@ -190,6 +196,11 @@ export default {
         this.tab = 0;
         const workflowId = path.split('processes/')[1].split(/\D/)[0];
         this.openCreateWork(workflowId);
+      }
+      if (path.includes('/myRequests/requestDetails') && path.endsWith('/comments')) {
+        this.tab = 1;
+        const workId = path.split('requestDetails/')[1].split(/\D/)[0];
+        this.openWorkComments(workId);
       }
     },
     openCreateWork(workflowId) {
@@ -215,6 +226,20 @@ export default {
           this.$processesService.getWorkComments(work.id).then(comments => {
             work.comments = comments;
             this.$root.$emit('open-add-work-drawer', {object: work, mode: 'view_work', isDraft: false});
+          });
+        }
+      });
+    },
+    openWorkComments(workId) {
+      this.$processesService.getWorkById(workId, 'workFlow').then(work => {
+        if (work) {
+          this.$processesService.getWorkComments(work.id).then(comments => {
+            work.comments = comments;
+            const mappedWork = Object.assign({}, work);
+            mappedWork.status = {
+              project: {}
+            };
+            this.$root.$emit('show-work-comments', mappedWork, comments);
           });
         }
       });
