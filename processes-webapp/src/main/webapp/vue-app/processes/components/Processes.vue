@@ -175,6 +175,9 @@ export default {
       const url = `${eXo.env.portal.context}/${eXo.env.portal.portalName}/processes/myRequests`;
       window.history.pushState('myRequests', '', url);
     });
+    this.$root.$on('processes-attachments-notification-alert', event => {
+      this.displayMessage(event.type, event.message);
+    });
   },
   methods: {
     handleTabChanges() {

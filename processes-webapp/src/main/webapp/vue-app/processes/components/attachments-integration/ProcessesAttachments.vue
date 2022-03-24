@@ -29,6 +29,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         color="primary">
         mdi-plus-thick
       </v-icon>
+      <create-document-from
+        v-if="allowDocFormCreation"
+        :drive="drive"
+        :entity-type="entityType"
+        :entity-id="entityId"
+        :edit-mode="editMode" />
       <v-list dense>
         <v-list-item-group>
           <attachment-item
@@ -66,9 +72,13 @@ export default {
       type: Number,
       default: null
     },
-    workflowParentSpaceId: {
+    workflowParentSpace: {
       type: Number,
       default: null
+    },
+    allowDocFormCreation: {
+      type: Boolean,
+      default: false,
     },
     files: {
       type: Array,
@@ -94,12 +104,23 @@ export default {
         defaultFolder: 'Documents',
         sourceApp: 'processesApp',
         attachments: JSON.parse(JSON.stringify(this.attachments)),
-        spaceId: this.workflowParentSpaceId,
+        spaceId: this.workflowParentSpace && this.workflowParentSpace.id,
         attachToEntity: this.editMode,
       };
     },
     attachmentsLength() {
       return this.attachments.length > 0 ? `(${this.attachments.length})` : '';
+    },
+    drive() {
+      if (this.workflowParentSpace) {
+        const spaceGroupId = this.workflowParentSpace.groupId.split('/spaces/')[1];
+        return {
+          name: `.spaces.${spaceGroupId}`,
+          title: this.workflowParentSpace.prettyName,
+          isSelected: true
+        };
+      }
+      return null;
     }
   },
   created() {
@@ -111,6 +132,9 @@ export default {
         this.attachments.push(event.detail.attachment);
       }
     });
+    this.$root.$on('add-new-created-form-document', (doc) => {
+      this.attachments.push(doc);
+    });
     document.addEventListener('attachment-removed', event => {
       const index = this.attachments.findIndex(attachment => attachment.id === event.detail.id);
       if (index >= 0) {
@@ -121,8 +145,10 @@ export default {
       this.attachments = [];
     });
     this.$root.$on('init-list-attachments', event => {
-      if (event.entityId && event.entityId !== -1) {
+      if (event.entityId) {
         this.entityId = event.entityId;
+      } else {
+        this.entityId = null;
       }
       if (event.entityType) {
         this.entityType = event.entityType;
@@ -139,8 +165,8 @@ export default {
       }
     },
     initEntityAttachmentsList() {
-      if (this.entityType && this.entityId && this.entityId !== -1) {
-        this.$processesService.getEntityAttachments(this.entityType, this.entityId).then(attachments => {
+      if (this.entityType && this.entityId) {
+        this.$processesAttachmentService.getEntityAttachments(this.entityType, this.entityId).then(attachments => {
           attachments.forEach(attachment => {
             attachment.name = attachment.title;
           });

@@ -8,13 +8,12 @@ import org.exoplatform.processes.rest.model.WorkEntity;
 import org.exoplatform.processes.rest.model.WorkFlowEntity;
 import org.exoplatform.processes.rest.util.EntityBuilder;
 import org.exoplatform.processes.rest.util.RestUtils;
+import org.exoplatform.processes.service.ProcessesAttachmentService;
 import org.exoplatform.processes.service.ProcessesService;
 import org.exoplatform.services.rest.impl.RuntimeDelegateImpl;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
-import org.exoplatform.social.core.space.model.Space;
-import org.exoplatform.social.core.space.spi.SpaceService;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -23,6 +22,7 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import javax.jcr.ItemExistsException;
 import javax.persistence.EntityNotFoundException;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.RuntimeDelegate;
@@ -31,8 +31,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.*;
@@ -48,7 +48,7 @@ public class ProcessesRestTest {
   private ProcessesService processesService;
 
   @Mock
-  private SpaceService spaceService;
+  private ProcessesAttachmentService processesAttachmentService;
 
   private ProcessesRest    processesRest;
 
@@ -58,7 +58,7 @@ public class ProcessesRestTest {
   @Before
   public void setUp() {
     RuntimeDelegate.setInstance(new RuntimeDelegateImpl());
-    this.processesRest = new ProcessesRest(processesService, identityManager);
+    this.processesRest = new ProcessesRest(processesService, identityManager, processesAttachmentService);
     PowerMockito.mockStatic(RestUtils.class);
     PowerMockito.mockStatic(EntityBuilder.class);
     PowerMockito.mockStatic(ConversationState.class);
@@ -468,5 +468,41 @@ public class ProcessesRestTest {
     doThrow(new RuntimeException()).when(processesService).getWorkFlow(1L);
     Response response4 = processesRest.getWorkFlowById(1L, "");
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response4.getStatus());
+  }
+  
+  @Test
+  public void createNewFormDocument() throws Exception {
+    when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
+    Response response = processesRest.createNewFormDocument(null, null, null, null, null, null);
+    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response.getStatus());
+    when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    Response response1 = processesRest.createNewFormDocument(null, "any", "any", "any", null, null);
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response1.getStatus());
+    Response response2 = processesRest.createNewFormDocument("any", null, "any", "any", null, null);
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response2.getStatus());
+    Response response3 = processesRest.createNewFormDocument("any", "any", null, "any", null, null);
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response3.getStatus());
+    Response response4 = processesRest.createNewFormDocument("any", "any", "any", null, null, null);
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response4.getStatus());
+    doThrow(new ItemExistsException()).when(processesAttachmentService)
+                                      .createNewFormDocument(anyLong(),
+                                                             anyString(),
+                                                             anyString(),
+                                                             anyString(),
+                                                             anyString(),
+                                                             anyString(),
+                                                             anyLong());
+    Response response5 = processesRest.createNewFormDocument("any", "any", "any", "any", "workflow", 1L);
+    assertEquals(Response.Status.CONFLICT.getStatusCode(), response5.getStatus());
+    doThrow(new RuntimeException()).when(processesAttachmentService)
+            .createNewFormDocument(anyLong(),
+                    anyString(),
+                    anyString(),
+                    anyString(),
+                    anyString(),
+                    anyString(),
+                    anyLong());
+    Response response6 = processesRest.createNewFormDocument("any", "any", "any", "any", "workflow", 1L);
+    assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response6.getStatus());
   }
 }
