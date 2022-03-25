@@ -113,9 +113,25 @@
     min-width: 20px !important;
   }
 
+  .work-controls {
+    max-width: inherit;
+  }
+
+  .workflow-controls {
+    max-width: inherit;
+  }
+
+  .filter-icon-button {
+    color: #a8b3c5 !important;
+    caret-color: #a8b3c5 !important;
+  }
+
+  .filter-query-width {
+    max-width: 200px;
+  }
+
   .workflow-filter-query {
     padding-top: 10px !important;
-    max-width: 200px;
 
     .v-input__icon.v-input__icon--prepend-inner i {
       font-size: 20px !important;
@@ -132,7 +148,9 @@
     position: absolute;
     margin-right: 12px ~'; /** orientation=rt */ ';
     margin-left: 12px ~'; /** orientation=lt */ ';
-    right: 165px;
+    right: 165px ~'; /** orientation=lt */ ';
+    left: 165px ~'; /** orientation=rt */ ';
+
     margin-top: 0 !important;
 
     .v-input__icon.v-input__icon--prepend-inner i {
