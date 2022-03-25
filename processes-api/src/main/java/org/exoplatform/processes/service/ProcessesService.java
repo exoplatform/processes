@@ -146,4 +146,13 @@ public interface ProcessesService {
    * @return {@link List} of {@link WorkStatus}
    */
   List<WorkStatus> getAvailableWorkStatuses();
+
+  /**
+   * Retrieves a Work by its given id
+   *
+   * @param userIdentityId user identity id
+   * @param workId Work id
+   * @return {@link Work}
+   */
+  Work getWorkById(long userIdentityId, Long workId);
 }

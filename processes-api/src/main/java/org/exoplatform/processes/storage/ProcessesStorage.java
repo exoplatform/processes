@@ -99,6 +99,16 @@ public interface ProcessesStorage {
   void deleteWorkflowById(Long workflowId) throws EntityNotFoundException;
 
   /**
+   * Retrieves a Work by its given id
+   *
+   * @param userIdentityId user identity id
+   * @param workId Work id
+   * @return {@link Work}
+   * @throws EntityNotFoundException
+   */
+  Work getWorkById(long userIdentityId, long workId) throws EntityNotFoundException;
+
+    /**
    * @param projectId:   Tasks project id
    * @param isCompleted: filter by completed and uncompleted tasks
    * @throws Exception

@@ -93,6 +93,7 @@ export default {
       confirmMessage: '',
       dialogAction: null,
       targetModel: null,
+      myRequestsTabVisited: null,
     };
   },
   beforeCreate() {
@@ -103,10 +104,15 @@ export default {
       this.availableWorkStatuses = statuses;
     });
   },
+  watch: {
+    tab(value) {
+      this.updateState(value);
+    }
+  },
   created() {
     this.getWorkFlows();
-    this.getWorks();
-    this.getWorkDrafts();
+    this.handleTabChanges();
+    window.addEventListener('popstate', this.handleTabChanges);
     this.$root.$on('show-alert', alert => {
       this.displayMessage(alert);
     });
@@ -165,6 +171,54 @@ export default {
     });
   },
   methods: {
+    handleTabChanges() {
+      const path = document.location.pathname;
+      if (path.endsWith('/processes')) {
+        this.tab = 0;
+        this.$root.$emit('close-work-drawer');
+      }
+      if (path.endsWith('/myRequests')) {
+        this.tab = 1;
+        this.$root.$emit('close-work-drawer');
+      }
+      if (path.includes('/requestDetails')) {
+        this.tab = 1;
+        const workId = path.split('requestDetails/')[1].split(/\D/)[0];
+        this.openWorkDetails(workId);
+      }
+      if (path.endsWith('/createRequest')) {
+        this.tab = 0;
+        const workflowId = path.split('processes/')[1].split(/\D/)[0];
+        this.openCreateWork(workflowId);
+      }
+    },
+    openCreateWork(workflowId) {
+      this.$processesService.getWorkflowById(workflowId, '').then(workflow => {
+        this.$root.$emit('open-add-work-drawer', {object: workflow, mode: 'create_work'});
+      });
+    },
+    updateState(value) {
+      if (value === 1) {
+        window.history.pushState('myRequests', '', `${eXo.env.portal.context}/${eXo.env.portal.portalName}/processes/myRequests`);
+        if (!this.myRequestsTabVisited) {
+          this.getWorks();
+          this.getWorkDrafts();
+          this.myRequestsTabVisited = 1;
+        }
+      } else {
+        window.history.replaceState('processes', '', `${eXo.env.portal.context}/${eXo.env.portal.portalName}/processes`);
+      }
+    },
+    openWorkDetails(workId) {
+      this.$processesService.getWorkById(workId, 'workFlow').then(work => {
+        if (work) {
+          this.$processesService.getWorkComments(work.id).then(comments => {
+            work.comments = comments;
+            this.$root.$emit('open-add-work-drawer', {object: work, mode: 'view_work', isDraft: false});
+          });
+        }
+      });
+    },
     getWorkFlows() {
       const filter = {};
       if (this.query) {

@@ -7,12 +7,10 @@ import org.exoplatform.processes.dao.WorkDraftDAO;
 import org.exoplatform.processes.dao.WorkFlowDAO;
 import org.exoplatform.processes.entity.WorkFlowEntity;
 import org.exoplatform.processes.model.Work;
-import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.notification.utils.NotificationUtils;
 import org.exoplatform.processes.service.ProcessesAttachmentService;
 import org.exoplatform.services.attachments.model.Attachment;
-import org.exoplatform.services.attachments.service.AttachmentService;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.rest.impl.RuntimeDelegateImpl;
 import org.exoplatform.social.core.identity.model.Identity;
@@ -20,6 +18,7 @@ import org.exoplatform.social.core.identity.model.Profile;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
+import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.dto.TaskDto;
@@ -32,6 +31,7 @@ import org.exoplatform.task.util.UserUtil;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -41,9 +41,10 @@ import javax.ws.rs.ext.RuntimeDelegate;
 import java.util.*;
 
 import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
-import static org.powermock.api.mockito.PowerMockito.mock;
-import static org.powermock.api.mockito.PowerMockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.powermock.api.mockito.PowerMockito.*;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({EntityMapper.class, UserUtil.class, ProjectUtil.class, NotificationUtils.class})
@@ -299,5 +300,27 @@ public class ProcessesStorageImplTest {
     when(workDraftDAO.find(1L)).thenReturn(WorkEntity);
     processesStorage.deleteWorkDraftById(1L);
     verify(workDraftDAO, times(1)).delete(WorkEntity);
+  }
+
+  @Test
+  public void getWorkById() throws Exception {
+    TaskDto taskDto = mock(TaskDto.class);
+    Identity identity = mock(Identity.class);
+    List<TaskDto> list = new ArrayList<>();
+    list.add(taskDto);
+    when(identity.getRemoteId()).thenReturn("root");
+    when(identityManager.getIdentity("1")).thenReturn(null);
+    Throwable exception1 = assertThrows(IllegalArgumentException.class,
+            () -> this.processesStorage.getWorkById(1L, 1L));
+    assertEquals("identity is not exist", exception1.getMessage());
+    when(identityManager.getIdentity("1")).thenReturn(identity);
+    when(taskService.findTasks(any(), ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt())).thenReturn(list);
+    processesStorage.getWorkById(1L, 1L);
+    verifyStatic(EntityMapper.class, times(1));
+    EntityMapper.taskToWork(taskDto);
+    doThrow(new EntityNotFoundException(1L, Object.class)).when(taskService).getTask(1L);
+    Throwable exception2 = assertThrows(EntityNotFoundException.class,
+            () -> this.taskService.getTask(1L));
+    assertEquals("Object does not exist with ID: 1", exception2.getMessage());
   }
 }
