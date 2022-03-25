@@ -56,7 +56,7 @@ public class WebTemplateProvider extends TemplateProvider {
       
       templateContext.put("PROCESS_URL", processUrl);
       templateContext.put("REQUEST_URL", requestUrl);
-      buildCommonTemplateParams(templateContext, notificationInfo, requester, language);
+      buildCommonTemplateParams(templateContext, notificationInfo, language, requester);
 
       String body = TemplateUtils.processGroovy(templateContext);
       notificationContext.setException(templateContext.getException());
