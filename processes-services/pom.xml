@@ -65,6 +65,10 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <groupId>org.exoplatform.addons.task</groupId>
+            <artifactId>task-management-integration</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.exoplatform.social</groupId>
             <artifactId>social-component-notification</artifactId>
             <scope>provided</scope>

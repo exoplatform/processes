@@ -14,6 +14,7 @@ import org.exoplatform.commons.notification.template.TemplateUtils;
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.processes.notification.plugin.CancelRequestPlugin;
 import org.exoplatform.processes.notification.plugin.CreateRequestPlugin;
+import org.exoplatform.processes.notification.plugin.RequestCommentPlugin;
 import org.exoplatform.processes.notification.utils.NotificationArguments;
 import org.exoplatform.processes.notification.utils.NotificationUtils;
 import org.exoplatform.social.core.identity.model.Profile;
@@ -25,14 +26,15 @@ import java.util.Locale;
 
 @TemplateConfigs(templates = {
     @TemplateConfig(pluginId = CreateRequestPlugin.ID, template = "war:/notification/templates/web/CreateRequestPlugin.gtmpl"),
-    @TemplateConfig(pluginId = CancelRequestPlugin.ID, template = "war:/notification/templates/web/CancelRequestPlugin.gtmpl"), })
+    @TemplateConfig(pluginId = CancelRequestPlugin.ID, template = "war:/notification/templates/web/CancelRequestPlugin.gtmpl"),
+    @TemplateConfig(pluginId = RequestCommentPlugin.ID, template = "war:/notification/templates/web/RequestCommentPlugin.gtmpl"),})
 public class WebTemplateProvider extends TemplateProvider {
 
   public WebTemplateProvider(InitParams initParams) {
     super(initParams);
     this.templateBuilders.put(PluginKey.key(CreateRequestPlugin.ID), new TemplateBuilder());
     this.templateBuilders.put(PluginKey.key(CancelRequestPlugin.ID), new TemplateBuilder());
-
+    this.templateBuilders.put(PluginKey.key(RequestCommentPlugin.ID), new RequestCommentTemplateBuilder());
   }
 
   private class TemplateBuilder extends AbstractTemplateBuilder {
@@ -44,29 +46,17 @@ public class WebTemplateProvider extends TemplateProvider {
       String requester = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_CREATOR.getKey());
       String processUrl = notificationInfo.getValueOwnerParameter(NotificationArguments.PROCESS_URL.getKey());
       String requestUrl = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_URL.getKey());
-      Profile userProfile = NotificationUtils.getUserProfile(requester);
       String language = getLanguage(notificationInfo);
       TemplateContext templateContext = TemplateContext.newChannelInstance(getChannelKey(), pluginId, language);
-      templateContext.put("USER", userProfile.getFullName());
-      templateContext.put("PROFILE_URL", userProfile.getUrl());
+    
       if (pluginId.equals(CreateRequestPlugin.ID)) {
         String processTitle = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_PROCESS.getKey());
         templateContext.put("PROCESS_TITLE", processTitle);
       }
+      
       templateContext.put("PROCESS_URL", processUrl);
       templateContext.put("REQUEST_URL", requestUrl);
-      templateContext.put("AVATAR", userProfile.getAvatarUrl());
-      Calendar lastModified = Calendar.getInstance();
-      lastModified.setTimeInMillis(notificationInfo.getLastModifiedDate());
-      templateContext.put("LAST_UPDATED_TIME",
-                          TimeConvertUtils.convertXTimeAgoByTimeServer(lastModified.getTime(),
-                                                                       "EE, dd yyyy",
-                                                                       new Locale(language),
-                                                                       TimeConvertUtils.YEAR));
-      boolean isRead =
-                     Boolean.parseBoolean(notificationInfo.getValueOwnerParameter(NotificationMessageUtils.READ_PORPERTY.getKey()));
-      templateContext.put("READ", isRead ? "read" : "unread");
-      templateContext.put("NOTIFICATION_ID", notificationInfo.getId());
+      buildCommonTemplateParams(templateContext, notificationInfo, language, requester);
 
       String body = TemplateUtils.processGroovy(templateContext);
       notificationContext.setException(templateContext.getException());
@@ -79,4 +69,58 @@ public class WebTemplateProvider extends TemplateProvider {
       return false;
     }
   }
+
+  private class RequestCommentTemplateBuilder extends AbstractTemplateBuilder {
+
+    @Override
+    protected MessageInfo makeMessage(NotificationContext notificationContext) {
+      NotificationInfo notificationInfo = notificationContext.getNotificationInfo();
+      String pluginId = notificationInfo.getKey().getId();
+      String processTitle = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_PROCESS.getKey());
+      String requestTitle = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_TITLE.getKey());
+      String commentAuthor = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_COMMENT_AUTHOR.getKey());
+      String comment = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_COMMENT.getKey());
+      String requestCommentUrl = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_COMMENT_URL.getKey());
+      String language = getLanguage(notificationInfo);
+      TemplateContext templateContext = TemplateContext.newChannelInstance(getChannelKey(), pluginId, language);
+
+      templateContext.put("PROCESS_TITLE", processTitle);
+      templateContext.put("REQUEST_TITLE", requestTitle);
+      templateContext.put("REQUEST_COMMENT_AUTHOR", commentAuthor);
+      templateContext.put("REQUEST_COMMENT_URL", requestCommentUrl);
+      templateContext.put("REQUEST_COMMENT", comment);
+      buildCommonTemplateParams(templateContext, notificationInfo, language, commentAuthor);
+
+      String body = TemplateUtils.processGroovy(templateContext);
+      notificationContext.setException(templateContext.getException());
+      MessageInfo messageInfo = new MessageInfo();
+      return messageInfo.body(body).end();
+    }
+
+    @Override
+    protected boolean makeDigest(NotificationContext notificationContext, Writer writer) {
+      return false;
+    }
+  }
+  
+  private void buildCommonTemplateParams(TemplateContext templateContext,
+                                         NotificationInfo notificationInfo,
+                                         String language,
+                                         String user) {
+    Profile userProfile = NotificationUtils.getUserProfile(user);
+    templateContext.put("USER", userProfile.getFullName());
+    templateContext.put("PROFILE_URL", userProfile.getUrl());
+    templateContext.put("AVATAR", userProfile.getAvatarUrl());
+    Calendar lastModified = Calendar.getInstance();
+    lastModified.setTimeInMillis(notificationInfo.getLastModifiedDate());
+    templateContext.put("LAST_UPDATED_TIME",
+                        TimeConvertUtils.convertXTimeAgoByTimeServer(lastModified.getTime(),
+                                                                     "EE, dd yyyy",
+                                                                     new Locale(language),
+                                                                     TimeConvertUtils.YEAR));
+    boolean isRead = Boolean.parseBoolean(notificationInfo.getValueOwnerParameter(NotificationMessageUtils.READ_PORPERTY.getKey()));
+    templateContext.put("READ", isRead ? "read" : "unread");
+    templateContext.put("NOTIFICATION_ID", notificationInfo.getId());
+  }
+
 }
