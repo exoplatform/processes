@@ -109,7 +109,8 @@
           <v-stepper-content step="2">
             <processes-attachments
               v-model="attachments"
-              :workflow-parent-space-id="parentSpaceId"
+              :workflow-parent-space="workflowParentSpace"
+              :allow-doc-form-creation="true"
               :edit-mode="editMode"
               :entity-id="workflow.id"
               entity-type="workflow" />
@@ -199,8 +200,8 @@ export default {
     requestStatus() {
       return this.workflowEnabled ? this.$t('processes.works.form.label.enabled') : this.$t('processes.works.form.label.disabled');
     },
-    parentSpaceId() {
-      return this.workflow && this.workflow.parentSpace && this.workflow.parentSpace.id;
+    workflowParentSpace() {
+      return this.workflow && this.workflow.parentSpace;
     }
   },
   watch: {
@@ -219,7 +220,7 @@ export default {
         this.editMode = false;
       }
       this.stp = 1;
-      this.$root.$emit('init-list-attachments', {entityId: workflow && workflow.id || -1});
+      this.$root.$emit('init-list-attachments', {entityId: workflow && workflow.id || null});
       this.$refs.workFlow.open();
     },
     close() {

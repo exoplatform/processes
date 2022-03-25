@@ -1,10 +1,11 @@
 package org.exoplatform.processes.service;
 
+import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.processes.Utils.ProcessesUtils;
+import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.services.attachments.model.Attachment;
 import org.exoplatform.services.attachments.service.AttachmentService;
 import org.exoplatform.services.attachments.utils.Utils;
-import org.exoplatform.services.cms.documents.DocumentService;
 import org.exoplatform.services.cms.drives.DriveData;
 import org.exoplatform.services.cms.drives.ManageDriveService;
 import org.exoplatform.services.cms.link.NodeFinder;
@@ -16,6 +17,7 @@ import org.exoplatform.services.jcr.ext.hierarchy.NodeHierarchyCreator;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.security.ConversationState;
+import org.exoplatform.services.security.Identity;
 import org.exoplatform.services.wcm.core.NodetypeConstant;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.task.dto.ProjectDto;
@@ -50,6 +52,14 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
   private static final String          GROUP_ADMINISTRATORS = "*:/platform/administrators";
 
   private static final String          GROUP_PROCESSES      = "*:/platform/processes";
+
+  private static final String          DOC_OFORM_MIMETYPE   = "application/vnd.openxmlformats-officedocument.wordprocessingml.document.form";
+
+  private static final String          DOCXF_EXTENSION      = ".docxf";
+
+  private static final String          OFORM_EXTENSION      = ".oform";
+  
+  private static final String          WORKFLOW_ENTITY_TYPE = "workflow";
 
   public ProcessesAttachmentServiceImpl(AttachmentService attachmentService,
                                         RepositoryService repositoryService,
@@ -177,6 +187,9 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
           Workspace workspace = session.getWorkspace();
           workspace.copy(attachmentNode.getPath(), destPath);
           Node copyNode = (Node) session.getItem(destPath);
+          if (copyNode.getName().endsWith(DOCXF_EXTENSION)) {
+            processDocumentForm(copyNode);
+          }
           Attachment copyAttachment = attachmentService.getAttachmentById(copyNode.getUUID());
           updatedAttachments.put(index, copyAttachment);
         } else {
@@ -234,5 +247,46 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
       moveOrCopyAttachmentsJcrNodes(attachments, destEntityId, destEntityType, true, projectId);
       linkFromEntityToEntity(userId, attachments, sourceEntityId, sourceEntityType, destEntityId, destEntityType, false);
     }
+  }
+
+  @Override
+  public Attachment createNewFormDocument(Long userIdentityId,
+                                          String title,
+                                          String path,
+                                          String pathDrive,
+                                          String templateName,
+                                          String entityType,
+                                          Long entityId) throws Exception {
+    Identity identity = ConversationState.getCurrent().getIdentity();
+    Attachment attachment = attachmentService.createNewDocument(identity, title, path, pathDrive, templateName);
+    if (entityId != null && entityType != null && Objects.equals(entityType, WORKFLOW_ENTITY_TYPE)) {
+      ProcessesService processesService = CommonsUtils.getService(ProcessesService.class);
+      WorkFlow workFlow = processesService.getWorkFlow(entityId);
+      linkAttachmentsToEntity(new Attachment[] { attachment },
+                              userIdentityId,
+                              entityId,
+                              entityType,
+                              workFlow.getProjectId());
+    }
+    return attachmentService.getAttachmentById(attachment.getId());
+  }
+
+  private void processDocumentForm(Node node) {
+    try {
+      String name = node.getName();
+      String newName = name.substring(0, name.lastIndexOf(".")).concat(OFORM_EXTENSION);
+      Node content = node.getNode(NodetypeConstant.JCR_CONTENT);
+      content.setProperty(NodetypeConstant.JCR_MIME_TYPE, DOC_OFORM_MIMETYPE);
+      if (node.hasProperty(NodetypeConstant.EXO_TITLE)) {
+        node.setProperty(NodetypeConstant.EXO_TITLE, newName);
+      }
+      if (node.hasProperty(NodetypeConstant.EXO_NAME)) {
+        node.setProperty(NodetypeConstant.EXO_NAME, newName);
+      }
+      node.save();
+    } catch (RepositoryException e) {
+      LOG.error("Error while processing docxf file", e);
+    }
+    
   }
 }
