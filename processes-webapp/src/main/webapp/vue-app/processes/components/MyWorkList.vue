@@ -77,7 +77,7 @@
           class="text-md-body-1 font-weight-regular grey--text text--darken-1">
           <v-icon class="text-md-body-5" v-if="!panel.includes(index + 1)">mdi-chevron-down</v-icon>
           <v-icon class="text-md-body-5" v-if="panel.includes(index + 1)">mdi-chevron-up</v-icon>
-          {{ item.status }} ({{ item.works.length }})
+          {{ statusI18n(item.status) }} ({{ item.works.length }})
           <hr class="line-panel-work">
           <template v-slot:actions>
             <v-icon />
