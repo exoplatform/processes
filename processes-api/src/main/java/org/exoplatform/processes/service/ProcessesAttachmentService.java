@@ -38,4 +38,25 @@ public interface ProcessesAttachmentService {
      * @param projectId task project id
      */
     void copyAttachmentsToEntity(Long userId, Long sourceEntityId, String sourceEntityType, Long destEntityId, String destEntityType, Long projectId);
+
+    /**
+     * Creates a new onlyoffice document form
+     *
+     * @param userIdentityId user identity id
+     * @param title document title
+     * @param path document path
+     * @param pathDrive drive path
+     * @param templateName document template name
+     * @param entityType entity type to attach created document
+     * @param entityId entity id
+     * @return {@link Attachment}
+     * @throws Exception
+     */
+    Attachment createNewFormDocument(Long userIdentityId,
+                                     String title,
+                                     String path,
+                                     String pathDrive,
+                                     String templateName,
+                                     String entityType,
+                                     Long entityId) throws Exception;
 }

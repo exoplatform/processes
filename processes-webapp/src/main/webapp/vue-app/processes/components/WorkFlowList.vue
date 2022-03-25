@@ -1,7 +1,7 @@
 <template>
   <v-main
     id="workflows">
-    <v-container class="workflow-controls">
+    <v-container class="workflow-controls pb-0">
       <v-row
         class="pe-0"
         no-gutters>
@@ -148,7 +148,7 @@ export default {
       if (this.filter.value === workflow.enabled) {
         this.workflows.splice(index, 1, workflow);
       } else {
-        this.workflows.splice(this.workflows.indexOf(workflow), 1);
+        this.workflows.splice(index, 1);
       }
     });
     this.$root.$on('workflow-removed', (workflow) => {

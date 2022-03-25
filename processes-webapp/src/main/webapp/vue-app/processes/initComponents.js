@@ -11,10 +11,13 @@ import EmptyOrLoading from './components/commons/EmptyOrLoading.vue';
 import CustomCounter from './components/commons/CustomCounter.vue';
 import CustomDateFormat from './components/commons/CustomDateFormat.vue';
 import RequestStatus from './components/commons/RequestStatus.vue';
+
+import CreateDocumentForm from './components/attachments-integration/CreateDocumentForm.vue';
 import ProcessesAttachments from './components/attachments-integration/ProcessesAttachments.vue';
 
 
 import * as processesService from './js/ProcessesService.js';
+import * as ProcessesAttachmentService from './js/ProcessesAttachmentService.js';
 import * as utils from './js/utils.js';
 
 const components = {
@@ -30,7 +33,8 @@ const components = {
   'empty-or-loading': EmptyOrLoading,
   'custom-counter': CustomCounter,
   'custom-date-format': CustomDateFormat,
-  'request-status': RequestStatus
+  'request-status': RequestStatus,
+  'create-document-from': CreateDocumentForm
 };
 
 for (const key in components) {
@@ -40,6 +44,11 @@ for (const key in components) {
 if (!Vue.prototype.$processesService) {
   window.Object.defineProperty(Vue.prototype, '$processesService', {
     value: processesService,
+  });
+}
+if (!Vue.prototype.$processesAttachmentService) {
+  window.Object.defineProperty(Vue.prototype, '$processesAttachmentService', {
+    value: ProcessesAttachmentService,
   });
 }
 if (!Vue.prototype.$utils) {
