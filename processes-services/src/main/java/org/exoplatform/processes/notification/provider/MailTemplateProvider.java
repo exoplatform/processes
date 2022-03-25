@@ -54,20 +54,20 @@ public class MailTemplateProvider extends TemplateProvider {
       TemplateContext templateContext = TemplateContext.newChannelInstance(getChannelKey(), pluginId, language);
       String requester = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_CREATOR.getKey());
       String processUrl = notificationInfo.getValueOwnerParameter(NotificationArguments.PROCESS_URL.getKey());
+      String requestUrl = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_URL.getKey());
       Profile userProfile = NotificationUtils.getUserProfile(requester);
       templateContext.put("USER", encoder.encode(userProfile.getFullName()));
       templateContext.put("PROFILE_URL", encoder.encode(userProfile.getUrl()));
       if (pluginId.equals(CreateRequestPlugin.ID)) {
         String requestTitle = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_TITLE.getKey());
         String requestDescription = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_DESCRIPTION.getKey());
-        String requestUrl = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_URL.getKey());
         String processTitle = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_PROCESS.getKey());
         templateContext.put("PROCESS_TITLE", encoder.encode(processTitle));
         templateContext.put("REQUEST_TITLE", encoder.encode(requestTitle));
         templateContext.put("REQUEST_DESCRIPTION", encoder.encode(requestDescription));
-        templateContext.put("REQUEST_URL", encoder.encode(requestUrl));
       }
       templateContext.put("PROCESS_URL", encoder.encode(processUrl));
+      templateContext.put("REQUEST_URL", encoder.encode(requestUrl));
       templateContext.put("AVATAR", encoder.encode(LinkProviderUtils.getUserAvatarUrl(userProfile)));
 
       Calendar lastModified = Calendar.getInstance();
