@@ -9,13 +9,13 @@
     <a
       @click="showNewFormDocInput"
       class="primary--text font-weight-bold text-decoration-underline">
-      Create a Form
+      {{ $t('processes.create.document.form.label') }}
     </a>
     <v-text-field
       ref="NewFormDocInput"
       v-show="!NewFormDocInputHidden"
       v-model="newDocumentTitle"
-      :placeholder="$t('documents.untitledDocument')"
+      :placeholder="$t('processes.document.form.untitled.name')"
       class="pt-2"
       outlined
       dense
@@ -81,8 +81,11 @@ export default {
     documentTitleMaxLengthReached() {
       return this.newDocumentTitle && this.newDocumentTitle.length > this.MAX_FILE_NAME_LENGTH;
     },
+    untitledNewFormDoc() {
+      return `${this.$t('processes.document.form.untitled.name')}${this.extension}`;
+    },
     documentName() {
-      return this.newDocumentTitle && `${this.newDocumentTitle}${this.extension}`;
+      return this.newDocumentTitle && `${this.newDocumentTitle.trim()}${this.extension}` || this.untitledNewFormDoc;
     },
     driveName(){
       return this.drive && this.drive.name || this.personalDrive;
