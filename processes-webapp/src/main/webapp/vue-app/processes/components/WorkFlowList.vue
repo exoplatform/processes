@@ -44,19 +44,18 @@
             outlined />
           <v-text-field
             v-if="!isXSmall"
-            class="me-3 float-right workflow-filter-query filter-query-width"
+            class="me-4 float-right workflow-filter-query filter-query-width"
             @keyup="updateFilter"
             v-model="query"
             :placeholder="$t('processes.workflow.filter.query.placeholder')"
             prepend-inner-icon="mdi-filter" />
         </v-col>
       </v-row>
-      <v-row>
+      <v-row v-if="isXSmall">
         <v-col
           class="d-flex"
           cols="12">
           <v-text-field
-            v-if="isXSmall"
             class="me-10 float-right workflow-filter-query"
             @keyup="updateFilter"
             v-model="query"
@@ -81,6 +80,18 @@
           <workflow-card-item
             :is-processes-manager="isProcessesManager"
             :workflow="workflow" />
+        </v-col>
+      </v-row>
+      <v-row
+        align="center"
+        v-if="hasMore">
+        <v-col>
+          <v-btn
+            :loading="loadingMore"
+            @click="loadMore"
+            class="btn">
+            {{ $t('processes.load.more.label') }}
+          </v-btn>
         </v-col>
       </v-row>
     </v-container>
@@ -131,6 +142,10 @@ export default {
       type: Boolean,
       default: false
     },
+    loadingMore: {
+      type: Boolean,
+      default: false
+    },
     isProcessesManager: {
       type: Boolean,
       default: false
@@ -169,6 +184,9 @@ export default {
   methods: {
     open() {
       this.$root.$emit('open-workflow-drawer', {workflow: null, mode: 'create_workflow'});
+    },
+    loadMore() {
+      this.$root.$emit('load-more-workflows');
     },
     updateFilter() {
       this.$root.$emit('workflow-filter-changed', {filter: this.filter.value, query: this.query});
