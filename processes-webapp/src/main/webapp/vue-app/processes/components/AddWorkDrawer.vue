@@ -132,6 +132,7 @@
             <v-label for="description">
               {{ $t('processes.works.form.label.workDetail') }}
             </v-label>
+            <v-divider class="mt-5" />
             <div
               class="text-truncate-8 pa-2 mt-3 work-description"
               v-if="viewMode"
@@ -154,7 +155,7 @@
               :entity-id="work.id"
               :entity-type="entityType" />
             <div v-if="viewMode && !viewDraft" class="taskCommentsAndChanges">
-              <v-divider />
+              <v-divider class="mt-1" />
               <task-view-all-comments
                 class="mt-4"
                 :task="this.work"
