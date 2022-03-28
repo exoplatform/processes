@@ -71,7 +71,7 @@
           cols="6"
           md="4"
           class="pa-0 ma-0 text-align-center text-truncate"
-          lg="1">
+          lg="2">
           <request-status
             :is-draft="isDraft"
             :status="work.status" />
@@ -80,7 +80,7 @@
           cols="6"
           md="4"
           class="pa-0 ma-0 text-align-end"
-          lg="2">
+          lg="1">
           <v-btn
             v-if="isDraft"
             @click="openDraft"

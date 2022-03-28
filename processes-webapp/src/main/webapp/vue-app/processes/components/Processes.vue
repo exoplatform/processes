@@ -28,6 +28,7 @@
             :is-processes-manager="isManager"
             :workflows="workflows"
             :has-more="hasMoreTypes"
+            :loading-more="loadingMore"
             :loading="loading" />
         </v-tab-item>
         <v-tab-item>
@@ -83,10 +84,10 @@ export default {
       query: null,
       enabled: true,
       status: null,
-      pageSize: 10,
       offset: 0,
       limit: 0,
       loading: false,
+      loadingMore: false,
       hasMoreTypes: false,
       isManager: false,
       confirmTitle: this.$t('processes.workflow.action.confirmation.label'),
@@ -129,6 +130,7 @@ export default {
       this.getWorks();
     });
     this.$root.$on('workflow-filter-changed', event => {
+      this.workflows = [];
       this.enabled = event.filter;
       this.query = event.query;
       this.getWorkFlows();
@@ -176,8 +178,20 @@ export default {
       window.history.pushState('myRequests', '', url);
     });
     this.$root.$on('processes-attachments-notification-alert', event => {
-      this.displayMessage(event.type, event.message);
+      this.displayMessage(event);
     });
+    this.$root.$on('load-more-workflows', () => {
+      this.loadingMore = true;
+      this.getWorkFlows();
+    });
+  },
+  computed: {
+    isMobile() {
+      return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
+    },
+    pageSize() {
+      return this.isMobile && 4 || 8;
+    }
   },
   methods: {
     handleTabChanges() {
@@ -255,14 +269,20 @@ export default {
       filter.enabled = this.enabled;
       const expand = '';
       this.limit = this.limit || this.pageSize;
-      this.loading = true;
-      return this.$processesService
-        .getWorkFlows(filter, this.offset, this.limit + 1, expand)
-        .then(workflows => {
-          this.workflows = workflows || [];
-          this.hasMoreTypes = workflows && workflows.length > this.limit;
-        })
-        .finally(() => this.loading = false);
+      this.offset = this.workflows.length || 0;
+      this.loading = !this.loadingMore;
+      return this.$processesService.getWorkFlows(filter, this.offset, this.limit + 1, expand).then(workflows => {
+        this.hasMoreTypes = workflows && workflows.length > this.limit;
+        if (this.hasMoreTypes) {
+          this.workflows.push(...workflows.slice(0, -1));
+        } else {
+          this.workflows.push(...workflows || []);
+        }
+      })
+        .finally(() => {
+          this.loading = false;
+          this.loadingMore = false;
+        });
     },
     getWorks() {
       const filter = {};
@@ -288,7 +308,7 @@ export default {
       const expand = '';
       this.limit = this.limit || this.pageSize;
       this.loading = true;
-      return this.$processesService.getWorkDrafts(filter, this.offset, this.limit , expand).then(drafts => {
+      return this.$processesService.getWorkDrafts(filter, 0, 0, expand).then(drafts => {
         this.workDrafts = drafts || [];
       }).finally(() => this.loading = false);
     },
