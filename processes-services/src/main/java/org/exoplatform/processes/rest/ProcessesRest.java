@@ -17,6 +17,7 @@
 package org.exoplatform.processes.rest;
 
 import java.util.List;
+import java.util.Map;
 
 import javax.annotation.security.RolesAllowed;
 import javax.jcr.ItemExistsException;
@@ -25,6 +26,7 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import io.swagger.jaxrs.PATCH;
 import org.apache.commons.lang.StringUtils;
 import org.exoplatform.common.http.HTTPStatus;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
@@ -199,6 +201,7 @@ public class ProcessesRest implements ResourceContainer {
                                   @ApiParam(value = "Processes properties to expand.", required = false)
                                   @QueryParam("expand")
                                           String expand,
+                                  @ApiParam("work completed property") @QueryParam("completed") Boolean completed,
                                   @ApiParam("Works status") @QueryParam("status") String status,
                                   @ApiParam("Works query") @QueryParam("query") String query,
                                   @ApiParam(value = "Offset of results to return", required = false, defaultValue = "0")
@@ -221,8 +224,11 @@ public class ProcessesRest implements ResourceContainer {
       if (status != null) {
         workFilter.setStatus(status);
       }
-      if(query != null) {
+      if (query != null) {
         workFilter.setQuery(query);
+      }
+      if (completed != null) {
+        workFilter.setCompleted(completed);
       }
       List<Work> works = processesService.getWorks(userIdentityId, workFilter, offset, limit);
       return Response.ok(EntityBuilder.toWorkEntityList(processesService, works, expand)).build();
@@ -417,6 +423,44 @@ public class ProcessesRest implements ResourceContainer {
       return Response.ok("ok").type(MediaType.TEXT_PLAIN).build();
     } catch (Exception e) {
       LOG.error("Error while deleting a work", e);
+      return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+    }
+  }
+
+  @PATCH
+  @Produces(MediaType.TEXT_PLAIN)
+  @RolesAllowed("users")
+  @Path("/work/{workId}")
+  @ApiOperation(value = "cancel or resume a work by its id", httpMethod = "PATCH", response = Response.class, produces = "text/plain")
+  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
+  public Response updateWorkCompleted(@ApiParam(value = "completed object property", required = true) Map<String,Boolean> completed,
+                                      @ApiParam(value = "work id to be updated", required = true)
+                                      @PathParam("workId") Long workId) {
+
+    long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    if (currentIdentityId == 0) {
+      return Response.status(Response.Status.UNAUTHORIZED).build();
+    }
+    if (workId == null) {
+      return Response.status(Response.Status.BAD_REQUEST).entity("work id is mandatory").build();
+    }
+    if (completed == null) {
+      return Response.status(Response.Status.BAD_REQUEST).entity("completed object is mandatory").build();
+    }
+    Boolean completedValue = completed.get("value");
+    if (completedValue == null) {
+      return Response.status(Response.Status.BAD_REQUEST).entity("completed property value should not be null").build();
+    }
+    try {
+      processesService.updateWorkCompleted(workId, completedValue);
+      return Response.ok("ok").type(MediaType.TEXT_PLAIN).build();
+    } catch (EntityNotFoundException e) {
+      return Response.status(Response.Status.NOT_FOUND).build();
+    } catch (Exception e) {
+      LOG.error("Error while canceling a work", e);
       return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
     }
   }

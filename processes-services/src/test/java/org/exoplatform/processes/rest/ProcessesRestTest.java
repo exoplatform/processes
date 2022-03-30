@@ -28,7 +28,9 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.RuntimeDelegate;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -206,14 +208,15 @@ public class ProcessesRestTest {
     workFilter.setStatus("ToDo");
     workFilter.setQuery("test");
     when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
-    Response response1 = processesRest.getWorks(0L, "","ToDo", "test",0, 10);
+    Response response1 = processesRest.getWorks(0L, "",false, "ToDo", "test",0, 10);
     assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response1.getStatus());
     when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
     when(processesService.getWorks(1L, workFilter,0, 10)).thenReturn(works);
-    Response response2 = processesRest.getWorks(null, "","ToDo", "test",0, 10);
+    Response response2 = processesRest.getWorks(null, "", false,"ToDo", "test",0, 10);
     assertEquals(Response.Status.OK.getStatusCode(), response2.getStatus());
+    workFilter.setCompleted(true);
     when(processesService.getWorks(1L, workFilter, 0, 10)).thenThrow(RuntimeException.class);
-    Response response3 = processesRest.getWorks(1L, "", "ToDo","test",0, 10);
+    Response response3 = processesRest.getWorks(1L, "", true, "ToDo","test",0, 10);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response3.getStatus());
   }
 
@@ -503,6 +506,31 @@ public class ProcessesRestTest {
                     anyString(),
                     anyLong());
     Response response6 = processesRest.createNewFormDocument("any", "any", "any", "any", "workflow", 1L);
+    assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response6.getStatus());
+  }
+
+  @Test
+  public void updateWorkCompleted() {
+    Map<String, Boolean> completed = new HashMap<>();
+    completed.put("value", null);
+    when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
+    Response response = processesRest.updateWorkCompleted(null, null);
+    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response.getStatus());
+    when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    Response response1 = processesRest.updateWorkCompleted(null, null);
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response1.getStatus());
+    Response response2 = processesRest.updateWorkCompleted(completed, null);
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response2.getStatus());
+    Response response3 = processesRest.updateWorkCompleted(completed, 1L);
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response3.getStatus());
+    completed.put("value", true);
+    Response response5 = processesRest.updateWorkCompleted(completed, 1L);
+    assertEquals(Response.Status.OK.getStatusCode(), response5.getStatus());
+    doThrow(new EntityNotFoundException()).when(processesService).updateWorkCompleted(1L, true);
+    Response response4 = processesRest.updateWorkCompleted(completed, 1L);
+    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response4.getStatus());
+    doThrow(new RuntimeException()).when(processesService).updateWorkCompleted(1L, true);
+    Response response6 = processesRest.updateWorkCompleted(completed, 1L);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response6.getStatus());
   }
 }
