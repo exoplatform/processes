@@ -45,6 +45,9 @@ public class RequestCommentNotificationListener extends TaskCommentNotificationL
     TaskDto task = event.getSource();
     ProjectDto project = task.getStatus().getProject();
     WorkFlow workFlow = processesService.getWorkFlowByProjectId(project.getId());
+    if (workFlow == null) {
+      return;
+    }
     NotificationContext ctx = NotificationContextImpl.cloneInstance();
     ctx.append(NotificationArguments.REQUEST_CREATOR, task.getCreatedBy());
     ctx.append(NotificationArguments.REQUEST_TITLE, task.getTitle());

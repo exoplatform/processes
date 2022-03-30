@@ -35,7 +35,7 @@ export function getWorks(itemsFilter, offset, limit, expand) {
   if (itemsFilter) {
     Object.keys(itemsFilter).forEach(key => {
       const value = itemsFilter[key];
-      if (value) {
+      if (value !== null) {
         formData.append(key, value);
       }
     });
@@ -180,6 +180,25 @@ export function deleteWorkById(workId) {
   }).then(resp => {
     if (!resp || !resp.ok) {
       throw new Error('Error while deleting a work');
+    } else {
+      return resp.text();
+    }
+  });
+}
+
+export function updateWorkCompleted(workId, completed) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/work/${workId}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      value: completed,
+    }),
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error while canceling a work');
     } else {
       return resp.text();
     }

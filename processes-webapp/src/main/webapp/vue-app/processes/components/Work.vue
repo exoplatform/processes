@@ -2,6 +2,7 @@
   <v-card outlined class="ml-2">
     <v-container class="pa-0 work">
       <request-status
+        :is-completed="work.completed"
         type="indicator"
         :is-draft="isDraft"
         :status="work.status" />
@@ -10,20 +11,43 @@
         class="pl-4 pr-4"
         cols="12">
         <v-col
-          @click="openRequest"
           cols="6"
           class="request-title pa-0 ma-0 text-align-start text-subtitle-2 font-weight-regular text-truncate"
           md="3"
           lg="2">
-          <v-avatar
-            class="work-avatar"
-            color="blue"
-            size="30px">
-            <v-icon dark>
-              mdi-clock
-            </v-icon>
-          </v-avatar>
-          <span>{{ work.workFlow.title }}</span>
+          <div
+            v-if="!isDraft"
+            class="complete-btn">
+            <btn
+              @click="updateCompleted"
+              icon>
+              <v-icon
+                color="primary"
+                v-if="!work.completed">
+                mdi-checkbox-blank-circle-outline
+              </v-icon>
+              <v-icon
+                color="primary"
+                v-if="work.completed">
+                mdi-check-circle
+              </v-icon>
+            </btn>
+          </div>
+          <div
+            :class="!isDraft? 'ml-5':''"
+            @click="openRequest">
+            <v-avatar
+              class="work-avatar"
+              color="blue"
+              size="30px">
+              <v-icon dark>
+                mdi-clock
+              </v-icon>
+            </v-avatar>
+            <span :style="textDecoration">
+              {{ work.workFlow.title }}
+            </span>
+          </div>
         </v-col>
         <v-col
           cols="6"
@@ -70,9 +94,10 @@
         <v-col
           cols="6"
           md="4"
-          class="pa-0 ma-0 text-align-center text-truncate"
+          class="pa-0 ma-0 text-align-center text-truncate work-status-col"
           lg="2">
           <request-status
+            :is-completed="work.completed"
             :is-draft="isDraft"
             :status="work.status" />
         </v-col>
@@ -92,12 +117,23 @@
             </v-icon>
           </v-btn>
           <v-btn
+            v-if="isDraft"
             @click="deleteWork"
             class="custom-icon-color"
             icon>
             <v-icon
               class="custom-icon-size">
               mdi-trash-can-outline
+            </v-icon>
+          </v-btn>
+          <v-btn
+            v-else-if="!work.completed && allowCancel"
+            @click="cancelWork"
+            class="custom-icon-color"
+            icon>
+            <v-icon
+              class="custom-icon-size">
+              mdi-close-circle
             </v-icon>
           </v-btn>
         </v-col>
@@ -127,6 +163,12 @@ export default {
   computed: {
     lastCommentDate() {
       return this.comments && this.comments[this.comments.length-1] && this.comments[this.comments.length-1].comment.createdTime.time;
+    },
+    textDecoration() {
+      return this.work && this.work.completed && 'text-decoration:line-through' || '';
+    },
+    allowCancel() {
+      return this.work && this.work.status !== 'Validated' && this.work.status !== 'Refused';
     }
   },
   created() {
@@ -160,6 +202,12 @@ export default {
       } else {
         this.$root.$emit('show-confirm-action', {model: this.work, reason: 'delete_work'});
       }
+    },
+    cancelWork() {
+      this.$root.$emit('show-confirm-action', {model: this.work, reason: 'cancel_work'});
+    },
+    updateCompleted() {
+      this.$root.$emit('update-work-completed', this.work);
     }
   },
 

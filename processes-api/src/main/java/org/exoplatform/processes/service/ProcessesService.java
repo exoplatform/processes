@@ -102,6 +102,14 @@ public interface ProcessesService {
   public void deleteWorkById(Long workId);
 
   /**
+   * update the completed property of the task of a work to completed or uncompleted
+   *
+   * @param workId work id
+   * @param completed work completed property, can be true or false
+   */
+  void updateWorkCompleted(Long workId, boolean completed);
+
+  /**
    * Creates a work draft
    *
    * @param work Work draft object
