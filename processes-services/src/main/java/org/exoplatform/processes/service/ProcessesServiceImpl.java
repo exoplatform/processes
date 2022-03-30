@@ -202,6 +202,17 @@ public class ProcessesServiceImpl implements ProcessesService, Startable {
    * {@inheritDoc}
    */
   @Override
+  public void updateWorkCompleted(Long workId, boolean completed) {
+    if (workId == null) {
+      throw new IllegalArgumentException("Work id is mandatory");
+    }
+    processesStorage.updateWorkCompleted(workId, completed);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
   public Work createWorkDraft(Work work, long userId) throws IllegalArgumentException {
     if (work == null) {
       throw new IllegalArgumentException("WorkDraft is mandatory");

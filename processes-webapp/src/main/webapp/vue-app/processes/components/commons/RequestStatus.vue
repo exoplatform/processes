@@ -1,11 +1,12 @@
 <template>
   <span>
     <v-chip
-      v-if="type === 'chip'"
+      v-if="type === 'chip' && !isCompleted"
       class="ma-2"
       :color="statusColor"
       text-color="white">
-      <v-tooltip bottom>
+      <v-tooltip
+        bottom>
         <template v-slot:activator="{ on, attrs }">
           <span
             v-bind="attrs"
@@ -36,6 +37,10 @@ export default {
       type: Boolean,
       default: false
     },
+    isCompleted: {
+      type: Boolean,
+      default: false
+    },
     type: {
       type: String,
       default: 'chip'
@@ -43,6 +48,9 @@ export default {
   },
   computed: {
     statusColor() {
+      if (this.isCompleted) {
+        return '#6596cd';
+      }
       switch (this.statusLabel.toLowerCase())
       {
       case 'accepted':

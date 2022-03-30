@@ -12,4 +12,5 @@ public class WorkFilter {
     private String status;
     private String query;
     private Boolean isDraft;
+    private Boolean completed;
 }

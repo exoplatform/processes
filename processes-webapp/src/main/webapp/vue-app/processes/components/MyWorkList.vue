@@ -91,6 +91,28 @@
             :work="work" />
         </v-expansion-panel-content>
       </v-expansion-panel>
+      <v-expansion-panel
+        v-if="completedWorks.length>0"
+        class="elevation-0 ml-n5">
+        <v-expansion-panel-header
+          class="text-md-body-1 font-weight-regular grey--text text--darken-1">
+          <v-icon class="text-md-body-5" v-if="!panel.includes(items.length + 1)">mdi-chevron-down</v-icon>
+          <v-icon class="text-md-body-5" v-if="panel.includes(items.length + 1)">mdi-chevron-up</v-icon>
+          {{ this.$t('label.task.completed') }} ({{ completedWorks.length }})
+          <hr class="line-panel-work">
+          <template v-slot:actions>
+            <v-icon />
+          </template>
+        </v-expansion-panel-header>
+        <v-expansion-panel-content
+          class="elevation-0 work-panel-content">
+          <work
+            v-for="work in completedWorks"
+            :is-draft="false"
+            :key="work.id"
+            :work="work" />
+        </v-expansion-panel-content>
+      </v-expansion-panel>
     </v-expansion-panels>
   </div>
 </template>
@@ -110,6 +132,10 @@ export default {
       default: null,
     },
     workDrafts: {
+      type: Array,
+      default: null,
+    },
+    completedWorks: {
       type: Array,
       default: null,
     },
@@ -136,6 +162,16 @@ export default {
     this.$root.$on('work-removed', (work) => {
       this.works.splice(this.works.indexOf(work), 1);
     });
+    this.$root.$on('work-canceled', (work) => {
+      this.works.splice(this.works.indexOf(work), 1);
+      work.completed = true;
+      this.completedWorks.unshift(work);
+    });
+    this.$root.$on('work-uncanceled', (work) => {
+      this.completedWorks.splice(this.completedWorks.indexOf(work), 1);
+      work.completed = false;
+      this.works.unshift(work);
+    });
   },
   watch: {
     works() {
@@ -160,11 +196,15 @@ export default {
         });
       }
       items.push({label: this.$t('processes.myWorks.status.draft'), value: 'drafts'});
+      items.push({label: this.$t('label.task.completed'), value: 'completed'});
       return items;
     }
   },
   methods: {
     statusI18n(value){
+      if (value === 'completed') {
+        return this.$t('label.task.completed') || value;
+      }
       const key = `tasks.status.${value}`;
       const translation = this.$t(key);
       return translation === key && value || translation;
@@ -189,10 +229,16 @@ export default {
             }
           });
         });
+      statusList.add('completed');
       return Array.from(statusList);
     },
     sortWorks(works) {
       const statusList = this.statusList();
+      works.forEach(work => {
+        if (work.completed) {
+          work.status = 'completed';
+        }
+      });
       return works.sort((a, b) => statusList.indexOf(a['status']) - statusList.indexOf(b['status']));
     },
     updateFilter() {

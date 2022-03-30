@@ -60,7 +60,7 @@
             <type>org.exoplatform.processes.listener.CreateRequestNotificationListener</type>
         </component-plugin>
         <component-plugin>
-            <name>exo.process.request.removed</name>
+            <name>exo.process.request.canceled</name>
             <set-method>addListener</set-method>
             <type>org.exoplatform.processes.listener.CancelRequestNotificationListener</type>
         </component-plugin>

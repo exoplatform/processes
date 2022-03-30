@@ -275,4 +275,14 @@ public class ProcessesServiceImplTest {
     processesService.getWorkById(1L, 1L);
     verify(processesStorage, times(1)).getWorkById(1L, 1L);
   }
+
+  @Test
+  public void updateWorkCompleted() {
+    Throwable exception1 = assertThrows(IllegalArgumentException.class,
+            () -> this.processesService.updateWorkCompleted(null, false));
+    assertEquals("Work id is mandatory", exception1.getMessage());
+    verify(processesStorage, times(0)).updateWorkCompleted(1L, false);
+    processesService.updateWorkCompleted(1L, true);
+    verify(processesStorage, times(1)).updateWorkCompleted(1L, true);
+  }
 }

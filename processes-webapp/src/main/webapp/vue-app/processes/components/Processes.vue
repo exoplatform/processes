@@ -36,6 +36,7 @@
             :available-work-statuses="availableWorkStatuses"
             :works="works"
             :work-drafts="workDrafts"
+            :completed-works="completedWorks"
             :loading="loading" />
         </v-tab-item>
       </v-tabs-items>
@@ -51,7 +52,7 @@
       ref="confirmDialog"
       :title="confirmTitle"
       :message="confirmMessage"
-      :ok-label="$t('processes.workflow.delete.label')"
+      :ok-label="$t('processes.workflow.ok.label')"
       :cancel-label="$t('processes.workflow.cancel.label')"
       @ok="confirmAction"
       @dialog-closed="onDialogClosed" />
@@ -81,6 +82,7 @@ export default {
       workflows: [],
       works: [],
       workDrafts: [],
+      completedWorks: [],
       query: null,
       enabled: true,
       status: null,
@@ -160,6 +162,7 @@ export default {
       this.updateWorkDraft(draft);
     });
     this.$root.$on('work-filter-changed', event => {
+      this.completedWorks = [];
       this.status = event.status;
       this.query = event.query;
       if (this.status === 'drafts') {
@@ -168,6 +171,7 @@ export default {
       } else if (this.status === null) {
         this.getWorkDrafts();
         this.getWorks();
+        this.getCompletedWorks();
       } else {
         this.workDrafts = [];
         this.getWorks();
@@ -183,6 +187,9 @@ export default {
     this.$root.$on('load-more-workflows', () => {
       this.loadingMore = true;
       this.getWorkFlows();
+    });
+    this.$root.$on('update-work-completed', work => {
+      this.updateWorkCompleted(work, !work.completed);
     });
   },
   computed: {
@@ -231,6 +238,7 @@ export default {
         if (!this.myRequestsTabVisited) {
           this.getWorkDrafts();
           this.getWorks();
+          this.getCompletedWorks();
           this.myRequestsTabVisited = 1;
         }
       } else {
@@ -290,6 +298,10 @@ export default {
         filter.query = this.query;
       }
       filter.status = this.status;
+      filter.completed = this.status === 'completed';
+      if (filter.completed) {
+        filter.status = null;
+      }
       const expand = 'workFlow';
       this.limit = this.limit || this.pageSize;
       this.loading = true;
@@ -299,6 +311,17 @@ export default {
           this.works = works || [];
         })
         .finally(() => this.loading = false);
+    },
+    getCompletedWorks() {
+      const expand = 'workFlow';
+      const filter = {
+        completed: true
+      };
+      this.$processesService
+        .getWorks(filter, 0, 0, expand)
+        .then(works => {
+          this.completedWorks = works || [];
+        });
     },
     getWorkDrafts() {
       const filter = {};
@@ -377,7 +400,7 @@ export default {
       if (reason === 'delete_workflow') {
         this.confirmMessage = this.$t('processes.workflow.delete.confirmDialog.message', {0: `<strong>${model.title}</strong>`});
       }
-      if (reason === 'delete_work') {
+      if (reason === 'cancel_work') {
         this.confirmMessage = this.$t('processes.work.delete.confirmDialog.message');
       }
       if (reason === 'delete_work_draft') {
@@ -394,6 +417,9 @@ export default {
       }
       if (this.dialogAction && this.dialogAction === 'delete_work_draft') {
         this.deleteWorkDraftById(this.targetModel);
+      }
+      if (this.dialogAction && this.dialogAction === 'cancel_work') {
+        this.updateWorkCompleted(this.targetModel, true, true);
       }
     },
     deleteWorkDraftById(workDraft) {
@@ -439,6 +465,29 @@ export default {
         }
       }).catch(() => {
         this.displayMessage({type: 'error', message: this.$t('processes.work.delete.error.message')});
+      });
+    },
+    updateWorkCompleted(work, completed, cancel) {
+      this.$processesService.updateWorkCompleted(work.id, completed).then(value => {
+        if (value === 'ok') {
+          if (completed) {
+            this.$root.$emit('work-canceled', work);
+            if (cancel) {
+              this.displayMessage({type: 'success', message: this.$t('processes.work.cancel.success.message')});
+            } else {
+              this.displayMessage({type: 'success', message: this.$t('processes.work.complete.success.message')});
+            }
+          } else {
+            this.$root.$emit('work-uncanceled', work);
+            this.displayMessage({type: 'success', message: this.$t('processes.work.unComplete.success.message')});
+          }
+        }
+      }).catch(() => {
+        if (cancel) {
+          this.displayMessage({type: 'error', message: this.$t('processes.work.cancel.error.message')});
+        } else {
+          this.displayMessage({type: 'error', message: this.$t('processes.work.complete.error.message')});
+        }
       });
     },
   }

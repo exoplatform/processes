@@ -172,6 +172,9 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     if (workFilter.getQuery() != null) {
       taskQuery.setKeyword(workFilter.getQuery());
     }
+    if (workFilter.getCompleted() != null) {
+      taskQuery.setCompleted(workFilter.getCompleted());
+    }
     List<OrderBy> orderByList = new ArrayList<>();
     orderByList.add(new OrderBy("id", false));
     taskQuery.setOrderBy(orderByList);
@@ -342,6 +345,24 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       }
     } catch (EntityNotFoundException e) {
       LOG.error("Work not found", e);
+    }
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void updateWorkCompleted(Long workId, boolean completed) {
+    try {
+      TaskDto taskDto = taskService.getTask(workId);
+      if (taskDto != null) {
+        taskDto.setCompleted(completed);
+        taskService.updateTask(taskDto);
+        ProjectDto projectDto = taskDto.getStatus().getProject();
+        NotificationUtils.broadcast(listenerService, "exo.process.request.canceled", taskDto, projectDto);
+      }
+    } catch (EntityNotFoundException e) {
+      throw new javax.persistence.EntityNotFoundException("work not found");
     }
   }
 

@@ -124,6 +124,14 @@ public interface ProcessesStorage {
   void deleteWorkById(Long workId);
 
   /**
+   * update the completed property of the task of a work to completed or uncompleted
+   *
+   * @param workId work id
+   * @param completed work completed property, can be true or false
+   */
+  void updateWorkCompleted(Long workId, boolean completed);
+
+  /**
    * Retrieves a list of accessible WorkDraft, for a selected user.
    *
    * @param workFilter work filter
