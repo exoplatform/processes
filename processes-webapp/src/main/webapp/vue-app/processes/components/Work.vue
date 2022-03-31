@@ -34,7 +34,7 @@
             </btn>
           </div>
           <div
-            :class="!isDraft? 'ml-5':''"
+            :class="titleClass"
             @click="openRequest">
             <v-avatar
               class="work-avatar"
@@ -169,6 +169,9 @@ export default {
     },
     allowCancel() {
       return this.work && this.work.status !== 'Validated' && this.work.status !== 'Refused';
+    },
+    titleClass() {
+      return !this.isDraft && this.$vuetify && this.$vuetify.rtl ? 'mr-5':'' || !this.isDraft && 'ml-5' || '';
     }
   },
   created() {

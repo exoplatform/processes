@@ -21,7 +21,7 @@
       left>
       <template v-slot:activator="{ on, attrs }">
         <v-btn
-          class="float-right"
+          class="float-e"
           color="primary"
           dark
           icon
@@ -87,7 +87,7 @@
     <v-card-actions
       class="d-inline-block work-card-actions ma-2">
       <v-btn
-        class="float-right me-8 btn card-footer-btn mt-2 mb-2"
+        class="me-8 btn card-footer-btn mt-2 mb-2 float-e"
         right
         plain
         :disabled="!workflow.enabled"

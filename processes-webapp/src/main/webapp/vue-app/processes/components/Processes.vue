@@ -467,16 +467,22 @@ export default {
         this.displayMessage({type: 'error', message: this.$t('processes.work.delete.error.message')});
       });
     },
+    updateWorkStatus(work, status) {
+      const oldWork = Object.assign({}, work);
+      oldWork.status = status;
+      return this.$processesService.updateWork(oldWork);
+    },
     updateWorkCompleted(work, completed, cancel) {
       this.$processesService.updateWorkCompleted(work.id, completed).then(value => {
         if (value === 'ok') {
-          if (completed) {
-            this.$root.$emit('work-canceled', work);
-            if (cancel) {
+          if (completed && cancel) {
+            this.updateWorkStatus(work, 'Canceled').then((newWork) => {
+              this.$root.$emit('work-canceled', newWork);
               this.displayMessage({type: 'success', message: this.$t('processes.work.cancel.success.message')});
-            } else {
-              this.displayMessage({type: 'success', message: this.$t('processes.work.complete.success.message')});
-            }
+            });
+          } else if (completed) {
+            this.$root.$emit('work-completed', work);
+            this.displayMessage({type: 'success', message: this.$t('processes.work.complete.success.message')});
           } else {
             this.$root.$emit('work-uncanceled', work);
             this.displayMessage({type: 'success', message: this.$t('processes.work.unComplete.success.message')});

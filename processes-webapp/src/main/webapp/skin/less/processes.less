@@ -37,6 +37,16 @@
     cursor: pointer;
   }
 
+  .float-e {
+    float: right ~'; /** orientation=lt */ ';
+    float: left ~'; /** orientation=rt */ ';
+  }
+
+  .float-e-inverse {
+    float: right ~'; /** orientation=rt */ ';
+    float: left ~'; /** orientation=lt */ ';
+  }
+
   .line-panel-work {
     flex: 1 !important;
 
@@ -79,7 +89,8 @@
 
   .card-footer-btn {
     bottom: 0;
-    right: 0;
+    right: 0 ~'; /** orientation=lt */ ';
+    left: 0 ~'; /** orientation=rt */ ';
     position: absolute;
   }
 
@@ -122,13 +133,14 @@
   }
 
   .complete-btn {
-      left: 6px;
-      width: 23px;
-      height: 23px;
-      top: 0;
-      bottom: 0;
-      margin: auto;
-      position: absolute;
+    left: 6px ~'; /** orientation=lt */ ';
+    right: 6px ~'; /** orientation=rt */ ';
+    width: 23px;
+    height: 23px;
+    top: 0;
+    bottom: 0;
+    margin: auto;
+    position: absolute;
   }
 
   .workflow-controls {

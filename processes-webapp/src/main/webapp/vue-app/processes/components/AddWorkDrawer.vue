@@ -28,7 +28,11 @@
                     mdi-clock
                   </v-icon>
                 </v-avatar>
-                <span class="white--text">{{ this.work.workFlow.title }}</span>
+                <span
+                  :style="textDecoration"
+                  class="white--text">
+                  {{ this.work.workFlow.title }}
+                </span>
               </p>
             </v-col>
           </v-row>
@@ -45,7 +49,7 @@
             class="pb-4"
             v-if="viewMode">
             <request-status
-              class="float-right"
+              class="float-e"
               :is-draft="editDraft || viewDraft"
               :status="work.status" />
             <v-label class="mb-1">
@@ -89,7 +93,7 @@
                   <v-btn
                     :disabled="!validWorkDescription"
                     :loading="preSaving"
-                    class="mt-1 btn btn-primary v-btn--outlined float-right"
+                    class="mt-1 btn btn-primary v-btn--outlined float-e"
                     color="primary"
                     @click="nextStep">
                     {{ $t('processes.works.form.label.continue') }}
@@ -176,7 +180,7 @@
           :loading="saving"
           @click="addWork"
           :disabled="!validWorkDescription"
-          class="btn btn-primary float-right">
+          class="btn btn-primary float-e">
           {{ $t('processes.work.sendWork.label') }}
         </v-btn>
       </template>
@@ -259,7 +263,10 @@ export default {
     },
     workflowParentSpace() {
       return this.work && this.work.workflow && this.work.workflow.parentSpace;
-    }
+    },
+    textDecoration() {
+      return this.work && this.work.completed && 'text-decoration:line-through' || '';
+    },
   },
   methods: {
     updateUrlPath(data, path, replace) {

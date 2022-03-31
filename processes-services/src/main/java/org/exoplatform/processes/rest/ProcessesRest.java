@@ -297,7 +297,7 @@ public class ProcessesRest implements ResourceContainer {
     }
     try {
       Work newWork = processesService.updateWork(EntityBuilder.toWork(processesService, workEntity), currentIdentityId);
-      return Response.ok(EntityBuilder.toWorkEntity(processesService, newWork, "")).build();
+      return Response.ok(EntityBuilder.toWorkEntity(processesService, newWork, "workFlow")).build();
     } catch (ObjectNotFoundException e) {
       LOG.debug("User '{}' attempts to update a not existing work workFlow '{}'", currentIdentityId, e);
       return Response.status(Response.Status.NOT_FOUND).entity("Work workFlow not found").build();
