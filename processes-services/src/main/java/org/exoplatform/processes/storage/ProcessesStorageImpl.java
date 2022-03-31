@@ -26,6 +26,7 @@ import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.domain.Priority;
 import org.exoplatform.task.dto.ProjectDto;
+import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.service.ProjectService;
@@ -67,7 +68,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
 
   private static final String              WORKFLOW_ENTITY_TYPE     = "workflow";
 
-  private static final String[]            DEFAULT_PROCESS_STATUS   = { "Request", "RequestInProgress", "Validated", "Refused" };
+  private static final String[]            DEFAULT_PROCESS_STATUS   = { "Request", "RequestInProgress", "Validated", "Refused", "Canceled" };
 
   private final SimpleDateFormat formatter   = new SimpleDateFormat(DATE_FORMAT);
 
@@ -256,6 +257,15 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     taskDto.setDescription(work.getDescription());
     taskDto.setTitle(work.getTitle());
     taskDto.setCompleted(work.isCompleted());
+    long projectId = work.getProjectId();
+    List<StatusDto> statuses = statusService.getStatuses(projectId);
+    StatusDto status = statuses.stream()
+                               .filter(statusDto -> work.getStatus().equals(statusDto.getName()))
+                               .findAny()
+                               .orElse(null);
+    if (status != null) {
+      taskDto.setStatus(status);
+    }
     taskDto = taskService.updateTask(taskDto);
     return taskDto;
   }
@@ -359,7 +369,9 @@ public class ProcessesStorageImpl implements ProcessesStorage {
         taskDto.setCompleted(completed);
         taskService.updateTask(taskDto);
         ProjectDto projectDto = taskDto.getStatus().getProject();
-        NotificationUtils.broadcast(listenerService, "exo.process.request.canceled", taskDto, projectDto);
+        if (completed) {
+          NotificationUtils.broadcast(listenerService, "exo.process.request.canceled", taskDto, projectDto);
+        }
       }
     } catch (EntityNotFoundException e) {
       throw new javax.persistence.EntityNotFoundException("work not found");

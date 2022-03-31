@@ -32,7 +32,7 @@
           <v-select
             v-if="isProcessesManager"
             ref="filter"
-            class="pt-5 workflow-filter mt-n3 float-right"
+            class="pt-5 workflow-filter mt-n3 float-e"
             v-model="filter"
             :items="items"
             item-text="label"
@@ -44,7 +44,7 @@
             outlined />
           <v-text-field
             v-if="!isXSmall"
-            class="me-4 float-right workflow-filter-query filter-query-width"
+            class="me-4 workflow-filter-query filter-query-width float-e"
             @keyup="updateFilter"
             v-model="query"
             :placeholder="$t('processes.workflow.filter.query.placeholder')"
@@ -56,7 +56,7 @@
           class="d-flex"
           cols="12">
           <v-text-field
-            class="me-10 float-right workflow-filter-query"
+            class="me-10 workflow-filter-query float-e"
             @keyup="updateFilter"
             v-model="query"
             :placeholder="$t('processes.workflow.filter.query.placeholder')"

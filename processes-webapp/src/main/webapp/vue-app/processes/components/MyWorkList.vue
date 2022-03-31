@@ -7,7 +7,7 @@
           height="150">
           <v-select
             ref="filter"
-            class="work-filter pt-5 me-9 float-right"
+            class="work-filter pt-5 me-9 float-e"
             v-model="filter"
             :items="filterItems"
             item-text="label"
@@ -44,7 +44,7 @@
     </empty-or-loading>
     <v-expansion-panels
       class="mt-5"
-      v-if="works.length>0 || workDrafts.length>0"
+      v-if="works.length>0 || workDrafts.length>0 || completedWorks.length>0"
       v-model="panel"
       multiple>
       <v-expansion-panel
@@ -163,9 +163,10 @@ export default {
       this.works.splice(this.works.indexOf(work), 1);
     });
     this.$root.$on('work-canceled', (work) => {
-      this.works.splice(this.works.indexOf(work), 1);
-      work.completed = true;
-      this.completedWorks.unshift(work);
+      this.handleCompleted(work);
+    });
+    this.$root.$on('work-completed', (work) => {
+      this.handleCompleted(work);
     });
     this.$root.$on('work-uncanceled', (work) => {
       this.completedWorks.splice(this.completedWorks.indexOf(work), 1);
@@ -201,6 +202,11 @@ export default {
     }
   },
   methods: {
+    handleCompleted(work) {
+      this.works.splice(this.works.indexOf(work), 1);
+      work.completed = true;
+      this.completedWorks.unshift(work);
+    },
     statusI18n(value){
       if (value === 'completed') {
         return this.$t('label.task.completed') || value;
