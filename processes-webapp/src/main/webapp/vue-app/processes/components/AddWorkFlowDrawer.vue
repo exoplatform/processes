@@ -82,11 +82,11 @@
                 for="status">
                 {{ $t('processes.works.form.label.status') }}
               </v-label>
-              <span class="mt-2 float-left grey--text text--darken-1">
+              <span class="mt-2 float-e-inverse grey--text text--darken-1">
                 {{ requestStatus }}
               </span>
               <v-switch
-                class="float-right mt-n1"
+                class="mt-n1 float-e"
                 color="primary"
                 value
                 name="status"
@@ -94,7 +94,7 @@
               <div class="mt-10">
                 <v-btn
                   :disabled="!valid"
-                  class="btn btn-primary v-btn--outlined float-right"
+                  class="btn btn-primary v-btn--outlined float-e"
                   color="primary"
                   @click="nextStep">
                   {{ $t('processes.works.form.label.continue') }}
@@ -134,7 +134,7 @@
           v-if="!editMode"
           :loading="saving"
           @click="addNewWorkFlow"
-          class="btn btn-primary float-right"
+          class="btn btn-primary float-e"
           color="primary">
           {{ $t('processes.works.form.label.save') }}
         </v-btn>
@@ -143,13 +143,13 @@
           v-if="editMode"
           :loading="saving"
           @click="updateWorkFlow"
-          class="btn btn-primary float-right"
+          class="btn btn-primary float-e"
           color="primary">
           {{ $t('processes.workflow.label.update') }}
         </v-btn>
         <v-btn
           @click="close"
-          class="btn float-right me-4">
+          class="btn me-4 float-e">
           {{ $t('processes.workflow.cancel.label') }}
         </v-btn>
       </template>
@@ -239,8 +239,8 @@ export default {
       this.$refs.workFlow.open();
     },
     close() {
-      this.$refs.workFlow.close();
       this.$root.$emit('reset-list-attachments');
+      this.$refs.workFlow.closeEffectively();
     },
     nextStep() {
       if (this.valid) {

@@ -297,7 +297,7 @@ public class ProcessesRest implements ResourceContainer {
     }
     try {
       Work newWork = processesService.updateWork(EntityBuilder.toWork(processesService, workEntity), currentIdentityId);
-      return Response.ok(EntityBuilder.toWorkEntity(processesService, newWork, "")).build();
+      return Response.ok(EntityBuilder.toWorkEntity(processesService, newWork, "workFlow")).build();
     } catch (ObjectNotFoundException e) {
       LOG.debug("User '{}' attempts to update a not existing work workFlow '{}'", currentIdentityId, e);
       return Response.status(Response.Status.NOT_FOUND).entity("Work workFlow not found").build();
@@ -428,7 +428,7 @@ public class ProcessesRest implements ResourceContainer {
   }
 
   @PATCH
-  @Produces(MediaType.TEXT_PLAIN)
+  @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @Path("/work/{workId}")
   @ApiOperation(value = "cancel or resume a work by its id", httpMethod = "PATCH", response = Response.class, produces = "text/plain")
@@ -455,8 +455,8 @@ public class ProcessesRest implements ResourceContainer {
       return Response.status(Response.Status.BAD_REQUEST).entity("completed property value should not be null").build();
     }
     try {
-      processesService.updateWorkCompleted(workId, completedValue);
-      return Response.ok("ok").type(MediaType.TEXT_PLAIN).build();
+      Work newWork = processesService.updateWorkCompleted(workId, completedValue);
+      return Response.ok(EntityBuilder.toWorkEntity(processesService, newWork, "workFlow")).build();
     } catch (EntityNotFoundException e) {
       return Response.status(Response.Status.NOT_FOUND).build();
     } catch (Exception e) {

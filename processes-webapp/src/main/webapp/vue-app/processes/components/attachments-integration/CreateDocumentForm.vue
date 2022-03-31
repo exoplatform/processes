@@ -112,7 +112,7 @@ export default {
       if (this.documentTitleMaxLengthReached) {
         return;
       }
-      this.$processesAttachmentService.createNewFormDoc(this.documentName, this.templateName, this.driveName, this.targetFolder, this.entityType, this.entityId)
+      return this.$processesAttachmentService.createNewFormDoc(this.documentName, this.templateName, this.driveName, this.targetFolder, this.entityType, this.entityId)
         .then((resp) => {
           if (resp && resp.status && resp.status === 409) {
             this.$root.$emit('processes-attachments-notification-alert', {
