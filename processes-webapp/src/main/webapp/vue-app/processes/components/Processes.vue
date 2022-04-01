@@ -370,7 +370,7 @@ export default {
       });
     },
     createWorkDraft(workDraft, preSave) {
-      this.$processesService.createWorkDraft(workDraft).then(draft => {
+      return this.$processesService.createWorkDraft(workDraft).then(draft => {
         if (draft) {
           if (preSave) {
             this.$root.$emit('pre-save-work-draft-added', draft);
@@ -385,7 +385,7 @@ export default {
       });
     },
     updateWorkDraft(workDraft) {
-      this.$processesService.updateWorkDraft(workDraft).then(draft => {
+      return this.$processesService.updateWorkDraft(workDraft).then(draft => {
         if (draft) {
           this.$root.$emit('work-draft-updated', draft);
           this.displayMessage({type: 'success', message: this.$t('processes.workDraft.update.success.message')});
@@ -423,7 +423,7 @@ export default {
       }
     },
     deleteWorkDraftById(workDraft) {
-      this.$processesService.deleteWorkDraftById(workDraft.id).then(value => {
+      return this.$processesService.deleteWorkDraftById(workDraft.id).then(value => {
         if (value === 'ok') {
           this.$root.$emit('work-draft-removed', workDraft);
           this.displayMessage({type: 'success', message: this.$t('processes.work.draft.delete.success.message')});
@@ -433,7 +433,7 @@ export default {
       });
     },
     deleteWorkflowById(workflow) {
-      this.$processesService.deleteWorkflowById(workflow.id).then(value => {
+      return this.$processesService.deleteWorkflowById(workflow.id).then(value => {
         if (value === 'ok') {
           this.$root.$emit('workflow-removed', workflow);
           this.displayMessage({type: 'success', message: this.$t('processes.workflow.delete.success.message')});
@@ -458,7 +458,7 @@ export default {
       this.targetModel = null;
     },
     deleteWorkById(work) {
-      this.$processesService.deleteWorkById(work.id).then(value => {
+      return this.$processesService.deleteWorkById(work.id).then(value => {
         if (value === 'ok') {
           this.$root.$emit('work-removed', work);
           this.displayMessage({type: 'success', message: this.$t('processes.work.delete.success.message')});
@@ -468,15 +468,14 @@ export default {
       });
     },
     updateWorkStatus(work, status) {
-      const oldWork = Object.assign({}, work);
-      oldWork.status = status;
-      return this.$processesService.updateWork(oldWork);
+      work.status = status;
+      return this.$processesService.updateWork(work);
     },
     updateWorkCompleted(work, completed, cancel) {
-      this.$processesService.updateWorkCompleted(work.id, completed).then(value => {
-        if (value === 'ok') {
+      return this.$processesService.updateWorkCompleted(work.id, completed).then(patchedWork => {
+        if (patchedWork) {
           if (completed && cancel) {
-            this.updateWorkStatus(work, 'Canceled').then((newWork) => {
+            this.updateWorkStatus(patchedWork, 'Canceled').then((newWork) => {
               this.$root.$emit('work-canceled', newWork);
               this.displayMessage({type: 'success', message: this.$t('processes.work.cancel.success.message')});
             });

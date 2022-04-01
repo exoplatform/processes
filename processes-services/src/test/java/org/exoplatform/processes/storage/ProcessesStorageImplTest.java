@@ -249,7 +249,16 @@ public class ProcessesStorageImplTest {
 
     work.setId(1L);
     when(taskService.getTask(work.getId())).thenReturn(taskDto);
+    TaskDto updatedTask = new TaskDto();
+    updatedTask.setCompleted(true);
+    StatusDto statusDto1 = new StatusDto();
+    statusDto1.setName("Canceled");
+    statusDto1.setProject(projectDto);
+    updatedTask.setStatus(statusDto1);
+    when(taskService.updateTask(taskDto)).thenReturn(updatedTask);
     processesStorage.saveWork(work, 1L);
+    PowerMockito.verifyStatic(NotificationUtils.class, times(1));
+    NotificationUtils.broadcast(listenerService, "exo.process.request.canceled", updatedTask, updatedTask.getStatus().getProject());
     verify(taskService, times(1)).updateTask(taskDto);
 
     when(taskService.getTask(work.getId())).thenThrow(EntityNotFoundException.class);
@@ -333,8 +342,6 @@ public class ProcessesStorageImplTest {
     when(taskService.getTask(1L)).thenReturn(taskDto);
     processesStorage.updateWorkCompleted(1L, true);
     verify(taskService, times(1)).updateTask(taskDto);
-    PowerMockito.verifyStatic(NotificationUtils.class, times(1));
-    NotificationUtils.broadcast(listenerService, "exo.process.request.canceled", taskDto, taskDto.getStatus().getProject());
     doThrow(new EntityNotFoundException(1L, Object.class)).when(taskService).getTask(1L);
     Throwable exception2 = assertThrows(EntityNotFoundException.class,
             () -> this.taskService.getTask(1L));

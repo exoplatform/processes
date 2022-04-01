@@ -219,7 +219,7 @@ export function updateWorkCompleted(workId, completed) {
     if (!resp || !resp.ok) {
       throw new Error('Error while canceling a work');
     } else {
-      return resp.text();
+      return resp.json();
     }
   });
 }

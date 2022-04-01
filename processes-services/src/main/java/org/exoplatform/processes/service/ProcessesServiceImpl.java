@@ -202,11 +202,11 @@ public class ProcessesServiceImpl implements ProcessesService, Startable {
    * {@inheritDoc}
    */
   @Override
-  public void updateWorkCompleted(Long workId, boolean completed) {
+  public Work updateWorkCompleted(Long workId, boolean completed) {
     if (workId == null) {
       throw new IllegalArgumentException("Work id is mandatory");
     }
-    processesStorage.updateWorkCompleted(workId, completed);
+    return processesStorage.updateWorkCompleted(workId, completed);
   }
 
   /**

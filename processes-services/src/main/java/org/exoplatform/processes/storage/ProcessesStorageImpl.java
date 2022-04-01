@@ -267,6 +267,10 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       taskDto.setStatus(status);
     }
     taskDto = taskService.updateTask(taskDto);
+    if (taskDto.isCompleted() && taskDto.getStatus().getName().equals(DEFAULT_PROCESS_STATUS[4])) {
+      ProjectDto projectDto = taskDto.getStatus().getProject();
+      NotificationUtils.broadcast(listenerService, "exo.process.request.canceled", taskDto, projectDto);
+    }
     return taskDto;
   }
   
@@ -362,20 +366,18 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    * {@inheritDoc}
    */
   @Override
-  public void updateWorkCompleted(Long workId, boolean completed) {
+  public Work updateWorkCompleted(Long workId, boolean completed) {
+    TaskDto taskDto;
     try {
-      TaskDto taskDto = taskService.getTask(workId);
+      taskDto = taskService.getTask(workId);
       if (taskDto != null) {
         taskDto.setCompleted(completed);
-        taskService.updateTask(taskDto);
-        ProjectDto projectDto = taskDto.getStatus().getProject();
-        if (completed) {
-          NotificationUtils.broadcast(listenerService, "exo.process.request.canceled", taskDto, projectDto);
-        }
+        taskDto = taskService.updateTask(taskDto);
       }
     } catch (EntityNotFoundException e) {
       throw new javax.persistence.EntityNotFoundException("work not found");
     }
+    return EntityMapper.taskToWork(taskDto);
   }
 
   /**

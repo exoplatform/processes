@@ -128,8 +128,9 @@ public interface ProcessesStorage {
    *
    * @param workId work id
    * @param completed work completed property, can be true or false
-   */
-  void updateWorkCompleted(Long workId, boolean completed);
+   * @return {@link Work}
+   * */
+  Work updateWorkCompleted(Long workId, boolean completed);
 
   /**
    * Retrieves a list of accessible WorkDraft, for a selected user.
