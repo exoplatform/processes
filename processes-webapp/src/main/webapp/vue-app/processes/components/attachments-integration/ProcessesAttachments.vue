@@ -24,11 +24,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         class="viewAllAttachments primary--text font-weight-bold text-decoration-underline">
         {{ $t('processes.work.add.attachment.label') }} {{ attachmentsLength }}
       </a>
-      <v-icon
-        class="plus-process-attachment"
-        color="primary">
-        mdi-plus-thick
-      </v-icon>
       <create-document-from
         v-if="allowDocFormCreation"
         :drive="drive"
