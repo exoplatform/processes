@@ -1,6 +1,8 @@
 <template>
   <v-app>
     <exo-drawer
+      :confirm-close="this.valid"
+      :confirm-close-labels="confirmCloseLabels"
       @closed="close()"
       ref="workFlow"
       id="addWorkFlowDrawer"
@@ -170,6 +172,12 @@ export default {
         helpUrl: '',
         projectId: null,
         permissions: null,
+      },
+      confirmCloseLabels: {
+        title: this.$t('processes.workflow.action.confirmation.label'),
+        message: this.$t('processes.workflow.cancelCreation.confirm.message'),
+        ok: this.$t('processes.workflow.ok.label'),
+        cancel: this.$t('processes.workflow.cancel.label')
       },
       attachments: [],
       workflowEnabled: true,
