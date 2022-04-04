@@ -18,20 +18,35 @@
           <div
             v-if="!isDraft"
             class="complete-btn">
-            <btn
-              @click="updateCompleted"
-              icon>
-              <v-icon
-                color="primary"
-                v-if="!work.completed">
-                mdi-checkbox-blank-circle-outline
-              </v-icon>
-              <v-icon
-                color="primary"
-                v-if="work.completed">
-                mdi-check-circle
-              </v-icon>
-            </btn>
+            <v-tooltip
+              bottom>
+              <template v-slot:activator="{ on, attrs }">
+                <btn
+                  v-bind="attrs"
+                  v-on="on"
+                  @click="updateCompleted"
+                  icon>
+                  <v-icon
+                    class="custom-icon-size"
+                    color="primary"
+                    v-if="!work.completed">
+                    mdi-checkbox-blank-circle-outline
+                  </v-icon>
+                  <v-icon
+                    class="custom-icon-size"
+                    color="primary"
+                    v-if="work.completed">
+                    mdi-check-circle
+                  </v-icon>
+                </btn>
+              </template>
+              <span v-if="!work.completed">
+                {{ $t('processes.work.complete.request.message') }}
+              </span>
+              <span v-if="work.completed">
+                {{ $t('processes.work.unComplete.request.message') }}
+              </span>
+            </v-tooltip>
           </div>
           <div
             :class="titleClass"
@@ -61,13 +76,23 @@
           md="2"
           class="pa-0 ma-0"
           lg="1">
-          <v-btn
+          <v-tooltip
             v-if="!isDraft"
-            @click="openCommentsDrawer"
-            color="grey"
-            icon>
-            <v-icon>mdi-chat-outline</v-icon>
-          </v-btn>
+            bottom>
+            <template v-slot:activator="{ on, attrs }">
+              <v-btn
+                v-bind="attrs"
+                v-on="on"
+                @click="openCommentsDrawer"
+                color="grey"
+                icon>
+                <v-icon class="custom-icon-size custom-icon-color">
+                  mdi-chat-outline
+                </v-icon>
+              </v-btn>
+            </template>
+            <span>{{ $t('processes.work.request.comment.message') }}</span>
+          </v-tooltip>
           <span v-if="!isDraft">{{ comments.length }}</span>
         </v-col>
         <v-col
@@ -109,33 +134,38 @@
           <v-btn
             v-if="isDraft"
             @click="openDraft"
-            class="custom-icon-color"
             icon>
             <v-icon
-              class="custom-icon-size">
+              class="custom-icon-size custom-icon-color">
               mdi-square-edit-outline
             </v-icon>
           </v-btn>
           <v-btn
             v-if="isDraft"
             @click="deleteWork"
-            class="custom-icon-color"
             icon>
             <v-icon
-              class="custom-icon-size">
+              class="custom-icon-size custom-icon-color">
               mdi-trash-can-outline
             </v-icon>
           </v-btn>
-          <v-btn
+          <v-tooltip
             v-else-if="!work.completed && allowCancel"
-            @click="cancelWork"
-            class="custom-icon-color"
-            icon>
-            <v-icon
-              class="custom-icon-size">
-              mdi-close-circle
-            </v-icon>
-          </v-btn>
+            bottom>
+            <template v-slot:activator="{ on, attrs }">
+              <v-btn
+                v-bind="attrs"
+                v-on="on"
+                @click="cancelWork"
+                icon>
+                <v-icon
+                  class="custom-icon-size custom-icon-color">
+                  mdi-close-circle
+                </v-icon>
+              </v-btn>
+            </template>
+            <span>{{ $t('processes.work.cancel.request.message') }}</span>
+          </v-tooltip>
         </v-col>
       </v-row>
     </v-container>

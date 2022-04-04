@@ -54,6 +54,7 @@
     <v-card-title
       class="text-center d-block mt-0 text-truncate">
       <v-avatar
+        v-if="false"
         color="blue"
         size="30px">
         <v-icon dark>
