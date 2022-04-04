@@ -52,6 +52,7 @@
             :class="titleClass"
             @click="openRequest">
             <v-avatar
+              v-if="false"
               class="work-avatar"
               color="blue"
               size="30px">
@@ -59,7 +60,9 @@
                 mdi-clock
               </v-icon>
             </v-avatar>
-            <span :style="textDecoration">
+            <span
+              class="pl-1"
+              :style="textDecoration">
               {{ work.workFlow.title }}
             </span>
           </div>
