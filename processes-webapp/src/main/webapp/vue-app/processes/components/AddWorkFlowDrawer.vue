@@ -1,7 +1,7 @@
 <template>
   <v-app>
     <exo-drawer
-      :confirm-close="this.valid"
+      :confirm-close="confirmClose"
       :confirm-close-labels="confirmCloseLabels"
       @closed="close()"
       ref="workFlow"
@@ -164,6 +164,7 @@ export default {
     return {
       stp: 1,
       saving: false,
+      oldWorkflow: {},
       workflow: {
         title: '',
         description: '',
@@ -210,6 +211,9 @@ export default {
     },
     workflowParentSpace() {
       return this.workflow && this.workflow.parentSpace;
+    },
+    confirmClose() {
+      return this.valid && JSON.stringify(this.workflow) !== JSON.stringify(this.oldWorkflow);
     }
   },
   watch: {
@@ -223,6 +227,9 @@ export default {
         this.workflow = Object.assign({}, workflow);
         this.workflowEnabled = workflow.enabled;
         this.editMode = mode === 'edit_workflow';
+        if (this.editMode) {
+          this.oldWorkflow = Object.assign({}, this.workflow);
+        }
       } else {
         this.resetInputs();
         this.editMode = false;

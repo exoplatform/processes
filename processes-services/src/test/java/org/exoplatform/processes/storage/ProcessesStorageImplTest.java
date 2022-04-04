@@ -323,4 +323,20 @@ public class ProcessesStorageImplTest {
             () -> this.taskService.getTask(1L));
     assertEquals("Object does not exist with ID: 1", exception2.getMessage());
   }
+
+  @Test
+  public void updateWorkCompleted() throws EntityNotFoundException {
+    TaskDto taskDto = new TaskDto();
+    StatusDto statusDto = new StatusDto();
+    statusDto.setProject(new ProjectDto());
+    taskDto.setStatus(statusDto);
+    when(taskService.getTask(1L)).thenReturn(taskDto);
+    processesStorage.updateWorkCompleted(1L, true);
+    verify(taskService, times(1)).updateTask(taskDto);
+    PowerMockito.verifyStatic(NotificationUtils.class, times(1));
+    NotificationUtils.broadcast(listenerService, "exo.process.request.canceled", taskDto, taskDto.getStatus().getProject());
+    doThrow(new EntityNotFoundException(1L, Object.class)).when(taskService).getTask(1L);
+    Throwable exception2 = assertThrows(EntityNotFoundException.class,
+            () -> this.taskService.getTask(1L));
+    assertEquals("Object does not exist with ID: 1", exception2.getMessage());  }
 }
