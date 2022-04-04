@@ -62,6 +62,11 @@
     margin-left: 24px ~'; /** orientation=lt */ ';
   }
 
+  .v-expansion-panel-header {
+    .v-expansion-panel-header__icon {
+      position: absolute;
+    }
+  }
   .v-expansion-panel-header > *:not(.v-expansion-panel-header__icon) {
     flex: 0 1 auto;
   }
@@ -141,6 +146,11 @@
     bottom: 0;
     margin: auto;
     position: absolute;
+  }
+
+  .panel-custom-header {
+    margin-left: 25px ~'; /** orientation=lt */ ';
+    margin-right: 25px ~'; /** orientation=rt */ ';
   }
 
   .workflow-controls {

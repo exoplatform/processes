@@ -163,17 +163,18 @@ export default {
     });
     this.$root.$on('work-filter-changed', event => {
       this.completedWorks = [];
+      this.works = [];
+      this.workDrafts = [];
       this.status = event.status;
       this.query = event.query;
       if (this.status === 'drafts') {
-        this.works = [];
         this.getWorkDrafts();
       } else if (this.status === null) {
         this.getWorkDrafts();
         this.getWorks();
+      } else if (this.status === 'completed') {
         this.getCompletedWorks();
       } else {
-        this.workDrafts = [];
         this.getWorks();
       }
     });
@@ -238,7 +239,6 @@ export default {
         if (!this.myRequestsTabVisited) {
           this.getWorkDrafts();
           this.getWorks();
-          this.getCompletedWorks();
           this.myRequestsTabVisited = 1;
         }
       } else {
@@ -317,11 +317,12 @@ export default {
       const filter = {
         completed: true
       };
-      this.$processesService
-        .getWorks(filter, 0, 0, expand)
-        .then(works => {
-          this.completedWorks = works || [];
+      this.$processesService.getWorks(filter, 0, 0, expand).then(works => {
+        works.forEach(work => {
+          work.status = 'completed';
         });
+        this.completedWorks = works || [];
+      });
     },
     getWorkDrafts() {
       const filter = {};
@@ -480,10 +481,10 @@ export default {
               this.displayMessage({type: 'success', message: this.$t('processes.work.cancel.success.message')});
             });
           } else if (completed) {
-            this.$root.$emit('work-completed', work);
+            this.$root.$emit('work-completed', patchedWork);
             this.displayMessage({type: 'success', message: this.$t('processes.work.complete.success.message')});
           } else {
-            this.$root.$emit('work-uncanceled', work);
+            this.$root.$emit('work-uncanceled', patchedWork);
             this.displayMessage({type: 'success', message: this.$t('processes.work.unComplete.success.message')});
           }
         }
