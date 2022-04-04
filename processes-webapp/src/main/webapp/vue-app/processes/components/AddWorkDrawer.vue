@@ -17,17 +17,8 @@
             </v-col>
             <v-col
               cols="8"
-              class="pa-0 text-align-start col-work-title">
+              class="pa-0 text-align-start">
               <p class="work-title white--text text-truncate pa-2">
-                <v-avatar
-                  class="me-1"
-                  color="blue"
-                  size="30px">
-                  <v-icon
-                    dark>
-                    mdi-clock
-                  </v-icon>
-                </v-avatar>
                 <span
                   :style="textDecoration"
                   class="white--text">
@@ -170,13 +161,6 @@
       </template>
       <template slot="footer" v-if="!viewMode">
         <v-btn
-          @click="updateDraft"
-          :disabled="!valid || !canUpdateDraft"
-          :loading="savingDraft"
-          class="btn">
-          {{ draftButtonLabel }}
-        </v-btn>
-        <v-btn
           :loading="saving"
           @click="addWork"
           :disabled="!validWorkDescription"
@@ -254,9 +238,6 @@ export default {
     },
     canUpdateDraft() {
       return this.valid && this.work.description && this.work.description.length > 0 && JSON.stringify(this.work) !== JSON.stringify(this.oldWork);
-    },
-    draftButtonLabel() {
-      return this.editDraft ? this.$t('processes.work.updateDraft.label') : this.$t('processes.work.saveDraft.label');
     },
     validWorkDescription() {
       return this.work && this.work.description && this.$utils.htmlToText(this.work.description).length <= this.maxLength;
