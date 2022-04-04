@@ -19,20 +19,23 @@ package org.exoplatform.processes.rest;
 import java.util.List;
 
 import javax.annotation.security.RolesAllowed;
+import javax.jcr.ItemExistsException;
 import javax.persistence.EntityNotFoundException;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import org.apache.commons.lang.StringUtils;
 import org.exoplatform.common.http.HTTPStatus;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
-import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.processes.model.*;
 import org.exoplatform.processes.rest.model.WorkEntity;
 import org.exoplatform.processes.rest.model.WorkFlowEntity;
 import org.exoplatform.processes.rest.util.EntityBuilder;
 import org.exoplatform.processes.rest.util.RestUtils;
+import org.exoplatform.processes.service.ProcessesAttachmentService;
 import org.exoplatform.processes.service.ProcessesService;
+import org.exoplatform.services.attachments.model.Attachment;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.rest.resource.ResourceContainer;
@@ -41,8 +44,6 @@ import org.exoplatform.services.security.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 
 import io.swagger.annotations.*;
-import org.exoplatform.social.core.space.model.Space;
-import org.exoplatform.social.core.space.spi.SpaceService;
 
 @Path("/v1/processes")
 @Api(value = "/v1/processes", description = "Manages processes") // NOSONAR
@@ -54,12 +55,14 @@ public class ProcessesRest implements ResourceContainer {
 
   private IdentityManager  identityManager;
 
-  private static final String PROCESSES_SPACE_GROUP_ID      = "/spaces/processes_space";
+  private ProcessesAttachmentService processesAttachmentService;
 
-
-  public ProcessesRest(ProcessesService processesService, IdentityManager identityManager) {
+  public ProcessesRest(ProcessesService processesService,
+                       IdentityManager identityManager,
+                       ProcessesAttachmentService processesAttachmentService) {
     this.processesService = processesService;
     this.identityManager = identityManager;
+    this.processesAttachmentService = processesAttachmentService;
   }
 
   @GET
@@ -632,6 +635,58 @@ public class ProcessesRest implements ResourceContainer {
     } catch (Exception e) {
       LOG.warn("Error while getting workflow", e);
       return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
+  @POST
+  @Path("/attachment/newDoc")
+  @RolesAllowed("users")
+  @Produces(MediaType.APPLICATION_JSON)
+  @ApiOperation(value = "create new form document", httpMethod = "POST", response = Response.class, notes = "This returns a new created document")
+  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
+          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
+          @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Not found"),
+          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
+          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
+  public Response createNewFormDocument(@ApiParam(value = "title", required = true, defaultValue = "20")
+                                       @FormParam("title") String title,
+                                        @ApiParam(value = "path of new document", required = true)
+                                        @FormParam("path") String path,
+                                        @ApiParam(value = "New destination path's drive", required = true)
+                                        @FormParam("pathDrive") String pathDrive,
+                                        @ApiParam(value = "template name of new document", required = true, defaultValue = "20")
+                                        @FormParam("templateName") String templateName,
+                                        @ApiParam(value = "entity type")
+                                        @FormParam("entityType") String entityType,
+                                        @ApiParam(value = "entity id")
+                                        @FormParam("entityId") Long entityId) {
+    long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    if (currentIdentityId == 0) {
+      return Response.status(Response.Status.UNAUTHORIZED).build();
+    }
+    if (StringUtils.isEmpty(title)) {
+      return Response.status(Response.Status.BAD_REQUEST).entity("New document title is mandatory").build();
+    }
+    if (StringUtils.isEmpty(templateName)) {
+      return Response.status(Response.Status.BAD_REQUEST).entity("New document template name is mandatory").build();
+    }
+    if (StringUtils.isEmpty(path)) {
+      return Response.status(Response.Status.BAD_REQUEST).entity("New document path is mandatory").build();
+    }
+    if (StringUtils.isEmpty(pathDrive)) {
+      return Response.status(Response.Status.BAD_REQUEST).entity("New destination path's drive is mandatory").build();
+    }
+    try {
+      Attachment attachment = processesAttachmentService.createNewFormDocument(currentIdentityId, title, path, pathDrive, templateName, entityType, entityId);
+      return Response.ok(org.exoplatform.services.attachments.utils.EntityBuilder.fromAttachment(identityManager, attachment))
+                     .build();
+    } catch (ItemExistsException e) {
+      return Response.status(Response.Status.CONFLICT)
+                     .entity("Document with the same name already exist in this current path")
+                     .build();
+    } catch (Exception e) {
+      LOG.error("Error when trying to a new document with type ", templateName, e);
+      return Response.serverError().entity("Error when trying to a new document with type " + templateName).build();
     }
   }
 }

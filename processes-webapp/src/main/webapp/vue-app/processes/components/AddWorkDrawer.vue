@@ -109,7 +109,7 @@
                   </p>
                   <processes-attachments
                     v-model="attachments"
-                    :workflow-parent-space-id="workflowParentSpaceId"
+                    :workflow-parent-space="workflowParentSpace"
                     :edit-mode="this.editDraft"
                     :entity-id="work.id"
                     :entity-type="entityType" />
@@ -149,7 +149,7 @@
             </p>
             <processes-attachments
               v-model="attachments"
-              :workflow-parent-space-id="workflowParentSpaceId"
+              :workflow-parent-space="workflowParentSpace"
               :edit-mode="viewMode"
               :entity-id="work.id"
               :entity-type="entityType" />
@@ -256,8 +256,8 @@ export default {
     validWorkDescription() {
       return this.work && this.work.description && this.$utils.htmlToText(this.work.description).length <= this.maxLength;
     },
-    workflowParentSpaceId() {
-      return this.work && this.work.workflow && this.work.workflow.parentSpace && this.work.workflow.parentSpace.id;
+    workflowParentSpace() {
+      return this.work && this.work.workflow && this.work.workflow.parentSpace;
     }
   },
   methods: {

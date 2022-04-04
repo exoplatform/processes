@@ -1,6 +1,8 @@
 package org.exoplatform.processes.service;
 
+import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.processes.Utils.ProcessesUtils;
+import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.services.attachments.model.Attachment;
 import org.exoplatform.services.attachments.service.AttachmentService;
 import org.exoplatform.services.cms.drives.DriveData;
@@ -36,7 +38,7 @@ import java.util.Set;
 import static org.mockito.Mockito.*;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({ Utils.class, ProcessesUtils.class, ConversationState.class})
+@PrepareForTest({ Utils.class, ProcessesUtils.class, ConversationState.class, CommonsUtils.class})
 public class ProcessesAttachmentServiceImplTest {
 
   @Mock
@@ -74,6 +76,7 @@ public class ProcessesAttachmentServiceImplTest {
     PowerMockito.mockStatic(Utils.class);
     PowerMockito.mockStatic(ProcessesUtils.class);
     PowerMockito.mockStatic(ConversationState.class);
+    PowerMockito.mockStatic(CommonsUtils.class);
     ConversationState conversationState = mock(ConversationState.class);
     when(ConversationState.getCurrent()).thenReturn(conversationState);
     Identity identity = mock(Identity.class);
@@ -220,5 +223,18 @@ public class ProcessesAttachmentServiceImplTest {
     when(attachmentService.getAttachmentById("2")).thenReturn(attachment1);
     processesAttachmentService.copyAttachmentsToEntity(1L, 1L, "workdraft", 1L, "work", 1L);
     verify(workspace, times(1)).copy("srcPath", "destPath/test");
+  }
+  
+  @Test
+  public void createNewFormDocument() throws Exception {
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setProjectId(1L);
+    ProcessesService processesService = mock(ProcessesService.class);
+    when(CommonsUtils.getService(ProcessesService.class)).thenReturn(processesService);
+    when(processesService.getWorkFlow(1L)).thenReturn(workFlow);
+    Attachment attachment = mock(Attachment.class);
+    when(attachmentService.createNewDocument(any(), any(), any(), any(), any())).thenReturn(attachment);
+    copyAttachmentsToEntity();
+    processesAttachmentService.createNewFormDocument(1L, "doc", "path", "spaces.processes_space", "template", "workflow", 1L);
   }
 }
