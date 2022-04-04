@@ -10,6 +10,8 @@ import org.exoplatform.processes.rest.util.EntityBuilder;
 import org.exoplatform.processes.rest.util.RestUtils;
 import org.exoplatform.processes.service.ProcessesAttachmentService;
 import org.exoplatform.processes.service.ProcessesService;
+import org.exoplatform.services.attachments.model.Attachment;
+import org.exoplatform.services.attachments.rest.model.AttachmentEntity;
 import org.exoplatform.services.rest.impl.RuntimeDelegateImpl;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
@@ -40,7 +42,8 @@ import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.*;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({ RestUtils.class, EntityBuilder.class, ConversationState.class, CommonsUtils.class})
+@PrepareForTest({RestUtils.class, EntityBuilder.class, ConversationState.class, CommonsUtils.class,
+        org.exoplatform.services.attachments.utils.EntityBuilder.class})
 public class ProcessesRestTest {
 
   @Mock
@@ -83,7 +86,7 @@ public class ProcessesRestTest {
     when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
     when(processesService.getWorkFlows(processesFilter, 0, 10, 1L)).thenReturn(workFlows);
     when(EntityBuilder.toRestEntities(workFlows, null)).thenReturn(workFlowEntities);
-    Response response2 = processesRest.getWorkFlows(1L, true, null, null, 0, 10);
+    Response response2 = processesRest.getWorkFlows(1L, true, "test", null, 0, 10);
     assertEquals(response2.getStatus(), Response.Status.OK.getStatusCode());
     when(processesService.getWorkFlows(processesFilter, 0, 10, 1L)).thenThrow(RuntimeException.class);
     Response response3 = processesRest.getWorkFlows(1L, null, null, null, 0, 10);
@@ -385,7 +388,7 @@ public class ProcessesRestTest {
     Response response1 = processesRest.getWorkDrafts(null,"","test", 0, 10);
     assertEquals(Response.Status.OK.getStatusCode(), response1.getStatus());
     doThrow(new RuntimeException()).when(processesService).getWorkDrafts(1L, workFilter, 0, 10);
-    Response response2 = processesRest.getWorkDrafts(null,"", "test", 0, 10);
+    Response response2 = processesRest.getWorkDrafts(1L,"", "test", 0, 10);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response2.getStatus());
   }
 
@@ -405,6 +408,9 @@ public class ProcessesRestTest {
     when(processesService.updateWorkDraft(work, 1L)).thenReturn(work);
     Response response2 = processesRest.updateWorkDraft(WorkEntity);
     assertEquals(Response.Status.OK.getStatusCode(), response2.getStatus());
+    doThrow(new ObjectNotFoundException("oldWorkDraft is not exist")).when(processesService).updateWorkDraft(work, 1L);
+    Response response4 = processesRest.updateWorkDraft(WorkEntity);
+    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response4.getStatus());
     doThrow(new RuntimeException()).when(processesService).updateWorkDraft(work, 1L);
     Response response3 = processesRest.updateWorkDraft(WorkEntity);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response3.getStatus());
@@ -476,6 +482,9 @@ public class ProcessesRestTest {
   @Test
   public void createNewFormDocument() throws Exception {
     when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
+    PowerMockito.mockStatic(org.exoplatform.services.attachments.utils.EntityBuilder.class);
+    Attachment attachment = mock(Attachment.class);
+    AttachmentEntity attachmentEntity = mock(AttachmentEntity.class);
     Response response = processesRest.createNewFormDocument(null, null, null, null, null, null);
     assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response.getStatus());
     when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
@@ -487,6 +496,9 @@ public class ProcessesRestTest {
     assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response3.getStatus());
     Response response4 = processesRest.createNewFormDocument("any", "any", "any", null, null, null);
     assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response4.getStatus());
+    when(org.exoplatform.services.attachments.utils.EntityBuilder.fromAttachment(identityManager, attachment)).thenReturn(attachmentEntity);
+    Response response7 = processesRest.createNewFormDocument("any", "any", "any", "any", "workflow", 1L);
+    assertEquals(Response.Status.OK.getStatusCode(), response7.getStatus());
     doThrow(new ItemExistsException()).when(processesAttachmentService)
                                       .createNewFormDocument(anyLong(),
                                                              anyString(),
@@ -519,6 +531,8 @@ public class ProcessesRestTest {
     when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
     Response response1 = processesRest.updateWorkCompleted(null, null);
     assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response1.getStatus());
+    Response response7 = processesRest.updateWorkCompleted(null, 1L);
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response7.getStatus());
     Response response2 = processesRest.updateWorkCompleted(completed, null);
     assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response2.getStatus());
     Response response3 = processesRest.updateWorkCompleted(completed, 1L);
@@ -532,5 +546,21 @@ public class ProcessesRestTest {
     doThrow(new RuntimeException()).when(processesService).updateWorkCompleted(1L, true);
     Response response6 = processesRest.updateWorkCompleted(completed, 1L);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response6.getStatus());
+  }
+
+  @Test
+  public void getAvailableWorkStatuses() {
+    List<WorkStatus> statuses = new ArrayList<>();
+    statuses.add(new WorkStatus());
+    when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
+    Response response = processesRest.getAvailableWorkStatuses();
+    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response.getStatus());
+    when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    when(processesService.getAvailableWorkStatuses()).thenReturn(statuses);
+    Response response1 = processesRest.getAvailableWorkStatuses();
+    assertEquals(Response.Status.OK.getStatusCode(), response1.getStatus());
+    doThrow(new RuntimeException()).when(processesService).getAvailableWorkStatuses();
+    Response response2 = processesRest.getAvailableWorkStatuses();
+    assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response2.getStatus());
   }
 }
