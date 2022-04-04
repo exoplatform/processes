@@ -2,7 +2,7 @@
   <div
     :class="textColor">
     <small
-      class="mt-n1 float-right">
+      class="mt-n1 float-e">
       {{ toPlainText(value).length }} / {{ maxLength }}
       <v-icon
         :color="iconColor"

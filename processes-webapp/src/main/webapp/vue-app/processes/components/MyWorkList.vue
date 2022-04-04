@@ -7,7 +7,7 @@
           height="150">
           <v-select
             ref="filter"
-            class="work-filter pt-5 me-9 float-right"
+            class="work-filter pt-5 me-9 float-e"
             v-model="filter"
             :items="filterItems"
             item-text="label"
@@ -28,7 +28,7 @@
     </v-container>
     <empty-or-loading
       :loading="loading"
-      v-if="works.length === 0 && workDrafts.length === 0">
+      v-if="canShowEmptyOrLoad">
       <template v-slot:empty>
         <div>
           <v-img
@@ -44,7 +44,7 @@
     </empty-or-loading>
     <v-expansion-panels
       class="mt-5"
-      v-if="works.length>0 || workDrafts.length>0"
+      v-if="canShowPanels"
       v-model="panel"
       multiple>
       <v-expansion-panel
@@ -163,12 +163,14 @@ export default {
       this.works.splice(this.works.indexOf(work), 1);
     });
     this.$root.$on('work-canceled', (work) => {
-      this.works.splice(this.works.indexOf(work), 1);
-      work.completed = true;
-      this.completedWorks.unshift(work);
+      this.handleCompleted(work);
+    });
+    this.$root.$on('work-completed', (work) => {
+      this.handleCompleted(work);
     });
     this.$root.$on('work-uncanceled', (work) => {
-      this.completedWorks.splice(this.completedWorks.indexOf(work), 1);
+      const index = this.completedWorks.map(work => work.id).indexOf(work.id);
+      this.completedWorks.splice(index, 1);
       work.completed = false;
       this.works.unshift(work);
     });
@@ -198,9 +200,21 @@ export default {
       items.push({label: this.$t('processes.myWorks.status.draft'), value: 'drafts'});
       items.push({label: this.$t('label.task.completed'), value: 'completed'});
       return items;
+    },
+    canShowEmptyOrLoad() {
+      return this.works.length === 0 && this.workDrafts.length === 0 && this.completedWorks.length === 0;
+    },
+    canShowPanels() {
+      return this.works.length>0 || this.workDrafts.length>0 || this.completedWorks.length>0;
     }
   },
   methods: {
+    handleCompleted(work) {
+      const index = this.works.map(work => work.id).indexOf(work.id);
+      this.works.splice(index, 1);
+      work.completed = true;
+      this.completedWorks.unshift(work);
+    },
     statusI18n(value){
       if (value === 'completed') {
         return this.$t('label.task.completed') || value;

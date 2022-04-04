@@ -100,6 +100,25 @@ export function addWork(work) {
   });
 }
 
+export function updateWork(work) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/works`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(work, (_key, value) => {
+      if (value !== null) { return value; }
+    }),
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error while updating a work');
+    } else {
+      return resp.json();
+    }
+  });
+}
+
 export function isProcessesManager() {
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/permissions`, {
     method: 'GET',
@@ -200,7 +219,7 @@ export function updateWorkCompleted(workId, completed) {
     if (!resp || !resp.ok) {
       throw new Error('Error while canceling a work');
     } else {
-      return resp.text();
+      return resp.json();
     }
   });
 }
