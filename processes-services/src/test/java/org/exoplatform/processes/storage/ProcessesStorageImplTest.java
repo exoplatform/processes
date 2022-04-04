@@ -3,11 +3,15 @@ package org.exoplatform.processes.storage;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.processes.Utils.EntityMapper;
+import org.exoplatform.processes.Utils.ProcessesUtils;
 import org.exoplatform.processes.dao.WorkDraftDAO;
 import org.exoplatform.processes.dao.WorkFlowDAO;
+import org.exoplatform.processes.entity.WorkEntity;
 import org.exoplatform.processes.entity.WorkFlowEntity;
 import org.exoplatform.processes.model.Work;
+import org.exoplatform.processes.model.WorkFilter;
 import org.exoplatform.processes.model.WorkFlow;
+import org.exoplatform.processes.model.WorkStatus;
 import org.exoplatform.processes.notification.utils.NotificationUtils;
 import org.exoplatform.processes.service.ProcessesAttachmentService;
 import org.exoplatform.services.attachments.model.Attachment;
@@ -42,12 +46,13 @@ import java.util.*;
 
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.*;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({EntityMapper.class, UserUtil.class, ProjectUtil.class, NotificationUtils.class})
+@PrepareForTest({EntityMapper.class, UserUtil.class, ProjectUtil.class, NotificationUtils.class, ProcessesUtils.class})
 public class ProcessesStorageImplTest {
 
   @Mock
@@ -96,12 +101,15 @@ public class ProcessesStorageImplTest {
     PowerMockito.mockStatic(UserUtil.class);
     PowerMockito.mockStatic(ProjectUtil.class);
     PowerMockito.mockStatic(NotificationUtils.class);
+    PowerMockito.mockStatic(ProcessesUtils.class);
   }
 
   @Test
   public void deleteWorkflowById() throws EntityNotFoundException {
     WorkFlowEntity workFlowEntity = mock(WorkFlowEntity.class);
     ProjectDto projectDto = mock(ProjectDto.class);
+    List<WorkEntity> drafts = new ArrayList<>();
+    drafts.add(new WorkEntity());
     when(workFlowDAO.find(1l)).thenReturn(null);
     Throwable exception = assertThrows(javax.persistence.EntityNotFoundException.class,
                                        () -> this.processesStorage.deleteWorkflowById(1l));
@@ -109,11 +117,19 @@ public class ProcessesStorageImplTest {
     verify(projectService, times(0)).getProject(0l);
     verify(workFlowDAO, times(0)).delete(workFlowEntity);
     when(workFlowDAO.find(1l)).thenReturn(workFlowEntity);
-    when(projectService.getProject(1l)).thenReturn(projectDto);
-    when(projectDto.getId()).thenReturn(0l);
-    this.processesStorage.deleteWorkflowById(1l);
-    verify(projectService, times(1)).getProject(0l);
+    when(projectService.getProject(1L)).thenReturn(projectDto);
+    when(projectDto.getId()).thenReturn(1L);
+    when(workFlowEntity.getProjectId()).thenReturn(1L);
+    when(workDraftDAO.getDraftsByWorkflowId(1L)).thenReturn(drafts);
+    this.processesStorage.deleteWorkflowById(1L);
+    verify(workDraftDAO, times(1)).deleteAll(drafts);
+    verify(projectService, times(1)).getProject(1L);
     verify(workFlowDAO, times(1)).delete(workFlowEntity);
+    when(projectService.getProject(1L)).thenThrow(new EntityNotFoundException(1L, Object.class));
+    this.processesStorage.deleteWorkflowById(1L);
+    Throwable exception2 = assertThrows(EntityNotFoundException.class,
+            () -> this.projectService.getProject(1L));
+    assertEquals("Object does not exist with ID: 1", exception2.getMessage());
   }
 
   @Test
@@ -256,6 +272,10 @@ public class ProcessesStorageImplTest {
     statusDto1.setProject(projectDto);
     updatedTask.setStatus(statusDto1);
     when(taskService.updateTask(taskDto)).thenReturn(updatedTask);
+    List<StatusDto> statuses = new ArrayList<>();
+    statuses.add(statusDto1);
+    when(statusService.getStatuses(1L)).thenReturn(statuses);
+    work.setStatus("Canceled");
     processesStorage.saveWork(work, 1L);
     PowerMockito.verifyStatic(NotificationUtils.class, times(1));
     NotificationUtils.broadcast(listenerService, "exo.process.request.canceled", updatedTask, updatedTask.getStatus().getProject());
@@ -327,10 +347,10 @@ public class ProcessesStorageImplTest {
     processesStorage.getWorkById(1L, 1L);
     verifyStatic(EntityMapper.class, times(1));
     EntityMapper.taskToWork(taskDto);
-    doThrow(new EntityNotFoundException(1L, Object.class)).when(taskService).getTask(1L);
-    Throwable exception2 = assertThrows(EntityNotFoundException.class,
-            () -> this.taskService.getTask(1L));
-    assertEquals("Object does not exist with ID: 1", exception2.getMessage());
+    when(taskService.findTasks(any(), anyInt(), anyInt())).thenThrow(new EntityNotFoundException(1L, Object.class));
+    Throwable exception2 = assertThrows(javax.persistence.EntityNotFoundException.class,
+            () -> this.processesStorage.getWorkById(1L, 1L));
+    assertEquals("work not found", exception2.getMessage());
   }
 
   @Test
@@ -342,8 +362,64 @@ public class ProcessesStorageImplTest {
     when(taskService.getTask(1L)).thenReturn(taskDto);
     processesStorage.updateWorkCompleted(1L, true);
     verify(taskService, times(1)).updateTask(taskDto);
-    doThrow(new EntityNotFoundException(1L, Object.class)).when(taskService).getTask(1L);
-    Throwable exception2 = assertThrows(EntityNotFoundException.class,
-            () -> this.taskService.getTask(1L));
-    assertEquals("Object does not exist with ID: 1", exception2.getMessage());  }
+    when(taskService.getTask(1L)).thenThrow(new EntityNotFoundException(1L, Object.class));
+    Throwable exception2 = assertThrows(javax.persistence.EntityNotFoundException.class,
+            () -> this.processesStorage.updateWorkCompleted(1L, true));
+    assertEquals("work not found", exception2.getMessage());
+  }
+
+  @Test
+  public void getWorks() throws Exception {
+    TaskQuery taskQuery = mock(TaskQuery.class);
+    WorkFilter workFilter = new WorkFilter();
+    TaskDto taskDto = new TaskDto();
+    List<TaskDto> tasks = new ArrayList<>();
+    tasks.add(taskDto);
+    Work work = new Work();
+    List<Work> works = new ArrayList<>();
+    works.add(work);
+    workFilter.setStatus("Request");
+    workFilter.setQuery("test");
+    workFilter.setCompleted(true);
+    WorkFlow workFlow1 = new WorkFlow();
+    workFlow1.setProjectId(1L);
+    WorkFlow workFlow2 = new WorkFlow();
+    workFlow2.setProjectId(2L);
+    List<WorkFlow> workFlows = new ArrayList<>();
+    workFlows.add(workFlow1);
+    workFlows.add(workFlow2);
+    when(processesStorage.findWorkFlows(any(), anyInt(), anyInt())).thenReturn(workFlows);
+    when(ProcessesUtils.getUserNameByIdentityId(identityManager, 1L)).thenReturn("user");
+    when(taskService.findTasks(taskQuery, 0, 0)).thenReturn(tasks);
+    when(EntityMapper.tasksToWorkList(tasks)).thenReturn(works);
+    processesStorage.getWorks(1L, workFilter, 0, 0);
+    verify(taskService, times(1)).findTasks(any(), anyInt(), anyInt());
+  }
+
+  @Test
+  public void getAvailableWorkStatuses() {
+    WorkFlow workFlow1 = new WorkFlow();
+    workFlow1.setProjectId(1L);
+    WorkFlow workFlow2 = new WorkFlow();
+    workFlow2.setProjectId(2L);
+    List<WorkFlow> workFlows = new ArrayList<>();
+    workFlows.add(workFlow1);
+    workFlows.add(workFlow2);
+    StatusDto statusDto = mock(StatusDto.class);
+    List<StatusDto> statuses = new ArrayList<>();
+    statuses.add(statusDto);
+    WorkStatus workStatus = new WorkStatus();
+    workStatus.setName("Request");
+    workStatus.setId(1L);
+    workStatus.setRank(20);
+    List<WorkStatus> workStatuses = new ArrayList<>();
+    workStatuses.add(workStatus);
+    when(statusService.getStatuses(1L)).thenReturn(statuses);
+    when(processesStorage.findWorkFlows(any(), anyInt(), anyInt())).thenReturn(workFlows);
+    when(EntityMapper.toWorkStatuses(statuses)).thenReturn(workStatuses);
+
+    List<WorkStatus> workStatusList = processesStorage.getAvailableWorkStatuses();
+    assertEquals(1, workStatusList.size());
+
+  }
 }

@@ -35,6 +35,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.*;
 
 @RunWith(PowerMockRunner.class)
@@ -170,6 +172,7 @@ public class ProcessesAttachmentServiceImplTest {
     Attachment attachment = new Attachment();
     attachment.setId("1");
     Session session = mock(Session.class);
+    when(Utils.getSystemSession(sessionProviderService, repositoryService)).thenReturn(session);
     Node node = mock(Node.class);
     ExtendedNode extendedNode = mock(ExtendedNode.class);
     Workspace workspace = mock(Workspace.class);
@@ -192,7 +195,6 @@ public class ProcessesAttachmentServiceImplTest {
            times(0)).linkAttachmentsToEntity(attachmentList.toArray(new Attachment[0]), 1L, 1L, "work", 1L);
     attachmentList.add(attachment);
 
-    when(Utils.getSystemSession(sessionProviderService, repositoryService)).thenReturn(session);
     DriveData driveData = new DriveData();
     driveData.setHomePath("path");
     driveData.setName("processes.drive");
@@ -223,6 +225,28 @@ public class ProcessesAttachmentServiceImplTest {
     when(attachmentService.getAttachmentById("2")).thenReturn(attachment1);
     processesAttachmentService.copyAttachmentsToEntity(1L, 1L, "workdraft", 1L, "work", 1L);
     verify(workspace, times(1)).copy("srcPath", "destPath/test");
+
+    DriveData userDriveData = new DriveData();
+    userDriveData.setName("user");
+    userDriveData.setHomePath("path/user/Private/Documents");
+    when(session.getItem("path/user/Public/Documents")).thenReturn(node);
+    when(ProcessesUtils.getProjectParentSpace(1L)).thenReturn(null);
+    when(manageDriveService.getUserDrive(managers.iterator().next())).thenReturn(userDriveData);
+    when(Utils.getParentFolderNode(session,
+            this.manageDriveService,
+            this.nodeHierarchyCreator,
+            this.nodeFinder,
+            userDriveData.getName(),
+            "work/1")).thenReturn(extendedNode);
+    when(session.getNodeByUUID("2")).thenReturn(node);
+    when(node.getName()).thenReturn("test.docxf");
+    when(session.getItem("destPath/test.docxf")).thenReturn(node);
+    Node content = mock(Node.class);
+    when(node.getNode(NodetypeConstant.JCR_CONTENT)).thenReturn(content);
+    when(node.hasProperty(NodetypeConstant.EXO_TITLE)).thenReturn(true);
+    when(node.hasProperty(NodetypeConstant.EXO_NAME)).thenReturn(true);
+    processesAttachmentService.copyAttachmentsToEntity(1L, 1L, "workdraft", 1L, "work", 1L);
+    verify(workspace, times(1)).copy("srcPath", "destPath/test.docxf");
   }
   
   @Test
