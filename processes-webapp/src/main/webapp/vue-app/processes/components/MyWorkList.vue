@@ -18,7 +18,7 @@
             dense
             outlined />
           <v-text-field
-            class="work-filter-query me-3"
+            class="work-filter-query me-4"
             @keyup="updateFilter"
             v-model="query"
             :placeholder="$t('processes.work.filter.query.placeholder')"
@@ -99,7 +99,7 @@
 export default {
   data () {
     return {
-      panel: [0, 1, 2],
+      panel: [],
       filter: {label: this.$t('processes.workflow.all.label'), value: null},
       query: null
     };
@@ -201,8 +201,8 @@ export default {
     },
     initPanels() {
       window.setTimeout(() => {
-        this.panel = [0, 1, 2];
-      }, 500);
+        this.panel =  [...Array(this.statusList().length + 1).keys()].map(i => i);
+      }, 200);
     }
   }
 };
