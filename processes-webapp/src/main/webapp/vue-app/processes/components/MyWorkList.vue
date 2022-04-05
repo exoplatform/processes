@@ -52,13 +52,10 @@
         class="elevation-0 ml-n5">
         <v-expansion-panel-header
           class="text-md-body-1 font-weight-regular grey--text text--darken-1">
-          <v-icon class="text-md-body-5" v-if="!panel.includes(0)">mdi-chevron-down</v-icon>
-          <v-icon class="text-md-body-5" v-if="panel.includes(0)">mdi-chevron-up</v-icon>
-          {{ this.$t('processes.myWorks.status.draft') }} ({{ workDrafts.length }})
+          <div class="panel-custom-header">
+            {{ this.$t('processes.myWorks.status.draft') }} ({{ workDrafts.length }})
+          </div>
           <hr class="line-panel-work">
-          <template v-slot:actions>
-            <v-icon />
-          </template>
         </v-expansion-panel-header>
         <v-expansion-panel-content
           class="elevation-0 work-panel-content">
@@ -70,18 +67,15 @@
         </v-expansion-panel-content>
       </v-expansion-panel>
       <v-expansion-panel
-        v-for="(item, index) in items"
+        v-for="item in items"
         :key="item.status"
         class="elevation-0 ml-n5">
         <v-expansion-panel-header
           class="text-md-body-1 font-weight-regular grey--text text--darken-1">
-          <v-icon class="text-md-body-5" v-if="!panel.includes(index + 1)">mdi-chevron-down</v-icon>
-          <v-icon class="text-md-body-5" v-if="panel.includes(index + 1)">mdi-chevron-up</v-icon>
-          {{ statusI18n(item.status) }} ({{ item.works.length }})
+          <div class="panel-custom-header">
+            {{ statusI18n(item.status) }} ({{ item.works.length }})
+          </div>
           <hr class="line-panel-work">
-          <template v-slot:actions>
-            <v-icon />
-          </template>
         </v-expansion-panel-header>
         <v-expansion-panel-content
           class="elevation-0 work-panel-content">
@@ -96,13 +90,10 @@
         class="elevation-0 ml-n5">
         <v-expansion-panel-header
           class="text-md-body-1 font-weight-regular grey--text text--darken-1">
-          <v-icon class="text-md-body-5" v-if="!panel.includes(items.length + 1)">mdi-chevron-down</v-icon>
-          <v-icon class="text-md-body-5" v-if="panel.includes(items.length + 1)">mdi-chevron-up</v-icon>
-          {{ this.$t('label.task.completed') }} ({{ completedWorks.length }})
+          <div class="panel-custom-header">
+            {{ this.$t('label.task.completed') }} ({{ completedWorks.length }})
+          </div>
           <hr class="line-panel-work">
-          <template v-slot:actions>
-            <v-icon />
-          </template>
         </v-expansion-panel-header>
         <v-expansion-panel-content
           class="elevation-0 work-panel-content">
@@ -172,7 +163,6 @@ export default {
       const index = this.completedWorks.map(work => work.id).indexOf(work.id);
       this.completedWorks.splice(index, 1);
       work.completed = false;
-      this.works.unshift(work);
     });
   },
   watch: {
@@ -213,7 +203,6 @@ export default {
       const index = this.works.map(work => work.id).indexOf(work.id);
       this.works.splice(index, 1);
       work.completed = true;
-      this.completedWorks.unshift(work);
     },
     statusI18n(value){
       if (value === 'completed') {
@@ -248,11 +237,6 @@ export default {
     },
     sortWorks(works) {
       const statusList = this.statusList();
-      works.forEach(work => {
-        if (work.completed) {
-          work.status = 'completed';
-        }
-      });
       return works.sort((a, b) => statusList.indexOf(a['status']) - statusList.indexOf(b['status']));
     },
     updateFilter() {
