@@ -212,8 +212,12 @@ export default {
   },
   methods: {
     openRequest() {
-      this.work.comments = this.comments;
-      this.$root.$emit('open-add-work-drawer', {object: this.work, mode: 'view_work', isDraft: this.isDraft});
+      if (this.isDraft) {
+        this.openDraft();
+      } else {
+        this.work.comments = this.comments;
+        this.$root.$emit('open-add-work-drawer', {object: this.work, mode: 'view_work', isDraft: this.isDraft});
+      }
     },
     openDraft() {
       this.$root.$emit('open-add-work-drawer', {object: this.work, mode: 'edit_work_draft'});
