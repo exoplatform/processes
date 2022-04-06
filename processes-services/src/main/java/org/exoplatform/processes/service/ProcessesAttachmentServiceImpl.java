@@ -19,12 +19,17 @@ import org.exoplatform.services.log.Log;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
 import org.exoplatform.services.wcm.core.NodetypeConstant;
+import org.exoplatform.social.core.identity.model.Profile;
+import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
+import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.service.ProjectService;
 
 import javax.jcr.*;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.IntStream;
 
@@ -40,6 +45,8 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
   private final ManageDriveService     manageDriveService;
 
   private final NodeHierarchyCreator   nodeHierarchyCreator;
+  
+  private final IdentityManager        identityManager;
 
   private final NodeFinder             nodeFinder;
 
@@ -61,13 +68,16 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
   
   private static final String          WORKFLOW_ENTITY_TYPE = "workflow";
 
+  private static DateTimeFormatter     formatter            = DateTimeFormatter.ofPattern("yyyyMMdd");
+
   public ProcessesAttachmentServiceImpl(AttachmentService attachmentService,
                                         RepositoryService repositoryService,
                                         SessionProviderService sessionProviderService,
                                         ManageDriveService manageDriveService,
                                         NodeHierarchyCreator nodeHierarchyCreator,
                                         NodeFinder nodeFinder,
-                                        ProjectService projectService) {
+                                        ProjectService projectService,
+                                        IdentityManager identityManager) {
     this.attachmentService = attachmentService;
     this.repositoryService = repositoryService;
     this.sessionProviderService = sessionProviderService;
@@ -75,6 +85,7 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
     this.nodeHierarchyCreator = nodeHierarchyCreator;
     this.nodeFinder = nodeFinder;
     this.projectService = projectService;
+    this.identityManager = identityManager;
   }
 
   @Override
@@ -188,7 +199,7 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
           workspace.copy(attachmentNode.getPath(), destPath);
           Node copyNode = (Node) session.getItem(destPath);
           if (copyNode.getName().endsWith(DOCXF_EXTENSION)) {
-            processDocumentForm(copyNode);
+            processDocumentForm(copyNode, currentUser);
           }
           Attachment copyAttachment = attachmentService.getAttachmentById(copyNode.getUUID());
           updatedAttachments.put(index, copyAttachment);
@@ -271,10 +282,18 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
     return attachmentService.getAttachmentById(attachment.getId());
   }
 
-  private void processDocumentForm(Node node) {
+  private void processDocumentForm(Node node, String currentUser) {
     try {
+      org.exoplatform.social.core.identity.model.Identity identity =
+                                                                   identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME,
+                                                                                                       currentUser);
+      String newNameSuffix = "";
+      if (identity != null) {
+        Profile profile = identity.getProfile();
+        newNameSuffix = " - ".concat(profile.getFullName() + " - ").concat(LocalDate.now().format(formatter));
+      }
       String name = node.getName();
-      String newName = name.substring(0, name.lastIndexOf(".")).concat(OFORM_EXTENSION);
+      String newName = name.substring(0, name.lastIndexOf(".")).concat(newNameSuffix).concat(OFORM_EXTENSION);
       Node content = node.getNode(NodetypeConstant.JCR_CONTENT);
       content.setProperty(NodetypeConstant.JCR_MIME_TYPE, DOC_OFORM_MIMETYPE);
       if (node.hasProperty(NodetypeConstant.EXO_TITLE)) {
