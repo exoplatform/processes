@@ -61,7 +61,7 @@
               </v-icon>
             </v-avatar>
             <span
-              class="pl-1"
+              class="work-title-text"
               :style="textDecoration">
               {{ work.workFlow.title }}
             </span>

@@ -33,8 +33,8 @@
         <div class="pa-4">
           <p
             v-if="!viewMode"
-            class="font-weight-regular grey--text darken-1 font-italic">
-            {{ $t('processes.work.add.info.message') }}
+            class="pa-1 ml-2 mr-2 font-weight-regular text-truncate-3 text-break grey--text darken-1 font-italic">
+            {{ work.workFlow.summary }}
           </p>
           <div
             class="pb-4"
