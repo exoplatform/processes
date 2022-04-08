@@ -16,6 +16,7 @@ import org.exoplatform.services.attachments.utils.Utils;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
 import org.exoplatform.services.wcm.core.NodetypeConstant;
+import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.service.ProjectService;
@@ -64,6 +65,9 @@ public class ProcessesAttachmentServiceImplTest {
   @Mock
   private ProjectService             projectService;
 
+  @Mock
+  private IdentityManager            identityManager;
+
   private ProcessesAttachmentService processesAttachmentService;
 
   @Before
@@ -74,7 +78,8 @@ public class ProcessesAttachmentServiceImplTest {
                                                                          manageDriveService,
                                                                          nodeHierarchyCreator,
                                                                          nodeFinder,
-                                                                         projectService);
+                                                                         projectService,
+                                                                         identityManager);
     PowerMockito.mockStatic(Utils.class);
     PowerMockito.mockStatic(ProcessesUtils.class);
     PowerMockito.mockStatic(ConversationState.class);

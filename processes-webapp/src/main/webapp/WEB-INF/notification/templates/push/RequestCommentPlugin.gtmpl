@@ -17,4 +17,4 @@
 *
 */
 %>
-<%=_ctx.appRes("Notification.process.request.commented", profileUrl, "<b>" + REQUEST_TITLE + "</b>", "<b>" + PROCESS_TITLE + "</b>");%>
+<%=_ctx.appRes("Notification.process.request.commented", USER, "<b>" + REQUEST_TITLE + "</b>", "<b>" + PROCESS_TITLE + "</b>");%>
