@@ -9,6 +9,7 @@ import org.apache.commons.collections.CollectionUtils;
 
 import org.exoplatform.processes.entity.WorkEntity;
 import org.exoplatform.processes.entity.WorkFlowEntity;
+import org.exoplatform.processes.model.IllustrativeAttachment;
 import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.model.WorkStatus;
@@ -28,19 +29,31 @@ public class EntityMapper {
       return null;
     }
     return new WorkFlow(workFlowEntity.getId(),
-                           workFlowEntity.getTitle(),
-                           workFlowEntity.getDescription(),
-                           workFlowEntity.getSummary(),
-                           workFlowEntity.getImage(),
-                           workFlowEntity.getHelpLink(),
-                           workFlowEntity.isEnabled(),
-                           workFlowEntity.getCreatorId(),
-                           workFlowEntity.getCreatedDate(),
-                           workFlowEntity.getModifierId(),
-                           workFlowEntity.getModifiedDate(),
-                           workFlowEntity.getProjectId(),
-                           null,
-                           null);
+                        workFlowEntity.getTitle(),
+                        workFlowEntity.getDescription(),
+                        workFlowEntity.getSummary(),
+                        workFlowEntity.getImage(),
+                        workFlowEntity.getHelpLink(),
+                        workFlowEntity.isEnabled(),
+                        workFlowEntity.getCreatorId(),
+                        workFlowEntity.getCreatedDate(),
+                        workFlowEntity.getModifierId(),
+                        workFlowEntity.getModifiedDate(),
+                        workFlowEntity.getProjectId(),
+                        null,
+                        null,
+                        new IllustrativeAttachment(workFlowEntity.getIllustrationImageId()));
+  }
+
+  public static WorkFlow fromEntity(WorkFlowEntity workFlowEntity, IllustrativeAttachment illustrativeAttachment) {
+    if (workFlowEntity == null) {
+      return null;
+    }
+    WorkFlow workFlow = fromEntity(workFlowEntity);
+    if( illustrativeAttachment != null) {
+      workFlow.setIllustrativeAttachment(illustrativeAttachment);
+    }
+    return workFlow;
   }
 
   public static Work fromEntity(WorkEntity workEntity) {
@@ -90,6 +103,9 @@ public class EntityMapper {
     workFlowEntity.setModifierId(workFlow.getModifierId());
     workFlowEntity.setModifiedDate(workFlow.getModifiedDate());
     workFlowEntity.setProjectId(workFlow.getProjectId());
+    if (workFlow.getIllustrativeAttachment() != null) {
+      workFlowEntity.setIllustrationImageId(workFlow.getIllustrativeAttachment().getId());
+    }
     return workFlowEntity;
   }
 
@@ -178,10 +194,9 @@ public class EntityMapper {
     if (CollectionUtils.isEmpty(tasks)) {
       return new ArrayList<>(Collections.emptyList());
     } else {
-      List<Work> workList = tasks.stream()
+      return tasks.stream()
               .map(EntityMapper::taskToWork)
               .collect(Collectors.toList());
-      return workList;
     }
   }
 

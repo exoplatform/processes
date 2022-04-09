@@ -1,6 +1,7 @@
 package org.exoplatform.processes.service;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.commons.file.services.FileStorageException;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.commons.utils.PropertyManager;
 import org.exoplatform.container.ExoContainerContext;
@@ -34,6 +35,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import javax.portlet.PortalContext;
 import javax.servlet.ServletContext;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -327,7 +329,6 @@ public class ProcessesServiceImplTest {
     ListAccess<User> users = mock(ListAccess.class);
     when(users.load(0, 1)).thenReturn(usersArray);
     when(users.getSize()).thenReturn(1);
-    //when(Arrays.stream(users.load(0,1))).thenAnswer(invocation -> Stream.of(user1));
 
     PowerMockito.mockStatic(ExoContainerContext.class);
     PowerMockito.mockStatic(PortalContainer.class);
@@ -353,5 +354,15 @@ public class ProcessesServiceImplTest {
     verify(spaceService, times(1)).updateSpace(any());
     PowerMockito.verifyStatic(RequestLifeCycle.class, times(2));
     RequestLifeCycle.end();
+  }
+
+  @Test
+  public void getIllustrationImageById() throws ObjectNotFoundException, IOException, FileStorageException {
+    Throwable exception1 = assertThrows(IllegalArgumentException.class,
+            () -> this.processesService.getIllustrationImageById(null));
+    assertEquals("IllustrationId id is mandatory", exception1.getMessage());
+    verify(processesStorage, times(0)).getIllustrationImageById(1L);
+    processesService.getIllustrationImageById(1L);
+    verify(processesStorage, times(1)).getIllustrationImageById(1L);
   }
 }

@@ -64,4 +64,7 @@ public class WorkFlowEntity implements Serializable {
   @Column(name = "PROJECT_ID")
   private Long   projectId;
 
+  @Column(name = "ILLUSTRATION_IMAGE_ID")
+  private Long illustrationImageId;
+
 }

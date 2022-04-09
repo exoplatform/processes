@@ -26,6 +26,8 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import javax.jcr.ItemExistsException;
 import javax.persistence.EntityNotFoundException;
+import javax.ws.rs.core.EntityTag;
+import javax.ws.rs.core.Request;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.RuntimeDelegate;
 
@@ -35,8 +37,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.*;
@@ -562,5 +563,33 @@ public class ProcessesRestTest {
     doThrow(new RuntimeException()).when(processesService).getAvailableWorkStatuses();
     Response response2 = processesRest.getAvailableWorkStatuses();
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response2.getStatus());
+  }
+  
+  @Test
+  public void getImageIllustration() throws Exception {
+    Request request = mock(Request.class);
+    IllustrativeAttachment illustrativeAttachment =
+            new IllustrativeAttachment(1L, "file.png", null, "image/png", 12654L, 1234577L);
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setId(1L);
+    workFlow.setIllustrativeAttachment(illustrativeAttachment);
+    Response response = processesRest.getImageIllustration(request, null, 0);
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+    when(processesService.getWorkFlow(1L)).thenReturn(null);
+    Response response1 = processesRest.getImageIllustration(request, 1L, 0);
+    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response1.getStatus());
+    when(processesService.getWorkFlow(1L)).thenReturn(workFlow);
+    when(processesService.getIllustrationImageById(1L)).thenReturn(illustrativeAttachment);
+    when(request.evaluatePreconditions(any(EntityTag.class))).thenReturn(null);
+    Response response2 = processesRest.getImageIllustration(request, 1L, 0);
+    assertEquals(Response.Status.OK.getStatusCode(), response2.getStatus());
+    Response response3 = processesRest.getImageIllustration(request, 1L, 133584);
+    assertEquals(Response.Status.OK.getStatusCode(), response3.getStatus());
+    doThrow(new ObjectNotFoundException("Illustration image not found")).when(processesService).getIllustrationImageById(1L);
+    Response response4 = processesRest.getImageIllustration(request, 1L, 133584);
+    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response4.getStatus());
+    doThrow(new RuntimeException()).when(processesService).getIllustrationImageById(1L);
+    Response response5 = processesRest.getImageIllustration(request, 1L, 133584);
+    assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response5.getStatus());
   }
 }

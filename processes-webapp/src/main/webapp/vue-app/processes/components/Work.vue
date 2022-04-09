@@ -49,16 +49,13 @@
             </v-tooltip>
           </div>
           <div
-            :class="titleClass"
+            :class="`${titleClass} text-truncate`"
             @click="openRequest">
             <v-avatar
-              v-if="false"
-              class="work-avatar"
-              color="blue"
+              v-if="workflowAvatarUrl"
+              class="work-avatar me-n1"
               size="30px">
-              <v-icon dark>
-                mdi-clock
-              </v-icon>
+              <v-img :src="workflowAvatarUrl" />
             </v-avatar>
             <span
               class="work-title-text"
@@ -204,7 +201,12 @@ export default {
       return this.work && this.work.status !== 'Validated' && this.work.status !== 'Refused';
     },
     titleClass() {
-      return !this.isDraft && this.$vuetify && this.$vuetify.rtl ? 'mr-5':'' || !this.isDraft && 'ml-5' || '';
+      return !this.isDraft && this.$vuetify && this.$vuetify.rtl ? 'mr-4':'' || !this.isDraft && 'ml-4' || '';
+    },
+    workflowAvatarUrl() {
+      return this.work.workFlow && this.work.workFlow.illustrativeAttachment
+                                && this.work.workFlow.illustrativeAttachment.id
+                                && `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/illustration/${this.work.workFlow.id}`;
     }
   },
   created() {

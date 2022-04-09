@@ -1,6 +1,11 @@
 package org.exoplatform.processes.storage;
 
+import org.apache.xmlbeans.impl.xb.xsdschema.Public;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.commons.file.model.FileInfo;
+import org.exoplatform.commons.file.model.FileItem;
+import org.exoplatform.commons.file.services.FileService;
+import org.exoplatform.commons.file.services.FileStorageException;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.processes.Utils.EntityMapper;
 import org.exoplatform.processes.Utils.ProcessesUtils;
@@ -8,10 +13,7 @@ import org.exoplatform.processes.dao.WorkDraftDAO;
 import org.exoplatform.processes.dao.WorkFlowDAO;
 import org.exoplatform.processes.entity.WorkEntity;
 import org.exoplatform.processes.entity.WorkFlowEntity;
-import org.exoplatform.processes.model.Work;
-import org.exoplatform.processes.model.WorkFilter;
-import org.exoplatform.processes.model.WorkFlow;
-import org.exoplatform.processes.model.WorkStatus;
+import org.exoplatform.processes.model.*;
 import org.exoplatform.processes.notification.utils.NotificationUtils;
 import org.exoplatform.processes.service.ProcessesAttachmentService;
 import org.exoplatform.services.attachments.model.Attachment;
@@ -42,6 +44,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import javax.ws.rs.ext.RuntimeDelegate;
+import java.io.IOException;
 import java.util.*;
 
 import static org.junit.Assert.*;
@@ -81,6 +84,8 @@ public class ProcessesStorageImplTest {
   @Mock
   private ProcessesAttachmentService processesAttachmentService;
 
+  @Mock
+  private FileService                fileService;
   private ProcessesStorage processesStorage;
 
   @Before
@@ -96,7 +101,8 @@ public class ProcessesStorageImplTest {
                                                      identityManager,
                                                      spaceService,
                                                      listenerService,
-                                                     processesAttachmentService);
+                                                     processesAttachmentService,
+                                                     fileService);
     PowerMockito.mockStatic(EntityMapper.class);
     PowerMockito.mockStatic(UserUtil.class);
     PowerMockito.mockStatic(ProjectUtil.class);
@@ -133,7 +139,8 @@ public class ProcessesStorageImplTest {
   }
 
   @Test
-  public void saveWorkflow() throws Exception {
+  public void saveWorkflow() {
+    IllustrativeAttachment illustrativeAttachment = new IllustrativeAttachment(null, "image.png", "image/png", 1365L, new Date().getTime());
     List<Attachment> attachments = new ArrayList<>();
     Attachment attachment = new Attachment();
     attachment.setId("1");
@@ -179,6 +186,7 @@ public class ProcessesStorageImplTest {
     newWorkFlowEntity.setProjectId(1L);
     when(workFlowDAO.create(workFlowEntity)).thenReturn(newWorkFlowEntity);
     when(workFlowDAO.update(workFlowEntity)).thenReturn(newWorkFlowEntity);
+    when(workFlow.getIllustrativeAttachment()).thenReturn(illustrativeAttachment);
     this.processesStorage.saveWorkFlow(workFlow, 1L);
     verify(workFlowDAO, times(1)).create(workFlowEntity);
     verify(processesAttachmentService, times(1)).linkAttachmentsToEntity(attachments.toArray(new Attachment[0]),
@@ -415,11 +423,33 @@ public class ProcessesStorageImplTest {
     List<WorkStatus> workStatuses = new ArrayList<>();
     workStatuses.add(workStatus);
     when(statusService.getStatuses(1L)).thenReturn(statuses);
-    when(processesStorage.findWorkFlows(any(), anyInt(), anyInt())).thenReturn(workFlows);
+    when(processesStorage.findAllWorkFlows(anyInt(), anyInt())).thenReturn(workFlows);
     when(EntityMapper.toWorkStatuses(statuses)).thenReturn(workStatuses);
 
     List<WorkStatus> workStatusList = processesStorage.getAvailableWorkStatuses();
     assertEquals(1, workStatusList.size());
+  }
 
+  @Test
+  public void getIllustrationImageById() throws Exception {
+    FileInfo fileInfo = new FileInfo(1L, "file", "image/png", "processesApp", 1253L, new Date(),null, "", false);
+    FileItem fileItem = new FileItem(fileInfo.getId(),
+                                     fileInfo.getName(),
+                                     fileInfo.getMimetype(),
+                                     fileInfo.getNameSpace(),
+                                     fileInfo.getSize(),
+                                     fileInfo.getUpdatedDate(),
+                                     fileInfo.getUpdater(),
+                                     fileInfo.isDeleted(),
+                                     null);
+    IllustrativeAttachment illustrativeAttachment = processesStorage.getIllustrationImageById(null);
+    assertNull(illustrativeAttachment);
+    when(fileService.getFile(1L)).thenReturn(null);
+    Throwable exception = assertThrows(ObjectNotFoundException.class,
+            () -> this.processesStorage.getIllustrationImageById(1L));
+    assertEquals("Illustration image not found", exception.getMessage());
+    when(fileService.getFile(1L)).thenReturn(fileItem);
+    IllustrativeAttachment illustrativeAttachment1 = processesStorage.getIllustrationImageById(1L);
+    assertNotNull(illustrativeAttachment1);
   }
 }
