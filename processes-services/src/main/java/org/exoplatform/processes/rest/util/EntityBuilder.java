@@ -60,7 +60,8 @@ public class EntityBuilder {
                         workFlowEntity.getModifiedDate(),
                         workFlowEntity.getProjectId(),
                         null,
-                        workFlowEntity.getAttachments());
+                        workFlowEntity.getAttachments(),
+                        workFlowEntity.getIllustrativeAttachment());
   }
 
   public static Work fromEntity(WorkEntity workEntity) {
@@ -102,7 +103,8 @@ public class EntityBuilder {
                               workFlow.getAttachments(),
                               statusService.getStatuses(workFlow.getProjectId()),
                               null,
-                              ProcessesUtils.getProjectParentSpace(workFlow.getProjectId()));
+                              ProcessesUtils.getProjectParentSpace(workFlow.getProjectId()),
+                              workFlow.getIllustrativeAttachment());
   }
 
   public static WorkFlowEntity toEntity(WorkFlow workFlow) {
@@ -123,6 +125,7 @@ public class EntityBuilder {
     workFlowEntity.setModifierId(workFlow.getModifierId());
     workFlowEntity.setModifiedDate(workFlow.getModifiedDate());
     workFlowEntity.setProjectId(workFlow.getProjectId());
+    workFlowEntity.setIllustrativeAttachment(workFlow.getIllustrativeAttachment());
     return workFlowEntity;
   }
 

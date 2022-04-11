@@ -16,6 +16,8 @@
  */
 package org.exoplatform.processes.rest;
 
+import java.io.InputStream;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -23,8 +25,7 @@ import javax.annotation.security.RolesAllowed;
 import javax.jcr.ItemExistsException;
 import javax.persistence.EntityNotFoundException;
 import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import javax.ws.rs.core.*;
 
 import io.swagger.jaxrs.PATCH;
 import org.apache.commons.lang.StringUtils;
@@ -58,6 +59,16 @@ public class ProcessesRest implements ResourceContainer {
   private IdentityManager  identityManager;
 
   private ProcessesAttachmentService processesAttachmentService;
+
+  private static final int           CACHE_DURATION_SECONDS      = 31536000;
+
+  private static final long          CACHE_DURATION_MILLISECONDS = CACHE_DURATION_SECONDS * 1000L;
+
+  private static final CacheControl  ILLUSTRATION_CACHE_CONTROL  = new CacheControl();
+
+  static {
+    ILLUSTRATION_CACHE_CONTROL.setMaxAge(CACHE_DURATION_SECONDS);
+  }
 
   public ProcessesRest(ProcessesService processesService,
                        IdentityManager identityManager,
@@ -731,6 +742,50 @@ public class ProcessesRest implements ResourceContainer {
     } catch (Exception e) {
       LOG.error("Error when trying to a new document with type ", templateName, e);
       return Response.serverError().entity("Error when trying to a new document with type " + templateName).build();
+    }
+  }
+
+  @GET
+  @Path( "/illustration/{workflowId}")
+  @RolesAllowed("users")
+  @ApiOperation(value = "Gets a workflow illustration image by its id", httpMethod = "GET", response = Response.class)
+  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled"),
+          @ApiResponse(code = 500, message = "Internal server error"), @ApiResponse(code = 400, message = "Invalid query input"),
+          @ApiResponse(code = 404, message = "Resource not found") })
+  public Response getImageIllustration(@Context Request request,
+                                             @ApiParam(value = "workflow id", required = true) @PathParam("workflowId") Long workflowId,
+                                             @ApiParam(value = "Optional last modified parameter") @QueryParam("v") long lastModified) {
+    
+    if (workflowId == null) {
+      return Response.status(Response.Status.BAD_REQUEST).entity("workflow id is mandatory").build();
+    }
+    try {
+      WorkFlow workFlow = processesService.getWorkFlow(workflowId);
+      if (workFlow == null) {
+        return Response.status(Response.Status.NOT_FOUND).entity("workflow not found").build();
+      }
+      Long illustrationId = workFlow.getIllustrativeAttachment().getId();
+      IllustrativeAttachment illustrativeAttachment = processesService.getIllustrationImageById(illustrationId);
+      Long lastUpdated = illustrativeAttachment.getLastUpdated();
+      EntityTag eTag = new EntityTag(String.valueOf(lastUpdated), true);
+      Response.ResponseBuilder builder = request.evaluatePreconditions(eTag);
+      if (builder == null) {
+        InputStream stream = illustrativeAttachment.getFileInputStream();
+        builder = Response.ok(stream, illustrativeAttachment.getMimeType());
+        builder.tag(eTag);
+        if (lastModified > 0) {
+          builder.lastModified(new Date(lastUpdated));
+          builder.expires(new Date(System.currentTimeMillis() + CACHE_DURATION_MILLISECONDS));
+          builder.cacheControl(ILLUSTRATION_CACHE_CONTROL);
+        }
+      }
+      return builder.build();
+    } catch (ObjectNotFoundException e) {
+      LOG.error("Illustrative image not found", e);
+      return Response.status(Response.Status.NOT_FOUND).build();
+    } catch (Exception e) {
+      LOG.error("An error occurred while getting image illustration", e);
+      return Response.serverError().build();
     }
   }
 }

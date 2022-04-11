@@ -1,11 +1,20 @@
 package org.exoplatform.processes.storage;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.nio.charset.Charset;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
 
+import org.apache.xmlbeans.impl.util.Base64;
+import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.commons.file.model.FileInfo;
+import org.exoplatform.commons.file.model.FileItem;
+import org.exoplatform.commons.file.services.FileService;
+import org.exoplatform.commons.file.services.FileStorageException;
 import org.exoplatform.processes.Utils.EntityMapper;
 import org.exoplatform.processes.Utils.ProcessesUtils;
 import org.exoplatform.processes.dao.WorkDraftDAO;
@@ -38,29 +47,31 @@ import org.exoplatform.task.util.UserUtil;
 
 public class ProcessesStorageImpl implements ProcessesStorage {
 
-  private static final Log       LOG         = ExoLogger.getLogger(ProcessesStorageImpl.class);
+  private static final Log                 LOG                      = ExoLogger.getLogger(ProcessesStorageImpl.class);
 
-  private final WorkFlowDAO      workFlowDAO;
+  private final WorkFlowDAO                workFlowDAO;
 
-  private final WorkDraftDAO     workDraftDAO;
+  private final WorkDraftDAO               workDraftDAO;
 
-  private final IdentityManager  identityManager;
+  private final IdentityManager            identityManager;
 
-  private final TaskService      taskService;
+  private final TaskService                taskService;
 
-  private final ProjectService   projectService;
+  private final ProjectService             projectService;
 
-  private final StatusService    statusService;
+  private final StatusService              statusService;
 
-  private final SpaceService    spaceService;
-  
-  private final ListenerService listenerService;
-  
+  private final SpaceService               spaceService;
+
+  private final ListenerService            listenerService;
+
   private final ProcessesAttachmentService processesAttachmentService;
 
-  private final String            DATE_FORMAT              = "yyyy/MM/dd";
+  private final FileService                fileService;
 
-  private static final String     PROCESSES_SPACE_GROUP_ID = "/spaces/processes_space";
+  private final String                     DATE_FORMAT              = "yyyy/MM/dd";
+
+  private static final String              PROCESSES_SPACE_GROUP_ID = "/spaces/processes_space";
 
   private static final String              WORK_DRAFT_ENTITY_TYPE   = "workdraft";
 
@@ -69,6 +80,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   private static final String              WORKFLOW_ENTITY_TYPE     = "workflow";
 
   private static final String[]            DEFAULT_PROCESS_STATUS   = { "Request", "RequestInProgress", "Validated", "Refused", "Canceled" };
+
+  private static final String              PROCESS_FILES_NAME_SPACE = "processesApp";
 
   private final SimpleDateFormat formatter   = new SimpleDateFormat(DATE_FORMAT);
 
@@ -80,7 +93,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
                               IdentityManager identityManager,
                               SpaceService spaceService,
                               ListenerService listenerService,
-                              ProcessesAttachmentService processesAttachmentService) {
+                              ProcessesAttachmentService processesAttachmentService,
+                              FileService fileService) {
     this.workFlowDAO = workFlowDAO;
     this.workDraftDAO = workDraftDAO;
     this.identityManager = identityManager;
@@ -90,6 +104,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     this.spaceService = spaceService;
     this.listenerService = listenerService;
     this.processesAttachmentService = processesAttachmentService;
+    this.fileService = fileService;
   }
 
   @Override
@@ -123,7 +138,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   public WorkFlow getWorkFlowById(long id) {
     return EntityMapper.fromEntity(workFlowDAO.find(id));
   }
-
+  
   @Override
   public WorkFlow getWorkFlowByProjectId(long projectId) {
     return EntityMapper.fromEntity(workFlowDAO.getWorkFlowByProjectId(projectId));
@@ -139,11 +154,17 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       throw new IllegalArgumentException("identity is not exist");
     }
     WorkFlowEntity workFlowEntity = EntityMapper.toEntity(workFlow);
+    IllustrativeAttachment illustrativeAttachment = createIllustrativeImage(workFlow.getIllustrativeAttachment());
+    if (illustrativeAttachment != null && !illustrativeAttachment.isToDelete()) {
+      workFlowEntity.setIllustrationImageId(illustrativeAttachment.getId());
+    } else if (illustrativeAttachment != null && illustrativeAttachment.isToDelete()) {
+      workFlowEntity.setIllustrationImageId(null);
+    }
     if (workFlow.getId() == 0) {
       workFlowEntity.setId(null);
       workFlowEntity.setCreatedDate(new Date());
       workFlowEntity.setCreatorId(userId);
-      if(workFlow.getProjectId() == 0){
+      if (workFlow.getProjectId() == 0) {
         long projectId = createProject(workFlow);
         workFlowEntity.setProjectId(projectId);
       }
@@ -158,7 +179,73 @@ public class ProcessesStorageImpl implements ProcessesStorage {
                                                        workFlowEntity.getId(),
                                                        WORKFLOW_ENTITY_TYPE,
                                                        workFlowEntity.getProjectId());
-    return EntityMapper.fromEntity(workFlowEntity);
+    return EntityMapper.fromEntity(workFlowEntity, illustrativeAttachment);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public IllustrativeAttachment getIllustrationImageById(Long illustrationId) throws FileStorageException,
+                                                                              ObjectNotFoundException,
+                                                                              IOException {
+    if (illustrationId == null) {
+      return null;
+    }
+    FileItem file = fileService.getFile(illustrationId);
+    if (file == null) {
+      throw new ObjectNotFoundException("Illustration image not found");
+    }
+    FileInfo fileInfo = file.getFileInfo();
+    return new IllustrativeAttachment(fileInfo.getId(),
+                                      fileInfo.getName(),
+                                      file.getAsStream(),
+                                      fileInfo.getMimetype(),
+                                      fileInfo.getSize(),
+                                      fileInfo.getUpdatedDate().getTime());
+  }
+
+  private IllustrativeAttachment createIllustrativeImage(IllustrativeAttachment illustrativeAttachment) {
+    if (illustrativeAttachment == null) {
+      return null;
+    }
+    if (illustrativeAttachment.getFileName() == null) {
+      illustrativeAttachment.setToDelete(true);
+      return illustrativeAttachment;
+    }
+    if (illustrativeAttachment.getFileBody() == null) {
+      return illustrativeAttachment;
+    }
+    FileItem fileItem;
+    try {
+      String data = illustrativeAttachment.getFileBody().split("base64,")[1];
+      byte[] bytes = Base64.decode(data.getBytes(Charset.defaultCharset().name()));
+      fileItem = new FileItem(illustrativeAttachment.getId(),
+                              illustrativeAttachment.getFileName(),
+                              illustrativeAttachment.getMimeType(),
+                              PROCESS_FILES_NAME_SPACE,
+                              illustrativeAttachment.getFileSize(),
+                              new Date(),
+                              null,
+                              false,
+                              new ByteArrayInputStream(bytes));
+      if (illustrativeAttachment.getId() == null) {
+        fileItem = fileService.writeFile(fileItem);
+      } else {
+        fileItem = fileService.updateFile(fileItem);
+      }
+      if (fileItem != null && fileItem.getFileInfo() != null) {
+        FileInfo fileInfo = fileItem.getFileInfo();
+        return new IllustrativeAttachment(fileInfo.getId(),
+                                          fileInfo.getName(),
+                                          fileInfo.getMimetype(),
+                                          fileInfo.getSize(),
+                                          fileInfo.getUpdatedDate().getTime());
+      }
+    } catch (Exception e) {
+      LOG.error("Error while saving illustrative attachment", e);
+    }
+    return null;
   }
 
   @Override
@@ -445,15 +532,27 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     List<WorkStatus> statuses = new ArrayList<>();
     List<WorkFlow> workFlows = findAllWorkFlows(0, 0);
     List<Long> projectsIds = workFlows.stream().map(WorkFlow::getProjectId).collect(Collectors.toList());
-    projectsIds.stream().forEach(projectId -> {
-      statuses.addAll(EntityMapper.toWorkStatuses(statusService.getStatuses(projectId)));
-    });
+    projectsIds.forEach(projectId -> statuses.addAll(EntityMapper.toWorkStatuses(statusService.getStatuses(projectId))));
     statuses.sort(Comparator.comparing(WorkStatus::getRank));
     return statuses;
   }
 
   @Override
   public List<WorkFlow> findWorkFlows(ProcessesFilter processesFilter, int offset, int limit) {
-    return EntityMapper.fromWorkflowEntities(workFlowDAO.findWorkFlows(processesFilter, offset, limit));
+    List<WorkFlowEntity> workFlowEntities = workFlowDAO.findWorkFlows(processesFilter, offset, limit);
+    List<WorkFlow> workFlows = new ArrayList<>();
+    workFlowEntities.forEach(workflowEntity -> {
+      IllustrativeAttachment illustrativeAttachment = null;
+      try {
+        illustrativeAttachment = getIllustrationImageById(workflowEntity.getIllustrationImageId());
+        if (illustrativeAttachment != null) {
+          illustrativeAttachment.setFileInputStream(null);
+        }
+      } catch (Exception e) {
+        LOG.error("Error while getting workflow illustration image", e);
+      }
+      workFlows.add(EntityMapper.fromEntity(workflowEntity, illustrativeAttachment));
+    });
+    return workFlows;
   }
 }

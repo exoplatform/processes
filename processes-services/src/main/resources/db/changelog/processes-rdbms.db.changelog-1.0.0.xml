@@ -62,9 +62,10 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.-->
     </changeSet>
 
     <changeSet author="processes" id="1.0.0-2">
+        <validCheckSum>ANY</validCheckSum>
         <createTable tableName="PROCESSES_WORK">
             <column name="WORK_ID" type="BIGINT" autoIncrement="${autoIncrement}" startWith="1">
-                <constraints nullable="false" primaryKey="true" primaryKeyName="PK_WORK_FLOW"/>
+                <constraints nullable="false" primaryKey="true" primaryKeyName="PK_WORK"/>
             </column>
             <column name="TITLE" type="NVARCHAR(250)" />
             <column name="DESCRIPTION" type="NVARCHAR(2000)">
@@ -89,5 +90,11 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.-->
 
     <changeSet author="processes" id="1.0.0-3" dbms="hsqldb,oracle,postgresql">
         <createSequence sequenceName="SEQ_WORK_DRAFT_ID" startValue="1"/>
+    </changeSet>
+
+    <changeSet author="processes" id="1.0.0-4">
+        <addColumn tableName="PROCESSES_WORK_FLOW">
+            <column name="ILLUSTRATION_IMAGE_ID" type="BIGINT" defaultValueNumeric="0" />
+        </addColumn>
     </changeSet>
 </databaseChangeLog>
