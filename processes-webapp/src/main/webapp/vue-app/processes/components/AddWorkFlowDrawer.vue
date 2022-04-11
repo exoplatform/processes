@@ -77,6 +77,33 @@
               <custom-counter
                 :max-length="summaryMaxLength"
                 :value="workflow.summary" />
+              <v-label for="illustrative">
+                {{ $t('processes.works.form.label.illustration') }}
+              </v-label>
+              <small>
+                <em class="grey--text pa-1">
+                  {{ $t('processes.workflow.illustrative.imageSize.info.message') }}
+                </em>
+              </small>
+              <v-file-input
+                class="mb-5 mt-n2 illustrative_input"
+                name="illustrative"
+                outlined
+                dense
+                v-model="illustrativeInput"
+                :rules="fileRules"
+                accept="image/png, image/jpeg, image/bmp"
+                :placeholder="$t('processes.workflow.illustrative.input.placeholder')"
+                append-icon="mdi-file-image">
+                <template v-slot:selection="{ text }">
+                  <v-chip
+                    small
+                    label
+                    color="primary">
+                    {{ text }}
+                  </v-chip>
+                </template>
+              </v-file-input>
               <v-label
                 class="mt-1"
                 for="status">
@@ -171,9 +198,12 @@ export default {
         summary: '',
         enabled: true,
         helpUrl: '',
+        illustrativeAttachment: null,
         projectId: null,
         permissions: null,
       },
+      illustrativeImage: {},
+      illustrativeInput: {},
       confirmCloseLabels: {
         title: this.$t('processes.workflow.action.confirmation.label'),
         message: this.$t('processes.workflow.cancelCreation.confirm.message'),
@@ -191,6 +221,9 @@ export default {
         maxLength: len => v => (v || '').length <= len || this.$t('processes.work.form.description.maxLength.message', {0: len}),
         required: v => !!v || this.$t('processes.work.form.required.error.message'),
       },
+      fileRules: [
+        value => !value || value.size < 100000 || this.$t('processes.workflow.illustrative.imageSize.error.message'),
+      ],
     };
   },
   created(){
@@ -219,9 +252,45 @@ export default {
   watch: {
     workflowEnabled(value) {
       this.workflow.enabled = value;
+    },
+    illustrativeInput(value) {
+      this.handleUpload(value);
     }
   },
   methods: {
+    handleUpload(image) {
+      if (!image) {
+        this.illustrativeImage = null;
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = e => {
+        this.illustrativeImage = {
+          id: this.workflow.illustrativeAttachment
+           && this.workflow.illustrativeAttachment.id
+           || null,
+          fileName: image.name,
+          fileBody: e.target.result
+                 && e.target.result !== 'data:'
+                 && e.target.result || null,
+          mimeType: image.type,
+          fileSize: image.size,
+          lastUpdated: this.workflow.illustrativeAttachment
+                    && this.workflow.illustrativeAttachment.lastUpdated
+                    || null,
+        };
+      };
+      reader.readAsDataURL(image);
+    },
+    toIllustrativeInput(object) {
+      if (!object.fileName) {
+        this.illustrativeInput = null;
+        return;
+      }
+      this.illustrativeInput = new File([], object.fileName, {
+        type: object.mimeType,
+      });
+    },
     open(workflow, mode) {
       if (workflow) {
         this.workflow = Object.assign({}, workflow);
@@ -229,6 +298,7 @@ export default {
         this.editMode = mode === 'edit_workflow';
         if (this.editMode) {
           this.oldWorkflow = Object.assign({}, this.workflow);
+          this.toIllustrativeInput(workflow.illustrativeAttachment);
         }
       } else {
         this.resetInputs();
@@ -253,14 +323,17 @@ export default {
     resetInputs() {
       this.workflow = {};
       this.workflow.enabled = true;
+      this.illustrativeInput = null;
     },
     addNewWorkFlow() {
       this.saving = true;
       this.workflow.attachments = this.attachments;
+      this.workflow.illustrativeAttachment = this.illustrativeImage;
       this.$root.$emit('add-workflow',this.workflow);
     },
     updateWorkFlow() {
       this.saving = true;
+      this.workflow.illustrativeAttachment = this.illustrativeImage;
       this.$root.$emit('update-workflow',this.workflow);
     }
   },

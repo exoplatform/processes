@@ -32,7 +32,7 @@
             <description>Initial the default groups.</description>
             <init-params>
                 <object-param>
-                    <name>news</name>
+                    <name>group.process</name>
                     <description>The information of Notification group : componentUpdateState</description>
                     <object type="org.exoplatform.commons.api.notification.plugin.config.GroupConfig">
                         <field name="id">

@@ -55,7 +55,8 @@ public class WorkFlow {
 
   private ProcessPermission acl;
 
-  private Attachment[]     attachments;
+  private Attachment[]      attachments;
 
+  private IllustrativeAttachment    illustrativeAttachment;
 
 }
