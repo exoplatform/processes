@@ -24,7 +24,6 @@ import java.util.List;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.file.services.FileStorageException;
 import org.exoplatform.commons.utils.ListAccess;
-import org.exoplatform.commons.utils.PropertyManager;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.container.RootContainer;
@@ -42,7 +41,6 @@ import org.exoplatform.services.security.MembershipEntry;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
-import org.exoplatform.social.core.space.spi.SpaceTemplateService;
 import org.picocontainer.Startable;
 
 import javax.servlet.ServletContext;
@@ -58,8 +56,6 @@ public class ProcessesServiceImpl implements ProcessesService, Startable {
   private ProcessesStorage processesStorage;
 
   private SpaceService     spaceService;
-
-  private SpaceTemplateService     spaceTemplateService;
 
   private OrganizationService     organizationService;
 
@@ -86,7 +82,6 @@ public class ProcessesServiceImpl implements ProcessesService, Startable {
     this.identityManager = identityManager;
     this.processesStorage = processesStorage;
     this.spaceService = spaceService;
-    this.spaceTemplateService = spaceTemplateService;
     this.organizationService = organizationService;
     if (initParams != null) {
       if (initParams.getValueParam(PROCESSES_SPACE_NAME_PARAM) != null) {
