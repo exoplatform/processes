@@ -24,9 +24,11 @@ import java.util.List;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.file.services.FileStorageException;
 import org.exoplatform.commons.utils.ListAccess;
-import org.exoplatform.commons.utils.PropertyManager;
+import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
+import org.exoplatform.container.RootContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
+import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.processes.model.*;
 import org.exoplatform.processes.storage.ProcessesStorage;
@@ -41,31 +43,66 @@ import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.picocontainer.Startable;
 
+import javax.servlet.ServletContext;
+
 public class ProcessesServiceImpl implements ProcessesService, Startable {
 
   private static final Log LOG = ExoLogger.getLogger(ProcessesServiceImpl.class);
 
   private IdentityManager  identityManager;
 
+  private final InitParams     initParams;
+
   private ProcessesStorage processesStorage;
 
-  private static final String PROCESSES_SPACE_NAME          = "Processes Space";
+  private SpaceService     spaceService;
 
-  private static final String PROCESSES_SPACE_TEMPLATE      = "community";
+  private OrganizationService     organizationService;
 
-  private static final String PROCESSES_SPACE_GROUP_ID      = "/spaces/processes_space";
+  private static final String PROCESSES_SPACE_NAME_PARAM          = "processesSpaceName";
+  private static  String PROCESSES_SPACE_NAME          = "Processes Space";
 
-  private static final String PROCESSES_SPACE_PRETTY_NAME   = "processes_space";
+  private static final String PROCESSES_SPACE_TEMPLATE_PARAM      = "processesSpaceTemplate";
+  private static  String PROCESSES_SPACE_TEMPLATE      = "community";
 
-  private static final String PROCESSES_SPACE_NAME_PROPERTY = "processes.app.default.spaceName";
+  private static final String PROCESSES_SPACE_GROUP_ID_PARAM      = "processesSpaceGroup";
+  private static  String PROCESSES_SPACE_GROUP_ID      = "/spaces/processes_space";
 
-  private static final String PROCESSES_GROUP               = "/platform/processes";
+  private static final String PROCESSES_SPACE_PRETTY_NAME_PARAM   = "processesSpacePrettyName";
+  private static  String PROCESSES_SPACE_PRETTY_NAME   = "processes_space";
 
-  private static final String PROCESSES_SPACE_DESCRIPTION   = "Space where all processes will be gathered in order to manage requests";
+  private static final String PROCESSES_GROUP_PARAM               = "processesGroup";
+  private static  String PROCESSES_GROUP               = "/platform/processes";
 
-  public ProcessesServiceImpl(ProcessesStorage processesStorage, IdentityManager identityManager) {
+  private static final String PROCESSES_SPACE_DESCRIPTION_PARAM   = "processesSpaceDescription";
+  private static String PROCESSES_SPACE_DESCRIPTION   = "Space where all processes will be gathered in order to manage requests";
+
+  public ProcessesServiceImpl(InitParams initParams, ProcessesStorage processesStorage, IdentityManager identityManager, SpaceService spaceService, OrganizationService organizationService) {
+    this.initParams = initParams;
     this.identityManager = identityManager;
     this.processesStorage = processesStorage;
+    this.spaceService = spaceService;
+    this.organizationService = organizationService;
+    if (initParams != null) {
+      if (initParams.getValueParam(PROCESSES_SPACE_NAME_PARAM) != null) {
+        this.PROCESSES_SPACE_NAME = initParams.getValueParam(PROCESSES_SPACE_NAME_PARAM).getValue();
+      }
+      if (initParams.getValueParam(PROCESSES_SPACE_TEMPLATE_PARAM) != null) {
+        this.PROCESSES_SPACE_TEMPLATE = initParams.getValueParam(PROCESSES_SPACE_TEMPLATE_PARAM).getValue();
+      }
+      if (initParams.getValueParam(PROCESSES_SPACE_GROUP_ID_PARAM) != null) {
+        this.PROCESSES_SPACE_GROUP_ID = initParams.getValueParam(PROCESSES_SPACE_GROUP_ID_PARAM).getValue();
+      }
+      if (initParams.getValueParam(PROCESSES_SPACE_PRETTY_NAME_PARAM) != null) {
+        this.PROCESSES_SPACE_PRETTY_NAME = initParams.getValueParam(PROCESSES_SPACE_PRETTY_NAME_PARAM).getValue();
+      }
+      if (initParams.getValueParam(PROCESSES_GROUP_PARAM) != null) {
+        this.PROCESSES_GROUP = initParams.getValueParam(PROCESSES_GROUP_PARAM).getValue();
+      }
+      if (initParams.getValueParam(PROCESSES_SPACE_DESCRIPTION_PARAM) != null) {
+        this.PROCESSES_SPACE_DESCRIPTION = initParams.getValueParam(PROCESSES_SPACE_DESCRIPTION_PARAM).getValue();
+      }
+    }
   }
 
   @Override
@@ -301,51 +338,56 @@ public class ProcessesServiceImpl implements ProcessesService, Startable {
   @Override
   public void start() {
     LOG.info("Processes Service start and default space initialize...");
-    PortalContainer container = PortalContainer.getInstance();
-    RequestLifeCycle.begin(container);
-    try {
-      String spaceName = PropertyManager.getProperty(PROCESSES_SPACE_NAME_PROPERTY);
-      SpaceService spaceService = container.getComponentInstanceOfType(SpaceService.class);
-      UserACL userACL = container.getComponentInstanceOfType(UserACL.class);
-      List<MembershipEntry> membershipEntries = new ArrayList<>();
-      membershipEntries.add(new MembershipEntry(userACL.getAdminGroups(), "*"));
-      Identity superUserIdentity = new Identity(userACL.getSuperUser(), membershipEntries);
-      OrganizationService organizationService = container.getComponentInstanceOfType(OrganizationService.class);
-
-      Space existSpace = spaceService.getSpaceByGroupId(PROCESSES_SPACE_GROUP_ID);
-      ListAccess<User> list = organizationService.getUserHandler().findUsersByGroupId(PROCESSES_GROUP);
-      List<String> managers = new ArrayList<>();
-      if (existSpace == null) {
-        Space space = new Space();
-        space.setDisplayName(PROCESSES_SPACE_NAME);
-        if (spaceName != null) {
-          space.setDisplayName(spaceName);
+    PortalContainer portalContainer = PortalContainer.getInstance();
+    PortalContainer.addInitTask(portalContainer.getPortalContext(), new RootContainer.PortalContainerPostCreateTask() {
+      public void execute(ServletContext context, PortalContainer portalContainer) {
+        ExoContainerContext.setCurrentContainer(portalContainer);
+        RequestLifeCycle.begin(portalContainer);
+        try {
+          UserACL userACL = portalContainer.getComponentInstanceOfType(UserACL.class);
+          createProcessSpace(userACL);
+        } catch (Exception e) {
+          LOG.error("Error while creating Processes app default space", e);
+        } finally {
+          RequestLifeCycle.end();
+          LOG.info("Processes space creation ended!");
         }
-        space.setVisibility(Space.HIDDEN);
-        space.setRegistration(Space.CLOSED);
-        space.setPriority(Space.INTERMEDIATE_PRIORITY);
-        space.setTemplate(PROCESSES_SPACE_TEMPLATE);
-        space.setDescription(PROCESSES_SPACE_DESCRIPTION);
-        space.setPrettyName(PROCESSES_SPACE_PRETTY_NAME);
-        Arrays.stream(list.load(0, list.getSize())).map(User::getUserName).forEach(userName -> {
-          managers.add(userName);
-        });
-        space.setManagers(managers.toArray(new String[managers.size()]));
-        spaceService.createSpace(space, superUserIdentity.getUserId());
-        LOG.info("Processes app default space has been successfully initialized");
-      } else {
-        LOG.info("Processes Space already exist, skip its creation...");
-        Arrays.stream(list.load(0, list.getSize())).map(User::getUserName).forEach(userName -> {
-          managers.add(userName);
-        });
-        existSpace.setManagers(managers.toArray(new String[managers.size()]));
-        spaceService.updateSpace(existSpace);
       }
-    } catch (Exception e) {
-      LOG.error("Error while creating Processes app default space", e);
-    } finally {
-      RequestLifeCycle.end();
-      LOG.info("Processes Service started!");
+    });
+  }
+
+  public void createProcessSpace(UserACL userACL) throws Exception {
+    List<MembershipEntry> membershipEntries = new ArrayList<>();
+    membershipEntries.add(new MembershipEntry(userACL.getAdminGroups(), "*"));
+    Identity superUserIdentity = new Identity(userACL.getSuperUser(), membershipEntries);
+    Space existSpace = spaceService.getSpaceByGroupId(PROCESSES_SPACE_GROUP_ID);
+    ListAccess<User> list = organizationService.getUserHandler().findUsersByGroupId(PROCESSES_GROUP);
+    List<String> managers = new ArrayList<>();
+    if (existSpace == null) {
+      Space space = new Space();
+      space.setDisplayName(PROCESSES_SPACE_NAME);
+      if (PROCESSES_SPACE_NAME != null) {
+        space.setDisplayName(PROCESSES_SPACE_NAME);
+      }
+      space.setVisibility(Space.HIDDEN);
+      space.setRegistration(Space.CLOSED);
+      space.setPriority(Space.INTERMEDIATE_PRIORITY);
+      space.setTemplate(PROCESSES_SPACE_TEMPLATE);
+      space.setDescription(PROCESSES_SPACE_DESCRIPTION);
+      space.setPrettyName(PROCESSES_SPACE_PRETTY_NAME);
+      Arrays.stream(list.load(0, list.getSize())).map(User::getUserName).forEach(userName -> {
+        managers.add(userName);
+      });
+      space.setManagers(managers.toArray(new String[managers.size()]));
+      spaceService.createSpace(space, superUserIdentity.getUserId());
+      LOG.info("Processes app default space has been successfully initialized");
+    } else {
+      LOG.info("Processes Space already exist, skip its creation...");
+      Arrays.stream(list.load(0, list.getSize())).map(User::getUserName).forEach(userName -> {
+        managers.add(userName);
+      });
+      existSpace.setManagers(managers.toArray(new String[managers.size()]));
+      spaceService.updateSpace(existSpace);
     }
   }
 
