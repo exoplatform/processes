@@ -27,9 +27,9 @@
       </v-row>
     </v-container>
     <empty-or-loading
-      :loading="loading"
+      :loading="isLoading"
       v-if="canShowEmptyOrLoad">
-      <template v-slot:empty>
+      <template #empty>
         <div>
           <v-img
             width="280px"
@@ -48,19 +48,19 @@
       v-model="panel"
       multiple>
       <v-expansion-panel
-        v-if="workDrafts.length>0"
+        v-if="draftList.length>0"
         class="elevation-0 ml-n5">
         <v-expansion-panel-header
           class="text-md-body-1 font-weight-regular grey--text text--darken-1">
           <div class="panel-custom-header">
-            {{ this.$t('processes.myWorks.status.draft') }} ({{ workDrafts.length }})
+            {{ this.$t('processes.myWorks.status.draft') }} ({{ draftList.length }})
           </div>
           <hr class="line-panel-work">
         </v-expansion-panel-header>
         <v-expansion-panel-content
           class="elevation-0 work-panel-content">
           <work
-            v-for="draft in workDrafts"
+            v-for="draft in draftList"
             :is-draft="true"
             :key="draft.id"
             :work="draft" />
@@ -86,19 +86,19 @@
         </v-expansion-panel-content>
       </v-expansion-panel>
       <v-expansion-panel
-        v-if="completedWorks.length>0"
+        v-if="completedWorkList.length>0"
         class="elevation-0 ml-n5">
         <v-expansion-panel-header
           class="text-md-body-1 font-weight-regular grey--text text--darken-1">
           <div class="panel-custom-header">
-            {{ this.$t('label.task.completed') }} ({{ completedWorks.length }})
+            {{ this.$t('label.task.completed') }} ({{ completedWorkList.length }})
           </div>
           <hr class="line-panel-work">
         </v-expansion-panel-header>
         <v-expansion-panel-content
           class="elevation-0 work-panel-content">
           <work
-            v-for="work in completedWorks"
+            v-for="work in completedWorkList"
             :is-draft="false"
             :key="work.id"
             :work="work" />
@@ -114,7 +114,7 @@ export default {
     return {
       panel: [],
       filter: {label: this.$t('processes.workflow.all.label'), value: null},
-      query: null
+      query: null,
     };
   },
   props: {
@@ -144,14 +144,14 @@ export default {
   created() {
     this.$root.$on('work-draft-updated', (draft) => {
       const object = JSON.parse(draft);
-      const index = this.workDrafts.map(object => object.id).indexOf(object.id);
-      this.workDrafts.splice(index, 1, object);
+      const index = this.draftList.map(object => object.id).indexOf(object.id);
+      this.draftList.splice(index, 1, object);
     });
     this.$root.$on('work-draft-removed', (draft) => {
-      this.workDrafts.splice(this.workDrafts.indexOf(draft), 1);
+      this.draftList.splice(this.draftList.indexOf(draft), 1);
     });
     this.$root.$on('work-removed', (work) => {
-      this.works.splice(this.works.indexOf(work), 1);
+      this.workList.splice(this.workList.indexOf(work), 1);
     });
     this.$root.$on('work-canceled', (work) => {
       this.handleCompleted(work);
@@ -160,8 +160,8 @@ export default {
       this.handleCompleted(work);
     });
     this.$root.$on('work-uncanceled', (work) => {
-      const index = this.completedWorks.map(work => work.id).indexOf(work.id);
-      this.completedWorks.splice(index, 1);
+      const index = this.completedWorkList.map(work => work.id).indexOf(work.id);
+      this.completedWorkList.splice(index, 1);
       work.completed = false;
     });
   },
@@ -174,8 +174,20 @@ export default {
     }
   },
   computed: {
+    draftList() {
+      return this.workDrafts || [];
+    },
+    workList() {
+      return this.works || [];
+    },
+    completedWorkList() {
+      return this.completedWorks || [];
+    },
+    isLoading() {
+      return this.loading || false;
+    },
     items() {
-      return this.groupByKey(this.works, 'status');
+      return this.groupByKey(this.workList, 'status');
     },
     filterItems() {
       const items = [];
@@ -192,16 +204,16 @@ export default {
       return items;
     },
     canShowEmptyOrLoad() {
-      return this.works.length === 0 && this.workDrafts.length === 0 && this.completedWorks.length === 0;
+      return this.workList.length === 0 && this.draftList.length === 0 && this.completedWorkList.length === 0;
     },
     canShowPanels() {
-      return this.works.length>0 || this.workDrafts.length>0 || this.completedWorks.length>0;
+      return this.workList.length>0 || this.draftList.length>0 || this.completedWorkList.length>0;
     }
   },
   methods: {
     handleCompleted(work) {
-      const index = this.works.map(work => work.id).indexOf(work.id);
-      this.works.splice(index, 1);
+      const index = this.workList.map(work => work.id).indexOf(work.id);
+      this.workList.splice(index, 1);
       work.completed = true;
     },
     statusI18n(value){
@@ -224,7 +236,7 @@ export default {
     },
     statusList() {
       const statusList = new Set();
-      this.works.map(work => work.workFlow).map(workflow => workflow.statuses)
+      this.workList.map(work => work.workFlow).map(workflow => workflow.statuses)
         .filter(statuses => statuses && statuses.length > 0).forEach(statuses => {
           statuses.forEach(status => {
             if (status) {
@@ -240,7 +252,7 @@ export default {
       return works.sort((a, b) => statusList.indexOf(a['status']) - statusList.indexOf(b['status']));
     },
     updateFilter() {
-      this.loading = true;
+      this.isLoading = true;
       this.$root.$emit('work-filter-changed', {status: this.filter.value, query: this.query});
     },
     initPanels() {
