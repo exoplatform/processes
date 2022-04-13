@@ -2,46 +2,32 @@ package org.exoplatform.processes.service;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.ListAccess;
+import org.exoplatform.commons.file.services.FileStorageException;
 import org.exoplatform.commons.utils.PropertyManager;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
-import org.exoplatform.container.RootContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
-import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.processes.model.ProcessesFilter;
 import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFilter;
 import org.exoplatform.processes.model.WorkFlow;
-import org.exoplatform.processes.notification.utils.NotificationUtils;
 import org.exoplatform.processes.storage.ProcessesStorage;
-import org.exoplatform.services.jcr.impl.core.query.lucene.WeightedHTMLExcerpt;
 import org.exoplatform.services.organization.OrganizationService;
-import org.exoplatform.services.organization.User;
-import org.exoplatform.services.organization.UserHandler;
 import org.exoplatform.social.core.manager.IdentityManager;
-import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.mockito.Spy;
-import org.picocontainer.Startable;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import javax.portlet.PortalContext;
-import javax.servlet.ServletContext;
+import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Stream;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
-import static org.powermock.api.mockito.PowerMockito.verifyStatic;
 import static org.powermock.api.mockito.PowerMockito.when;
 
 @RunWith(PowerMockRunner.class)
@@ -51,8 +37,14 @@ public class ProcessesServiceImplTest {
   @Mock
   private IdentityManager  identityManager;
 
+ @Mock
+  private SpaceService  spaceService;
+
   @Mock
   private ProcessesStorage processesStorage;
+
+  @Mock
+  private OrganizationService organizationService;
 
   private ProcessesService processesService;
 
@@ -66,7 +58,7 @@ public class ProcessesServiceImplTest {
 
   @Before
   public void setUp() throws Exception {
-    this.processesService = new ProcessesServiceImpl(processesStorage, identityManager);
+    this.processesService = new ProcessesServiceImpl(null,processesStorage, identityManager, spaceService,organizationService);
     disabledWorkFlow = new WorkFlow();
     disabledWorkFlow.setEnabled(false);
     enabledWorkFlow = new WorkFlow();
@@ -309,49 +301,5 @@ public class ProcessesServiceImplTest {
     verify(processesStorage, times(0)).updateWorkCompleted(1L, false);
     processesService.updateWorkCompleted(1L, true);
     verify(processesStorage, times(1)).updateWorkCompleted(1L, true);
-  }
-
-  @Test
-  public void start() throws Exception {
-    Startable processesServiceStart = new ProcessesServiceImpl(processesStorage, identityManager);
-    UserACL userACL = mock(UserACL.class);
-    SpaceService spaceService = mock(SpaceService.class);
-    OrganizationService organizationService = mock(OrganizationService.class);
-    UserHandler userHandler = mock(UserHandler.class);
-    Space space = new Space();
-    User user1 = mock(User.class);
-    when(user1.getUserName()).thenReturn("user1");
-    User[] usersArray = new User[1];
-    usersArray[0] = user1;
-    space.setGroupId("/spaces/processes_space");
-    ListAccess<User> users = mock(ListAccess.class);
-    when(users.load(0, 1)).thenReturn(usersArray);
-    when(users.getSize()).thenReturn(1);
-    //when(Arrays.stream(users.load(0,1))).thenAnswer(invocation -> Stream.of(user1));
-
-    PowerMockito.mockStatic(ExoContainerContext.class);
-    PowerMockito.mockStatic(PortalContainer.class);
-    PowerMockito.mockStatic(PropertyManager.class);
-    PowerMockito.mockStatic(RequestLifeCycle.class);
-
-    PortalContainer container = mock(PortalContainer.class);
-
-    PowerMockito.when(PortalContainer.getInstance()).thenReturn(container);
-    when(container.getComponentInstanceOfType(UserACL.class)).thenReturn(userACL);
-    when(container.getComponentInstanceOfType(SpaceService.class)).thenReturn(spaceService);
-    when(container.getComponentInstanceOfType(OrganizationService.class)).thenReturn(organizationService);
-
-    when(userACL.getAdminGroups()).thenReturn("admins");
-    when(userACL.getSuperUser()).thenReturn("root");
-    when(spaceService.getSpaceByGroupId(anyString())).thenReturn(null);
-    when(organizationService.getUserHandler()).thenReturn(userHandler);
-    when(userHandler.findUsersByGroupId("/platform/processes")).thenReturn(users);
-    processesServiceStart.start();
-    verify(spaceService, times(1)).createSpace(any(), any());
-    when(spaceService.getSpaceByGroupId(anyString())).thenReturn(space);
-    processesServiceStart.start();
-    verify(spaceService, times(1)).updateSpace(any());
-    PowerMockito.verifyStatic(RequestLifeCycle.class, times(2));
-    RequestLifeCycle.end();
   }
 }
