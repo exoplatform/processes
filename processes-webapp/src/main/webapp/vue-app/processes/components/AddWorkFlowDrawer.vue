@@ -7,7 +7,7 @@
       ref="workFlow"
       id="addWorkFlowDrawer"
       right>
-      <template v-slot:title>
+      <template #title>
         <span v-if="!editMode">
           {{ $t('processes.works.label.creatProcessType') }}
         </span>
@@ -15,7 +15,7 @@
           {{ $t('processes.works.label.editProcessType') }}
         </span>
       </template>
-      <template v-slot:content>
+      <template #content>
         <v-stepper
           class="pa-4"
           v-model="stp"
@@ -95,7 +95,7 @@
                 accept="image/png, image/jpeg, image/bmp"
                 :placeholder="$t('processes.workflow.illustrative.input.placeholder')"
                 append-icon="mdi-file-image">
-                <template v-slot:selection="{ text }">
+                <template #selection="{ text }">
                   <v-chip
                     small
                     label
@@ -155,7 +155,7 @@
           </v-stepper-content>
         </v-stepper>
       </template>
-      <template v-slot:footer>
+      <template #footer>
         <v-btn
           :disabled="!valid"
           v-if="!editMode"
@@ -305,7 +305,7 @@ export default {
         this.editMode = false;
       }
       this.stp = 1;
-      this.$root.$emit('init-list-attachments', {entityId: workflow && workflow.id || null});
+      this.$root.$emit('init-list-attachments', {entityId: workflow && workflow.id || null, entityType: 'workflow'});
       this.$refs.workFlow.open();
     },
     close() {
@@ -324,6 +324,7 @@ export default {
       this.workflow = {};
       this.workflow.enabled = true;
       this.illustrativeInput = null;
+      this.attachments = null;
     },
     addNewWorkFlow() {
       this.saving = true;

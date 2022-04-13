@@ -2,10 +2,10 @@
   <v-card outlined class="ml-2">
     <v-container class="pa-0 work">
       <request-status
-        :is-completed="work.completed"
+        :is-completed="workObject.completed"
         type="indicator"
         :is-draft="isDraft"
-        :status="work.status" />
+        :status="workObject.status" />
       <v-row
         align="center"
         class="pl-4 pr-4"
@@ -20,7 +20,7 @@
             class="complete-btn">
             <v-tooltip
               bottom>
-              <template v-slot:activator="{ on, attrs }">
+              <template #activator="{ on, attrs }">
                 <btn
                   v-bind="attrs"
                   v-on="on"
@@ -29,21 +29,21 @@
                   <v-icon
                     class="custom-icon-size"
                     color="primary"
-                    v-if="!work.completed">
+                    v-if="!workObject.completed">
                     mdi-checkbox-blank-circle-outline
                   </v-icon>
                   <v-icon
                     class="custom-icon-size"
                     color="primary"
-                    v-if="work.completed">
+                    v-if="workObject.completed">
                     mdi-check-circle
                   </v-icon>
                 </btn>
               </template>
-              <span v-if="!work.completed">
+              <span v-if="!workObject.completed">
                 {{ $t('processes.work.complete.request.message') }}
               </span>
-              <span v-if="work.completed">
+              <span v-if="workObject.completed">
                 {{ $t('processes.work.unComplete.request.message') }}
               </span>
             </v-tooltip>
@@ -60,7 +60,7 @@
             <span
               class="work-title-text"
               :style="textDecoration">
-              {{ work.workFlow.title }}
+              {{ workObject.workFlow.title }}
             </span>
           </div>
         </v-col>
@@ -69,7 +69,7 @@
           md="4"
           class="pa-0 ma-0 grey--text"
           lg="1">
-          <custom-date-format :timestamp="work.createdTime.time" />
+          <custom-date-format :timestamp="workObject.createdTime.time" />
         </v-col>
         <v-col
           cols="6"
@@ -79,7 +79,7 @@
           <v-tooltip
             v-if="!isDraft"
             bottom>
-            <template v-slot:activator="{ on, attrs }">
+            <template #activator="{ on, attrs }">
               <v-btn
                 v-bind="attrs"
                 v-on="on"
@@ -113,7 +113,7 @@
           class="pa-0 ma-0 text-truncate text-caption"
           lg="3">
           <span>
-            {{ this.$utils.htmlToText(work.description) }}
+            {{ this.$utils.htmlToText(workObject.description) }}
           </span>
         </v-col>
         <v-col
@@ -122,9 +122,9 @@
           class="pa-0 ma-0 text-align-center text-truncate work-status-col"
           lg="2">
           <request-status
-            :is-completed="work.completed"
+            :is-completed="workObject.completed"
             :is-draft="isDraft"
-            :status="work.status" />
+            :status="workObject.status" />
         </v-col>
         <v-col
           cols="6"
@@ -150,9 +150,9 @@
             </v-icon>
           </v-btn>
           <v-tooltip
-            v-else-if="!work.completed && allowCancel"
+            v-else-if="!workObject.completed && allowCancel"
             bottom>
-            <template v-slot:activator="{ on, attrs }">
+            <template #activator="{ on, attrs }">
               <v-btn
                 v-bind="attrs"
                 v-on="on"
@@ -191,22 +191,25 @@ export default {
     }
   },
   computed: {
+    workObject() {
+      return this.work;
+    },
     lastCommentDate() {
       return this.comments && this.comments[this.comments.length-1] && this.comments[this.comments.length-1].comment.createdTime.time;
     },
     textDecoration() {
-      return this.work && this.work.completed && 'text-decoration:line-through' || '';
+      return this.workObject && this.workObject.completed && 'text-decoration:line-through' || '';
     },
     allowCancel() {
-      return this.work && this.work.status !== 'Validated' && this.work.status !== 'Refused';
+      return this.workObject && this.workObject.status !== 'Validated' && this.workObject.status !== 'Refused';
     },
     titleClass() {
       return !this.isDraft && this.$vuetify && this.$vuetify.rtl ? 'mr-4':'' || !this.isDraft && 'ml-4' || '';
     },
     workflowAvatarUrl() {
-      return this.work.workFlow && this.work.workFlow.illustrativeAttachment
-                                && this.work.workFlow.illustrativeAttachment.id
-                                && `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/illustration/${this.work.workFlow.id}`;
+      return this.workObject.workFlow && this.workObject.workFlow.illustrativeAttachment
+                                      && this.workObject.workFlow.illustrativeAttachment.id
+                                      && `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/illustration/${this.workObject.workFlow.id}`;
     }
   },
   created() {
@@ -217,39 +220,39 @@ export default {
       if (this.isDraft) {
         this.openDraft();
       } else {
-        this.work.comments = this.comments;
-        this.$root.$emit('open-add-work-drawer', {object: this.work, mode: 'view_work', isDraft: this.isDraft});
+        this.workObject.comments = this.comments;
+        this.$root.$emit('open-add-work-drawer', {object: this.workObject, mode: 'view_work', isDraft: this.isDraft});
       }
     },
     openDraft() {
-      this.$root.$emit('open-add-work-drawer', {object: this.work, mode: 'edit_work_draft'});
+      this.$root.$emit('open-add-work-drawer', {object: this.workObject, mode: 'edit_work_draft'});
     },
     openCommentsDrawer() {
-      const mappedWork = Object.assign({}, this.work);
+      const mappedWork = Object.assign({}, this.workObject);
       mappedWork.status = {
         project: {}
       };
       this.$root.$emit('show-work-comments', mappedWork, this.comments);
     },
     getWorkComments() {
-      if (this.work && !this.isDraft) {
-        this.$processesService.getWorkComments(this.work.id).then(comments => {
+      if (this.workObject && !this.isDraft) {
+        return this.$processesService.getWorkComments(this.workObject.id).then(comments => {
           this.comments = comments;
         });
       }
     },
     deleteWork() {
       if (this.isDraft) {
-        this.$root.$emit('show-confirm-action', {model: this.work, reason: 'delete_work_draft'});
+        this.$root.$emit('show-confirm-action', {model: this.workObject, reason: 'delete_work_draft'});
       } else {
-        this.$root.$emit('show-confirm-action', {model: this.work, reason: 'delete_work'});
+        this.$root.$emit('show-confirm-action', {model: this.workObject, reason: 'delete_work'});
       }
     },
     cancelWork() {
-      this.$root.$emit('show-confirm-action', {model: this.work, reason: 'cancel_work'});
+      this.$root.$emit('show-confirm-action', {model: this.workObject, reason: 'cancel_work'});
     },
     updateCompleted() {
-      this.$root.$emit('update-work-completed', this.work);
+      this.$root.$emit('update-work-completed', this.workObject);
     }
   },
 
