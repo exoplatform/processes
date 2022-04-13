@@ -68,14 +68,14 @@
       v-if="!loading"
       no-gutters>
       <v-row
-        v-if="workflows.length>0"
+        v-if="workflowList.length>0"
         no-gutters>
         <v-col
           xl="3"
           :lg="lg"
           md="6"
           cols="12"
-          v-for="workflow in workflows"
+          v-for="workflow in workflowList"
           :key="workflow.id">
           <workflow-card-item
             :is-processes-manager="isProcessesManager"
@@ -97,8 +97,8 @@
     </v-container>
     <empty-or-loading
       :loading="loading"
-      v-if="workflows.length === 0">
-      <template v-slot:empty>
+      v-if="workflowList.length === 0">
+      <template #empty>
         <div>
           <v-img
             width="280px"
@@ -131,7 +131,7 @@ export default {
     workflows: {
       type: Object,
       default: function() {
-        return [];
+        return {};
       },
     },
     hasMore: {
@@ -154,25 +154,31 @@ export default {
   created() {
     this.$root.$on('workflow-added', (event) => {
       if (event.workflow.enabled === event.filter) {
-        this.workflows.unshift(event.workflow);
+        this.workflowList.unshift(event.workflow);
       }
     });
     this.$root.$on('workflow-updated', (workflow) => {
       workflow = JSON.parse(workflow);
-      const index = this.workflows.map(workflow => workflow.id).indexOf(workflow.id);
+      const index = this.workflowList.map(workflow => workflow.id).indexOf(workflow.id);
       if (this.filter.value === workflow.enabled) {
-        this.workflows.splice(index, 1, workflow);
+        this.workflowList.splice(index, 1, workflow);
       } else {
-        this.workflows.splice(index, 1);
+        this.workflowList.splice(index, 1);
       }
     });
     this.$root.$on('workflow-removed', (workflow) => {
-      this.workflows.splice(this.workflows.indexOf(workflow), 1);
+      this.workflowList.splice(this.workflowList.indexOf(workflow), 1);
     });
   },
   computed: {
-    lg () {
-      return this.workflows.length >= 4 ? 3 : this.workflows.length === 3 ? 4 : 6 ;
+    workflowList(){
+      return this.workflows;
+    },
+    lg() {
+      if (this.workflowList.length >= 4) {
+        return 3;
+      }
+      return this.workflowList.length === 3 ? 4 : 6;
     },
     isXSmall() {
       return this.$vuetify.breakpoint.name === 'xs';

@@ -52,6 +52,8 @@ export default {
   data () {
     return {
       attachments: this.files,
+      entityIdVal: this.entityId,
+      entityTypeVal: this.entityType,
     };
   },
   props: {
@@ -104,7 +106,7 @@ export default {
       };
     },
     attachmentsLength() {
-      return this.attachments.length > 0 ? `(${this.attachments.length})` : '';
+      return this.attachments && this.attachments.length > 0 ? `(${this.attachments.length})` : '';
     },
     drive() {
       if (this.workflowParentSpace) {
@@ -140,14 +142,8 @@ export default {
       this.attachments = [];
     });
     this.$root.$on('init-list-attachments', event => {
-      if (event.entityId) {
-        this.entityId = event.entityId;
-      } else {
-        this.entityId = null;
-      }
-      if (event.entityType) {
-        this.entityType = event.entityType;
-      }
+      this.entityIdVal = event.entityId;
+      this.entityTypeVal = event.entityType;
       this.initEntityAttachmentsList();
     });
   },
@@ -160,8 +156,8 @@ export default {
       }
     },
     initEntityAttachmentsList() {
-      if (this.entityType && this.entityId) {
-        this.$processesAttachmentService.getEntityAttachments(this.entityType, this.entityId).then(attachments => {
+      if (this.entityTypeVal && this.entityIdVal) {
+        this.$processesAttachmentService.getEntityAttachments(this.entityTypeVal, this.entityIdVal).then(attachments => {
           attachments.forEach(attachment => {
             attachment.name = attachment.title;
           });
