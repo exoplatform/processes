@@ -4,9 +4,9 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <artifactId>maven-parent-pom</artifactId>
-        <groupId>org.exoplatform</groupId>
-        <version>24-M03</version>
+        <artifactId>addons-parent-pom</artifactId>
+        <groupId>org.exoplatform.addons</groupId>
+        <version>15-M03</version>
     </parent>
     <groupId>org.exoplatform.processes</groupId>
     <artifactId>processes-parent</artifactId>
