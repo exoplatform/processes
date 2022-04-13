@@ -7,7 +7,7 @@
       text-color="white">
       <v-tooltip
         bottom>
-        <template v-slot:activator="{ on, attrs }">
+        <template #activator="{ on, attrs }">
           <span
             v-bind="attrs"
             v-on="on"
