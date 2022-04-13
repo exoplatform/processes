@@ -324,7 +324,6 @@ export default {
       this.workflow = {};
       this.workflow.enabled = true;
       this.illustrativeInput = null;
-      this.attachments = null;
     },
     addNewWorkFlow() {
       this.saving = true;

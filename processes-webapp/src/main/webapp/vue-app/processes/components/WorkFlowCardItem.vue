@@ -150,7 +150,7 @@ export default {
     },
     countWorksByWorkflow(isCompleted) {
       if (this.workflow) {
-        this.$processesService.countWorksByWorkflow(this.workflow.projectId, isCompleted).then(value => {
+        return this.$processesService.countWorksByWorkflow(this.workflow.projectId, isCompleted).then(value => {
           this.completedWorksCount = value;
         });
       }

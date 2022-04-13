@@ -129,9 +129,9 @@ export default {
   },
   props: {
     workflows: {
-      type: Object,
+      type: Array,
       default: function() {
-        return {};
+        return [];
       },
     },
     hasMore: {
@@ -172,7 +172,7 @@ export default {
   },
   computed: {
     workflowList(){
-      return this.workflows;
+      return this.workflows || [];
     },
     lg() {
       if (this.workflowList.length >= 4) {
