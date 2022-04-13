@@ -31,4 +31,17 @@
             <page-reference>portal::global::processes</page-reference>
         </node>
     </page-nodes>
+    <page-nodes>
+        <node>
+            <name>analytics</name>
+            <label>#{analytics.navigation.Analytics}</label>
+            <visibility>SYSTEM</visibility>
+            <node>
+                <name>analyticsProcesses</name>
+                <label>#{analytics.navigation.AnalyticsProcesses}</label>
+                <visibility>DISPLAYED</visibility>
+                <page-reference>portal::global::analytics-processes</page-reference>
+            </node>
+        </node>
+    </page-nodes>
 </node-navigation>
