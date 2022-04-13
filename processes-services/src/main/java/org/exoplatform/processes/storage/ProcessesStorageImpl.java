@@ -169,6 +169,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
         workFlowEntity.setProjectId(projectId);
       }
       workFlowEntity = workFlowDAO.create(workFlowEntity);
+      WorkFlow newWorkflow = EntityMapper.fromEntity(workFlowEntity, illustrativeAttachment);
+      ProcessesUtils.broadcast(listenerService, "exo.process.created", userId, newWorkflow);
     } else {
       workFlowEntity.setModifiedDate(new Date());
       workFlowEntity.setModifierId(userId);
@@ -356,7 +358,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     taskDto = taskService.updateTask(taskDto);
     if (taskDto.isCompleted() && taskDto.getStatus().getName().equals(DEFAULT_PROCESS_STATUS[4])) {
       ProjectDto projectDto = taskDto.getStatus().getProject();
-      NotificationUtils.broadcast(listenerService, "exo.process.request.canceled", taskDto, projectDto);
+      ProcessesUtils.broadcast(listenerService, "exo.process.request.canceled", taskDto, projectDto);
     }
     return taskDto;
   }
@@ -383,7 +385,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
         deleteWorkDraftById(work.getDraftId());
       }
       Work newWork = EntityMapper.taskToWork(taskDto);
-      NotificationUtils.broadcast(listenerService, "exo.process.request.created", newWork, projectDto);
+      newWork.setCreatorId(userId);
+      ProcessesUtils.broadcast(listenerService, "exo.process.request.created", newWork, projectDto);
       return newWork;
     } else {
       TaskDto taskDto = updateWorkTask(work);
@@ -442,7 +445,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       if (taskDto != null) {
         taskService.removeTask(workId);
         ProjectDto projectDto = taskDto.getStatus().getProject();
-        NotificationUtils.broadcast(listenerService, "exo.process.request.removed", taskDto, projectDto);
+        ProcessesUtils.broadcast(listenerService, "exo.process.request.removed", taskDto, projectDto);
       }
     } catch (EntityNotFoundException e) {
       LOG.error("Work not found", e);

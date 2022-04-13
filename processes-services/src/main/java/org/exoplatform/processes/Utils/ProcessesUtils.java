@@ -1,6 +1,7 @@
 package org.exoplatform.processes.Utils;
 
 import org.exoplatform.commons.utils.CommonsUtils;
+import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
@@ -37,4 +38,11 @@ public class ProcessesUtils {
     return null;
   }
 
+  public static <S, D> void broadcast(ListenerService listenerService, String eventName, S source, D data) {
+    try {
+      listenerService.broadcast(eventName, source, data);
+    } catch (Exception e) {
+      LOG.error("Error while broadcasting event: {}", eventName, e);
+    }
+  }
 }
