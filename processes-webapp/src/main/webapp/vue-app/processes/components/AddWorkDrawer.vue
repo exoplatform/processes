@@ -19,6 +19,13 @@
               cols="8"
               class="pa-0 text-align-start">
               <p class="work-title white--text text-truncate pa-2">
+                <v-avatar
+                  v-if="workflowAvatarUrl"
+                  class="me-1"
+                  color="blue"
+                  size="18px">
+                  <v-img :src="workflowAvatarUrl" />
+                </v-avatar>
                 <span
                   :style="textDecoration"
                   class="white--text">
@@ -248,6 +255,11 @@ export default {
     textDecoration() {
       return this.work && this.work.completed && 'text-decoration:line-through' || '';
     },
+    workflowAvatarUrl() {
+      return this.work.workFlow && this.work.workFlow.illustrativeAttachment
+                                && this.work.workFlow.illustrativeAttachment.id
+                                && `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/illustration/${this.work.workFlow.id}`;
+    }
   },
   methods: {
     updateUrlPath(data, path, replace) {

@@ -16,6 +16,15 @@
     box-shadow: none;
   }
 
+  .workflow-title-card {
+    height: 50px;
+    line-height: 50px;
+  }
+
+  .workflow-avatar-img {
+    object-fit: cover;
+  }
+
   .work {
     max-width: inherit;
     background: #F4F6F9 0 0 no-repeat padding-box;
@@ -87,8 +96,8 @@
   }
 
   .work-title-text {
-    padding-left: 4px ~'; /** orientation=lt */ ';
-    padding-right: 4px ~'; /** orientation=rt */ ';
+    padding-left: 8px ~'; /** orientation=lt */ ';
+    padding-right: 8px ~'; /** orientation=rt */ ';
   }
 
   .work-avatar {
@@ -182,6 +191,19 @@
     }
   }
 
+  .illustrative_input {
+    .v-input__slot {
+      .v-input__icon.v-input__icon--append i {
+        font-size: 24px !important;
+      }
+
+      .v-file-input__text--placeholder {
+        font-size: 13px;
+        color: #b3bdcd;
+      }
+    }
+  }
+
   .work-filter-query {
     max-width: 200px;
     padding-top: 26px;
@@ -262,7 +284,7 @@
       border-radius: 19px;
       max-width: 90%;
       width: fit-content;
-      top: 3px;
+      top: 5px;
       position: relative;
     }
 

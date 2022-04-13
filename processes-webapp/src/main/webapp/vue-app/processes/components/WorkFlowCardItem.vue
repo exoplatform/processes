@@ -1,6 +1,6 @@
 <template>
   <v-card
-    min-height="300px"
+    min-height="317px"
     class="mt-2 mb-2 me-3"
     outlined>
     <v-btn
@@ -52,14 +52,13 @@
       </v-list>
     </v-menu>
     <v-card-title
-      class="text-center d-block mt-0 text-truncate">
+      class="text-center d-block mt-0 text-truncate workflow-title-card">
       <v-avatar
-        v-if="false"
-        color="blue"
-        size="30px">
-        <v-icon dark>
-          mdi-clock
-        </v-icon>
+        v-if="avatarUrl"
+        size="40px">
+        <v-img
+          class="workflow-avatar-img"
+          :src="avatarUrl" />
       </v-avatar>
       {{ workflow.title }}
     </v-card-title>
@@ -131,6 +130,13 @@ export default {
       }
     });
     this.countWorksByWorkflow(false);
+  },
+  computed: {
+    avatarUrl() {
+      return this.workflow && this.workflow.illustrativeAttachment
+                           && this.workflow.illustrativeAttachment.id
+                           && `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/illustration/${this.workflow.id}?v=${this.workflow.illustrativeAttachment.lastUpdated}`;
+    }
   },
   methods: {
     editWorkflow() {

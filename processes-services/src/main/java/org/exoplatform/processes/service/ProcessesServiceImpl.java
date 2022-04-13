@@ -16,11 +16,13 @@
  */
 package org.exoplatform.processes.service;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.commons.file.services.FileStorageException;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
@@ -318,6 +320,19 @@ public class ProcessesServiceImpl implements ProcessesService, Startable {
       throw new IllegalArgumentException("Work id is mandatory");
     }
     return processesStorage.getWorkById(userIdentityId, workId);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public IllustrativeAttachment getIllustrationImageById(Long illustrationId) throws FileStorageException,
+                                                                              ObjectNotFoundException,
+                                                                              IOException {
+    if (illustrationId == null) {
+      throw new IllegalArgumentException("IllustrationId id is mandatory");
+    }
+    return processesStorage.getIllustrationImageById(illustrationId);
   }
 
   @Override

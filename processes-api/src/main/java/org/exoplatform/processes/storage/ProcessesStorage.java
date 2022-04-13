@@ -16,9 +16,11 @@
  */
 package org.exoplatform.processes.storage;
 
+import java.io.IOException;
 import java.util.List;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.commons.file.services.FileStorageException;
 import org.exoplatform.processes.model.*;
 import org.exoplatform.social.core.identity.model.Identity;
 
@@ -183,4 +185,16 @@ public interface ProcessesStorage {
    * @return {@link List} of {@link WorkFlow}
    */
   List<WorkFlow> findWorkFlows(ProcessesFilter processesFilter, int offset, int limit);
+
+  /**
+   * Retrieves an illustration image by its given id
+   *
+   * @param illustrationId illustration file id
+   * @return {@link IllustrativeAttachment}
+   * @throws FileStorageException
+   * @throws ObjectNotFoundException
+   */
+  IllustrativeAttachment getIllustrationImageById(Long illustrationId) throws FileStorageException,
+                                                                       ObjectNotFoundException,
+                                                                       IOException;
 }
