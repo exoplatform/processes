@@ -302,14 +302,4 @@ public class ProcessesServiceImplTest {
     processesService.updateWorkCompleted(1L, true);
     verify(processesStorage, times(1)).updateWorkCompleted(1L, true);
   }
-
-  @Test
-  public void getIllustrationImageById() throws ObjectNotFoundException, IOException, FileStorageException {
-    Throwable exception1 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesService.getIllustrationImageById(null));
-    assertEquals("IllustrationId id is mandatory", exception1.getMessage());
-    verify(processesStorage, times(0)).getIllustrationImageById(1L);
-    processesService.getIllustrationImageById(1L);
-    verify(processesStorage, times(1)).getIllustrationImageById(1L);
-  }
 }
