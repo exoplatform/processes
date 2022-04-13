@@ -75,14 +75,6 @@ public class NotificationUtils {
     return stringBuilder.toString();
   }
 
-  public static <S, D> void broadcast(ListenerService listenerService, String eventName, S source, D data) {
-    try {
-      listenerService.broadcast(eventName, source, data);
-    } catch (Exception e) {
-      LOG.error("Error while broadcasting event: {}", eventName, e);
-    }
-  }
-
   public static Object getRequestCommentsLink(Long taskId) {
     StringBuilder stringBuilder = new StringBuilder();
     String portalOwner = CommonsUtils.getCurrentPortalOwner();
