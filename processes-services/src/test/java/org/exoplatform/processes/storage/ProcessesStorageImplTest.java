@@ -1,11 +1,9 @@
 package org.exoplatform.processes.storage;
 
-import org.apache.xmlbeans.impl.xb.xsdschema.Public;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.file.model.FileInfo;
 import org.exoplatform.commons.file.model.FileItem;
 import org.exoplatform.commons.file.services.FileService;
-import org.exoplatform.commons.file.services.FileStorageException;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.processes.Utils.EntityMapper;
 import org.exoplatform.processes.Utils.ProcessesUtils;
@@ -44,7 +42,6 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import javax.ws.rs.ext.RuntimeDelegate;
-import java.io.IOException;
 import java.util.*;
 
 import static org.junit.Assert.*;
@@ -189,6 +186,8 @@ public class ProcessesStorageImplTest {
     when(workFlow.getIllustrativeAttachment()).thenReturn(illustrativeAttachment);
     this.processesStorage.saveWorkFlow(workFlow, 1L);
     verify(workFlowDAO, times(1)).create(workFlowEntity);
+    PowerMockito.verifyStatic(ProcessesUtils.class, times(1));
+    ProcessesUtils.broadcast(listenerService, "exo.process.created", 1L, EntityMapper.fromEntity(workFlowEntity, illustrativeAttachment));
     verify(processesAttachmentService, times(1)).linkAttachmentsToEntity(attachments.toArray(new Attachment[0]),
                                                                          1L,
                                                                          1L,
@@ -255,8 +254,8 @@ public class ProcessesStorageImplTest {
     when(taskDto.getTitle()).thenReturn("");
     when(taskService.createTask(taskDto)).thenReturn(taskDto);
     processesStorage.saveWork(work, 1L);
-    PowerMockito.verifyStatic(NotificationUtils.class, times(1));
-    NotificationUtils.broadcast(listenerService, "exo.process.request.created", work, projectDto);
+    PowerMockito.verifyStatic(ProcessesUtils.class, times(1));
+    ProcessesUtils.broadcast(listenerService, "exo.process.request.created", work, projectDto);
 
     work.setIsDraft(true);
     work.setId(0);
@@ -285,8 +284,8 @@ public class ProcessesStorageImplTest {
     when(statusService.getStatuses(1L)).thenReturn(statuses);
     work.setStatus("Canceled");
     processesStorage.saveWork(work, 1L);
-    PowerMockito.verifyStatic(NotificationUtils.class, times(1));
-    NotificationUtils.broadcast(listenerService, "exo.process.request.canceled", updatedTask, updatedTask.getStatus().getProject());
+    PowerMockito.verifyStatic(ProcessesUtils.class, times(1));
+    ProcessesUtils.broadcast(listenerService, "exo.process.request.canceled", updatedTask, updatedTask.getStatus().getProject());
     verify(taskService, times(1)).updateTask(taskDto);
 
     when(taskService.getTask(work.getId())).thenThrow(EntityNotFoundException.class);
