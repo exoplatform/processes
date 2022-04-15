@@ -198,9 +198,7 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
           Workspace workspace = session.getWorkspace();
           workspace.copy(attachmentNode.getPath(), destPath);
           Node copyNode = (Node) session.getItem(destPath);
-          if (copyNode.getName().endsWith(DOCXF_EXTENSION)) {
-            processDocumentForm(copyNode, currentUser);
-          }
+          processDocument(copyNode, currentUser);
           Attachment copyAttachment = attachmentService.getAttachmentById(copyNode.getUUID());
           updatedAttachments.put(index, copyAttachment);
         } else {
@@ -281,21 +279,28 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
     }
     return attachmentService.getAttachmentById(attachment.getId());
   }
-
-  private void processDocumentForm(Node node, String currentUser) {
+  
+  private void processDocument(Node node, String currentUser) {
     try {
       org.exoplatform.social.core.identity.model.Identity identity =
                                                                    identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME,
                                                                                                        currentUser);
       String newNameSuffix = "";
+      String name = node.getName();
+      int pointIndex = name.lastIndexOf(".");
+      String extension = pointIndex != -1 ? name.substring(pointIndex) : "";
       if (identity != null) {
         Profile profile = identity.getProfile();
         newNameSuffix = " - ".concat(profile.getFullName() + " - ").concat(LocalDate.now().format(formatter));
       }
-      String name = node.getName();
-      String newName = name.substring(0, name.lastIndexOf(".")).concat(newNameSuffix).concat(OFORM_EXTENSION);
-      Node content = node.getNode(NodetypeConstant.JCR_CONTENT);
-      content.setProperty(NodetypeConstant.JCR_MIME_TYPE, DOC_OFORM_MIMETYPE);
+      String newName = pointIndex != -1 ? name.substring(0, pointIndex).concat(newNameSuffix) : name.concat(newNameSuffix);
+      if (name.endsWith(DOCXF_EXTENSION)) {
+        newName = newName.concat(OFORM_EXTENSION);
+        Node content = node.getNode(NodetypeConstant.JCR_CONTENT);
+        content.setProperty(NodetypeConstant.JCR_MIME_TYPE, DOC_OFORM_MIMETYPE);
+      } else {
+        newName = newName.concat(extension);
+      }
       if (node.hasProperty(NodetypeConstant.EXO_TITLE)) {
         node.setProperty(NodetypeConstant.EXO_TITLE, newName);
       }
@@ -306,6 +311,6 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
     } catch (RepositoryException e) {
       LOG.error("Error while processing docxf file", e);
     }
-    
+
   }
 }
