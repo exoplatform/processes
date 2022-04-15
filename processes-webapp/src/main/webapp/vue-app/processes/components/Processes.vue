@@ -193,6 +193,21 @@ export default {
       this.updateWorkCompleted(work, !work.completed);
     });
   },
+  mounted() {
+    window.setTimeout(() => {
+      document.dispatchEvent(new CustomEvent('exo-statistic-message', {
+        detail: {
+          module: 'processes',
+          subModule: 'application access',
+          userId: eXo.env.portal.userIdentityId,
+          userName: eXo.env.portal.userName,
+          operation: 'accessProcessesApp',
+          name: 'access to processes application',
+          timestamp: Date.now()
+        }
+      }));
+    }, 300);
+  },
   computed: {
     isMobile() {
       return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
