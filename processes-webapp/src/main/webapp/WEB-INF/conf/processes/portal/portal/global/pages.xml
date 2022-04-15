@@ -166,7 +166,7 @@
                                     {
                                     "field": "operation",
                                     "type": "IN_SET",
-                                    "valueString": "processCreated,requestCreated",
+                                    "valueString": "processCreated,requestCreated,accessProcessesApp",
                                     "range": null
                                     }
                                     ],
@@ -237,6 +237,70 @@
                     <show-info-bar>false</show-info-bar>
                 </portlet-application>
             </container>
+        <container cssClass="analyticsPageRow" template="system:/groovy/portal/webui/container/UIContainer.gtmpl">
+            <access-permissions>Everyone</access-permissions>
+            <portlet-application>
+                <portlet>
+                    <application-ref>analytics</application-ref>
+                    <portlet-ref>AnalyticsRatePortlet</portlet-ref>
+                    <preferences>
+                        <preference>
+                            <name>settings</name>
+                            <value>
+                                {
+                                "value": {
+                                "filters": [
+                                {
+                                "range": null,
+                                "valueString": "accessProcessesApp",
+                                "field": "operation",
+                                "type": "EQUAL"
+                                }
+                                ],
+                                "yAxisAggregation": {
+                                "interval": null,
+                                "sortDirection": null,
+                                "field": "userId",
+                                "type": "CARDINALITY"
+                                }
+                                },
+                                "periodType":null,
+                                "lang":null,
+                                "threshold": {
+                                "filters": [
+                                {
+                                "range": null,
+                                "valueString": "usersCount",
+                                "field": "operation",
+                                "type": "EQUAL"
+                                },
+                                {
+                                "range": null,
+                                "valueString": "enabledUsers",
+                                "field": "countType",
+                                "type": "EQUAL"
+                                }
+                                ],
+                                "yAxisAggregation": {
+                                "interval": null,
+                                "sortDirection": null,
+                                "field": "count",
+                                "type": "MAX"
+                                }
+                                },
+                                "chartType":"percentageBar",
+                                "colors": ["#4273C8"],
+                                "title":"analytics.accessProcessesApp"
+                                }
+                            </value>
+                        </preference>
+                    </preferences>
+                </portlet>
+                <title>Access to processes app</title>
+                <access-permissions>Everyone</access-permissions>
+                <show-info-bar>false</show-info-bar>
+            </portlet-application>
+        </container>
         </container>
     </page>
 </page-set>
