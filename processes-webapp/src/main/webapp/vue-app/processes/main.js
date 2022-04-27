@@ -24,6 +24,9 @@ const lang = eXo && eXo.env.portal.language || 'en';
 const urls = [`${eXo.env.portal.context}/${eXo.env.portal.rest}/i18n/bundle/locale.portlet.Processes-${lang}.json`,
   `${eXo.env.portal.context}/${eXo.env.portal.rest}/i18n/bundle/locale.portlet.taskManagement-${lang}.json`];
 
+//used only in mobile statistics
+eXo.env.portal.mainApplicationName = 'Processes';
+
 export function init() {
   exoi18n.loadLanguageAsync(lang, urls).then(i18n => {
     // init Vue app when locale ressources are ready
