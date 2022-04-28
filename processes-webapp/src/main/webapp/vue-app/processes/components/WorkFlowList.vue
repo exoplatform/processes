@@ -45,7 +45,7 @@
           <v-text-field
             v-if="!isXSmall"
             class="me-4 workflow-filter-query filter-query-width float-e"
-            @keyup="updateFilter"
+            @keyup="filterByQuery"
             v-model="query"
             :placeholder="$t('processes.workflow.filter.query.placeholder')"
             prepend-inner-icon="mdi-filter" />
@@ -57,7 +57,7 @@
           cols="12">
           <v-text-field
             class="me-10 workflow-filter-query float-e"
-            @keyup="updateFilter"
+            @keyup="filterByQuery"
             v-model="query"
             :placeholder="$t('processes.workflow.filter.query.placeholder')"
             prepend-inner-icon="mdi-filter" />
@@ -125,6 +125,8 @@ export default {
         {label: this.$t('processes.workflow.all.label'), value: null},
       ],
       query: null,
+      searchTimer: null,
+      endTypingKeywordTimeout: 200,
     };
   },
   props: {
@@ -193,6 +195,16 @@ export default {
     },
     loadMore() {
       this.$root.$emit('load-more-workflows');
+    },
+    filterByQuery() {
+      clearTimeout(this.searchTimer);
+      this.searchTimer = setTimeout(() => {
+        if (this.loading) {
+          this.filterByQuery();
+          return;
+        }
+        this.updateFilter();
+      }, this.endTypingKeywordTimeout);
     },
     updateFilter() {
       this.$root.$emit('workflow-filter-changed', {filter: this.filter.value, query: this.query});
