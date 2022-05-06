@@ -25,7 +25,7 @@ const urls = [`${eXo.env.portal.context}/${eXo.env.portal.rest}/i18n/bundle/loca
   `${eXo.env.portal.context}/${eXo.env.portal.rest}/i18n/bundle/locale.portlet.taskManagement-${lang}.json`];
 
 //used only in mobile statistics
-eXo.env.portal.mainApplicationName = 'Processes';
+eXo.env.portal.mainApplicationName = 'process';
 
 export function init() {
   exoi18n.loadLanguageAsync(lang, urls).then(i18n => {
