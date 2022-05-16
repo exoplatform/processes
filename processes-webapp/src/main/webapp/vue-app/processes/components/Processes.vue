@@ -54,8 +54,7 @@
       :message="confirmMessage"
       :ok-label="$t('processes.workflow.ok.label')"
       :cancel-label="$t('processes.workflow.cancel.label')"
-      @ok="confirmAction"
-      @dialog-closed="onDialogClosed" />
+      @ok="confirmAction"/>
     <add-workflow-drawer
       ref="addWorkFlow" />
     <add-work-drawer
@@ -437,6 +436,7 @@ export default {
       if (this.dialogAction && this.dialogAction === 'cancel_work') {
         this.updateWorkCompleted(this.targetModel, true, true);
       }
+      this.onDialogClosed();
     },
     deleteWorkDraftById(workDraft) {
       return this.$processesService.deleteWorkDraftById(workDraft.id).then(value => {
