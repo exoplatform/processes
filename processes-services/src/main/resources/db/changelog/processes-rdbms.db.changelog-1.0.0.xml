@@ -97,4 +97,7 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.-->
             <column name="ILLUSTRATION_IMAGE_ID" type="BIGINT" defaultValueNumeric="0" />
         </addColumn>
     </changeSet>
+    <changeSet author="processes" id="1.0.0-5" dbms="hsqldb,oracle,postgresql">
+        <createSequence sequenceName="SEQ_WORK_ID" startValue="1"/>
+    </changeSet>
 </databaseChangeLog>
