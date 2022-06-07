@@ -52,7 +52,7 @@
       </v-list>
     </v-menu>
     <v-card-title
-      class="text-center d-block mt-0 text-truncate workflow-title-card">
+      class="text-center d-block mt-0">
       <v-avatar
         v-if="avatarUrl"
         size="40px">
