@@ -113,7 +113,7 @@
                 {{ requestStatus }}
               </span>
               <v-switch
-                class="mt-n1 float-e"
+                class="mt-n1 float-e pr-2"
                 color="primary"
                 value
                 name="status"
