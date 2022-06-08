@@ -26,7 +26,7 @@
           </v-btn>
         </v-col>
         <v-col
-          v-if="workflowList.length>0"
+          v-if="!emptyWorkflow"
           :cols="9"
           md="8"
           lg="6">
@@ -52,7 +52,7 @@
             prepend-inner-icon="mdi-filter" />
         </v-col>
       </v-row>
-      <v-row v-if="isXSmall && workflowList.length>0">
+      <v-row v-if="isXSmall && !emptyWorkflow">
         <v-col
           class="d-flex"
           cols="12">
@@ -174,6 +174,9 @@ export default {
     });
   },
   computed: {
+    emptyWorkflow(){
+      return !this.workflowList.length>0 ; 
+    },
     workflowList(){
       return this.workflows || [];
     },
