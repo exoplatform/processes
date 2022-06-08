@@ -175,7 +175,7 @@ export default {
   },
   computed: {
     emptyWorkflow(){
-      return !this.workflowList.length>0 ; 
+      return !this.workflowList.length > 0 ; 
     },
     workflowList(){
       return this.workflows || [];
