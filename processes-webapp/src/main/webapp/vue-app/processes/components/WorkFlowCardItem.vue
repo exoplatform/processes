@@ -1,6 +1,6 @@
 <template>
   <v-card
-    min-height="317px"
+    min-height="350px"
     class="mt-2 mb-2 me-3"
     outlined>
     <v-btn
@@ -52,7 +52,7 @@
       </v-list>
     </v-menu>
     <v-card-title
-      class="text-center d-block mt-0">
+      class="text-center d-block mt-0 card-title">
       <v-avatar
         v-if="avatarUrl"
         size="40px">
