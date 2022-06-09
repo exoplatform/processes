@@ -16,6 +16,9 @@ import org.exoplatform.services.rest.impl.RuntimeDelegateImpl;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.core.space.model.Space;
+import org.exoplatform.task.dto.StatusDto;
+import org.exoplatform.task.service.StatusService;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -31,10 +34,7 @@ import javax.ws.rs.core.Request;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.RuntimeDelegate;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.*;
@@ -79,6 +79,10 @@ public class ProcessesRestTest {
   @Test
   public void getWorkFlows() throws Exception {
     List<WorkFlow> workFlows = new ArrayList<>();
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setId(1L);
+    workFlow.setProjectId(1L);
+    workFlows.add(workFlow);
     List<WorkFlowEntity> workFlowEntities = new ArrayList<>();
     ProcessesFilter processesFilter = new ProcessesFilter();
     when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
@@ -155,13 +159,31 @@ public class ProcessesRestTest {
 
   @Test
   public void shouldReturnUnauthorizedErrorWhenUpdateWorkflow() throws ObjectNotFoundException, IllegalAccessException {
-    WorkFlow workFlow = mock(WorkFlow.class);
-    WorkFlowEntity workFlowEntity = mock(WorkFlowEntity.class);
+    WorkFlow workFlow = new WorkFlow();
+    WorkFlowEntity workFlowEntity = new WorkFlowEntity();
+    Date createdDate = new Date();
+    Date modifiedDate = new Date();
     when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
     when(EntityBuilder.fromEntity(workFlowEntity)).thenReturn(workFlow);
     when(processesService.updateWorkFlow(workFlow, 1L)).thenThrow(IllegalAccessException.class);
     Response response = processesRest.updateWorkFlow(workFlowEntity);
     assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(),response.getStatus());
+    WorkFlowEntity workFlowEntity1 = new WorkFlowEntity();
+    workFlowEntity1.setId(1L);
+    workFlowEntity1.setTitle("workFlow");
+    workFlowEntity1.setCreatorId(1);
+    workFlowEntity1.setSummary("workFlow summary");
+    workFlowEntity1.setModifierId(1);
+    workFlowEntity1.setTitle("workFlow");
+    workFlowEntity1.setTitle("workFlow");
+    workFlowEntity1.setEnabled(true);
+    workFlowEntity1.setDescription("test");
+    workFlowEntity1.hashCode();
+    workFlowEntity1.equals(workFlowEntity1);
+    workFlowEntity1.toString();
+    Response response1 = processesRest.updateWorkFlow(workFlowEntity1);
+    WorkFlowEntity workFlowEntity2 = new WorkFlowEntity(1,"title","description","summary","image","helpLink",
+            true,1,createdDate,1,modifiedDate,1,null,null,null,null,null);
   }
 
   @Test
@@ -234,12 +256,16 @@ public class ProcessesRestTest {
     workEntity.setProjectId(0L);
     workFlowEntity.setProjectId(0L);
     workEntity.setWorkFlow(workFlowEntity);
+    workEntity.hashCode();
+    workEntity.equals(workEntity);
+    workEntity.toString();
     Response response2 = processesRest.createWork(workEntity);
     assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response2.getStatus());
     when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
     workEntity.setProjectId(1L);
     workEntity.getWorkFlow().setProjectId(1L);
     workEntity.getWorkFlow().setEnabled(false);
+    workEntity.setCompleted(true);
     Response response6 = processesRest.createWork(workEntity);
     assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response6.getStatus());
     workEntity.getWorkFlow().setEnabled(true);
