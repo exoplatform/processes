@@ -97,7 +97,7 @@ export default {
       dialogAction: null,
       targetModel: null,
       myRequestsTabVisited: null,
-      showWorkFlowFilter: this.showFilter()
+      showWorkFlowFilter: this.showFilter
     };
   },
   beforeCreate() {
@@ -219,7 +219,12 @@ export default {
   },
   methods: {
     showFilter(){
-      this.$processesService.getWorkFlows().then(workflows =>{this.showWorkFlowFilter = workflows.length > 0;});
+      if ((this.enabled == null && !this.query)||this.workflows.length){
+        this.showWorkFlowFilter = this.workflows.length > 0;
+      }
+      else {
+        this.$processesService.getWorkFlows().then(workflows =>{this.showWorkFlowFilter = workflows.length > 0;});
+      }
     },
     handleTabChanges() {
       const path = document.location.pathname;
