@@ -30,7 +30,7 @@
             :has-more="hasMoreTypes"
             :loading-more="loadingMore"
             :loading="loading"
-            :show-workflow-filter="showWorkFlowFilter" />
+            :show-workflow-filter="showFilter" />
         </v-tab-item>
         <v-tab-item>
           <my-work-list
@@ -97,7 +97,6 @@ export default {
       dialogAction: null,
       targetModel: null,
       myRequestsTabVisited: null,
-      showWorkFlowFilter: this.showFilter
     };
   },
   beforeCreate() {
@@ -220,10 +219,10 @@ export default {
   methods: {
     showFilter(){
       if ((this.enabled == null && !this.query)||this.workflows.length){
-        this.showWorkFlowFilter = this.workflows.length > 0;
+        return this.workflows.length > 0;
       }
       else {
-        this.$processesService.getWorkFlows().then(workflows =>{this.showWorkFlowFilter = workflows.length > 0;});
+        this.$processesService.getWorkFlows().then(workflows =>{return workflows.length > 0;});
       }
     },
     handleTabChanges() {
