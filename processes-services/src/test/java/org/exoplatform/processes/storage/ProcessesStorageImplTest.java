@@ -4,6 +4,7 @@ import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.file.model.FileInfo;
 import org.exoplatform.commons.file.model.FileItem;
 import org.exoplatform.commons.file.services.FileService;
+import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.processes.Utils.EntityMapper;
 import org.exoplatform.processes.Utils.ProcessesUtils;
@@ -12,13 +13,14 @@ import org.exoplatform.processes.dao.WorkFlowDAO;
 import org.exoplatform.processes.entity.WorkEntity;
 import org.exoplatform.processes.entity.WorkFlowEntity;
 import org.exoplatform.processes.model.*;
-import org.exoplatform.processes.notification.utils.NotificationUtils;
 import org.exoplatform.processes.service.ProcessesAttachmentService;
 import org.exoplatform.services.attachments.model.Attachment;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.rest.impl.RuntimeDelegateImpl;
+import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.model.Profile;
+import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
@@ -49,10 +51,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.*;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({EntityMapper.class, UserUtil.class, ProjectUtil.class, NotificationUtils.class, ProcessesUtils.class})
 public class ProcessesStorageImplTest {
 
   @Mock
@@ -100,11 +102,7 @@ public class ProcessesStorageImplTest {
                                                      listenerService,
                                                      processesAttachmentService,
                                                      fileService);
-    PowerMockito.mockStatic(EntityMapper.class);
-    PowerMockito.mockStatic(UserUtil.class);
-    PowerMockito.mockStatic(ProjectUtil.class);
-    PowerMockito.mockStatic(NotificationUtils.class);
-    PowerMockito.mockStatic(ProcessesUtils.class);
+
   }
 
   @Test
@@ -136,7 +134,13 @@ public class ProcessesStorageImplTest {
   }
 
   @Test
+  @PrepareForTest({ EntityMapper.class , UserUtil.class ,ProjectUtil.class ,ProcessesUtils.class})
   public void saveWorkflow() {
+    PowerMockito.mockStatic(EntityMapper.class);
+    PowerMockito.mockStatic(UserUtil.class);
+    PowerMockito.mockStatic(ProjectUtil.class);
+    PowerMockito.mockStatic(ProcessesUtils.class);
+
     IllustrativeAttachment illustrativeAttachment = new IllustrativeAttachment(null, "image.png", "image/png", 1365L, new Date().getTime());
     List<Attachment> attachments = new ArrayList<>();
     Attachment attachment = new Attachment();
@@ -181,6 +185,9 @@ public class ProcessesStorageImplTest {
     WorkFlowEntity newWorkFlowEntity = new WorkFlowEntity();
     newWorkFlowEntity.setId(1L);
     newWorkFlowEntity.setProjectId(1L);
+    newWorkFlowEntity.hashCode();
+    newWorkFlowEntity.toString();
+    newWorkFlowEntity.equals(workFlow);
     when(workFlowDAO.create(workFlowEntity)).thenReturn(newWorkFlowEntity);
     when(workFlowDAO.update(workFlowEntity)).thenReturn(newWorkFlowEntity);
     when(workFlow.getIllustrativeAttachment()).thenReturn(illustrativeAttachment);
@@ -221,7 +228,11 @@ public class ProcessesStorageImplTest {
   }
 
   @Test
+  @PrepareForTest({ EntityMapper.class , ProcessesUtils.class})
   public void saveWork() throws EntityNotFoundException, IllegalAccessException, ObjectNotFoundException {
+    PowerMockito.mockStatic(EntityMapper.class);
+    PowerMockito.mockStatic(ProcessesUtils.class);
+
     List<Attachment> attachments = new ArrayList<>();
     Attachment attachment = new Attachment();
     attachment.setId("1");
@@ -300,7 +311,9 @@ public class ProcessesStorageImplTest {
   }
 
   @Test
+  @PrepareForTest({ EntityMapper.class })
   public void saveWorkDraft() {
+    PowerMockito.mockStatic(EntityMapper.class);
     Work work = new Work();
     work.setId(0L);
     WorkFlow workFlow = new WorkFlow();
@@ -308,6 +321,9 @@ public class ProcessesStorageImplTest {
     workFlow.setProjectId(1L);
     org.exoplatform.processes.entity.WorkEntity workEntity = new org.exoplatform.processes.entity.WorkEntity();
     workEntity.setId(1L);
+    workEntity.hashCode();
+    workEntity.equals(workEntity);
+    workEntity.toString();
     Identity identity = mock(Identity.class);
     when(identityManager.getIdentity("1")).thenReturn(null);
     Throwable exception1 = assertThrows(IllegalArgumentException.class,
@@ -339,7 +355,9 @@ public class ProcessesStorageImplTest {
   }
 
   @Test
+  @PrepareForTest({ EntityMapper.class })
   public void getWorkById() throws Exception {
+    PowerMockito.mockStatic(EntityMapper.class);
     TaskDto taskDto = mock(TaskDto.class);
     Identity identity = mock(Identity.class);
     List<TaskDto> list = new ArrayList<>();
@@ -361,11 +379,56 @@ public class ProcessesStorageImplTest {
   }
 
   @Test
+  @PrepareForTest({ CommonsUtils.class })
   public void updateWorkCompleted() throws EntityNotFoundException {
+    PowerMockito.mockStatic(CommonsUtils.class);
     TaskDto taskDto = new TaskDto();
     StatusDto statusDto = new StatusDto();
+    statusDto.setId(1L);
+    List<StatusDto> statusDtos = new ArrayList<>();
+    List<TaskDto> taskDtos = new ArrayList<>();
     statusDto.setProject(new ProjectDto());
     taskDto.setStatus(statusDto);
+    taskDto.setId(1);
+    taskDto.setDescription("description");
+    taskDto.setTitle("task");
+    EntityMapper.toWorkStatuses(statusDtos);
+    EntityMapper.tasksToWorkList(taskDtos);
+    Work work = new Work();
+    work.setId(1);
+    List<Work> works = new ArrayList<>();
+    works.add(work);
+    WorkFlowEntity workFlowEntity = new WorkFlowEntity();
+    workFlowEntity.setId(1L);
+    workFlowEntity.setCreatorId(1L);
+    workFlowEntity.setModifierId(1L);
+    workFlowEntity.setProjectId(22L);
+    WorkFlow workFlow1 = new WorkFlow();
+    workFlow1.setProjectId(1L);
+    WorkFlow workFlow2 = new WorkFlow();
+    workFlow2.setProjectId(2L);
+    List<WorkFlow> workFlows = new ArrayList<>();
+    workFlows.add(workFlow1);
+    workFlows.add(workFlow2);
+    WorkEntity workEntity = new WorkEntity();
+    workEntity.setId(11L);
+    workEntity.setCreatorId(1L);
+    workEntity.setWorkFlow(workFlowEntity);
+    workEntity.setIsDraft(true);
+    workEntity.setWorkFlow(workFlowEntity);
+    List<WorkEntity> workEntities = new ArrayList<>();
+    workEntities.add(workEntity);
+    EntityMapper.toEntity(work);
+    EntityMapper.toEntity(workFlow2);
+    List<WorkFlowEntity> workFlowEntities2 = EntityMapper.fromWorkFlows(workFlows);
+    assertNotNull(workFlowEntities2);
+    EntityMapper.workToTask(work);
+    EntityMapper.toWorkStatus(statusDto);
+    EntityMapper.fromEntity(workEntity);
+    List<Work> works1 = EntityMapper.fromWorkEntities(workEntities);
+
+    assertNotNull(works1);
+
     when(taskService.getTask(1L)).thenReturn(taskDto);
     processesStorage.updateWorkCompleted(1L, true);
     verify(taskService, times(1)).updateTask(taskDto);
@@ -376,10 +439,15 @@ public class ProcessesStorageImplTest {
   }
 
   @Test
+  @PrepareForTest({ EntityMapper.class , CommonsUtils.class })
   public void getWorks() throws Exception {
+    PowerMockito.mockStatic(EntityMapper.class);
+    PowerMockito.mockStatic(CommonsUtils.class);
     TaskQuery taskQuery = mock(TaskQuery.class);
     WorkFilter workFilter = new WorkFilter();
     TaskDto taskDto = new TaskDto();
+    taskDto.setTitle("task");
+    taskDto.setId(11);
     List<TaskDto> tasks = new ArrayList<>();
     tasks.add(taskDto);
     Work work = new Work();
@@ -395,8 +463,27 @@ public class ProcessesStorageImplTest {
     List<WorkFlow> workFlows = new ArrayList<>();
     workFlows.add(workFlow1);
     workFlows.add(workFlow2);
+    ProjectDto projectDto = mock(ProjectDto.class);;
+    projectDto.setId(1L);
+    String username = "testuser";
+    org.exoplatform.services.security.Identity root = new org.exoplatform.services.security.Identity(username);
+    ConversationState.setCurrent(new ConversationState(root));
+    long currentOwnerId = 2;
+    org.exoplatform.social.core.identity.model.Identity currentIdentity = new org.exoplatform.social.core.identity.model.Identity(OrganizationIdentityProvider.NAME, username);
+    currentIdentity.setId(String.valueOf(currentOwnerId));
+    Profile currentProfile = new Profile();
+    currentProfile.setProperty(Profile.FULL_NAME, username);
+    currentIdentity.setProfile(currentProfile);
+
+    when(identityManager.getIdentity((String.valueOf(currentOwnerId)))).thenReturn(currentIdentity);
+
+    String user = ProcessesUtils.getUserNameByIdentityId(identityManager,1l);
+    assertNotNull(user);
+    when(CommonsUtils.getService(ProjectService.class)).thenReturn(projectService);
+    when(projectService.getProject(1l)).thenReturn(projectDto);
+    Space space = ProcessesUtils.getProjectParentSpace(1l);
+    assertNull(space);
     when(processesStorage.findWorkFlows(any(), anyInt(), anyInt())).thenReturn(workFlows);
-    when(ProcessesUtils.getUserNameByIdentityId(identityManager, 1L)).thenReturn("user");
     when(taskService.findTasks(taskQuery, 0, 0)).thenReturn(tasks);
     when(EntityMapper.tasksToWorkList(tasks)).thenReturn(works);
     processesStorage.getWorks(1L, workFilter, 0, 0);
@@ -404,7 +491,9 @@ public class ProcessesStorageImplTest {
   }
 
   @Test
+  @PrepareForTest({ EntityMapper.class })
   public void getAvailableWorkStatuses() {
+    PowerMockito.mockStatic(EntityMapper.class);
     WorkFlow workFlow1 = new WorkFlow();
     workFlow1.setProjectId(1L);
     WorkFlow workFlow2 = new WorkFlow();
