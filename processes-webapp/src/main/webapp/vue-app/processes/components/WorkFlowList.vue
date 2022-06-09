@@ -26,7 +26,7 @@
           </v-btn>
         </v-col>
         <v-col
-          v-if="showWorkflowFilter"
+          v-show="showWorkflowFilter"
           :cols="9"
           md="8"
           lg="6">
