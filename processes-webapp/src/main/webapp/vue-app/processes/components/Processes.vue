@@ -1,13 +1,11 @@
 <template>
   <v-app>
     <v-toolbar
-      color="transparent"
       flat
       class="mt-4 pr-4 pl-4 mb-1">
       <v-tabs
-        background-color="white"
         v-model="tab">
-        <v-tabs-slider color="blue" />
+        <v-tabs-slider />
         <v-tab>
           {{ $t('processes.toolbar.label.workflow') }}
         </v-tab>
@@ -17,7 +15,6 @@
       </v-tabs>
     </v-toolbar>
     <v-card
-      color="transparent"
       elevation="0"
       class="pr-4 pl-4">
       <v-tabs-items
@@ -54,7 +51,7 @@
       :message="confirmMessage"
       :ok-label="$t('processes.workflow.ok.label')"
       :cancel-label="$t('processes.workflow.cancel.label')"
-      @ok="confirmAction"/>
+      @ok="confirmAction" />
     <add-workflow-drawer
       ref="addWorkFlow" />
     <add-work-drawer
