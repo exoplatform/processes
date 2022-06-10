@@ -156,7 +156,7 @@ export default {
   },
   created() {
     this.$root.$on('workflow-added', (event) => {
-      if (event.workflow.enabled === event.filter) {
+      if (event.filter == null || event.workflow.enabled === event.filter) {
         this.workflowList.unshift(event.workflow);
       }
     });
