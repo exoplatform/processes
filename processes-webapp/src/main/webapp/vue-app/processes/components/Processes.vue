@@ -26,7 +26,8 @@
             :workflows="workflows"
             :has-more="hasMoreTypes"
             :loading-more="loadingMore"
-            :loading="loading" />
+            :loading="loading"
+            :show-workflow-filter="showFilter" />
         </v-tab-item>
         <v-tab-item>
           <my-work-list
@@ -213,6 +214,14 @@ export default {
     }
   },
   methods: {
+    showFilter(){
+      if ((this.enabled == null && !this.query)||this.workflows.length){
+        return this.workflows.length > 0;
+      }
+      else {
+        this.$processesService.getWorkFlows().then(workflows =>{return workflows.length > 0;});
+      }
+    },
     handleTabChanges() {
       const path = document.location.pathname;
       if (path.endsWith('/processes')) {
@@ -353,20 +362,19 @@ export default {
       this.alert = true;
       window.setTimeout(() => this.alert = false, 5000);
     },
-
-    
     addNewWorkFlow(workflow) {
       this.saving = true;
       this.$processesService.addNewWorkFlow(workflow).then(workflow => {
         if (workflow){
           this.$root.$emit('workflow-added', {workflow: workflow, filter: this.enabled});
           this.displayMessage({type: 'success', message: this.$t('processes.workflow.add.success.message')});
+          this.showFilter();
+
         }
       }).catch(() => {
         this.displayMessage( {type: 'error', message: this.$t('processes.workflow.add.error.message')});
       });
     },
-
     addWork(work) {
       this.$processesService.addWork(work).then(newWork => {
         if (newWork) {
@@ -450,6 +458,7 @@ export default {
         if (value === 'ok') {
           this.$root.$emit('workflow-removed', workflow);
           this.displayMessage({type: 'success', message: this.$t('processes.workflow.delete.success.message')});
+          this.showFilter();
         }
       }).catch(() => {
         this.displayMessage({type: 'error', message: this.$t('processes.workflow.delete.error.message')});

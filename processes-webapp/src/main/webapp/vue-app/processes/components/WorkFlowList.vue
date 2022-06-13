@@ -26,7 +26,7 @@
           </v-btn>
         </v-col>
         <v-col
-          v-if="!emptyWorkflow"
+          v-show="showWorkflowFilter"
           :cols="9"
           md="8"
           lg="6">
@@ -52,7 +52,7 @@
             prepend-inner-icon="mdi-filter" />
         </v-col>
       </v-row>
-      <v-row v-if="isXSmall && !emptyWorkflow">
+      <v-row v-if="isXSmall && showWorkflowFilter">
         <v-col
           class="d-flex"
           cols="12">
@@ -150,6 +150,10 @@ export default {
       default: false
     },
     isProcessesManager: {
+      type: Boolean,
+      default: false
+    },
+    showWorkflowFilter: {
       type: Boolean,
       default: false
     }
