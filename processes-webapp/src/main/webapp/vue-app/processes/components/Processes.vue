@@ -27,7 +27,7 @@
             :has-more="hasMoreTypes"
             :loading-more="loadingMore"
             :loading="loading"
-            :show-workflow-filter="showFilter" />
+            :show-workflow-filter="showProcessFilter" />
         </v-tab-item>
         <v-tab-item>
           <my-work-list
@@ -94,6 +94,7 @@ export default {
       dialogAction: null,
       targetModel: null,
       myRequestsTabVisited: null,
+      showProcessFilter: false,
     };
   },
   beforeCreate() {
@@ -189,6 +190,7 @@ export default {
     this.$root.$on('update-work-completed', work => {
       this.updateWorkCompleted(work, !work.completed);
     });
+    this.showFilter();
   },
   mounted() {
     window.setTimeout(() => {
@@ -216,10 +218,11 @@ export default {
   methods: {
     showFilter(){
       if ((this.enabled == null && !this.query)||this.workflows.length){
-        return this.workflows.length > 0;
+        this.showProcessFilter = this.workflows.length > 0;
       }
       else {
-        this.$processesService.getWorkFlows().then(workflows =>{return workflows.length > 0;});
+        this.$processesService.getWorkFlows().then(workflows =>{
+          this.showProcessFilter = workflows.length > 0;});
       }
     },
     handleTabChanges() {
