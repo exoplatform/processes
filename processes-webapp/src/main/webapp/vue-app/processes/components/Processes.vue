@@ -54,7 +54,7 @@
       :message="confirmMessage"
       :ok-label="$t('processes.workflow.ok.label')"
       :cancel-label="$t('processes.workflow.cancel.label')"
-      @ok="confirmAction"/>
+      @ok="confirmAction" />
     <add-workflow-drawer
       ref="addWorkFlow" />
     <add-work-drawer
