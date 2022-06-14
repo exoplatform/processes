@@ -79,31 +79,62 @@
                 :value="workflow.summary" />
               <v-label for="illustrative">
                 {{ $t('processes.works.form.label.illustration') }}
+                <small class="grey--text">
+                  ( {{ $t('processes.workflow.illustrative.imageSize.info.message1') }} )
+                </small>
               </v-label>
-              <small>
-                <em class="grey--text pa-1">
-                  {{ $t('processes.workflow.illustrative.imageSize.info.message') }}
-                </em>
+              <small class="grey--text">
+                {{ $t('processes.workflow.illustrative.imageSize.info.message2') }}
               </small>
-              <v-file-input
-                class="mb-5 mt-n2 illustrative_input"
-                name="illustrative"
-                outlined
-                dense
-                v-model="illustrativeInput"
-                :rules="fileRules"
-                accept="image/png, image/jpeg, image/bmp"
-                :placeholder="$t('processes.workflow.illustrative.input.placeholder')"
-                append-icon="mdi-file-image">
-                <template #selection="{ text }">
-                  <v-chip
-                    small
-                    label
-                    color="primary">
-                    {{ text }}
-                  </v-chip>
-                </template>
-              </v-file-input>
+              <div
+                class="addIllustrative d-flex ma-auto">
+                <a
+                  v-if="!illustrativeImage"
+                  class="addIllustrativeLabel my-auto d-flex primary--text font-weight-bold mb-5">
+                  <v-icon size="14" color="primary">
+                    fa-paperclip
+                  </v-icon>
+                  <span class="text-decoration-underline ma-auto ms-2">{{ $t('processes.workflow.illustrative.add') }}</span>
+                  <v-file-input
+                    v-model="illustrativeInput"
+                    show-size
+                    ref="avatarInput"
+                    prepend-icon="fa-plus"
+                    color="primary"
+                    size="16"
+                    class="addIllustrativeButton primary--text ma-0 mt-0 pt-0"
+                    accept="image/*"
+                    :rules="fileRules"
+                    clearable
+                    @change="handleUpload" />
+                </a>
+                <div v-if="illustrativeImage" class="d-flex width-full mb-5">
+                  <div class="d-flex">
+                    <v-icon
+                      size="20">
+                      fas fa-file-image
+                    </v-icon>
+                    <div
+                      v-sanitized-html="illustrativeImage.fileName"
+                      class="text--secondary ms-2">
+                    </div>
+                  </div>
+                  <v-spacer />
+                  <div class="ma-auto">
+                    <v-btn
+                      class="d-flex"
+                      outlined
+                      x-small
+                      height="24"
+                      width="24"
+                      @click="deleteIllustrative">
+                      <v-icon
+                        small
+                        class="fas fa-unlink error--text" />
+                    </v-btn>
+                  </div>
+                </div>
+              </div>
               <v-label
                 class="mt-1"
                 for="status">
@@ -335,6 +366,10 @@ export default {
       this.saving = true;
       this.workflow.illustrativeAttachment = this.illustrativeImage;
       this.$root.$emit('update-workflow',this.workflow);
+    },
+    deleteIllustrative(){
+      this.illustrativeInput = null;
+      this.illustrativeImage = null;
     }
   },
 };
