@@ -27,7 +27,7 @@
             :has-more="hasMoreTypes"
             :loading-more="loadingMore"
             :loading="loading"
-            :show-workflow-filter="allWorkflows.length" />
+            :show-workflow-filter="showFilter" />
         </v-tab-item>
         <v-tab-item>
           <my-work-list
@@ -94,7 +94,6 @@ export default {
       dialogAction: null,
       targetModel: null,
       myRequestsTabVisited: null,
-      allWorkflows: [],
     };
   },
   beforeCreate() {
@@ -215,6 +214,14 @@ export default {
     }
   },
   methods: {
+    showFilter(){
+      if ((this.enabled == null && !this.query)||this.workflows.length){
+        return this.workflows.length > 0;
+      }
+      else {
+        this.$processesService.getWorkFlows().then(workflows =>{return workflows.length > 0;});
+      }
+    },
     handleTabChanges() {
       const path = document.location.pathname;
       if (path.endsWith('/processes')) {
@@ -283,22 +290,16 @@ export default {
       });
     },
     getWorkFlows() {
+      const filter = {};
+      if (this.query) {
+        filter.query = this.query;
+      }
+      filter.enabled = this.enabled;
       const expand = '';
       this.limit = this.limit || this.pageSize;
       this.offset = this.workflows.length || 0;
       this.loading = !this.loadingMore;
-      return this.$processesService.getWorkFlows(this.offset, this.limit + 1, expand).then(workflows => {
-        this.allWorkflows = workflows;
-        if (this.query){
-          workflows = workflows.filter(elem =>{
-            return elem.title.includes(this.query);
-          });
-        }
-        if (this.enabled != null){
-          workflows = workflows.filter(elem =>{
-            return elem.enabled === this.enabled;
-          });
-        }
+      return this.$processesService.getWorkFlows(filter, this.offset, this.limit + 1, expand).then(workflows => {
         this.hasMoreTypes = workflows && workflows.length > this.limit;
         if (this.hasMoreTypes) {
           this.workflows.push(...workflows.slice(0, -1));
@@ -367,7 +368,8 @@ export default {
         if (workflow){
           this.$root.$emit('workflow-added', {workflow: workflow, filter: this.enabled});
           this.displayMessage({type: 'success', message: this.$t('processes.workflow.add.success.message')});
-          this.allWorkflows.unshift(workflow);
+          this.showFilter();
+
         }
       }).catch(() => {
         this.displayMessage( {type: 'error', message: this.$t('processes.workflow.add.error.message')});
@@ -456,7 +458,7 @@ export default {
         if (value === 'ok') {
           this.$root.$emit('workflow-removed', workflow);
           this.displayMessage({type: 'success', message: this.$t('processes.workflow.delete.success.message')});
-          this.allWorkflows.splice(this.allWorkflows.indexOf(workflow), 1);
+          this.showFilter();
         }
       }).catch(() => {
         this.displayMessage({type: 'error', message: this.$t('processes.workflow.delete.error.message')});

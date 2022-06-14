@@ -1,5 +1,13 @@
-export function getWorkFlows(offset, limit, expand) {
+export function getWorkFlows(itemsFilter, offset, limit, expand) {
   const formData = new FormData();
+  if (itemsFilter) {
+    Object.keys(itemsFilter).forEach(key => {
+      const value = itemsFilter[key];
+      if (value != null) {
+        formData.append(key, value);
+      }
+    });
+  }
   if (expand) {
     formData.append('expand', expand);
   }
