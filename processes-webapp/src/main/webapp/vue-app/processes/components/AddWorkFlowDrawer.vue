@@ -90,7 +90,7 @@
                 class="addIllustrative d-flex ma-auto">
                 <a
                   v-if="!illustrativeImage"
-                  class="addIllustrativeLabel my-auto d-flex primary--text font-weight-bold mb-5">
+                  class="addIllustrativeLabel my-auto d-flex primary--text not-clickable font-weight-bold mb-5">
                   <v-icon size="14" color="primary">
                     fa-paperclip
                   </v-icon>
@@ -102,21 +102,21 @@
                     prepend-icon="fa-plus"
                     color="primary"
                     size="16"
-                    class="addIllustrativeButton primary--text ma-0 mt-0 pt-0"
+                    class="addIllustrativeButton clickable primary--text ma-0 mt-0 pt-0"
                     accept="image/*"
                     :rules="fileRules"
                     clearable
                     @change="handleUpload" />
                 </a>
                 <div v-if="illustrativeImage" class="d-flex width-full mb-5">
-                  <div class="d-flex">
+                  <div class="d-flex illustrativeName">
                     <v-icon
                       size="20">
                       fas fa-file-image
                     </v-icon>
                     <div
                       v-sanitized-html="illustrativeImage.fileName"
-                      class="text--secondary ms-2">
+                      class="text--secondary text-truncate ms-2">
                     </div>
                   </div>
                   <v-spacer />
