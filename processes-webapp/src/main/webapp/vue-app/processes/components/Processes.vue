@@ -100,6 +100,7 @@ export default {
   beforeCreate() {
     this.$processesService.isProcessesManager().then(value => {
       this.isManager = value === 'true';
+      this.showFilter();
     });
     this.$processesService.getAvailableWorkStatuses().then(statuses => {
       this.availableWorkStatuses = statuses;
@@ -217,11 +218,19 @@ export default {
   },
   methods: {
     showFilter(){
-      if ((this.enabled == null && !this.query)||this.workflows.length){
-        this.showProcessFilter = this.workflows.length > 0;
+      if (this.isManager){
+        if ((this.enabled == null && !this.query)||this.workflows.length){
+          this.showProcessFilter = this.workflows.length > 0;
+        }
+        else {
+          this.$processesService.getWorkFlows().then(workflows =>{
+            this.showProcessFilter = workflows.length > 0;});
+        }
       }
       else {
-        this.$processesService.getWorkFlows().then(workflows =>{
+        const filter = {};
+        filter.enabled = true;
+        this.$processesService.getWorkFlows(filter).then(workflows =>{
           this.showProcessFilter = workflows.length > 0;});
       }
     },
