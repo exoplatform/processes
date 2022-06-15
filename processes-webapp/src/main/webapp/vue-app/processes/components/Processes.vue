@@ -35,7 +35,8 @@
             :works="works"
             :work-drafts="workDrafts"
             :completed-works="completedWorks"
-            :loading="loading" />
+            :loading="loading"
+            :show-work-filter="requestSubmited || allWorkDrafts.length" />
         </v-tab-item>
       </v-tabs-items>
     </v-card>
@@ -79,6 +80,7 @@ export default {
       workflows: [],
       works: [],
       workDrafts: [],
+      allWorkDrafts: [],
       completedWorks: [],
       query: null,
       enabled: true,
@@ -95,6 +97,7 @@ export default {
       targetModel: null,
       myRequestsTabVisited: null,
       showProcessFilter: false,
+      requestSubmited: false,      
     };
   },
   beforeCreate() {
@@ -206,6 +209,9 @@ export default {
         }
       }));
     }, 300);
+    this.$processesService.getWorks(null,0,0,'workFlow').then(list =>{
+      this.requestSubmited = list.length > 0;
+    });
   },
   computed: {
     isMobile() {
@@ -348,15 +354,23 @@ export default {
       });
     },
     getWorkDrafts() {
-      const filter = {};
-      if (this.query) {
-        filter.query = this.query;
-      }
       const expand = '';
       this.limit = this.limit || this.pageSize;
       this.loading = true;
-      return this.$processesService.getWorkDrafts(filter, 0, 0, expand).then(drafts => {
-        this.workDrafts = drafts || [];
+      return this.$processesService.getWorkDrafts(null, 0, 0, expand).then(drafts => {
+        this.allWorkDrafts = drafts || [];
+        if (this.query){
+          const div = document.createElement('div');
+          this.workDrafts = this.allWorkDrafts.filter(elem=>{
+            if (elem.description){
+              div.innerHTML = elem.description;
+            }
+            return elem.workFlow.title.includes(this.query) ||(div.innerText && div.innerText.includes(this.query));
+          });
+        }
+        else {
+          this.workDrafts = this.allWorkDrafts;
+        }
       }).finally(() => this.loading = false);
     },
     displayMessage(alert) {
@@ -387,6 +401,7 @@ export default {
             this.workDrafts.splice(this.workDrafts.indexOf(work.draftId), 1);
           }
           this.displayMessage({type: 'success', message: this.$t('processes.work.add.success.message')});
+          this.requestSubmited = true;
         }
       }).catch(() => {
         this.displayMessage({type: 'error', message: this.$t('processes.work.add.error.message')});
