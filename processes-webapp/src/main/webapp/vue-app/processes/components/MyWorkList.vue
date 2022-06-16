@@ -1,7 +1,7 @@
 <template>
   <div
     id="myWorks">
-    <v-container class="pa-0 work-controls">
+    <v-container class="pa-0 work-controls" v-show="showWorkFilter">
       <v-row no-gutters>
         <v-col
           height="150">
@@ -139,6 +139,9 @@ export default {
       default: () => {
         return {};
       }
+    },
+    showWorkFilter: {
+      type: Boolean,
     }
   },
   created() {
