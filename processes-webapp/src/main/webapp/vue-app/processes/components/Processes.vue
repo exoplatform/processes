@@ -385,7 +385,6 @@ export default {
           this.$root.$emit('workflow-added', {workflow: workflow, filter: this.enabled});
           this.displayMessage({type: 'success', message: this.$t('processes.workflow.add.success.message')});
           this.showProcessFilter = true;
-
         }
       }).catch(() => {
         this.displayMessage( {type: 'error', message: this.$t('processes.workflow.add.error.message')});
