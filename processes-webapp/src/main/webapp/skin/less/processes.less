@@ -232,8 +232,35 @@
   .work-status {
     max-width: 150px;
   }
+  .v-autocomplete.identitySuggester {
+    width: 290px;
 
+    &.identitySuggester {
+      margin-bottom: 0 !important;
+    }
+
+    .v-input__slot {
+      margin: auto !important;
+    }
+
+    .v-select__selections {
+      flex-wrap: nowrap;
+      white-space: nowrap;
+      overflow: hidden;
+      margin: auto;
+      display: flex !important;
+    }
+
+    input {
+      padding: 0;
+    }
+  }
   #addWorkFlowDrawer {
+
+    .v-menu__content {
+      max-height: 90px!important;
+      top: 30px!important;
+    }
 
     textarea {
       border: 0;

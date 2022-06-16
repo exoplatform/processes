@@ -21,7 +21,7 @@
           v-model="stp"
           vertical>
           <v-stepper-step
-            class="text-uppercase"
+            class="primary--text title"
             :complete="stp > 1"
             step="1">
             {{ $t('processes.workflow.form.label.description') }}
@@ -161,12 +161,51 @@
             </v-form>
           </v-stepper-content>
           <v-stepper-step
-            class="text-uppercase"
+            class="primary--text title"
             :complete="stp > 2"
             step="2">
-            {{ $t('processes.works.form.label.documents') }}
+            {{ $t('processes.works.form.label.manage') }}
           </v-stepper-step>
           <v-stepper-content step="2">
+            <v-label>
+              <span class="text-color body-2">
+                {{ $t('processes.works.form.label.add.manage') }}
+              </span>
+            </v-label>
+            <div class="d-flex flex-row">
+              <workflow-suggester-space
+                ref="workFLowOwner"
+                :workflow="workflow"
+                class="ms-1 pe-1"
+                @initialized="formInitialized" />
+            </div>
+            <v-card-actions class="d-flex flex-row mt-4 ms-2 px-0">
+              <v-btn class="btn" @click="previousStep">
+                <v-icon size="18" class="me-2">
+                  {{ $vuetify.rtl && 'fa-caret-right' || 'fa-caret-left' }}
+                </v-icon>
+                {{ $t('processes.works.form.label.back') }}
+              </v-btn>
+              <v-spacer />
+              <v-btn
+                class="btn btn-primary me-4"
+                outlined
+                :disabled="!workflowChanged"
+                @click="nextStep">
+                {{ $t('processes.works.form.label.continue') }}
+                <v-icon size="18" class="ms-2">
+                  {{ $vuetify.rtl && 'fa-caret-left' || 'fa-caret-right' }}
+                </v-icon>
+              </v-btn>
+            </v-card-actions>
+          </v-stepper-content>
+          <v-stepper-step
+            class="primary--text title"
+            :complete="stp > 3"
+            step="3">
+            {{ $t('processes.works.form.label.documents') }}
+          </v-stepper-step>
+          <v-stepper-content step="3">
             <processes-attachments
               v-model="attachments"
               :workflow-parent-space="workflowParentSpace"
@@ -230,6 +269,7 @@ export default {
         enabled: true,
         helpUrl: '',
         illustrativeAttachment: null,
+        manager: {},
         projectId: null,
         permissions: null,
       },
@@ -255,6 +295,7 @@ export default {
       fileRules: [
         value => !value || value.size < 100000 || this.$t('processes.workflow.illustrative.imageSize.error.message'),
       ],
+      originalWorkflowString: null,
     };
   },
   created(){
@@ -278,7 +319,10 @@ export default {
     },
     confirmClose() {
       return this.valid && JSON.stringify(this.workflow) !== JSON.stringify(this.oldWorkflow);
-    }
+    },
+    workflowChanged() {
+      return  this.workflow && this.originalWorkflowString && this.workflow.manager;
+    },
   },
   watch: {
     workflowEnabled(value) {
@@ -289,6 +333,9 @@ export default {
     }
   },
   methods: {
+    formInitialized() {
+      this.originalWorkflowString = JSON.stringify(this.workflow);
+    },
     handleUpload(image) {
       if (!image) {
         this.illustrativeImage = null;
