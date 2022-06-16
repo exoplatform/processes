@@ -4,6 +4,7 @@ import WorkFlowCardItem from './components/WorkFlowCardItem.vue';
 import MyWorkList from './components/MyWorkList.vue';
 import Work from './components/Work.vue';
 import AddWorkFlowDrawer from './components/AddWorkFlowDrawer.vue';
+import WorkFlowSuggesterSpace from './components/WorkFlowSuggesterSpace.vue';
 import AddWorkDrawer from './components/AddWorkDrawer.vue';
 import RequestEditor from './components/RequestEditor.vue';
 
@@ -27,6 +28,7 @@ const components = {
   'my-work-list': MyWorkList,
   'work': Work,
   'add-workflow-drawer': AddWorkFlowDrawer,
+  'workflow-suggester-space': WorkFlowSuggesterSpace,
   'add-work-drawer': AddWorkDrawer,
   'request-editor': RequestEditor,
   'processes-attachments': ProcessesAttachments,
