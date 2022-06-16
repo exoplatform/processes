@@ -100,7 +100,6 @@ export default {
   beforeCreate() {
     this.$processesService.isProcessesManager().then(value => {
       this.isManager = value === 'true';
-      this.showFilter();
     });
     this.$processesService.getAvailableWorkStatuses().then(statuses => {
       this.availableWorkStatuses = statuses;
@@ -109,7 +108,10 @@ export default {
   watch: {
     tab(value) {
       this.updateState(value);
-    }
+    },
+    workflows(){
+      this.showFilter();
+    },
   },
   created() {
     this.getWorkFlows();
@@ -191,7 +193,6 @@ export default {
     this.$root.$on('update-work-completed', work => {
       this.updateWorkCompleted(work, !work.completed);
     });
-    this.showFilter();
   },
   mounted() {
     window.setTimeout(() => {
@@ -227,11 +228,14 @@ export default {
             this.showProcessFilter = workflows.length > 0;});
         }
       }
-      else {
+      else if (this.query){
         const filter = {};
         filter.enabled = true;
         this.$processesService.getWorkFlows(filter).then(workflows =>{
           this.showProcessFilter = workflows.length > 0;});
+      }
+      else {
+        this.showProcessFilter = this.workflows.length > 0;
       }
     },
     handleTabChanges() {
@@ -470,7 +474,6 @@ export default {
         if (value === 'ok') {
           this.$root.$emit('workflow-removed', workflow);
           this.displayMessage({type: 'success', message: this.$t('processes.workflow.delete.success.message')});
-          this.showFilter();
         }
       }).catch(() => {
         this.displayMessage({type: 'error', message: this.$t('processes.workflow.delete.error.message')});
