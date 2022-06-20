@@ -374,7 +374,7 @@ export default {
         this.allWorkDrafts = drafts || [];
         if (this.query){
           this.workDrafts = this.allWorkDrafts.filter(elem=>{
-            return elem.description && elem.description.replace(/<\/?[^>]+(>|$)|\s/gi, '').includes(this.query.replace(/\s/g,''));
+            return elem.description && elem.description.replace(/\s/g,'').replace(/<\/?[^>]+(>|$)|/gi, '').includes(this.query.replace(/\s/g,''));
           });
         }
         else {
