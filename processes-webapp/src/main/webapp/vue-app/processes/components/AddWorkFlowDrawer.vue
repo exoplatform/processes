@@ -94,8 +94,9 @@
                   <v-icon size="14" color="primary">
                     fa-paperclip
                   </v-icon>
-                  <span class="text-decoration-underline ma-auto ms-2">{{ $t('processes.workflow.illustrative.add') }}</span>
+                  <a class="text-decoration-underline ma-auto ms-2" @click="uploadFile">{{ $t('processes.workflow.illustrative.add') }}</a>
                   <v-file-input
+                    id="avatarInput"
                     v-model="illustrativeInput"
                     show-size
                     ref="avatarInput"
@@ -289,6 +290,15 @@ export default {
     }
   },
   methods: {
+    uploadFile(){
+      const fileUpload = document.getElementById('avatarInput');
+      if (fileUpload != null) {
+        fileUpload.click();
+      }
+    },
+    formInitialized() {
+      this.originalWorkflowString = JSON.stringify(this.workflow);
+    },
     handleUpload(image) {
       if (!image) {
         this.illustrativeImage = null;
