@@ -27,7 +27,7 @@ export default {
   computed: {
     workFlowSuggesterLabels() {
       return {
-        searchPlaceholder: this.$t('processes.works.form.chooseCalendar'),
+        searchPlaceholder: this.$t('processes.works.form.request.chooseSpacer'),
         placeholder: this.$t('processes.works.form.searchPlaceholder'),
         noDataLabel: this.$t('processes.works.form.noDataLabel'),
       };
