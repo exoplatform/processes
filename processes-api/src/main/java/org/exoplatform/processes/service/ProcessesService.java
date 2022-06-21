@@ -47,6 +47,10 @@ public interface ProcessesService {
                                     int limit,
                                     long userIdentityId) throws IllegalAccessException;
 
+
+  int countWorkFlows(ProcessesFilter filter,
+                     long userIdentityId) throws IllegalAccessException;
+
   WorkFlow getWorkFlow(long id) throws IllegalAccessException;
 
   WorkFlow createWorkFlow(WorkFlow workFlow, long userId) throws IllegalAccessException;
