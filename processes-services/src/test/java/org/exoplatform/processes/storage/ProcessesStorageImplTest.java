@@ -151,8 +151,8 @@ public class ProcessesStorageImplTest {
     List<String > memberships = new ArrayList<>();
     memberships.add("manager");
     memberships.add("participator");
-    Set<String> managers = new HashSet<String>(Arrays.asList(memberships.get(0)));
-    Set<String> participators = new HashSet<String>(Arrays.asList(memberships.get(1)));
+    Set<String> managers = new HashSet<>(Arrays.asList(memberships.get(0)));
+    Set<String> participators = new HashSet<>(Arrays.asList(memberships.get(1)));
     ProjectDto projectDto = new ProjectDto();
     Space space = mock(Space.class);
     WorkFlowEntity workFlowEntity = new WorkFlowEntity();
@@ -566,8 +566,8 @@ public class ProcessesStorageImplTest {
     List<String > memberships = new ArrayList<>();
     memberships.add("manager");
     memberships.add("participator");
-    Set<String> managers = new HashSet<String>(Arrays.asList(memberships.get(0)));
-    Set<String> participators = new HashSet<String>(Arrays.asList(memberships.get(1)));
+    Set<String> managers = new HashSet<>(Arrays.asList(memberships.get(0)));
+    Set<String> participators = new HashSet<>(Arrays.asList(memberships.get(1)));
     ProjectDto projectDto = new ProjectDto();
     Space space = mock(Space.class);
     WorkFlowEntity workFlowEntity = new WorkFlowEntity();
@@ -602,6 +602,6 @@ public class ProcessesStorageImplTest {
     when(workFlowDAO.countWorkFlows(filter)).thenReturn(1);
     when(workFlow.getIllustrativeAttachment()).thenReturn(illustrativeAttachment);
     this.processesStorage.saveWorkFlow(workFlow, 1L);
-    assertEquals(this.processesStorage.countWorkFlows(filter),1);
+    assertEquals(1,this.processesStorage.countWorkFlows(filter));
   }
 }

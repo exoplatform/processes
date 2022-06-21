@@ -174,11 +174,11 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       ProcessesUtils.broadcast(listenerService, "exo.process.created", userId, newWorkflow);
     } else {
       Space space = ProcessesUtils.getProjectParentSpace(workFlow.getProjectId());
-      if(space != null && space.getId() != workFlow.getSpaceId()){
+      if(space != null && !space.getId().equals(workFlow.getSpaceId())){
         Space newSpace = spaceService.getSpaceById(workFlow.getSpaceId());
         List<String> memberships = UserUtil.getSpaceMemberships(newSpace.getGroupId());
-        Set<String> managers = new HashSet<String>(Arrays.asList(memberships.get(0)));
-        Set<String> participators = new HashSet<String>(Arrays.asList(memberships.get(1)));
+        Set<String> managers = new HashSet<>(Arrays.asList(memberships.get(0)));
+        Set<String> participators = new HashSet<>(Arrays.asList(memberships.get(1)));
         try {
           ProjectDto project = projectService.getProject(workFlow.getProjectId());
           project.setManager(managers);
@@ -419,8 +419,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     }
 
     List<String> memberships = UserUtil.getSpaceMemberships(processSpace.getGroupId());
-    Set<String> managers = new HashSet<String>(Arrays.asList(memberships.get(0)));
-    Set<String> participators = new HashSet<String>(Arrays.asList(memberships.get(1)));
+    Set<String> managers = new HashSet<>(Arrays.asList(memberships.get(0)));
+    Set<String> participators = new HashSet<>(Arrays.asList(memberships.get(1)));
     ProjectDto project = ProjectUtil.newProjectInstanceDto(workFlow.getTitle(), workFlow.getDescription(), managers, participators);
     project = projectService.createProject(project);
     for (String statusName : DEFAULT_PROCESS_STATUS) {
