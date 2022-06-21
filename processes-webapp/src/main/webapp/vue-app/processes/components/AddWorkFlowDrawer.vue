@@ -155,7 +155,7 @@
                   :disabled="!valid"
                   class="btn btn-primary v-btn--outlined float-e"
                   color="primary"
-                  @click="nextStep">
+                  @click="setSpace(); nextStep()">
                   {{ $t('processes.works.form.label.continue') }}
                 </v-btn>
               </div>
@@ -270,7 +270,7 @@ export default {
         enabled: true,
         helpUrl: '',
         illustrativeAttachment: null,
-        manager: {},
+        space: {},
         projectId: null,
         permissions: null,
       },
@@ -322,7 +322,7 @@ export default {
       return this.valid && JSON.stringify(this.workflow) !== JSON.stringify(this.oldWorkflow);
     },
     workflowChanged() {
-      return  this.workflow && this.originalWorkflowString && this.workflow.manager;
+      return  this.workflow && this.originalWorkflowString && this.workflow.parentSpace;
     },
   },
   watch: {
@@ -401,6 +401,9 @@ export default {
       if (this.valid) {
         this.stp++;
       }
+    },
+    setSpace() {
+      this.$root.$emit('set-workflow-space',this.workflow.parentSpace );
     },
     previousStep() {
       this.stp--;

@@ -34,6 +34,7 @@ import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.domain.Priority;
+import org.exoplatform.task.domain.Project;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.dto.TaskDto;
@@ -172,6 +173,22 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       WorkFlow newWorkflow = EntityMapper.fromEntity(workFlowEntity, illustrativeAttachment);
       ProcessesUtils.broadcast(listenerService, "exo.process.created", userId, newWorkflow);
     } else {
+      Space space = ProcessesUtils.getProjectParentSpace(workFlow.getProjectId());
+      if(space != null && !space.getId().equals(workFlow.getSpaceId())){
+        Space newSpace = spaceService.getSpaceById(workFlow.getSpaceId());
+        List<String> memberships = UserUtil.getSpaceMemberships(newSpace.getGroupId());
+        Set<String> managers = new HashSet<>(Arrays.asList(memberships.get(0)));
+        Set<String> participators = new HashSet<>(Arrays.asList(memberships.get(1)));
+        try {
+          ProjectDto project = projectService.getProject(workFlow.getProjectId());
+          project.setManager(managers);
+          project.setParticipator(participators);
+          projectService.updateProjectNoReturn(project);
+        } catch (EntityNotFoundException e) {
+          throw new IllegalArgumentException("Process project does not exist");
+        }
+      }
+
       workFlowEntity.setModifiedDate(new Date());
       workFlowEntity.setModifierId(userId);
       workFlowEntity = workFlowDAO.update(workFlowEntity);
@@ -206,6 +223,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
                                       fileInfo.getSize(),
                                       fileInfo.getUpdatedDate().getTime());
   }
+
 
   private IllustrativeAttachment createIllustrativeImage(IllustrativeAttachment illustrativeAttachment) {
     if (illustrativeAttachment == null) {
@@ -395,14 +413,14 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   }
 
   private long createProject(WorkFlow workFlow) {
-    Space processSpace = spaceService.getSpaceByGroupId(PROCESSES_SPACE_GROUP_ID);
+    Space processSpace = spaceService.getSpaceById(workFlow.getSpaceId());
     if (processSpace == null) {
       throw new IllegalArgumentException("Space of processes not exist");
     }
 
     List<String> memberships = UserUtil.getSpaceMemberships(processSpace.getGroupId());
-    Set<String> managers = new HashSet<String>(Arrays.asList(memberships.get(0)));
-    Set<String> participators = new HashSet<String>(Arrays.asList(memberships.get(1)));
+    Set<String> managers = new HashSet<>(Arrays.asList(memberships.get(0)));
+    Set<String> participators = new HashSet<>(Arrays.asList(memberships.get(1)));
     ProjectDto project = ProjectUtil.newProjectInstanceDto(workFlow.getTitle(), workFlow.getDescription(), managers, participators);
     project = projectService.createProject(project);
     for (String statusName : DEFAULT_PROCESS_STATUS) {
@@ -540,6 +558,9 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     return statuses;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public List<WorkFlow> findWorkFlows(ProcessesFilter processesFilter, int offset, int limit) {
     List<WorkFlowEntity> workFlowEntities = workFlowDAO.findWorkFlows(processesFilter, offset, limit);
@@ -558,4 +579,13 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     });
     return workFlows;
   }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public int countWorkFlows(ProcessesFilter processesFilter) {
+    return workFlowDAO.countWorkFlows(processesFilter);
+  }
+
 }

@@ -24,6 +24,23 @@ export default {
       workFlowOwner: null,
     };
   },
+  created(){
+    this.$root.$on('set-workflow-space', (space) => {
+      if (space){
+        this.workFlowOwner = {
+          remoteId: space.prettyName,
+          providerId: 'space',
+          spaceId: space.id,
+          profile: {
+            avatarUrl: space.avatar,
+            fullName: space.displayName,
+          }
+        };
+      } else {
+        this.workFlowOwner = {};
+      }
+    });
+  },
   computed: {
     workFlowSuggesterLabels() {
       return {
@@ -36,20 +53,18 @@ export default {
   watch: {
     workFlowOwner() {
       this.resetCustomValidity();
-
       if (this.workFlowOwner) {
-        this.workflow.manager = {
-          remoteId: this.workFlowOwner.remoteId,
-          providerId: this.workFlowOwner.providerId,
+        this.workflow.parentSpace = {
+          id: this.workFlowOwner.spaceId,
+          displayName: this.workFlowOwner.profile.fullName,
+          groupId: `/spaces/${this.workFlowOwner.remoteId}`,
+          name: this.workFlowOwner.remoteId,
+          prettyName: this.workFlowOwner.remoteId,
+          url: this.workFlowOwner.remoteId,
+          avatarUrl: this.workFlowOwner.profile.avatar,
         };
-        if (this.workFlowOwner.profile) {
-          this.workflow.manager.profile = {
-            avatarUrl: this.workFlowOwner.profile.avatarUrl,
-            fullName: this.workFlowOwner.profile.fullName,
-          };
-        }
       } else {
-        this.workflow.manager = null;
+        this.workflow.parentSpace = null;
       }
       this.$emit('initialized');
     },
@@ -61,8 +76,8 @@ export default {
       }
     },
     reset() {
-      if (this.workflow.id ||  (this.workflow && this.workflow.manager && (this.workflow.manager.id || (this.workflow.manager.remoteId && this.workflow.manager.providerId)))) { // In case of edit existing event
-        this.workFlowOwner = this.$suggesterService.convertIdentityToSuggesterItem(this.workflow.manager);
+      if (this.workflow.id ||  (this.workflow && this.workflow.space && (this.workflow.space.id || (this.workflow.space.remoteId && this.workflow.space.providerId)))) { // In case of edit existing event
+        this.workFlowOwner = this.$suggesterService.convertIdentityToSuggesterItem(this.workflow.space);
 
         window.setTimeout(() => {
           if (this.$refs.workFlowOwnerSuggester) {

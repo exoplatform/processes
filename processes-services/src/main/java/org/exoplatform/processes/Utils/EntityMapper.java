@@ -40,6 +40,7 @@ public class EntityMapper {
                         workFlowEntity.getModifierId(),
                         workFlowEntity.getModifiedDate(),
                         workFlowEntity.getProjectId(),
+                        "",
                         null,
                         null,
                         new IllustrativeAttachment(workFlowEntity.getIllustrationImageId()));
@@ -103,6 +104,7 @@ public class EntityMapper {
     workFlowEntity.setModifierId(workFlow.getModifierId());
     workFlowEntity.setModifiedDate(workFlow.getModifiedDate());
     workFlowEntity.setProjectId(workFlow.getProjectId());
+
     if (workFlow.getIllustrativeAttachment() != null) {
       workFlowEntity.setIllustrationImageId(workFlow.getIllustrativeAttachment().getId());
     }
