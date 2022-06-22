@@ -312,7 +312,7 @@ export default {
            || null,
           fileName: image.name,
           fileBody: e.target.result
-                 && e.target.result !== 'data:'
+                 && e.target.result.length >23
                  && e.target.result || null,
           mimeType: image.type,
           fileSize: image.size,
