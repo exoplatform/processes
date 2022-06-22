@@ -4,6 +4,7 @@
     v-model="workFlowOwner"
     :labels="workFlowSuggesterLabels"
     :include-users="false"
+    :searchOptions="searchOptions"
     :width="220"
     name="workFlowOwnerAutocomplete"
     class="user-suggester workFlowOwnerAutocomplete"
@@ -30,6 +31,11 @@ export default {
         searchPlaceholder: this.$t('processes.works.form.chooseCalendar'),
         placeholder: this.$t('processes.works.form.searchPlaceholder'),
         noDataLabel: this.$t('processes.works.form.noDataLabel'),
+      };
+    },
+    searchOptions() {
+      return {
+        filterType: 'all',
       };
     },
   },
