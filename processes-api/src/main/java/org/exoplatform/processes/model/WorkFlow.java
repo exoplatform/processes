@@ -53,6 +53,8 @@ public class WorkFlow {
 
   private long              projectId;
 
+  private String            spaceId;
+
   private ProcessPermission acl;
 
   private Attachment[]      attachments;

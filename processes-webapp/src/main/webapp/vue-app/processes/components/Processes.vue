@@ -151,6 +151,9 @@ export default {
     });
     this.$root.$on('open-workflow-drawer', event => {
       this.$refs.addWorkFlow.open(event.workflow, event.mode);
+      if (event.mode==='edit_workflow'){
+        this.$root.$emit('set-workflow-space',event.workflow.parentSpace );
+      }
     });
     this.$root.$on('show-work-comments', (work, comments) => {
       this.work = work;
@@ -373,12 +376,8 @@ export default {
       return this.$processesService.getWorkDrafts(null, 0, 0, expand).then(drafts => {
         this.allWorkDrafts = drafts || [];
         if (this.query){
-          const div = document.createElement('div');
           this.workDrafts = this.allWorkDrafts.filter(elem=>{
-            if (elem.description){
-              div.innerHTML = elem.description;
-            }
-            return elem.workFlow.title.includes(this.query) ||(div.innerText && div.innerText.includes(this.query));
+            return elem.description && elem.description.replace(/\s/g,'').replace(/<\/?[^>]+(>|$)/gi, '').includes(this.query.replace(/\s/g,''));
           });
         }
         else {
