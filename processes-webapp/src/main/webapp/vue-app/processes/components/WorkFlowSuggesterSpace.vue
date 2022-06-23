@@ -46,7 +46,7 @@ export default {
           providerId: 'space',
           spaceId: space.id,
           profile: {
-            avatarUrl: space.avatar,
+            avatarUrl: space.avatarUrl,
             fullName: space.displayName,
           }
         };
