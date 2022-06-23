@@ -5,9 +5,11 @@
       v-model="invitedAttendee"
       :labels="workFlowSuggesterLabels"
       :include-users="false"
+      :search-options="searchOptions"
       class="user-suggester workFlowOwnerAutocomplete"
       name="inviteAttendee"
       include-spaces
+      include-groups
       required />
     <div v-if="workflowRequest" class="identitySuggester no-border mt-0">
       <workflow-form-attendee-item
@@ -38,6 +40,11 @@ export default {
         searchPlaceholder: this.$t('processes.works.form.request.searchPlaceholder'),
         placeholder: this.$t('processes.works.form.request.chooseSpacer'),
         noDataLabel: this.$t('processes.works.form.request.noDataLabel'),
+      };
+    },
+    searchOptions() {
+      return {
+        filterType: 'all',
       };
     },
   },

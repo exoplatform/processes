@@ -4,7 +4,7 @@
     v-model="workFlowOwner"
     :labels="workFlowSuggesterLabels"
     :include-users="false"
-    :searchOptions="searchOptions"
+    :search-options="searchOptions"
     :width="220"
     name="workFlowOwnerAutocomplete"
     class="user-suggester workFlowOwnerAutocomplete"

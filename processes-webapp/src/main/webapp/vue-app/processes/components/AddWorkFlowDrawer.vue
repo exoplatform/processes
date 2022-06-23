@@ -176,11 +176,11 @@
                     v-on="on"
                     size="17"
                     class="primary--text"
-                    @mouseenter="applyItemClass()">
+                    @mouseenter="applyItemClass(infoManage)">
                     fa-info-circle
                   </v-icon>
                 </template>
-                <span class="center">{{ $t('processes.works.form.label.associate.process') }}</span>
+                <span class="center">{{ infoManage }}</span>
               </v-tooltip>
             </div>
           </v-stepper-step>
@@ -221,12 +221,29 @@
             class="primary--text stepperTitle"
             :complete="stp > 3"
             step="3">
-            {{ $t('processes.works.form.label.request') }}
+            <div class="width-full d-flex">
+              <div class="width-full stepperTitle">{{ $t('processes.works.form.label.request') }}</div>
+              <v-spacer />
+              <v-tooltip bottom>
+                <template #activator="{ on, attrs }">
+                  <v-icon
+                    dark
+                    v-bind="attrs"
+                    v-on="on"
+                    size="17"
+                    class="primary--text"
+                    @mouseenter="applyItemClass(infoRequest)">
+                    fa-info-circle
+                  </v-icon>
+                </template>
+                <span class="center">{{ infoRequest }}</span>
+              </v-tooltip>
+            </div>
           </v-stepper-step>
           <v-stepper-content step="3">
             <v-label>
               <span class="text-color body-2">
-                {{ $t('processes.works.form.label.add.request') }}
+                {{ $t('processes.works.form.label.add.request') + ' *' }}
               </span>
             </v-label>
             <div class="d-flex flex-row">
@@ -373,6 +390,12 @@ export default {
     requestStatus() {
       return this.workflowEnabled ? this.$t('processes.works.form.label.enabled') : this.$t('processes.works.form.label.disabled');
     },
+    infoRequest() {
+      return this.$t('processes.works.form.label.associate.request');
+    },
+    infoManage() {
+      return this.$t('processes.works.form.label.associate.process');
+    },
     workflowParentSpace() {
       return this.workflow && this.workflow.parentSpace;
     },
@@ -490,11 +513,11 @@ export default {
       this.illustrativeInput = null;
       this.illustrativeImage = null;
     },
-    applyItemClass(){
+    applyItemClass(messageInfo){
       window.setTimeout(() => {
         const elements = document.getElementsByClassName('v-tooltip__content');
         for (let i = 0; i < elements.length; i++){
-          if (elements[i].innerText.includes(this.$t('processes.works.form.label.associate.process'))){
+          if (elements[i].innerText.includes(messageInfo)){
             elements[i].style.left = '880px';
           }
         }

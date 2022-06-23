@@ -3,7 +3,7 @@
     close
     class="identitySuggesterItem me-4 mt-4"
     @click:close="$emit('remove-attendee', attendee)">
-    <v-avatar left>
+    <v-avatar v-if="avatarUrl" left>
       <v-img :src="avatarUrl" />
     </v-avatar>
     <span class="text-truncate">
