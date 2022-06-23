@@ -75,7 +75,7 @@
           :src="avatarUrl" /> 
       </v-avatar>
     </div>  
-    <div class="ml-14 mr-3 mt-5">
+    <div class="ml-14 mr-5 mt-5">
       {{ workflow.title }} 
     </div>
   </div>
