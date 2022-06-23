@@ -245,7 +245,7 @@
       </template>
       <template #footer>
         <v-btn
-          :disabled="!valid"
+          :disabled="!(valid && workflowChanged)"
           v-if="!editMode"
           :loading="saving"
           @click="addNewWorkFlow"
