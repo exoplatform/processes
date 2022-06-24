@@ -254,7 +254,7 @@
           {{ $t('processes.works.form.label.save') }}
         </v-btn>
         <v-btn
-          :disabled="!valid"
+          :disabled="!(valid && workflowChanged)"
           v-if="editMode"
           :loading="saving"
           @click="updateWorkFlow"
