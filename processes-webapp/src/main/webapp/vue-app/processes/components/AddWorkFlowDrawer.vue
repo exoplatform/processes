@@ -21,7 +21,7 @@
           v-model="stp"
           vertical>
           <v-stepper-step
-            class="primary--text title"
+            class="primary--text stepperTitle"
             :complete="stp > 1"
             step="1">
             {{ $t('processes.workflow.form.label.description') }}
@@ -155,22 +155,39 @@
                   :disabled="!valid"
                   class="btn btn-primary v-btn--outlined float-e"
                   color="primary"
-                  @click="nextStep">
+                  @click="setSpace(); nextStep()">
                   {{ $t('processes.works.form.label.continue') }}
                 </v-btn>
               </div>
             </v-form>
           </v-stepper-content>
           <v-stepper-step
-            class="primary--text title"
+            class="primary--text width-full d-flex"
             :complete="stp > 2"
             step="2">
-            {{ $t('processes.works.form.label.manage') }}
+            <div class="width-full d-flex">
+              <div class="width-full stepperTitle">{{ $t('processes.works.form.label.manage') }}</div>
+              <v-spacer />
+              <v-tooltip bottom>
+                <template #activator="{ on, attrs }">
+                  <v-icon
+                    dark
+                    v-bind="attrs"
+                    v-on="on"
+                    size="17"
+                    class="primary--text"
+                    @mouseenter="applyItemClass()">
+                    fa-info-circle
+                  </v-icon>
+                </template>
+                <span class="center">{{ $t('processes.works.form.label.associate.process') }}</span>
+              </v-tooltip>
+            </div>
           </v-stepper-step>
           <v-stepper-content step="2">
             <v-label>
-              <span class="text-color body-2">
-                {{ $t('processes.works.form.label.add.manage') }}
+              <span class="text-color ms-1 pe-1 body-2">
+                {{ $t('processes.works.form.label.add.manage') + ' *' }}
               </span>
             </v-label>
             <div class="d-flex flex-row">
@@ -201,7 +218,7 @@
             </v-card-actions>
           </v-stepper-content>
           <v-stepper-step
-            class="primary--text title"
+            class="primary--text stepperTitle"
             :complete="stp > 3"
             step="3">
             {{ $t('processes.works.form.label.documents') }}
@@ -228,7 +245,7 @@
       </template>
       <template #footer>
         <v-btn
-          :disabled="!valid"
+          :disabled="!(valid && workflowChanged)"
           v-if="!editMode"
           :loading="saving"
           @click="addNewWorkFlow"
@@ -237,7 +254,7 @@
           {{ $t('processes.works.form.label.save') }}
         </v-btn>
         <v-btn
-          :disabled="!valid"
+          :disabled="!(valid && workflowChanged)"
           v-if="editMode"
           :loading="saving"
           @click="updateWorkFlow"
@@ -270,7 +287,7 @@ export default {
         enabled: true,
         helpUrl: '',
         illustrativeAttachment: null,
-        manager: {},
+        space: {},
         projectId: null,
         permissions: null,
       },
@@ -322,7 +339,7 @@ export default {
       return this.valid && JSON.stringify(this.workflow) !== JSON.stringify(this.oldWorkflow);
     },
     workflowChanged() {
-      return  this.workflow && this.originalWorkflowString && this.workflow.manager;
+      return  this.workflow && this.originalWorkflowString && this.workflow.parentSpace;
     },
   },
   watch: {
@@ -402,6 +419,9 @@ export default {
         this.stp++;
       }
     },
+    setSpace() {
+      this.$root.$emit('set-workflow-space',this.workflow.parentSpace );
+    },
     previousStep() {
       this.stp--;
     },
@@ -424,7 +444,17 @@ export default {
     deleteIllustrative(){
       this.illustrativeInput = null;
       this.illustrativeImage = null;
-    }
+    },
+    applyItemClass(){
+      window.setTimeout(() => {
+        const elements = document.getElementsByClassName('v-tooltip__content');
+        for (let i = 0; i < elements.length; i++){
+          if (elements[i].innerText.includes(this.$t('processes.works.form.label.associate.process'))){
+            elements[i].style.left = '880px';
+          }
+        }
+      }, 100);
+    },
   },
 };
 </script>
