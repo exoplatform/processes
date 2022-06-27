@@ -114,6 +114,12 @@ public class ProcessesServiceImpl implements ProcessesService, Startable {
   }
 
   @Override
+  public int countWorkFlows(ProcessesFilter filter,
+                            long userIdentityId) throws IllegalAccessException {
+   return processesStorage.countWorkFlows(filter);
+  }
+
+  @Override
   public WorkFlow getWorkFlow(long id) throws IllegalAccessException {
     return processesStorage.getWorkFlowById(id);
   }

@@ -59,6 +59,7 @@ public class EntityBuilder {
                         workFlowEntity.getModifierId(),
                         workFlowEntity.getModifiedDate(),
                         workFlowEntity.getProjectId(),
+                        workFlowEntity.getParentSpace()!=null && workFlowEntity.getParentSpace().getId() != null ? workFlowEntity.getParentSpace().getId() : "",
                         null,
                         workFlowEntity.getAttachments(),
                         workFlowEntity.getIllustrativeAttachment());

@@ -197,4 +197,6 @@ public interface ProcessesStorage {
   IllustrativeAttachment getIllustrationImageById(Long illustrationId) throws FileStorageException,
                                                                        ObjectNotFoundException,
                                                                        IOException;
+
+  int countWorkFlows(ProcessesFilter processesFilter);
 }
