@@ -7,11 +7,9 @@ import java.util.List;
 import javax.persistence.NoResultException;
 import javax.persistence.Query;
 import javax.persistence.TypedQuery;
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.Predicate;
-import javax.persistence.criteria.Root;
+import javax.persistence.criteria.*;
 
+import org.apache.commons.lang.StringUtils;
 import org.exoplatform.commons.persistence.impl.GenericDAOJPAImpl;
 import org.exoplatform.processes.entity.WorkFlowEntity;
 import org.exoplatform.processes.model.ProcessesFilter;
@@ -52,7 +50,38 @@ public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
     return resultList == null ? Collections.emptyList() : resultList;
   }
 
-  private Query buildWorkflowQueryCriteria(ProcessesFilter processesFilter) {
+  private String  buildWorkflowQuery(ProcessesFilter processesFilter, List<String> memberships) {
+    String q = processesFilter.getQuery();
+    Boolean enabled = processesFilter.getEnabled();
+    String queryString = "SELECT DISTINCT workFlow FROM WorkFlow workFlow";
+    if(memberships != null) {
+      queryString = queryString + " LEFT JOIN workFlow.manager manager "
+              + " LEFT JOIN workFlow.participator participator ";
+    }
+    if(StringUtils.isNotEmpty(q) || memberships != null || enabled != null){
+      queryString = queryString + " WHERE";
+      if (StringUtils.isNotEmpty(q)){
+        queryString = queryString + " ( workFlow.title like '%" + q + "%'";
+        queryString = queryString + " OR workFlow.description like '%" + q + "%'";
+        queryString = queryString + " OR workFlow.summary like '%" + q + "%' )";
+        queryString = queryString + " AND";
+      }
+      if ( enabled != null){
+        queryString = queryString + " workFlow.enabled = " + enabled;
+        queryString = queryString + " AND";
+      }
+      if ( memberships != null){
+        queryString = queryString + " manager IN ('"+String.join("','", memberships)+"') OR participator IN ('"+String.join("','", memberships)+"') ";
+      }
+      if (queryString.endsWith(" AND")) {
+        queryString = queryString.substring(0, queryString.length() - 4);
+      }
+    }
+
+    return queryString;
+  }
+
+  private Query buildWorkflowQueryCriteria(ProcessesFilter processesFilter, List<String> memberships) {
     String q = processesFilter.getQuery();
     Boolean enabled = processesFilter.getEnabled();
     List<Predicate> predicates = new ArrayList<>();
@@ -76,7 +105,7 @@ public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
   }
 
   public List<WorkFlowEntity> findWorkFlows(ProcessesFilter processesFilter, int offset, int limit) {
-    Query query = buildWorkflowQueryCriteria(processesFilter);
+    Query query = buildWorkflowQueryCriteria(processesFilter,null);
     query.setFirstResult(offset);
     if (limit > 0) {
       query.setMaxResults(limit);
@@ -86,7 +115,25 @@ public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
   }
 
   public int countWorkFlows(ProcessesFilter processesFilter) {
-    Query query = buildWorkflowQueryCriteria(processesFilter);
+    Query query = buildWorkflowQueryCriteria(processesFilter,null);
+    return query.getMaxResults();
+  }
+
+  public List<WorkFlowEntity> findWorkFlows(ProcessesFilter processesFilter, List<String> memberships, int offset, int limit) {
+
+    String queryString = buildWorkflowQuery(processesFilter, memberships);
+    Query query = getEntityManager().createQuery(queryString);
+    query.setFirstResult(offset);
+    if (limit > 0) {
+      query.setMaxResults(limit);
+    }
+    List<WorkFlowEntity> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList() : resultList;
+  }
+
+  public int countWorkFlows(ProcessesFilter processesFilter, List<String> memberships) {
+    String queryString = buildWorkflowQuery(processesFilter, memberships);
+    Query query = getEntityManager().createQuery(queryString, Long.class);
     return query.getMaxResults();
   }
 

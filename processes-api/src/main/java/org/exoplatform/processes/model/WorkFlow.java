@@ -18,6 +18,8 @@
 package org.exoplatform.processes.model;
 
 import java.util.Date;
+import java.util.Set;
+
 import org.exoplatform.services.attachments.model.Attachment;
 
 import lombok.AllArgsConstructor;
@@ -60,5 +62,9 @@ public class WorkFlow {
   private Attachment[]      attachments;
 
   private IllustrativeAttachment    illustrativeAttachment;
+
+  private Set<String> manager;
+
+  private Set<String> participator;
 
 }

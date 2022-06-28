@@ -77,7 +77,7 @@ public class ProcessesServiceImplTest {
     ProcessesFilter processesFilter = new ProcessesFilter();
     processesFilter.setEnabled(true);
     processesFilter.setQuery("test");
-    when(processesStorage.findWorkFlows(processesFilter,0, 10)).thenReturn(enabledWorkFlowList);
+    when(processesStorage.findWorkFlows(processesFilter, 0,0, 10)).thenReturn(enabledWorkFlowList);
 
     List<WorkFlow> enabledResult = processesService.getWorkFlows(processesFilter, 0, 10, 0L);
     assertEquals(enabledWorkFlowList, enabledResult);
