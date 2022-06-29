@@ -14,7 +14,6 @@
       <template #activator="{ on, attrs }">
         <v-btn
           :class=" isMobile ? 'three-dots mr-n2 mt-3' : 'three-dots mt-1'"
-          color="#5F708A"
           dark
           icon
           v-bind="attrs"
@@ -91,18 +90,20 @@
     </v-card-text>
     <v-card-footer class="d-inline-flex" elevation ="0">
     <v-card elevation ="0" class="mb-5 ml-3 card-footer-request">
-      <v-chip
-        :class="isMobile ? 'ml-8':''"
-        v-if="isProcessesManager"
-        color="white"
-        :href="projectLink(workflow.projectId)"
-        target="_blank"
-        :loading="!completedWorksCount"
-        :text-color="completedWorksCount == 0 ? '#999999':'#F89802'">
-          <v-icon small>mdi-clock-time-four-outline</v-icon>
+      <span
+        :class="isMobile ? 'ml-8':''">
+        <v-chip
+          :class="completedWorksCount == 0 ? 'no-pending-requests':'pending-requests'"
+          v-if="isProcessesManager"
+          color="white"
+          :href="projectLink(workflow.projectId)"
+          target="_blank"
+          :loading="!completedWorksCount">
+            <v-icon small>mdi-clock-time-four-outline</v-icon>
 
-        {{ completedWorksCount }} {{ $t('processes.workflow.label.pending') }}
-      </v-chip>
+          {{ completedWorksCount }} {{ $t('processes.workflow.label.pending') }}
+        </v-chip>
+      </span>
     </v-card >
     <v-card class="card-footer-btn mr-3 mb-4 px-2" elevation="0" outlined>
       <v-btn 
