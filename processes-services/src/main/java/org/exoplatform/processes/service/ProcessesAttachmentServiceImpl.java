@@ -286,7 +286,7 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
                                                                    identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME,
                                                                                                        currentUser);
       String newNameSuffix = "";
-      String name = node.getName();
+      String name = node.getProperty(NodetypeConstant.EXO_TITLE).getString();
       int pointIndex = name.lastIndexOf(".");
       String extension = pointIndex != -1 ? name.substring(pointIndex) : "";
       if (identity != null) {
