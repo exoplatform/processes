@@ -2,6 +2,8 @@ package org.exoplatform.processes.entity;
 
 import java.io.Serializable;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.Set;
 
 import javax.persistence.*;
 
@@ -66,5 +68,15 @@ public class WorkFlowEntity implements Serializable {
 
   @Column(name = "ILLUSTRATION_IMAGE_ID")
   private Long illustrationImageId;
+
+  @ElementCollection
+  @CollectionTable(name = "WORK_FLOW_MANAGERS",
+          joinColumns = @JoinColumn(name = "WORK_FLOW_ID"))
+  private Set<String> manager = new HashSet<>();
+
+  @ElementCollection
+  @CollectionTable(name = "WORK_FLOW_PARTICIPATOR",
+          joinColumns = @JoinColumn(name = "WORK_FLOW_ID"))
+  private Set<String> participator = new HashSet<>();
 
 }

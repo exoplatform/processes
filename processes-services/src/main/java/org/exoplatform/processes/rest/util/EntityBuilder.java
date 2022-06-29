@@ -62,7 +62,8 @@ public class EntityBuilder {
                         workFlowEntity.getParentSpace()!=null && workFlowEntity.getParentSpace().getId() != null ? workFlowEntity.getParentSpace().getId() : "",
                         null,
                         workFlowEntity.getAttachments(),
-                        workFlowEntity.getIllustrativeAttachment());
+                        workFlowEntity.getIllustrativeAttachment(),
+                        null, null);
   }
 
   public static Work fromEntity(WorkEntity workEntity) {

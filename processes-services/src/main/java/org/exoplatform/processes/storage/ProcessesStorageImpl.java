@@ -22,11 +22,12 @@ import org.exoplatform.processes.dao.WorkFlowDAO;
 import org.exoplatform.processes.entity.WorkEntity;
 import org.exoplatform.processes.entity.WorkFlowEntity;
 import org.exoplatform.processes.model.*;
-import org.exoplatform.processes.notification.utils.NotificationUtils;
 import org.exoplatform.processes.service.ProcessesAttachmentService;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
+import org.exoplatform.services.organization.Membership;
+import org.exoplatform.services.organization.OrganizationService;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
@@ -34,7 +35,6 @@ import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.domain.Priority;
-import org.exoplatform.task.domain.Project;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.dto.TaskDto;
@@ -70,9 +70,13 @@ public class ProcessesStorageImpl implements ProcessesStorage {
 
   private final FileService                fileService;
 
+  private final OrganizationService                organizationService;
+
   private final String                     DATE_FORMAT              = "yyyy/MM/dd";
 
   private static final String              PROCESSES_SPACE_GROUP_ID = "/spaces/processes_space";
+
+  private static final String PROCESSES_GROUP = "/platform/processes";
 
   private static final String              WORK_DRAFT_ENTITY_TYPE   = "workdraft";
 
@@ -95,7 +99,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
                               SpaceService spaceService,
                               ListenerService listenerService,
                               ProcessesAttachmentService processesAttachmentService,
-                              FileService fileService) {
+                              FileService fileService,
+                              OrganizationService organizationService) {
     this.workFlowDAO = workFlowDAO;
     this.workDraftDAO = workDraftDAO;
     this.identityManager = identityManager;
@@ -106,6 +111,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     this.listenerService = listenerService;
     this.processesAttachmentService = processesAttachmentService;
     this.fileService = fileService;
+    this.organizationService = organizationService;
   }
 
   @Override
@@ -166,8 +172,10 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       workFlowEntity.setCreatedDate(new Date());
       workFlowEntity.setCreatorId(userId);
       if (workFlow.getProjectId() == 0) {
-        long projectId = createProject(workFlow);
-        workFlowEntity.setProjectId(projectId);
+        workFlow = createProject(workFlow);
+        workFlowEntity.setProjectId(workFlow.getProjectId());
+        workFlowEntity.setParticipator(workFlow.getParticipator());
+        workFlowEntity.setManager(workFlow.getManager());
       }
       workFlowEntity = workFlowDAO.create(workFlowEntity);
       WorkFlow newWorkflow = EntityMapper.fromEntity(workFlowEntity, illustrativeAttachment);
@@ -178,12 +186,17 @@ public class ProcessesStorageImpl implements ProcessesStorage {
         Space newSpace = spaceService.getSpaceById(workFlow.getSpaceId());
         List<String> memberships = UserUtil.getSpaceMemberships(newSpace.getGroupId());
         Set<String> managers = new HashSet<>(Arrays.asList(memberships.get(0)));
+
         Set<String> participators = new HashSet<>(Arrays.asList(memberships.get(1)));
         try {
           ProjectDto project = projectService.getProject(workFlow.getProjectId());
           project.setManager(managers);
           project.setParticipator(participators);
           projectService.updateProjectNoReturn(project);
+          workFlowEntity.setProjectId(project.getId());
+          managers.addAll(participators);
+          workFlowEntity.setManager(managers);
+          workFlowEntity.setParticipator(managers);
         } catch (EntityNotFoundException e) {
           throw new IllegalArgumentException("Process project does not exist");
         }
@@ -412,7 +425,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     }
   }
 
-  private long createProject(WorkFlow workFlow) {
+  private WorkFlow createProject(WorkFlow workFlow) {
     Space processSpace = spaceService.getSpaceById(workFlow.getSpaceId());
     if (processSpace == null) {
       throw new IllegalArgumentException("Space of processes not exist");
@@ -426,7 +439,12 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     for (String statusName : DEFAULT_PROCESS_STATUS) {
       statusService.createStatus(project, statusName);
     }
-    return project.getId();
+    workFlow.setProjectId(project.getId());
+    workFlow.setProjectId(project.getId());
+    participators.addAll(managers);
+    workFlow.setManager(managers);
+    workFlow.setParticipator(participators);
+    return workFlow;
   }
 
   /**
@@ -562,8 +580,32 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    * {@inheritDoc}
    */
   @Override
-  public List<WorkFlow> findWorkFlows(ProcessesFilter processesFilter, int offset, int limit) {
-    List<WorkFlowEntity> workFlowEntities = workFlowDAO.findWorkFlows(processesFilter, offset, limit);
+  public List<WorkFlow> findWorkFlows(ProcessesFilter processesFilter, long userIdentityId, int offset, int limit) {
+    String userName = "";
+    List<String> memberships = new ArrayList<>();
+    if( userIdentityId > 0){
+      Identity identity = identityManager.getIdentity(String.valueOf(userIdentityId));
+      if(identity!=null){
+        userName = identity.getRemoteId();
+        memberships.add(userName);
+        try {
+          Collection<Membership> ms = organizationService.getMembershipHandler().findMembershipsByUser(userName);
+          if(ms != null){
+            for(Membership membership : ms){
+              if(membership.getGroupId().equals(PROCESSES_GROUP)){
+                memberships = null;
+                break;
+              }
+              String membership_ = membership.getMembershipType() + ":" + membership.getGroupId();
+              memberships.add(membership_);
+            }
+          }
+        } catch (Exception e) {
+          LOG.error("Error while getting the user memberships", e);
+        }
+      }
+    }
+    List<WorkFlowEntity> workFlowEntities = workFlowDAO.findWorkFlows(processesFilter, memberships, offset, limit);
     List<WorkFlow> workFlows = new ArrayList<>();
     workFlowEntities.forEach(workflowEntity -> {
       IllustrativeAttachment illustrativeAttachment = null;
