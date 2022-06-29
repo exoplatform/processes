@@ -209,7 +209,6 @@ export default {
           userId: eXo.env.portal.userIdentityId,
           userName: eXo.env.portal.userName,
           operation: 'accessProcessesApp',
-          name: 'access to processes application',
           timestamp: Date.now()
         }
       }));
