@@ -9,8 +9,6 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
 
-import org.apache.ecs.vxml.Break;
-import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.xmlbeans.impl.util.Base64;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.file.model.FileInfo;
@@ -24,14 +22,12 @@ import org.exoplatform.processes.dao.WorkFlowDAO;
 import org.exoplatform.processes.entity.WorkEntity;
 import org.exoplatform.processes.entity.WorkFlowEntity;
 import org.exoplatform.processes.model.*;
-import org.exoplatform.processes.notification.utils.NotificationUtils;
 import org.exoplatform.processes.service.ProcessesAttachmentService;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.organization.Membership;
 import org.exoplatform.services.organization.OrganizationService;
-import org.exoplatform.services.security.MembershipEntry;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
@@ -39,7 +35,6 @@ import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.domain.Priority;
-import org.exoplatform.task.domain.Project;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.dto.TaskDto;
@@ -587,7 +582,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   @Override
   public List<WorkFlow> findWorkFlows(ProcessesFilter processesFilter, long userIdentityId, int offset, int limit) {
     String userName = "";
-    List<String> memberships = new ArrayList<String>();
+    List<String> memberships = new ArrayList<>();
     if( userIdentityId > 0){
       Identity identity = identityManager.getIdentity(String.valueOf(userIdentityId));
       if(identity!=null){

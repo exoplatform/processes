@@ -81,7 +81,7 @@ public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
     return queryString;
   }
 
-  private Query buildWorkflowQueryCriteria(ProcessesFilter processesFilter, List<String> memberships) {
+  private Query buildWorkflowQueryCriteria(ProcessesFilter processesFilter) {
     String q = processesFilter.getQuery();
     Boolean enabled = processesFilter.getEnabled();
     List<Predicate> predicates = new ArrayList<>();
@@ -105,7 +105,7 @@ public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
   }
 
   public List<WorkFlowEntity> findWorkFlows(ProcessesFilter processesFilter, int offset, int limit) {
-    Query query = buildWorkflowQueryCriteria(processesFilter,null);
+    Query query = buildWorkflowQueryCriteria(processesFilter);
     query.setFirstResult(offset);
     if (limit > 0) {
       query.setMaxResults(limit);
@@ -115,7 +115,7 @@ public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
   }
 
   public int countWorkFlows(ProcessesFilter processesFilter) {
-    Query query = buildWorkflowQueryCriteria(processesFilter,null);
+    Query query = buildWorkflowQueryCriteria(processesFilter);
     return query.getMaxResults();
   }
 

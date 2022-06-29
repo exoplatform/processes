@@ -72,11 +72,11 @@ public class WorkFlowEntity implements Serializable {
   @ElementCollection
   @CollectionTable(name = "WORK_FLOW_MANAGERS",
           joinColumns = @JoinColumn(name = "WORK_FLOW_ID"))
-  private Set<String> manager = new HashSet<String>();
+  private Set<String> manager = new HashSet<>();
 
   @ElementCollection
   @CollectionTable(name = "WORK_FLOW_PARTICIPATOR",
           joinColumns = @JoinColumn(name = "WORK_FLOW_ID"))
-  private Set<String> participator = new HashSet<String>();
+  private Set<String> participator = new HashSet<>();
 
 }
