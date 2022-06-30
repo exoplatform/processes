@@ -18,6 +18,7 @@ import RequestStatus from './components/commons/RequestStatus.vue';
 import CreateDocumentForm from './components/attachments-integration/CreateDocumentForm.vue';
 import ProcessesAttachments from './components/attachments-integration/ProcessesAttachments.vue';
 
+import ProcessMobileActionDrawer from './components/ProcessMobileActionDrawer.vue';
 
 import * as processesService from './js/ProcessesService.js';
 import * as ProcessesAttachmentService from './js/ProcessesAttachmentService.js';
@@ -40,7 +41,8 @@ const components = {
   'custom-counter': CustomCounter,
   'custom-date-format': CustomDateFormat,
   'request-status': RequestStatus,
-  'create-document-from': CreateDocumentForm
+  'create-document-from': CreateDocumentForm,
+  'process-mobile-action-drawer': ProcessMobileActionDrawer
 };
 
 for (const key in components) {
