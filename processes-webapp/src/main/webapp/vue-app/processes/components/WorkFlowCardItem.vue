@@ -1,15 +1,7 @@
 <template>
   <v-card
-    min-height="317px"
-    class="mt-2 mb-2 me-3"
+    :class="isMobile ? 'mt-2 mb-2 ml-n3':'mt-2 mb-2 mr-8'"
     outlined>
-    <v-btn
-      outlined
-      color="primary"
-      class="mb-0 invisible"
-      icon>
-      <v-icon>mdi-information-outline</v-icon>
-    </v-btn>
     <v-menu
       v-model="showMenu"
       transition="slide-x-reverse-transition"
@@ -21,8 +13,7 @@
       left>
       <template #activator="{ on, attrs }">
         <v-btn
-          class="float-e"
-          color="primary"
+          :class=" isMobile ? 'three-dots mr-n2 mt-3' : 'three-dots mt-1'"
           dark
           icon
           v-bind="attrs"
@@ -48,56 +39,86 @@
             </v-icon>
             <span>{{ $t('processes.workflow.delete.label') }}</span>
           </v-list-item-title>
-        </v-list-item>
+          </v-list-item>
       </v-list>
     </v-menu>
-    <v-card-title
-      class="text-center d-block mt-0 text-truncate workflow-title-card">
+  <div v-if="!isMobile">
+    <div class="mb-n5">
+      <v-btn
+        outlined
+        color="grey"
+        class="invisible"
+        icon>
+        <v-icon>mdi-information</v-icon>
+      </v-btn>  
+    </div> 
+    <div class="d-flex justify-center image-height">
       <v-avatar
         v-if="avatarUrl"
-        size="40px">
+        size="50px">
         <v-img
-          class="workflow-avatar-img"
           :src="avatarUrl" />
-      </v-avatar>
-      {{ workflow.title }}
+      </v-avatar>         
+    </div>   
+    <v-card-title
+      class="text-center d-block card-title title-size">
+     <div> {{ workflow.title }}</div>
     </v-card-title>
-    <v-card-text
-      class="text-center card-content">
+  </div>
+  <div v-else>
+    <div class="process-img mt-3 ml-3">
+      <v-avatar
+        v-if="avatarUrl"
+        size="34px">
+        <v-img
+          :src="avatarUrl" /> 
+      </v-avatar>
+    </div>  
+    <div class="ml-14 mr-5 mt-5">
+      {{ workflow.title }} 
+    </div>
+  </div>
+    <v-card-text :class=" isMobile ? 'card-content':'card-content mt-2'">
       <div>
         <p
-          class="text-truncate-4 workflow-card-desc">
+          :class="isMobile ? 'text-truncate-2 ml-10 description-size' : 'text-truncate-3 text-center mt-n4 description-size'">
           {{ workflow.description }}
         </p>
       </div>
       <div>
-        <v-chip
-          v-if="completedWorksCount>0 && isProcessesManager"
-          class="text-truncate"
-          color="orange"
-          :href="projectLink(workflow.projectId)"
-          target="_blank"
-          :loading="!completedWorksCount"
-          text-color="white">
-          {{ completedWorksCount }} {{ $t('processes.works.status.inProgress') }}
-        </v-chip>
       </div>
     </v-card-text>
-    <v-divider />
-    <v-card-actions
-      class="d-inline-block work-card-actions ma-2">
-      <v-btn
-        class="me-8 btn card-footer-btn mt-2 mb-2 float-e"
+    <v-card-footer class="d-inline-flex" elevation ="0">
+    <v-card elevation ="0" class="mb-5 ml-3 card-footer-request">
+      <span
+        :class="isMobile ? 'ml-8':''">
+        <v-chip
+          :class="completedWorksCount == 0 ? 'no-pending-requests':'pending-requests'"
+          v-if="isProcessesManager"
+          color="white"
+          :href="projectLink(workflow.projectId)"
+          target="_blank"
+          :loading="!completedWorksCount">
+            <v-icon small>mdi-clock-time-four-outline</v-icon>
+
+          {{ completedWorksCount }} {{ $t('processes.workflow.label.pending') }}
+        </v-chip>
+      </span>
+    </v-card >
+    <v-card class="card-footer-btn mr-3 mb-4 px-2" elevation="0" outlined>
+      <v-btn 
+        outlined
         right
         plain
         :disabled="!workflow.enabled"
         depressed
         @click="open"
-        color="deep-grey lighten-3">
-        {{ $t('processes.works.label.makeRequest') }}
+        >
+        {{ $t('processes.workflow.label.request') }}
       </v-btn>
-    </v-card-actions>
-  </v-card>
+      </v-card>
+  </v-card-footer>
+ </v-card>
 </template>
 
 <script>
@@ -106,7 +127,7 @@ export default {
   data () {
     return {
       showMenu: false,
-      completedWorksCount: null,
+      completedWorksCount: 0,
     };
   },
   props: {
@@ -136,7 +157,10 @@ export default {
       return this.workflow && this.workflow.illustrativeAttachment
                            && this.workflow.illustrativeAttachment.id
                            && `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/illustration/${this.workflow.id}?v=${this.workflow.illustrativeAttachment.lastUpdated}`;
-    }
+    },
+    isMobile() {
+      return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
+    },
   },
   methods: {
     editWorkflow() {

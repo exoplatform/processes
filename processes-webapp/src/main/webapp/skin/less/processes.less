@@ -5,6 +5,14 @@
 
   overflow-x: hidden;
 
+  .no-pending-requests {
+    color: @baseColorLight;
+  }
+
+  .pending-requests {
+    color: @colorIconOrange;
+  }
+
   .work-card-actions {
     width: 100%;
   }
@@ -32,6 +40,18 @@
 
   .text-align-start {
     text-align: start !important;
+  }
+  
+  .image-height {
+    height: 50px;
+  }
+  
+  .title-size {
+    font-size: 15px
+  }
+
+  .description-size {
+    font-size: 14px
   }
 
   .text-align-end {
@@ -112,14 +132,29 @@
     position: absolute;
   }
 
+  .card-footer-request {
+    position:absolute;
+    bottom:0;
+    left:0;
+ }
+ .three-dots {
+    position: absolute;
+    top: 0;
+    right: 0;
+    color: @mediumGrey;
+  }
+  .process-img{
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
   .card-content {
-    height: 137px
+    height: 115px;
+    color:@baseColorLight;
   }
-  .card-title {
-    height: 90px
-  }
+
   .workflow-card-desc {
-    min-height: 88px;
+    min-height: 80px;
   }
 
   .work-filter {
@@ -382,6 +417,9 @@
 
   .custom-counter {
     height: 20px
+  }
+  .card-title {
+    height: 30px
   }
 }
 
