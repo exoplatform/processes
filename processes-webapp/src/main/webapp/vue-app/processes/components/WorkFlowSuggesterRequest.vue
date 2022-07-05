@@ -6,6 +6,7 @@
       :labels="workFlowSuggesterLabels"
       :include-users="false"
       :search-options="searchOptions"
+      :group-member="processesGroup"
       class="user-suggester workFlowOwnerAutocomplete"
       name="inviteAttendee"
       include-spaces
@@ -32,6 +33,7 @@ export default {
   data() {
     return {
       invitedAttendee: [],
+      processesGroup: '/platform/processes',
     };
   },
   computed: {
