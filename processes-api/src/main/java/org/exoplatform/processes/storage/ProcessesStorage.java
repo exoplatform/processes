@@ -184,7 +184,7 @@ public interface ProcessesStorage {
    * @param limit limit of result list
    * @return {@link List} of {@link WorkFlow}
    */
-  List<WorkFlow> findWorkFlows(ProcessesFilter processesFilter, int offset, int limit);
+  List<WorkFlow> findWorkFlows(ProcessesFilter processesFilter, long userIdentityId, int offset, int limit);
 
   /**
    * Retrieves an illustration image by its given id

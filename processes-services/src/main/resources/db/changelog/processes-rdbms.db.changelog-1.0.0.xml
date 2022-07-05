@@ -100,4 +100,34 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.-->
     <changeSet author="processes" id="1.0.0-5" dbms="hsqldb,oracle,postgresql">
         <createSequence sequenceName="SEQ_WORK_ID" startValue="1"/>
     </changeSet>
+
+
+    <changeSet author="processes" id="1.0.0-6">
+        <createTable tableName="WORK_FLOW_MANAGERS">
+            <column name="WORK_FLOW_ID" type="BIGINT">
+                <constraints foreignKeyName="FK_WORK_FLOW_MGR_01" references="PROCESSES_WORK_FLOW(WORK_FLOW_ID)" nullable="false"/>
+            </column>
+            <column name="MANAGER" type="NVARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <modifySql dbms="mysql">
+            <append value=" ENGINE=INNODB CHARSET=UTF8 COLLATE utf8_general_ci"/>
+        </modifySql>
+    </changeSet>
+
+    <changeSet author="processes" id="1.0.0-7">
+        <createTable tableName="WORK_FLOW_PARTICIPATOR">
+            <column name="WORK_FLOW_ID" type="BIGINT">
+                <constraints foreignKeyName="FK_WORK_FLOW_PART_01" references="PROCESSES_WORK_FLOW(WORK_FLOW_ID)" nullable="false"/>
+            </column>
+            <column name="PARTICIPATOR" type="NVARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <modifySql dbms="mysql">
+            <append value=" ENGINE=INNODB CHARSET=UTF8 COLLATE utf8_general_ci"/>
+        </modifySql>
+    </changeSet>
+
 </databaseChangeLog>

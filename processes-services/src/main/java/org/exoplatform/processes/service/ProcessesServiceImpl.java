@@ -110,7 +110,7 @@ public class ProcessesServiceImpl implements ProcessesService, Startable {
                                            int offset,
                                            int limit,
                                            long userIdentityId) throws IllegalAccessException {
-   return processesStorage.findWorkFlows(filter, offset, limit);
+   return processesStorage.findWorkFlows(filter, userIdentityId, offset, limit);
   }
 
   @Override

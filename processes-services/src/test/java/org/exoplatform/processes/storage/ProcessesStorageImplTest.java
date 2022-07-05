@@ -16,6 +16,10 @@ import org.exoplatform.processes.model.*;
 import org.exoplatform.processes.service.ProcessesAttachmentService;
 import org.exoplatform.services.attachments.model.Attachment;
 import org.exoplatform.services.listener.ListenerService;
+import org.exoplatform.services.organization.Membership;
+import org.exoplatform.services.organization.MembershipHandler;
+import org.exoplatform.services.organization.OrganizationService;
+import org.exoplatform.services.organization.impl.MembershipImpl;
 import org.exoplatform.services.rest.impl.RuntimeDelegateImpl;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.social.core.identity.model.Identity;
@@ -47,8 +51,7 @@ import javax.ws.rs.ext.RuntimeDelegate;
 import java.util.*;
 
 import static org.junit.Assert.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -78,6 +81,9 @@ public class ProcessesStorageImplTest {
   @Mock
   private SpaceService spaceService;
 
+  @Mock
+  private MembershipHandler membershipHandler;
+
   private ListenerService listenerService;
 
   @Mock
@@ -85,6 +91,9 @@ public class ProcessesStorageImplTest {
 
   @Mock
   private FileService                fileService;
+  @Mock
+  private OrganizationService organizationService;
+
   private ProcessesStorage processesStorage;
 
   @Before
@@ -101,7 +110,8 @@ public class ProcessesStorageImplTest {
                                                      spaceService,
                                                      listenerService,
                                                      processesAttachmentService,
-                                                     fileService);
+                                                     fileService,
+                                                     organizationService);
 
   }
 
@@ -488,7 +498,7 @@ public class ProcessesStorageImplTest {
     when(projectService.getProject(1l)).thenReturn(projectDto);
     Space space = ProcessesUtils.getProjectParentSpace(1l);
     assertNull(space);
-    when(processesStorage.findWorkFlows(any(), anyInt(), anyInt())).thenReturn(workFlows);
+    when(processesStorage.findWorkFlows(any(), anyLong(), anyInt(), anyInt())).thenReturn(workFlows);
     when(taskService.findTasks(taskQuery, 0, 0)).thenReturn(tasks);
     when(EntityMapper.tasksToWorkList(tasks)).thenReturn(works);
     processesStorage.getWorks(1L, workFilter, 0, 0);
@@ -548,6 +558,93 @@ public class ProcessesStorageImplTest {
 
 
 
+  @Test
+  @PrepareForTest({ EntityMapper.class , UserUtil.class ,ProjectUtil.class ,ProcessesUtils.class})
+  public void findWorkflow() throws Exception {
+    PowerMockito.mockStatic(EntityMapper.class);
+    PowerMockito.mockStatic(UserUtil.class);
+    PowerMockito.mockStatic(ProjectUtil.class);
+    PowerMockito.mockStatic(ProcessesUtils.class);
+
+    IllustrativeAttachment illustrativeAttachment = new IllustrativeAttachment(null, "image.png", "image/png", 1365L, new Date().getTime());
+    List<Attachment> attachments = new ArrayList<>();
+    Attachment attachment = new Attachment();
+    attachment.setId("1");
+    attachments.add(attachment);
+    Identity identity = mock(Identity.class);
+    WorkFlow workFlow = mock(WorkFlow.class);
+    List<String > memberships = new ArrayList<>();
+    memberships.add("manager");
+    memberships.add("participator");
+    Set<String> managers = new HashSet<>(Arrays.asList(memberships.get(0)));
+    Set<String> participators = new HashSet<>(Arrays.asList(memberships.get(1)));
+    ProjectDto projectDto = new ProjectDto();
+    Space space = mock(Space.class);
+    WorkFlowEntity workFlowEntity = new WorkFlowEntity();
+    when(EntityMapper.toEntity(workFlow)).thenReturn(workFlowEntity);
+    when(workFlow.getId()).thenReturn(0L);
+    when(workFlow.getProjectId()).thenReturn(0L);
+    when(workFlow.getSpaceId()).thenReturn("1");
+
+    when(identityManager.getIdentity("1")).thenReturn(identity);
+    when(identity.getRemoteId()).thenReturn("user");
+    when(identity.getId()).thenReturn("1");
+    when(space.getGroupId()).thenReturn("/spaces/processes_space");
+    when(spaceService.getSpaceByGroupId("/spaces/processes_space")).thenReturn(space);
+    when(spaceService.getSpaceById("1")).thenReturn(space);
+    when(UserUtil.getSpaceMemberships(space.getGroupId())).thenReturn(memberships);
+    workFlow.setDescription("anything");
+    workFlow.setTitle("title");
+    workFlow.setProjectId(1L);
+    workFlow.setSpaceId("1");
+    when(ProjectUtil.newProjectInstanceDto(workFlow.getTitle(), workFlow.getDescription(), managers, participators)).thenReturn(projectDto);
+    projectDto.setId(1L);
+    when(projectService.createProject(projectDto)).thenReturn(projectDto);
+    PowerMockito.doNothing().when(statusService).createInitialStatuses(projectDto);
+    when(workFlow.getAttachments()).thenReturn(attachments.toArray(new Attachment[attachments.size()]));
+    when(EntityMapper.toEntity(workFlow)).thenReturn(workFlowEntity);
+    WorkFlowEntity newWorkFlowEntity = new WorkFlowEntity();
+    newWorkFlowEntity.setId(1L);
+    newWorkFlowEntity.setProjectId(1L);
+    newWorkFlowEntity.hashCode();
+    newWorkFlowEntity.toString();
+    newWorkFlowEntity.equals(workFlow);
+    when(workFlowDAO.create(workFlowEntity)).thenReturn(newWorkFlowEntity);
+    ProcessesFilter filter = new ProcessesFilter("",null);
+    List<WorkFlowEntity> workFlowEntities = new ArrayList<>();
+    workFlowEntities.add(newWorkFlowEntity);
+    memberships = new ArrayList<>();
+    memberships.add(identity.getRemoteId());
+    memberships.add("member:/platform/administrators");
+    memberships.add("*:/platform/administrators");
+    memberships.add("*:/platform/users");
+    when(workFlowDAO.findWorkFlows(filter,memberships,0,0)).thenReturn(workFlowEntities);
+    when(workFlow.getIllustrativeAttachment()).thenReturn(illustrativeAttachment);
+    this.processesStorage.saveWorkFlow(workFlow, 1L);
+    when(organizationService.getMembershipHandler()).thenReturn(membershipHandler);
+
+    Collection<Membership> memberships_ = new ArrayList();
+    MembershipImpl membership;
+      membership = new MembershipImpl();
+      membership.setMembershipType("member");
+      membership.setUserName("user");
+      membership.setGroupId("/platform/administrators");
+    memberships_.add(membership);
+      MembershipImpl admin = new MembershipImpl();
+      admin.setMembershipType("*");
+      admin.setUserName("user");
+      admin.setGroupId("/platform/administrators");
+    memberships_.add(admin);
+
+    membership = new MembershipImpl();
+    membership.setMembershipType("*");
+    membership.setUserName("user");
+    membership.setGroupId("/platform/users");
+    memberships_.add(membership);
+
+    when(organizationService.getMembershipHandler().findMembershipsByUser(identity.getRemoteId())).thenReturn(memberships_);
+    assertEquals(1,this.processesStorage.findWorkFlows(filter,Long.parseLong(identity.getId()),0,0).size());
+  }
   @Test
   @PrepareForTest({ EntityMapper.class , UserUtil.class ,ProjectUtil.class ,ProcessesUtils.class})
   public void countWorkflow() {
