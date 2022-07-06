@@ -17,106 +17,36 @@
 package org.exoplatform.processes.service;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.file.services.FileStorageException;
-import org.exoplatform.commons.utils.ListAccess;
-import org.exoplatform.container.ExoContainerContext;
-import org.exoplatform.container.PortalContainer;
-import org.exoplatform.container.RootContainer;
-import org.exoplatform.container.component.RequestLifeCycle;
-import org.exoplatform.container.xml.InitParams;
-import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.processes.model.*;
 import org.exoplatform.processes.storage.ProcessesStorage;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
-import org.exoplatform.services.organization.OrganizationService;
-import org.exoplatform.services.organization.User;
-import org.exoplatform.services.security.Identity;
-import org.exoplatform.services.security.MembershipEntry;
-import org.exoplatform.social.core.manager.IdentityManager;
-import org.exoplatform.social.core.space.model.Space;
-import org.exoplatform.social.core.space.spi.SpaceService;
-import org.picocontainer.Startable;
 
-import javax.servlet.ServletContext;
+public class ProcessesServiceImpl implements ProcessesService {
 
-public class ProcessesServiceImpl implements ProcessesService, Startable {
+  private static final Log       LOG = ExoLogger.getLogger(ProcessesServiceImpl.class);
 
-  private static final Log LOG = ExoLogger.getLogger(ProcessesServiceImpl.class);
+  private final ProcessesStorage processesStorage;
 
-  private IdentityManager  identityManager;
-
-  private final InitParams     initParams;
-
-  private ProcessesStorage processesStorage;
-
-  private SpaceService     spaceService;
-
-  private OrganizationService     organizationService;
-
-  private static final String PROCESSES_SPACE_NAME_PARAM          = "processesSpaceName";
-  private static  String PROCESSES_SPACE_NAME          = "Processes Space";
-
-  private static final String PROCESSES_SPACE_TEMPLATE_PARAM      = "processesSpaceTemplate";
-  private static  String PROCESSES_SPACE_TEMPLATE      = "community";
-
-  private static final String PROCESSES_SPACE_GROUP_ID_PARAM      = "processesSpaceGroup";
-  private static  String PROCESSES_SPACE_GROUP_ID      = "/spaces/processes_space";
-
-  private static final String PROCESSES_SPACE_PRETTY_NAME_PARAM   = "processesSpacePrettyName";
-  private static  String PROCESSES_SPACE_PRETTY_NAME   = "processes_space";
-
-  private static final String PROCESSES_GROUP_PARAM               = "processesGroup";
-  private static  String PROCESSES_GROUP               = "/platform/processes";
-
-  private static final String PROCESSES_SPACE_DESCRIPTION_PARAM   = "processesSpaceDescription";
-  private static String PROCESSES_SPACE_DESCRIPTION   = "Space where all processes will be gathered in order to manage requests";
-
-  public ProcessesServiceImpl(InitParams initParams, ProcessesStorage processesStorage, IdentityManager identityManager, SpaceService spaceService, OrganizationService organizationService) {
-    this.initParams = initParams;
-    this.identityManager = identityManager;
+  public ProcessesServiceImpl(ProcessesStorage processesStorage) {
     this.processesStorage = processesStorage;
-    this.spaceService = spaceService;
-    this.organizationService = organizationService;
-    if (initParams != null) {
-      if (initParams.getValueParam(PROCESSES_SPACE_NAME_PARAM) != null) {
-        this.PROCESSES_SPACE_NAME = initParams.getValueParam(PROCESSES_SPACE_NAME_PARAM).getValue();
-      }
-      if (initParams.getValueParam(PROCESSES_SPACE_TEMPLATE_PARAM) != null) {
-        this.PROCESSES_SPACE_TEMPLATE = initParams.getValueParam(PROCESSES_SPACE_TEMPLATE_PARAM).getValue();
-      }
-      if (initParams.getValueParam(PROCESSES_SPACE_GROUP_ID_PARAM) != null) {
-        this.PROCESSES_SPACE_GROUP_ID = initParams.getValueParam(PROCESSES_SPACE_GROUP_ID_PARAM).getValue();
-      }
-      if (initParams.getValueParam(PROCESSES_SPACE_PRETTY_NAME_PARAM) != null) {
-        this.PROCESSES_SPACE_PRETTY_NAME = initParams.getValueParam(PROCESSES_SPACE_PRETTY_NAME_PARAM).getValue();
-      }
-      if (initParams.getValueParam(PROCESSES_GROUP_PARAM) != null) {
-        this.PROCESSES_GROUP = initParams.getValueParam(PROCESSES_GROUP_PARAM).getValue();
-      }
-      if (initParams.getValueParam(PROCESSES_SPACE_DESCRIPTION_PARAM) != null) {
-        this.PROCESSES_SPACE_DESCRIPTION = initParams.getValueParam(PROCESSES_SPACE_DESCRIPTION_PARAM).getValue();
-      }
-    }
   }
 
   @Override
   public List<WorkFlow> getWorkFlows(ProcessesFilter filter,
-                                           int offset,
-                                           int limit,
-                                           long userIdentityId) throws IllegalAccessException {
-   return processesStorage.findWorkFlows(filter, userIdentityId, offset, limit);
+                                     int offset,
+                                     int limit,
+                                     long userIdentityId) throws IllegalAccessException {
+    return processesStorage.findWorkFlows(filter, userIdentityId, offset, limit);
   }
 
   @Override
-  public int countWorkFlows(ProcessesFilter filter,
-                            long userIdentityId) throws IllegalAccessException {
-   return processesStorage.countWorkFlows(filter);
+  public int countWorkFlows(ProcessesFilter filter, long userIdentityId) throws IllegalAccessException {
+    return processesStorage.countWorkFlows(filter);
   }
 
   @Override
@@ -139,9 +69,8 @@ public class ProcessesServiceImpl implements ProcessesService, Startable {
   }
 
   @Override
-  public WorkFlow updateWorkFlow(WorkFlow workFlow, long userId) throws IllegalArgumentException,
-                                                                             ObjectNotFoundException,
-                                                                             IllegalAccessException {
+  public WorkFlow updateWorkFlow(WorkFlow workFlow,
+                                 long userId) throws IllegalArgumentException, ObjectNotFoundException, IllegalAccessException {
     if (workFlow == null) {
       throw new IllegalArgumentException("Workflow Type is mandatory");
     }
@@ -161,7 +90,7 @@ public class ProcessesServiceImpl implements ProcessesService, Startable {
   }
 
   @Override
-  public List<Work> getWorks (long userIdentityId, WorkFilter workFilter, int offset, int limit) throws Exception {
+  public List<Work> getWorks(long userIdentityId, WorkFilter workFilter, int offset, int limit) throws Exception {
 
     return processesStorage.getWorks(userIdentityId, workFilter, offset, limit);
   }
@@ -170,7 +99,6 @@ public class ProcessesServiceImpl implements ProcessesService, Startable {
   public WorkFlow getWorkFlowByProjectId(long projectId) {
     return processesStorage.getWorkFlowByProjectId(projectId);
   }
-
 
   /**
    * {@inheritDoc}
@@ -189,9 +117,8 @@ public class ProcessesServiceImpl implements ProcessesService, Startable {
   }
 
   @Override
-  public Work updateWork(Work work, long userId) throws IllegalArgumentException,
-          ObjectNotFoundException,
-          IllegalAccessException {
+  public Work updateWork(Work work,
+                         long userId) throws IllegalArgumentException, ObjectNotFoundException, IllegalAccessException {
     if (work == null) {
       throw new IllegalArgumentException("Work is mandatory");
     }
@@ -339,66 +266,5 @@ public class ProcessesServiceImpl implements ProcessesService, Startable {
       throw new IllegalArgumentException("IllustrationId id is mandatory");
     }
     return processesStorage.getIllustrationImageById(illustrationId);
-  }
-
-  @Override
-  public void start() {
-    LOG.info("Processes Service start and default space initialize...");
-    PortalContainer portalContainer = PortalContainer.getInstance();
-    PortalContainer.addInitTask(portalContainer.getPortalContext(), new RootContainer.PortalContainerPostCreateTask() {
-      public void execute(ServletContext context, PortalContainer portalContainer) {
-        ExoContainerContext.setCurrentContainer(portalContainer);
-        RequestLifeCycle.begin(portalContainer);
-        try {
-          UserACL userACL = portalContainer.getComponentInstanceOfType(UserACL.class);
-          createProcessSpace(userACL);
-        } catch (Exception e) {
-          LOG.error("Error while creating Processes app default space", e);
-        } finally {
-          RequestLifeCycle.end();
-          LOG.info("Processes space creation ended!");
-        }
-      }
-    });
-  }
-
-  public void createProcessSpace(UserACL userACL) throws Exception {
-    List<MembershipEntry> membershipEntries = new ArrayList<>();
-    membershipEntries.add(new MembershipEntry(userACL.getAdminGroups(), "*"));
-    Identity superUserIdentity = new Identity(userACL.getSuperUser(), membershipEntries);
-    Space existSpace = spaceService.getSpaceByGroupId(PROCESSES_SPACE_GROUP_ID);
-    ListAccess<User> list = organizationService.getUserHandler().findUsersByGroupId(PROCESSES_GROUP);
-    List<String> managers = new ArrayList<>();
-    if (existSpace == null) {
-      Space space = new Space();
-      space.setDisplayName(PROCESSES_SPACE_NAME);
-      if (PROCESSES_SPACE_NAME != null) {
-        space.setDisplayName(PROCESSES_SPACE_NAME);
-      }
-      space.setVisibility(Space.HIDDEN);
-      space.setRegistration(Space.CLOSED);
-      space.setPriority(Space.INTERMEDIATE_PRIORITY);
-      space.setTemplate(PROCESSES_SPACE_TEMPLATE);
-      space.setDescription(PROCESSES_SPACE_DESCRIPTION);
-      space.setPrettyName(PROCESSES_SPACE_PRETTY_NAME);
-      Arrays.stream(list.load(0, list.getSize())).map(User::getUserName).forEach(userName -> {
-        managers.add(userName);
-      });
-      space.setManagers(managers.toArray(new String[managers.size()]));
-      spaceService.createSpace(space, superUserIdentity.getUserId());
-      LOG.info("Processes app default space has been successfully initialized");
-    } else {
-      LOG.info("Processes Space already exist, skip its creation...");
-      Arrays.stream(list.load(0, list.getSize())).map(User::getUserName).forEach(userName -> {
-        managers.add(userName);
-      });
-      existSpace.setManagers(managers.toArray(new String[managers.size()]));
-      spaceService.updateSpace(existSpace);
-    }
-  }
-
-  @Override
-  public void stop() {
-    //Nothing
   }
 }
