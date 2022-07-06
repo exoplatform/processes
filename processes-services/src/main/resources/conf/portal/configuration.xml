@@ -32,33 +32,6 @@
     <component>
         <key>org.exoplatform.processes.service.ProcessesService</key>
         <type>org.exoplatform.processes.service.ProcessesServiceImpl</type>
-        <init-params>
-            <value-param>
-                <name>processesSpaceName</name>
-                <value>${exo.processes.space.name":Processes Space}</value>
-            </value-param>
-            <value-param>
-                <name>processesSpaceTemplate</name>
-                <value>${exo.processes.space.template":community}</value>
-            </value-param>
-            <value-param>
-                <name>processesSpaceGroup</name>
-                <value>${exo.processes.space.group":/spaces/processes_space}</value>
-            </value-param>
-            <value-param>
-                <name>processesSpacePrettyName</name>
-                <value>${exo.processes.space.pretty.name":processes_space}</value>
-            </value-param>
-            <value-param>
-                <name>processesGroup</name>
-                <value>${exo.processes.processes.group":/platform/processes}</value>
-            </value-param>
-            <value-param>
-                <name>processesSpaceDescription</name>
-                <value>${exo.processes.space.description":Space where all processes will be gathered in order to manage requests}</value>
-            </value-param>
-
-        </init-params>
     </component>
 
     <component>
