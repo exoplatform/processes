@@ -301,7 +301,7 @@
       </template>
       <template #footer>
         <v-btn
-          :disabled="!(valid && workflowChanged)"
+          :disabled="!(valid && workflowChanged && workflowRequestChanged)"
           v-if="!editMode"
           :loading="saving"
           @click="addNewWorkFlow"
@@ -310,7 +310,7 @@
           {{ $t('processes.works.form.label.save') }}
         </v-btn>
         <v-btn
-          :disabled="!(valid && workflowChanged)"
+          :disabled="!(valid && workflowChanged && workflowRequestChanged)"
           v-if="editMode"
           :loading="saving"
           @click="updateWorkFlow"
