@@ -111,6 +111,20 @@ export default {
   watch: {
     tab(value) {
       this.updateState(value);
+      if (value === 1){
+        window.setTimeout(() => {
+          document.dispatchEvent(new CustomEvent('exo-statistic-message', {
+            detail: {
+              module: 'processes',
+              subModule: 'application access',
+              userId: eXo.env.portal.userIdentityId,
+              userName: eXo.env.portal.userName,
+              operation: 'accessRequestsPage',
+              timestamp: Date.now()
+            }
+          }));
+        }, 300);
+      }
     },
     workflows(){
       this.showFilter();
