@@ -208,7 +208,7 @@
               <v-btn
                 class="btn btn-primary me-4"
                 outlined
-                :disabled="!workflowChanged"
+                :disabled="!workflowChanged || !validSpace"
                 @click="nextStep">
                 {{ $t('processes.works.form.label.continue') }}
                 <v-icon size="18" class="ms-2">
@@ -372,6 +372,8 @@ export default {
         value => !value || value.size < 100000 || this.$t('processes.workflow.illustrative.imageSize.error.message'),
       ],
       originalWorkflowString: null,
+      validSpace: false,
+      showSpaceAlertMessage: false,
     };
   },
   created(){
@@ -415,6 +417,31 @@ export default {
     },
     illustrativeInput(value) {
       this.handleUpload(value);
+    },
+    originalWorkflowString() {
+      this.showSpaceAlertMessage = false;
+      this.validSpace = false;
+      if (this.workflow.parentSpace){
+        this.$processesService.getSpaceApps(this.workflow.parentSpace.id).then(data=>{
+          data.forEach(e=>{
+            if (e.id === 'TasksManagement'){
+              this.validSpace = true;
+              return;
+            }
+          });
+          if (!this.validSpace){
+            this.showSpaceAlertMessage = true;
+          }
+        });
+      }
+    },
+    showSpaceAlertMessage(val){
+      if (val){
+        this.$root.$emit('show-alert', {type: 'warning',message: this.$t('processes.alert.createProcess.manageSpaceNotValid.warning')});
+      }
+      else {
+        this.$root.$emit('hide-alert');
+      }
     }
   },
   methods: {

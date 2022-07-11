@@ -357,4 +357,20 @@ export function getWorkflowById(workflowId, expand) {
     }
   });
 }
-
+export function getSpaceApps(id,expand) {
+  const formData = new FormData();
+  if (expand) {
+    formData.append('expand', expand);
+  }
+  const params = new URLSearchParams(formData).toString();
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/social/spaces/${id}/applications?${params}`, {
+    method: 'GET',
+    credentials: 'include',
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error while getting the space applications');
+    } else {
+      return resp.json();
+    }
+  });
+}
