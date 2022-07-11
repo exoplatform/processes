@@ -6,6 +6,8 @@
       :labels="workFlowSuggesterLabels"
       :include-users="false"
       :search-options="searchOptions"
+      :group-member="processesGroup"
+      :group-type="groupType"
       class="user-suggester workFlowOwnerAutocomplete"
       name="inviteAttendee"
       include-spaces
@@ -32,13 +34,15 @@ export default {
   data() {
     return {
       invitedAttendee: [],
+      processesGroup: '/platform/processes',
+      groupType: 'GROUP',
     };
   },
   computed: {
     workFlowSuggesterLabels() {
       return {
-        searchPlaceholder: this.$t('processes.works.form.request.searchPlaceholder'),
-        placeholder: this.$t('processes.works.form.request.chooseSpacer'),
+        searchPlaceholder: this.$t('processes.works.form.request.chooseSpacer'),
+        placeholder: this.$t('processes.works.form.request.searchPlaceholder'),
         noDataLabel: this.$t('processes.works.form.request.noDataLabel'),
       };
     },
