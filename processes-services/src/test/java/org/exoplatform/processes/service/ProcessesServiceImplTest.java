@@ -34,17 +34,10 @@ import static org.powermock.api.mockito.PowerMockito.when;
 @PrepareForTest({ExoContainerContext.class, PortalContainer.class, PropertyManager.class, RequestLifeCycle.class})
 public class ProcessesServiceImplTest {
 
-  @Mock
-  private IdentityManager  identityManager;
 
- @Mock
-  private SpaceService  spaceService;
 
   @Mock
   private ProcessesStorage processesStorage;
-
-  @Mock
-  private OrganizationService organizationService;
 
   private ProcessesService processesService;
 
@@ -58,7 +51,7 @@ public class ProcessesServiceImplTest {
 
   @Before
   public void setUp() throws Exception {
-    this.processesService = new ProcessesServiceImpl(null,processesStorage, identityManager, spaceService,organizationService);
+    this.processesService = new ProcessesServiceImpl(processesStorage);
     disabledWorkFlow = new WorkFlow();
     disabledWorkFlow.setEnabled(false);
     enabledWorkFlow = new WorkFlow();

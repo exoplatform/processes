@@ -74,8 +74,6 @@ public class ProcessesStorageImpl implements ProcessesStorage {
 
   private final String                     DATE_FORMAT              = "yyyy/MM/dd";
 
-  private static final String              PROCESSES_SPACE_GROUP_ID = "/spaces/processes_space";
-
   private static final String PROCESSES_GROUP = "/platform/processes";
 
   private static final String              WORK_DRAFT_ENTITY_TYPE   = "workdraft";
