@@ -176,11 +176,11 @@
                     v-on="on"
                     size="17"
                     class="primary--text"
-                    @mouseenter="applyItemClass()">
+                    @mouseenter="applyItemClass(infoManage)">
                     fa-info-circle
                   </v-icon>
                 </template>
-                <span class="center">{{ $t('processes.works.form.label.associate.process') }}</span>
+                <span class="center">{{ infoManage }}</span>
               </v-tooltip>
             </div>
           </v-stepper-step>
@@ -221,9 +221,65 @@
             class="primary--text stepperTitle"
             :complete="stp > 3"
             step="3">
-            {{ $t('processes.works.form.label.documents') }}
+            <div class="width-full d-flex">
+              <div class="width-full stepperTitle">{{ $t('processes.works.form.label.request') }}</div>
+              <v-spacer />
+              <v-tooltip bottom>
+                <template #activator="{ on, attrs }">
+                  <v-icon
+                    dark
+                    v-bind="attrs"
+                    v-on="on"
+                    size="17"
+                    class="primary--text"
+                    @mouseenter="applyItemClass(infoRequest)">
+                    fa-info-circle
+                  </v-icon>
+                </template>
+                <span class="center">{{ infoRequest }}</span>
+              </v-tooltip>
+            </div>
           </v-stepper-step>
           <v-stepper-content step="3">
+            <v-label>
+              <span class="text-color body-2">
+                {{ $t('processes.works.form.label.add.request') + ' *' }}
+              </span>
+            </v-label>
+            <div class="d-flex flex-row">
+              <workflow-suggester-request
+                ref="workFLowOwner"
+                :workflow-request="workflowRequest"
+                class="ms-1 pe-1"
+                @initialized="formInitialized" />
+            </div>
+            <v-card-actions class="d-flex flex-row mt-4 ms-2 px-0">
+              <v-btn class="btn" @click="previousStep">
+                <v-icon size="18" class="me-2">
+                  {{ $vuetify.rtl && 'fa-caret-right' || 'fa-caret-left' }}
+                </v-icon>
+                {{ $t('processes.works.form.label.back') }}
+              </v-btn>
+              <v-spacer />
+              <v-btn
+                class="btn btn-primary me-4"
+                outlined
+                :disabled="!workflowRequestChanged"
+                @click="nextStep">
+                {{ $t('processes.works.form.label.continue') }}
+                <v-icon size="18" class="ms-2">
+                  {{ $vuetify.rtl && 'fa-caret-left' || 'fa-caret-right' }}
+                </v-icon>
+              </v-btn>
+            </v-card-actions>
+          </v-stepper-content>
+          <v-stepper-step
+            class="primary--text title"
+            :complete="stp > 4"
+            step="4">
+            {{ $t('processes.works.form.label.documents') }}
+          </v-stepper-step>
+          <v-stepper-content step="4">
             <processes-attachments
               v-model="attachments"
               :workflow-parent-space="workflowParentSpace"
@@ -245,7 +301,7 @@
       </template>
       <template #footer>
         <v-btn
-          :disabled="!(valid && workflowChanged)"
+          :disabled="!(valid && workflowChanged && workflowRequestChanged)"
           v-if="!editMode"
           :loading="saving"
           @click="addNewWorkFlow"
@@ -254,7 +310,7 @@
           {{ $t('processes.works.form.label.save') }}
         </v-btn>
         <v-btn
-          :disabled="!(valid && workflowChanged)"
+          :disabled="!(valid && workflowChanged && workflowRequestChanged)"
           v-if="editMode"
           :loading="saving"
           @click="updateWorkFlow"
@@ -287,10 +343,12 @@ export default {
         enabled: true,
         helpUrl: '',
         illustrativeAttachment: null,
+        requests: [],
         space: {},
         projectId: null,
         permissions: null,
       },
+      workflowRequest: [],
       illustrativeImage: {},
       illustrativeInput: {},
       confirmCloseLabels: {
@@ -332,6 +390,12 @@ export default {
     requestStatus() {
       return this.workflowEnabled ? this.$t('processes.works.form.label.enabled') : this.$t('processes.works.form.label.disabled');
     },
+    infoRequest() {
+      return this.$t('processes.works.form.label.associate.request');
+    },
+    infoManage() {
+      return this.$t('processes.works.form.label.associate.process');
+    },
     workflowParentSpace() {
       return this.workflow && this.workflow.parentSpace;
     },
@@ -341,6 +405,9 @@ export default {
     workflowChanged() {
       return  this.workflow && this.originalWorkflowString && this.workflow.parentSpace;
     },
+    workflowRequestChanged(){
+      return  this.workflow && this.originalWorkflowString &&  this.workflowRequest.length;
+    }
   },
   watch: {
     workflowEnabled(value) {
@@ -432,6 +499,7 @@ export default {
     },
     addNewWorkFlow() {
       this.saving = true;
+      this.workflow.requests = this.workflowRequest;
       this.workflow.attachments = this.attachments;
       this.workflow.illustrativeAttachment = this.illustrativeImage;
       this.$root.$emit('add-workflow',this.workflow);
@@ -445,11 +513,11 @@ export default {
       this.illustrativeInput = null;
       this.illustrativeImage = null;
     },
-    applyItemClass(){
+    applyItemClass(messageInfo){
       window.setTimeout(() => {
         const elements = document.getElementsByClassName('v-tooltip__content');
         for (let i = 0; i < elements.length; i++){
-          if (elements[i].innerText.includes(this.$t('processes.works.form.label.associate.process'))){
+          if (elements[i].innerText.includes(messageInfo)){
             elements[i].style.left = '880px';
           }
         }
