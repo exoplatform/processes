@@ -47,7 +47,7 @@
     <page>
     <name>analytics-processes</name>
     <title>Analytics</title>
-    <access-permissions>*:/platform/processes;*:/platform/administrators;*:/spaces/processes_space</access-permissions>
+    <access-permissions>*:/platform/processes;*:/platform/administrators;</access-permissions>
     <edit-permission>*:/platform/administrators;*:/platform/processes;</edit-permission>
         <container
                 id="topAnalyticsPage"
