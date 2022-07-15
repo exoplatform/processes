@@ -615,7 +615,19 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       } catch (Exception e) {
         LOG.error("Error while getting workflow illustration image", e);
       }
-      workFlows.add(EntityMapper.fromEntity(workflowEntity, illustrativeAttachment));
+      WorkFlow entityMapper = EntityMapper.fromEntity(workflowEntity, illustrativeAttachment);
+      workFlows.add(entityMapper);
+    });
+    String finalUserName = userName;
+    workFlows.forEach(workflow -> {
+      boolean canShowPending = false;
+      try {
+        Space space = ProcessesUtils.getProjectParentSpace(workflow.getProjectId());
+        canShowPending = canShowPending(finalUserName, space);
+      } catch (Exception e) {
+        LOG.error("Error while getting workflow can Show Pending", e);
+      }
+      workflow.setCanShowPending(canShowPending);
     });
     return workFlows;
   }
@@ -628,4 +640,11 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     return workFlowDAO.countWorkFlows(processesFilter);
   }
 
-}
+  private boolean canShowPending(String authenticatedUser, Space space) {
+    if (space != null) {
+      return (spaceService.isSuperManager(authenticatedUser) || spaceService.isMember(space, authenticatedUser));
+    } else
+      return false;
+  }
+
+  }

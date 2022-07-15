@@ -96,7 +96,7 @@
           :class="isMobile ? 'ml-8':''">
           <v-chip
             :class="completedWorksCount == 0 ? 'no-pending-requests':'pending-requests'"
-            v-if="isProcessesManager"
+            v-if="showPending"
             color="white"
             :href="projectLink(workflow.projectId)"
             target="_blank"
@@ -167,6 +167,9 @@ export default {
     },
     isMobile() {
       return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
+    },
+    showPending() {
+      return this.workflow && this.workflow.canShowPending ;
     },
   },
   methods: {

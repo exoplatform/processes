@@ -63,7 +63,7 @@ public class EntityBuilder {
                         null,
                         workFlowEntity.getAttachments(),
                         workFlowEntity.getIllustrativeAttachment(),
-                        null, null);
+                        null, null,false);
   }
 
   public static Work fromEntity(WorkEntity workEntity) {
@@ -106,6 +106,7 @@ public class EntityBuilder {
                               statusService.getStatuses(workFlow.getProjectId()),
                               null,
                               ProcessesUtils.getProjectParentSpace(workFlow.getProjectId()),
+                              workFlow.isCanShowPending(),
                               workFlow.getIllustrativeAttachment());
   }
 

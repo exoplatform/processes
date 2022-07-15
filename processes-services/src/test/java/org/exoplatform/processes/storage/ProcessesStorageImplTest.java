@@ -609,6 +609,9 @@ public class ProcessesStorageImplTest {
     newWorkFlowEntity.hashCode();
     newWorkFlowEntity.toString();
     newWorkFlowEntity.equals(workFlow);
+    WorkFlowEntity newWorkFlowEntity1 = new WorkFlowEntity();
+    newWorkFlowEntity1.setId(1L);
+    newWorkFlowEntity1.setProjectId(1L);
     when(workFlowDAO.create(workFlowEntity)).thenReturn(newWorkFlowEntity);
     ProcessesFilter filter = new ProcessesFilter("",null);
     List<WorkFlowEntity> workFlowEntities = new ArrayList<>();
@@ -641,6 +644,9 @@ public class ProcessesStorageImplTest {
     membership.setUserName("user");
     membership.setGroupId("/platform/users");
     memberships_.add(membership);
+
+    when(ProcessesUtils.getProjectParentSpace(workFlow.getProjectId())).thenReturn(space);
+    when(EntityMapper.fromEntity(newWorkFlowEntity1, null)).thenReturn(workFlow);
 
     when(organizationService.getMembershipHandler().findMembershipsByUser(identity.getRemoteId())).thenReturn(memberships_);
     assertEquals(1,this.processesStorage.findWorkFlows(filter,Long.parseLong(identity.getId()),0,0).size());
