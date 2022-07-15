@@ -183,7 +183,7 @@ public class ProcessesRestTest {
     workFlowEntity1.toString();
     Response response1 = processesRest.updateWorkFlow(workFlowEntity1);
     WorkFlowEntity workFlowEntity2 = new WorkFlowEntity(1,"title","description","summary","image","helpLink",
-            true,1,createdDate,1,modifiedDate,1,null,null,null,null,null);
+            true,1,createdDate,1,modifiedDate,1,null,null,null,null,false,null);
   }
 
   @Test

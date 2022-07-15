@@ -67,4 +67,6 @@ public class WorkFlow {
 
   private Set<String> participator;
 
+  private boolean canShowPending;
+
 }
