@@ -67,6 +67,8 @@ public class WorkFlowEntity {
 
   private Space                  parentSpace;
 
+  private boolean                  canShowPending;
+
   private IllustrativeAttachment illustrativeAttachment;
 
 }
