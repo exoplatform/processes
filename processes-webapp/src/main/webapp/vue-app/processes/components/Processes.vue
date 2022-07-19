@@ -42,9 +42,10 @@
       </v-tabs-items>
     </v-card>
     <v-alert
+      :icon="type === 'warning' ? 'mdi-alert-circle' : ''"
       v-model="alert"
       :type="type"
-      class="processesAlert"
+      class="processesAlert alertLength"
       dismissible>
       {{ message }}
     </v-alert>
@@ -98,7 +99,7 @@ export default {
       targetModel: null,
       myRequestsTabVisited: null,
       showProcessFilter: false,
-      requestSubmited: false,      
+      requestSubmited: false,   
     };
   },
   beforeCreate() {
@@ -137,6 +138,9 @@ export default {
     window.addEventListener('popstate', this.handleTabChanges);
     this.$root.$on('show-alert', alert => {
       this.displayMessage(alert);
+    });
+    this.$root.$on('hide-alert',()=>{
+      this.alert = false;
     });
     this.$root.$on('add-work', work => {
       this.addWork(work);
