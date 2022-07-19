@@ -94,7 +94,8 @@
                   <v-icon size="14" color="primary">
                     fa-paperclip
                   </v-icon>
-                  <a class="text-decoration-underline ma-auto ms-2" @click="uploadFile">{{ $t('processes.workflow.illustrative.add') }}</a>
+                  <a class="text-decoration-underline ma-auto ms-2"
+                     @click="uploadFile">{{ $t('processes.workflow.illustrative.add') }}</a>
                   <v-file-input
                     id="avatarInput"
                     v-model="illustrativeInput"
@@ -105,7 +106,6 @@
                     size="16"
                     class="addIllustrativeButton clickable primary--text ma-0 mt-0 pt-0"
                     accept="image/*"
-                    :rules="fileRules"
                     clearable
                     @change="handleUpload" />
                 </a>
@@ -368,9 +368,6 @@ export default {
         maxLength: len => v => (v || '').length <= len || this.$t('processes.work.form.description.maxLength.message', {0: len}),
         required: v => !!v || this.$t('processes.work.form.required.error.message'),
       },
-      fileRules: [
-        value => !value || value.size < 100000 || this.$t('processes.workflow.illustrative.imageSize.error.message'),
-      ],
       originalWorkflowString: null,
     };
   },
@@ -430,6 +427,10 @@ export default {
     handleUpload(image) {
       if (!image) {
         this.illustrativeImage = null;
+        return;
+      }
+      if (image.size > 100000) {
+        this.$root.$emit('show-alert',{type: 'error', message: this.$t('processes.workflow.illustrative.imageSize.error.message')});
         return;
       }
       const reader = new FileReader();
