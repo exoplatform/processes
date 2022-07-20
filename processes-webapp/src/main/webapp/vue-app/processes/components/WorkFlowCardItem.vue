@@ -26,22 +26,22 @@
         <v-list>
           <v-list-item
             @click="editWorkflow">
-            <v-list-item-title>
-              <v-icon class="processes-work-menu-icon">
+            <v-list-item-title small>
+              <v-icon small class="processes-work-menu-icon" >
                 mdi-square-edit-outline
               </v-icon>
-              <span>{{ $t('processes.workflow.edit.label') }}</span>
+              <span class="card-edit-text-size">{{ $t('processes.workflow.edit.label') }}</span>
             </v-list-item-title>
           </v-list-item>
           <v-list-item
             @click="deleteWorkflow">
             <v-list-item-title>
-              <v-icon class="processes-work-menu-icon">
+              <v-icon small class="processes-work-menu-icon">
                 mdi-trash-can-outline
               </v-icon>
-              <span>{{ $t('processes.workflow.delete.label') }}</span>
+              <span class="card-edit-text-size">{{ $t('processes.workflow.delete.label') }}</span>
             </v-list-item-title>
-            </v-list-item>
+          </v-list-item>
         </v-list>
       </v-menu>
     <div v-if="!isMobile">
