@@ -274,7 +274,7 @@
             </v-card-actions>
           </v-stepper-content>
           <v-stepper-step
-            class="primary--text title"
+            class="primary--text stepperTitle"
             :complete="stp > 4"
             step="4">
             {{ $t('processes.works.form.label.documents') }}
