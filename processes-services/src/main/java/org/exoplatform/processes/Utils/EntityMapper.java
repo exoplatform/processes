@@ -3,18 +3,23 @@ package org.exoplatform.processes.Utils;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang.StringUtils;
 
+import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.processes.entity.WorkEntity;
 import org.exoplatform.processes.entity.WorkFlowEntity;
-import org.exoplatform.processes.model.IllustrativeAttachment;
-import org.exoplatform.processes.model.Work;
-import org.exoplatform.processes.model.WorkFlow;
-import org.exoplatform.processes.model.WorkStatus;
+import org.exoplatform.processes.model.*;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
+import org.exoplatform.services.organization.Group;
+import org.exoplatform.services.organization.GroupHandler;
+import org.exoplatform.services.organization.OrganizationService;
+import org.exoplatform.social.core.space.model.Space;
+import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.dto.TaskDto;
 
@@ -24,7 +29,7 @@ public class EntityMapper {
   private EntityMapper() {
   }
 
-  public static WorkFlow fromEntity(WorkFlowEntity workFlowEntity) {
+  public static WorkFlow fromEntity(WorkFlowEntity workFlowEntity, List<String> memberships) {
     if (workFlowEntity == null) {
       return null;
     }
@@ -41,20 +46,85 @@ public class EntityMapper {
                         workFlowEntity.getModifiedDate(),
                         workFlowEntity.getProjectId(),
                         "",
-                        null,
+                        getACL(workFlowEntity, memberships),
                         null,
                         new IllustrativeAttachment(workFlowEntity.getIllustrationImageId()),
                         workFlowEntity.getManager(),
                         workFlowEntity.getParticipator(),
-                        false);
+                        false,
+                        fromGroupToIdentity(workFlowEntity.getManager()));
   }
 
-  public static WorkFlow fromEntity(WorkFlowEntity workFlowEntity, IllustrativeAttachment illustrativeAttachment) {
+  static List<CreatorIdentityEntity> fromGroupToIdentity(Set<String> managers) {
+    List<CreatorIdentityEntity> identityEntities = new ArrayList<>();
+    if (managers == null) {
+      return identityEntities;
+    }
+    SpaceService spaceService = CommonsUtils.getService(SpaceService.class);
+    OrganizationService organizationService = CommonsUtils.getService(OrganizationService.class);
+    GroupHandler groupHandler = organizationService.getGroupHandler();
+    for (String manager : managers) {
+      Space space = spaceService.getSpaceByGroupId(manager);
+      if (space != null) {
+        ProfileEntity profile = new ProfileEntity(
+                                                  StringUtils.isNotEmpty(space.getAvatarUrl()) ? space.getAvatarUrl()
+                                                                                               : "/portal/rest/v1/social/spaces/"
+                                                                                                   + space.getPrettyName()
+                                                                                                   + "/avatar",
+                                                  space.getDisplayName());
+        IdentityEntity identityEntity = new IdentityEntity("", space.getPrettyName(), "space", profile);
+        identityEntities.add(new CreatorIdentityEntity(identityEntity));
+      } else {
+        try {
+          Group group = groupHandler.findGroupById(manager);
+          ProfileEntity profile = new ProfileEntity(null, group.getLabel());
+          IdentityEntity identityEntity = new IdentityEntity("group:" + group.getGroupName(), group.getId(), "group", profile);
+          identityEntities.add(new CreatorIdentityEntity(identityEntity));
+        } catch (Exception e) {
+          LOG.warn("Cannot get group from managers list");
+        }
+      }
+    }
+    return identityEntities;
+  }
+
+  public static ProcessPermission getACL(WorkFlowEntity workFlowEntity, List<String> memberships) {
+
+    if (memberships == null)
+      return new ProcessPermission(true, true, true, true);
+    ProcessPermission permission = new ProcessPermission(false, false, false, false);
+    for (String member : memberships) {
+      for (String manager : workFlowEntity.getManager()) {
+        if (member.contains(manager)) {
+          permission.setCanAddRequest(true);
+          break;
+        }
+      }
+      for (String participator : workFlowEntity.getParticipator()) {
+        if (member.equals(participator)) {
+          permission.setCanAccess(true);
+          break;
+        }
+      }
+      if (member.contains("/platform/processes")) {
+        permission.setCanDelete(true);
+        permission.setCanEdit(true);
+      }
+      if (permission.isCanAddRequest() && permission.isCanAccess() && permission.isCanDelete() && permission.isCanEdit()) {
+        break;
+      }
+    }
+    return permission;
+  }
+
+  public static WorkFlow fromEntity(WorkFlowEntity workFlowEntity,
+                                    IllustrativeAttachment illustrativeAttachment,
+                                    List<String> memberships) {
     if (workFlowEntity == null) {
       return null;
     }
-    WorkFlow workFlow = fromEntity(workFlowEntity);
-    if( illustrativeAttachment != null) {
+    WorkFlow workFlow = fromEntity(workFlowEntity, memberships);
+    if (illustrativeAttachment != null) {
       workFlow.setIllustrativeAttachment(illustrativeAttachment);
     }
     return workFlow;
@@ -72,7 +142,7 @@ public class EntityMapper {
                     workEntity.getModifiedDate(),
                     workEntity.getTaskId(),
                     workEntity.getIsDraft(),
-                    fromEntity(workEntity.getWorkFlow()));
+                    fromEntity(workEntity.getWorkFlow(), null));
   }
 
   public static WorkStatus toWorkStatus(StatusDto statusDto) {
@@ -139,8 +209,8 @@ public class EntityMapper {
       return new ArrayList<>(Collections.emptyList());
     } else {
       List<WorkFlow> workFlows = workFlowEntities.stream()
-                                                          .map(workflowEntity -> fromEntity(workflowEntity))
-                                                          .collect(Collectors.toList());
+                                                 .map(workflowEntity -> fromEntity(workflowEntity, null))
+                                                 .collect(Collectors.toList());
       return workFlows;
     }
   }
@@ -158,13 +228,13 @@ public class EntityMapper {
       return new ArrayList<>(Collections.emptyList());
     } else {
       List<WorkFlowEntity> workFlowEntities = workFlowList.stream()
-                                                                   .map(workFlow -> toEntity(workFlow))
-                                                                   .collect(Collectors.toList());
+                                                          .map(workFlow -> toEntity(workFlow))
+                                                          .collect(Collectors.toList());
       return workFlowEntities;
     }
   }
 
-  public static  TaskDto workToTask(Work work) {
+  public static TaskDto workToTask(Work work) {
     if (work == null) {
       return null;
     }
@@ -183,27 +253,25 @@ public class EntityMapper {
       return null;
     }
     return new Work(task.getId(),
-            task.getTitle(),
-            task.getDescription(),
-            task.getStatus().getName(),
-            task.isCompleted(),
-            task.getCreatedBy(),
-            task.getCreatedTime(),
-            task.getStartDate(),
-            task.getEndDate(),
-            task.getDueDate(),
-            false,
-            null,
-            task.getStatus().getProject().getId());
+                    task.getTitle(),
+                    task.getDescription(),
+                    task.getStatus().getName(),
+                    task.isCompleted(),
+                    task.getCreatedBy(),
+                    task.getCreatedTime(),
+                    task.getStartDate(),
+                    task.getEndDate(),
+                    task.getDueDate(),
+                    false,
+                    null,
+                    task.getStatus().getProject().getId());
   }
 
   public static List<Work> tasksToWorkList(List<TaskDto> tasks) {
     if (CollectionUtils.isEmpty(tasks)) {
       return new ArrayList<>(Collections.emptyList());
     } else {
-      return tasks.stream()
-              .map(EntityMapper::taskToWork)
-              .collect(Collectors.toList());
+      return tasks.stream().map(EntityMapper::taskToWork).collect(Collectors.toList());
     }
   }
 

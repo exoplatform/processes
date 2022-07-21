@@ -173,9 +173,6 @@ export default {
     });
     this.$root.$on('open-workflow-drawer', event => {
       this.$refs.addWorkFlow.open(event.workflow, event.mode);
-      if (event.mode==='edit_workflow'){
-        this.$root.$emit('set-workflow-space',event.workflow.parentSpace );
-      }
     });
     this.$root.$on('show-work-comments', (work, comments) => {
       this.work = work;

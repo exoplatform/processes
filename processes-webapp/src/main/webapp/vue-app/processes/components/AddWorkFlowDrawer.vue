@@ -208,8 +208,8 @@
               <v-btn
                 class="btn btn-primary me-4"
                 outlined
-                :disabled="!workflowChanged"
-                @click="nextStep">
+                :disabled="!workflowChanged || !validSpace"
+                @click="setCreators(); nextStep()">
                 {{ $t('processes.works.form.label.continue') }}
                 <v-icon size="18" class="ms-2">
                   {{ $vuetify.rtl && 'fa-caret-left' || 'fa-caret-right' }}
@@ -405,7 +405,7 @@ export default {
       return  this.workflow && this.originalWorkflowString && this.workflow.parentSpace;
     },
     workflowRequestChanged(){
-      return  this.workflow && this.originalWorkflowString &&  this.workflowRequest.length;
+      return  this.workflow && this.originalWorkflowString && this.workflowRequest.length;
     }
   },
   watch: {
@@ -517,6 +517,12 @@ export default {
     setSpace() {
       this.$root.$emit('set-workflow-space',this.workflow.parentSpace );
     },
+    setCreators() {
+      if (this.workflow.requestsCreators){
+        this.$root.$emit('set-workflow-creators',this.workflow.requestsCreators );
+        this.workflowRequest = this.workflow.requestsCreators ;
+      }
+    },
     previousStep() {
       this.stp--;
     },
@@ -527,13 +533,14 @@ export default {
     },
     addNewWorkFlow() {
       this.saving = true;
-      this.workflow.requests = this.workflowRequest;
+      this.workflow.requestsCreators = this.workflowRequest;
       this.workflow.attachments = this.attachments;
       this.workflow.illustrativeAttachment = this.illustrativeImage;
       this.$root.$emit('add-workflow',this.workflow);
     },
     updateWorkFlow() {
       this.saving = true;
+      this.workflow.requestsCreators = this.workflowRequest;
       this.workflow.illustrativeAttachment = this.illustrativeImage;
       this.$root.$emit('update-workflow',this.workflow);
     },

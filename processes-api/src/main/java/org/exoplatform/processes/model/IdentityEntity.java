@@ -23,14 +23,14 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ProcessPermission {
+public class IdentityEntity {
 
-  private boolean canAccess;
+  private String        id;
 
-  private boolean canEdit;
+  private String        remoteId;
 
-  private boolean canDelete;
+  private String        providerId;
 
-  private boolean canAddRequest;
+  private ProfileEntity profile;
 
 }

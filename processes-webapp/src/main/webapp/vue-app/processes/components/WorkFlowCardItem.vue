@@ -107,7 +107,7 @@
           </v-chip>
         </span>
       </v-card >
-      <v-card class="card-footer-btn mr-3 mb-4 px-2" elevation="0" outlined>
+      <v-card v-if="workflow.acl.canAddRequest" class="card-footer-btn mr-3 mb-4 px-2" elevation="0" outlined>
         <v-btn 
           outlined
           right
