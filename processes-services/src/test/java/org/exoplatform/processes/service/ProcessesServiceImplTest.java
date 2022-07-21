@@ -1,5 +1,20 @@
 package org.exoplatform.processes.service;
 
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
+import static org.powermock.api.mockito.PowerMockito.when;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
+
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.file.services.FileStorageException;
 import org.exoplatform.commons.utils.PropertyManager;
@@ -11,30 +26,10 @@ import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFilter;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.storage.ProcessesStorage;
-import org.exoplatform.services.organization.OrganizationService;
-import org.exoplatform.social.core.manager.IdentityManager;
-import org.exoplatform.social.core.space.spi.SpaceService;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
-import static org.powermock.api.mockito.PowerMockito.when;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({ExoContainerContext.class, PortalContainer.class, PropertyManager.class, RequestLifeCycle.class})
+@PrepareForTest({ ExoContainerContext.class, PortalContainer.class, PropertyManager.class, RequestLifeCycle.class })
 public class ProcessesServiceImplTest {
-
-
 
   @Mock
   private ProcessesStorage processesStorage;
@@ -43,11 +38,15 @@ public class ProcessesServiceImplTest {
 
   private WorkFlow         disabledWorkFlow, enabledWorkFlow;
 
-  private List<WorkFlow>   enabledWorkFlowList  = new ArrayList<>();;
+  private Work             work1, work2;
 
-  private List<WorkFlow>   disabledWorkFlowList = new ArrayList<>();
+  private final List<WorkFlow>   enabledWorkFlowList  = new ArrayList<>();
 
-  private List<WorkFlow>   allWorkFlowList      = new ArrayList<>();
+  private final List<WorkFlow>   disabledWorkFlowList = new ArrayList<>();
+
+  private final List<WorkFlow>   allWorkFlowList      = new ArrayList<>();
+
+  private final List<Work>       allWorkList          = new ArrayList<>();
 
   @Before
   public void setUp() throws Exception {
@@ -55,6 +54,7 @@ public class ProcessesServiceImplTest {
     disabledWorkFlow = new WorkFlow();
     disabledWorkFlow.setEnabled(false);
     enabledWorkFlow = new WorkFlow();
+    enabledWorkFlow.setId(1L);
     enabledWorkFlow.setEnabled(true);
 
     allWorkFlowList.add(disabledWorkFlow);
@@ -62,6 +62,9 @@ public class ProcessesServiceImplTest {
 
     enabledWorkFlowList.add(enabledWorkFlow);
     disabledWorkFlowList.add(disabledWorkFlow);
+
+    allWorkList.add(work1);
+    allWorkList.add(work2);
   }
 
   @Test
@@ -70,7 +73,7 @@ public class ProcessesServiceImplTest {
     ProcessesFilter processesFilter = new ProcessesFilter();
     processesFilter.setEnabled(true);
     processesFilter.setQuery("test");
-    when(processesStorage.findWorkFlows(processesFilter, 0,0, 10)).thenReturn(enabledWorkFlowList);
+    when(processesStorage.findWorkFlows(processesFilter, 0, 0, 10)).thenReturn(enabledWorkFlowList);
 
     List<WorkFlow> enabledResult = processesService.getWorkFlows(processesFilter, 0, 10, 0L);
     assertEquals(enabledWorkFlowList, enabledResult);
@@ -80,33 +83,61 @@ public class ProcessesServiceImplTest {
   }
 
   @Test
+  public void getWorks() throws Exception {
+
+    WorkFilter workFilter = new WorkFilter();
+    workFilter.setQuery("test");
+    when(processesStorage.getWorks(0L, workFilter, 0, 10)).thenReturn(allWorkList);
+    assertEquals(processesService.getWorks(0L, workFilter, 0, 10), allWorkList);
+  }
+
+  @Test
+  public void getWorkFlowByProjectId() throws Exception {
+
+    when(processesStorage.getWorkFlowByProjectId(0L)).thenReturn(enabledWorkFlow);
+    assertEquals(processesService.getWorkFlowByProjectId(0L).getId(), 1L);
+  }
+
+  @Test
+  public void getWorkFlow() throws IllegalAccessException {
+
+    when(processesStorage.getWorkFlowById(1L)).thenReturn(enabledWorkFlow);
+    assertEquals(processesService.getWorkFlow(1L).getId(), 1L);
+  }
+
+  @Test
+  public void countWorkFlows() throws IllegalAccessException {
+
+    ProcessesFilter processesFilter = new ProcessesFilter();
+    processesFilter.setEnabled(true);
+    processesFilter.setQuery("test");
+    when(processesStorage.countWorkFlows(processesFilter)).thenReturn(enabledWorkFlowList.size());
+    assertEquals(processesService.countWorkFlows(processesFilter, 0L), enabledWorkFlowList.size());
+  }
+
+  @Test
   public void updateWorkflow() throws ObjectNotFoundException, IllegalAccessException {
     WorkFlow workFlow = new WorkFlow();
     WorkFlow updatedWorkflow = new WorkFlow();
     updatedWorkflow.setId(1L);
     updatedWorkflow.setDescription("anything");
     workFlow.setId(0L);
-    Throwable exception1 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesService.updateWorkFlow(null, 1l));
+    Throwable exception1 = assertThrows(IllegalArgumentException.class, () -> this.processesService.updateWorkFlow(null, 1l));
     assertEquals("Workflow Type is mandatory", exception1.getMessage());
     verify(processesStorage, times(0)).getWorkById(1L);
 
-    Throwable exception2 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesService.updateWorkFlow(workFlow, 1l));
+    Throwable exception2 = assertThrows(IllegalArgumentException.class, () -> this.processesService.updateWorkFlow(workFlow, 1l));
     assertEquals("workflow type id must not be equal to 0", exception2.getMessage());
     verify(processesStorage, times(0)).getWorkById(1L);
 
     workFlow.setId(1L);
     when(processesStorage.getWorkFlowById(workFlow.getId())).thenReturn(null);
-    Throwable exception3 = assertThrows(ObjectNotFoundException.class,
-            () -> this.processesService.updateWorkFlow(workFlow, 1l));
+    Throwable exception3 = assertThrows(ObjectNotFoundException.class, () -> this.processesService.updateWorkFlow(workFlow, 1l));
     assertEquals("oldWorkFlow is not exist", exception3.getMessage());
 
     when(processesStorage.getWorkFlowById(workFlow.getId())).thenReturn(workFlow);
-    Throwable exception4 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesService.updateWorkFlow(workFlow, 1l));
+    Throwable exception4 = assertThrows(IllegalArgumentException.class, () -> this.processesService.updateWorkFlow(workFlow, 1l));
     assertEquals("there are no changes to save", exception4.getMessage());
-
 
     when(processesStorage.getWorkFlowById(workFlow.getId())).thenReturn(updatedWorkflow);
     this.processesService.updateWorkFlow(workFlow, 1l);
@@ -117,13 +148,11 @@ public class ProcessesServiceImplTest {
   public void createWorkflow() throws IllegalAccessException {
     WorkFlow workFlow = new WorkFlow();
     workFlow.setId(1L);
-    Throwable exception1 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesService.createWorkFlow(null, 1L));
+    Throwable exception1 = assertThrows(IllegalArgumentException.class, () -> this.processesService.createWorkFlow(null, 1L));
     assertEquals("workFlow is mandatory", exception1.getMessage());
     verify(processesStorage, times(0)).saveWorkFlow(workFlow, 1L);
 
-    Throwable exception2 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesService.createWorkFlow(workFlow, 1L));
+    Throwable exception2 = assertThrows(IllegalArgumentException.class, () -> this.processesService.createWorkFlow(workFlow, 1L));
     assertEquals("workFlow id must be equal to 0", exception2.getMessage());
     verify(processesStorage, times(0)).saveWorkFlow(workFlow, 1L);
 
@@ -136,13 +165,11 @@ public class ProcessesServiceImplTest {
   public void createWork() throws IllegalAccessException {
     Work work = new Work();
     work.setId(1L);
-    Throwable exception1 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesService.createWork(null, 1L));
+    Throwable exception1 = assertThrows(IllegalArgumentException.class, () -> this.processesService.createWork(null, 1L));
     assertEquals("work is mandatory", exception1.getMessage());
     verify(processesStorage, times(0)).saveWork(work, 1L);
 
-    Throwable exception2 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesService.createWork(work, 1L));
+    Throwable exception2 = assertThrows(IllegalArgumentException.class, () -> this.processesService.createWork(work, 1L));
     assertEquals("work id must be equal to 0", exception2.getMessage());
     verify(processesStorage, times(0)).saveWork(work, 1L);
 
@@ -155,26 +182,22 @@ public class ProcessesServiceImplTest {
   public void updateWork() throws ObjectNotFoundException, IllegalAccessException {
     Work work = new Work();
     work.setId(0L);
-    Throwable exception1 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesService.updateWork(null, 1L));
+    Throwable exception1 = assertThrows(IllegalArgumentException.class, () -> this.processesService.updateWork(null, 1L));
     assertEquals("Work is mandatory", exception1.getMessage());
     verify(processesStorage, times(0)).saveWork(work, 1L);
 
-    Throwable exception2 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesService.updateWork(work, 1L));
+    Throwable exception2 = assertThrows(IllegalArgumentException.class, () -> this.processesService.updateWork(work, 1L));
     assertEquals("work id must not be equal to 0", exception2.getMessage());
     verify(processesStorage, times(0)).saveWork(work, 1L);
 
     work.setId(1L);
     when(processesStorage.getWorkById(work.getId())).thenReturn(null);
-    Throwable exception3 = assertThrows(ObjectNotFoundException.class,
-            () -> this.processesService.updateWork(work, 1L));
+    Throwable exception3 = assertThrows(ObjectNotFoundException.class, () -> this.processesService.updateWork(work, 1L));
     assertEquals("oldWork is not exist", exception3.getMessage());
     verify(processesStorage, times(0)).saveWork(work, 1L);
 
     when(processesStorage.getWorkById(work.getId())).thenReturn(work);
-    Throwable exception4 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesService.updateWork(work, 1L));
+    Throwable exception4 = assertThrows(IllegalArgumentException.class, () -> this.processesService.updateWork(work, 1L));
     assertEquals("there are no changes to save", exception4.getMessage());
     verify(processesStorage, times(0)).saveWork(work, 1L);
 
@@ -189,12 +212,12 @@ public class ProcessesServiceImplTest {
   @Test
   public void countWorksByWorkflow() throws Exception {
     Throwable exception1 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesService.countWorksByWorkflow(null, false));
+                                        () -> this.processesService.countWorksByWorkflow(null, false));
     assertEquals("Project Id is mandatory", exception1.getMessage());
     verify(processesStorage, times(0)).countWorksByWorkflow(1L, false);
 
-    Throwable exception2 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesService.countWorksByWorkflow(1L, null));
+    Throwable exception2 =
+                         assertThrows(IllegalArgumentException.class, () -> this.processesService.countWorksByWorkflow(1L, null));
     assertEquals("isCompleted should not be null", exception2.getMessage());
     verify(processesStorage, times(0)).countWorksByWorkflow(1L, false);
 
@@ -204,8 +227,7 @@ public class ProcessesServiceImplTest {
 
   @Test
   public void deleteWorkById() {
-    Throwable exception1 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesService.deleteWorkById(null));
+    Throwable exception1 = assertThrows(IllegalArgumentException.class, () -> this.processesService.deleteWorkById(null));
     assertEquals("Work Id is mandatory", exception1.getMessage());
     verify(processesStorage, times(0)).deleteWorkById(anyLong());
     processesService.deleteWorkById(1L);
@@ -216,11 +238,9 @@ public class ProcessesServiceImplTest {
   public void createWorkDraft() {
     Work work = new Work();
     work.setId(1L);
-    Throwable exception1 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesService.createWorkDraft(null, 1L));
+    Throwable exception1 = assertThrows(IllegalArgumentException.class, () -> this.processesService.createWorkDraft(null, 1L));
     assertEquals("WorkDraft is mandatory", exception1.getMessage());
-    Throwable exception2 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesService.createWorkDraft(work, 1L));
+    Throwable exception2 = assertThrows(IllegalArgumentException.class, () -> this.processesService.createWorkDraft(work, 1L));
     assertEquals("WorkDraft id must be equal to 0", exception2.getMessage());
     work.setId(0L);
     processesService.createWorkDraft(work, 1L);
@@ -231,23 +251,19 @@ public class ProcessesServiceImplTest {
   public void updateWorkDraft() throws ObjectNotFoundException {
     Work work = new Work();
     work.setId(0L);
-    Throwable exception1 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesService.updateWorkDraft(null, 1L));
+    Throwable exception1 = assertThrows(IllegalArgumentException.class, () -> this.processesService.updateWorkDraft(null, 1L));
     assertEquals("WorkDraft Type is mandatory", exception1.getMessage());
-    Throwable exception2 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesService.updateWorkDraft(work, 1L));
+    Throwable exception2 = assertThrows(IllegalArgumentException.class, () -> this.processesService.updateWorkDraft(work, 1L));
     assertEquals("WorkDraft type id must not be equal to 0", exception2.getMessage());
     work.setId(1L);
     when(processesStorage.getWorkDraftyId(1L)).thenReturn(null);
-    Throwable exception3 = assertThrows(ObjectNotFoundException.class,
-            () -> this.processesService.updateWorkDraft(work, 1L));
+    Throwable exception3 = assertThrows(ObjectNotFoundException.class, () -> this.processesService.updateWorkDraft(work, 1L));
     assertEquals("oldWorkDraft is not exist", exception3.getMessage());
     when(processesStorage.getWorkDraftyId(1L)).thenReturn(work);
     Work newWork = new Work();
     newWork.setId(work.getId());
     newWork.setDescription("test");
-    Throwable exception4 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesService.updateWorkDraft(work, 1L));
+    Throwable exception4 = assertThrows(IllegalArgumentException.class, () -> this.processesService.updateWorkDraft(work, 1L));
     assertEquals("there are no changes to save", exception4.getMessage());
     processesService.updateWorkDraft(newWork, 1L);
     verify(processesStorage, times(1)).saveWorkDraft(newWork, 1L);
@@ -268,8 +284,7 @@ public class ProcessesServiceImplTest {
 
   @Test
   public void deleteWorkDraftById() {
-    Throwable exception1 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesService.deleteWorkDraftById(null));
+    Throwable exception1 = assertThrows(IllegalArgumentException.class, () -> this.processesService.deleteWorkDraftById(null));
     assertEquals("WorkDraft id is mandatory", exception1.getMessage());
     verify(processesStorage, times(0)).deleteWorkDraftById(1L);
     processesService.deleteWorkDraftById(1L);
@@ -278,8 +293,7 @@ public class ProcessesServiceImplTest {
 
   @Test
   public void getWorkById() {
-    Throwable exception1 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesService.getWorkById(1L, null));
+    Throwable exception1 = assertThrows(IllegalArgumentException.class, () -> this.processesService.getWorkById(1L, null));
     assertEquals("Work id is mandatory", exception1.getMessage());
     verify(processesStorage, times(0)).getWorkById(1L, 1L);
     processesService.getWorkById(1L, 1L);
@@ -289,7 +303,7 @@ public class ProcessesServiceImplTest {
   @Test
   public void updateWorkCompleted() {
     Throwable exception1 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesService.updateWorkCompleted(null, false));
+                                        () -> this.processesService.updateWorkCompleted(null, false));
     assertEquals("Work id is mandatory", exception1.getMessage());
     verify(processesStorage, times(0)).updateWorkCompleted(1L, false);
     processesService.updateWorkCompleted(1L, true);
@@ -298,8 +312,8 @@ public class ProcessesServiceImplTest {
 
   @Test
   public void getIllustrationImageById() throws ObjectNotFoundException, IOException, FileStorageException {
-    Throwable exception1 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesService.getIllustrationImageById(null));
+    Throwable exception1 =
+                         assertThrows(IllegalArgumentException.class, () -> this.processesService.getIllustrationImageById(null));
     assertEquals("IllustrationId id is mandatory", exception1.getMessage());
     verify(processesStorage, times(0)).getIllustrationImageById(1L);
     processesService.getIllustrationImageById(1L);

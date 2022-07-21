@@ -1,9 +1,29 @@
 package org.exoplatform.processes.rest;
 
+import static org.junit.Assert.assertNotNull;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+import javax.ws.rs.ext.RuntimeDelegate;
+
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
+
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.processes.Utils.ProcessesUtils;
-import org.exoplatform.processes.model.*;
+import org.exoplatform.processes.model.ProcessesFilter;
+import org.exoplatform.processes.model.Work;
+import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.rest.model.WorkEntity;
 import org.exoplatform.processes.rest.model.WorkFlowEntity;
 import org.exoplatform.processes.rest.util.EntityBuilder;
@@ -19,37 +39,22 @@ import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvide
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.task.service.StatusService;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-
-import javax.ws.rs.core.Response;
-import javax.ws.rs.ext.RuntimeDelegate;
-import java.util.*;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 @RunWith(PowerMockRunner.class)
 public class EntityBuilderTest {
 
   @Mock
-  private IdentityManager  identityManager;
+  private IdentityManager            identityManager;
 
   @Mock
-  private ProcessesService processesService;
+  private ProcessesService           processesService;
 
   @Mock
   private ProcessesAttachmentService processesAttachmentService;
 
-  private ProcessesRest    processesRest;
-  private IdentityRegistry identityRegistry;
+  private ProcessesRest              processesRest;
+
+  private IdentityRegistry           identityRegistry;
 
   @Before
   public void setUp() {
@@ -59,14 +64,14 @@ public class EntityBuilderTest {
   }
 
   @Test
-  @PrepareForTest({ RestUtils.class , CommonsUtils.class , ProcessesUtils.class})
+  @PrepareForTest({ RestUtils.class, CommonsUtils.class, ProcessesUtils.class })
   public void toRestEntities() throws Exception {
     StatusService statusService = mock(StatusService.class);
     List<WorkFlow> workFlows = new ArrayList<>();
     PowerMockito.mockStatic(RestUtils.class);
     PowerMockito.mockStatic(CommonsUtils.class);
     PowerMockito.mockStatic(ProcessesUtils.class);
-    Space space =new Space();
+    Space space = new Space();
     space.setId("test");
     space.setPrettyName("test");
     space.setDisplayName("test");
@@ -88,7 +93,7 @@ public class EntityBuilderTest {
     spaceIdentity.setProviderId("space");
     Profile profile = new Profile();
     profile.setAvatarUrl("");
-    profile.setProperty("fullName","test");
+    profile.setProperty("fullName", "test");
     spaceIdentity.setProfile(profile);
     ProcessesFilter processesFilter = new ProcessesFilter();
     processesFilter.setQuery("test");
@@ -105,20 +110,22 @@ public class EntityBuilderTest {
     workFlowEntities.add(workFlowEntity);
     List<WorkFlow> fromRestEntities = EntityBuilder.fromRestEntities(workFlowEntities);
     assertNotNull(fromRestEntities);
-    List<WorkFlowEntity> toRestEntities =EntityBuilder.toRestEntities(workFlows,"test");
+    List<WorkFlowEntity> toRestEntities = EntityBuilder.toRestEntities(workFlows, "test");
     processesRest.getWorkFlows(1L, true, "test", "test", 0, 10);
     assertNotNull(toRestEntities);
   }
 
   @Test
-  @PrepareForTest({ CommonsUtils.class , ProcessesUtils.class})
+  @PrepareForTest({ CommonsUtils.class, ProcessesUtils.class })
   public void toWorkEntity() throws ObjectNotFoundException, IllegalAccessException {
 
     String username = "testuser";
     org.exoplatform.services.security.Identity root = new org.exoplatform.services.security.Identity(username);
     ConversationState.setCurrent(new ConversationState(root));
     long currentOwnerId = 2;
-    org.exoplatform.social.core.identity.model.Identity currentIdentity = new org.exoplatform.social.core.identity.model.Identity(OrganizationIdentityProvider.NAME, username);
+    org.exoplatform.social.core.identity.model.Identity currentIdentity =
+                                                                        new org.exoplatform.social.core.identity.model.Identity(OrganizationIdentityProvider.NAME,
+                                                                                                                                username);
     currentIdentity.setId(String.valueOf(currentOwnerId));
     Profile currentProfile = new Profile();
     currentProfile.setProperty(Profile.FULL_NAME, username);
@@ -139,10 +146,19 @@ public class EntityBuilderTest {
     work.setDescription("description");
     work.setCompleted(true);
     work.setTitle("title");
+    work.setStatus("todo");
+    work.setCreatedBy("testuser");
+    work.setStartDate(new Date());
+    work.setEndDate(new Date());
+    work.setDueDate(new Date());
+    work.setCreatorId(1L);
+    work.setDraftId(1L);
+    work.setTaskId(1L);
+    work.setIsDraft(false);
     Work work1 = EntityBuilder.toWork(processesService, workEntity);
     EntityBuilder.fromEntity(workEntity);
     EntityBuilder.toEntity(work);
-    WorkEntity toWorkEntity = EntityBuilder.toWorkEntity(processesService,work,"test");
+    WorkEntity toWorkEntity = EntityBuilder.toWorkEntity(processesService, work, "test");
     when(processesService.updateWork(work1, 1L)).thenReturn(work);
     processesRest.updateWork(workEntity);
     assertNotNull(toWorkEntity);

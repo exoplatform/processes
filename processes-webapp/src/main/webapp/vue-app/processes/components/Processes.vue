@@ -4,7 +4,8 @@
       flat
       class="mt-4 pr-4 pl-4 mb-1">
       <v-tabs
-        v-model="tab">
+        v-model="tab"
+        slider-size="4">
         <v-tabs-slider />
         <v-tab>
           {{ $t('processes.toolbar.label.workflow') }}
@@ -169,9 +170,6 @@ export default {
     });
     this.$root.$on('open-workflow-drawer', event => {
       this.$refs.addWorkFlow.open(event.workflow, event.mode);
-      if (event.mode==='edit_workflow'){
-        this.$root.$emit('set-workflow-space',event.workflow.parentSpace );
-      }
     });
     this.$root.$on('show-work-comments', (work, comments) => {
       this.work = work;
