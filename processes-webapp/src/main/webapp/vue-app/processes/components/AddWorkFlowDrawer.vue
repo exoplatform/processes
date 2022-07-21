@@ -208,7 +208,7 @@
               <v-btn
                 class="btn btn-primary me-4"
                 outlined
-                :disabled="!workflowChanged || !validSpace"
+                :disabled="!workflowChanged"
                 @click="nextStep">
                 {{ $t('processes.works.form.label.continue') }}
                 <v-icon size="18" class="ms-2">
