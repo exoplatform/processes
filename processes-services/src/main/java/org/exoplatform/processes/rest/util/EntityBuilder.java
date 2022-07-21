@@ -26,6 +26,7 @@ import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.commons.utils.CommonsUtils;
+import org.exoplatform.commons.utils.HTMLSanitizer;
 import org.exoplatform.processes.Utils.ProcessesUtils;
 import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFlow;
@@ -34,7 +35,6 @@ import org.exoplatform.processes.rest.model.WorkFlowEntity;
 import org.exoplatform.processes.service.ProcessesService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
-import org.exoplatform.commons.utils.HTMLSanitizer;
 import org.exoplatform.task.service.StatusService;
 
 public class EntityBuilder {
@@ -59,11 +59,15 @@ public class EntityBuilder {
                         workFlowEntity.getModifierId(),
                         workFlowEntity.getModifiedDate(),
                         workFlowEntity.getProjectId(),
-                        workFlowEntity.getParentSpace()!=null && workFlowEntity.getParentSpace().getId() != null ? workFlowEntity.getParentSpace().getId() : "",
+                        workFlowEntity.getParentSpace() != null
+                            && workFlowEntity.getParentSpace().getId() != null ? workFlowEntity.getParentSpace().getId() : "",
                         null,
                         workFlowEntity.getAttachments(),
                         workFlowEntity.getIllustrativeAttachment(),
-                        null, null,false);
+                        null,
+                        null,
+                        false,
+                        workFlowEntity.getRequestsCreators());
   }
 
   public static Work fromEntity(WorkEntity workEntity) {
@@ -71,14 +75,14 @@ public class EntityBuilder {
       return null;
     }
     return new Work(workEntity.getId(),
-            workEntity.getTitle(),
-            workEntity.getDescription(),
-            workEntity.getCreatorId(),
-            workEntity.getCreatedTime(),
-            workEntity.getModifiedTime(),
-            workEntity.getTaskId(),
-            workEntity.getIsDraft(),
-            fromEntity(workEntity.getWorkFlow()));
+                    workEntity.getTitle(),
+                    workEntity.getDescription(),
+                    workEntity.getCreatorId(),
+                    workEntity.getCreatedTime(),
+                    workEntity.getModifiedTime(),
+                    workEntity.getTaskId(),
+                    workEntity.getIsDraft(),
+                    fromEntity(workEntity.getWorkFlow()));
   }
 
   public static WorkFlowEntity toEntity(WorkFlow workFlow, String expand) {
@@ -104,17 +108,18 @@ public class EntityBuilder {
                               workFlow.getProjectId(),
                               workFlow.getAttachments(),
                               statusService.getStatuses(workFlow.getProjectId()),
-                              null,
+                              workFlow.getAcl(),
                               ProcessesUtils.getProjectParentSpace(workFlow.getProjectId()),
                               workFlow.isCanShowPending(),
-                              workFlow.getIllustrativeAttachment());
+                              workFlow.getIllustrativeAttachment(),
+                              workFlow.getRequestsCreators());
   }
 
   public static WorkFlowEntity toEntity(WorkFlow workFlow) {
     if (workFlow == null) {
       return null;
     }
-     WorkFlowEntity workFlowEntity = new WorkFlowEntity();
+    WorkFlowEntity workFlowEntity = new WorkFlowEntity();
 
     workFlowEntity.setId(workFlow.getId());
     workFlowEntity.setTitle(workFlow.getTitle());
@@ -129,6 +134,7 @@ public class EntityBuilder {
     workFlowEntity.setModifiedDate(workFlow.getModifiedDate());
     workFlowEntity.setProjectId(workFlow.getProjectId());
     workFlowEntity.setIllustrativeAttachment(workFlow.getIllustrativeAttachment());
+    workFlowEntity.setAcl(workFlow.getAcl());
     return workFlowEntity;
   }
 
