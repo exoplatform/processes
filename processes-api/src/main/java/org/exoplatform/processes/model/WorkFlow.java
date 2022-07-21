@@ -18,6 +18,7 @@
 package org.exoplatform.processes.model;
 
 import java.util.Date;
+import java.util.List;
 import java.util.Set;
 
 import org.exoplatform.services.attachments.model.Attachment;
@@ -31,42 +32,44 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class WorkFlow {
 
-  private long              id;
+  private long                        id;
 
-  private String            title;
+  private String                      title;
 
-  private String            description;
+  private String                      description;
 
-  private String            summary;
+  private String                      summary;
 
-  private String            image;
+  private String                      image;
 
-  private String            helpLink;
+  private String                      helpLink;
 
-  private boolean           enabled;
+  private boolean                     enabled;
 
-  private long              creatorId;
+  private long                        creatorId;
 
-  private Date              createdDate;
+  private Date                        createdDate;
 
-  private long              modifierId;
+  private long                        modifierId;
 
-  private Date              modifiedDate;
+  private Date                        modifiedDate;
 
-  private long              projectId;
+  private long                        projectId;
 
-  private String            spaceId;
+  private String                      spaceId;
 
-  private ProcessPermission acl;
+  private ProcessPermission           acl;
 
-  private Attachment[]      attachments;
+  private Attachment[]                attachments;
 
-  private IllustrativeAttachment    illustrativeAttachment;
+  private IllustrativeAttachment      illustrativeAttachment;
 
-  private Set<String> manager;
+  private Set<String>                 manager;
 
-  private Set<String> participator;
+  private Set<String>                 participator;
 
   private boolean canShowPending;
+
+  private List<CreatorIdentityEntity> requestsCreators;
 
 }
