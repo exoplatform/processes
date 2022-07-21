@@ -20,28 +20,28 @@
             v-bind="attrs"
             v-on="!isMobile && on"
             @click="openMobileDrawer">
-            <v-icon>mdi-dots-vertical</v-icon>
+            <v-icon size="18">mdi-dots-vertical</v-icon>
           </v-btn>
         </template>
         <v-list>
           <v-list-item
             @click="editWorkflow">
-            <v-list-item-title>
-              <v-icon class="processes-work-menu-icon">
+            <v-list-item-title small>
+              <v-icon size = "13" class="processes-work-menu-icon mt-1">
                 mdi-square-edit-outline
               </v-icon>
-              <span>{{ $t('processes.workflow.edit.label') }}</span>
+              <span class="card-edit-text-size">{{ $t('processes.workflow.edit.label') }}</span>
             </v-list-item-title>
           </v-list-item>
           <v-list-item
             @click="deleteWorkflow">
             <v-list-item-title>
-              <v-icon class="processes-work-menu-icon">
+              <v-icon  size = "13" class="processes-work-menu-icon mt-1">
                 mdi-trash-can-outline
               </v-icon>
-              <span>{{ $t('processes.workflow.delete.label') }}</span>
+              <span class="card-edit-text-size">{{ $t('processes.workflow.delete.label') }}</span>
             </v-list-item-title>
-            </v-list-item>
+          </v-list-item>
         </v-list>
       </v-menu>
     <div v-if="!isMobile">
