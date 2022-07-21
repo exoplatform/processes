@@ -1,5 +1,28 @@
 package org.exoplatform.processes.storage;
 
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.when;
+import static org.powermock.api.mockito.PowerMockito.*;
+import static org.powermock.api.mockito.PowerMockito.mock;
+import static org.powermock.api.mockito.PowerMockito.spy;
+
+import java.util.*;
+
+import javax.ws.rs.ext.RuntimeDelegate;
+
+import org.apache.commons.lang.StringUtils;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mock;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
+
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.file.model.FileInfo;
 import org.exoplatform.commons.file.model.FileItem;
@@ -13,6 +36,7 @@ import org.exoplatform.processes.dao.WorkFlowDAO;
 import org.exoplatform.processes.entity.WorkEntity;
 import org.exoplatform.processes.entity.WorkFlowEntity;
 import org.exoplatform.processes.model.*;
+import org.exoplatform.processes.rest.util.EntityBuilder;
 import org.exoplatform.processes.service.ProcessesAttachmentService;
 import org.exoplatform.services.attachments.model.Attachment;
 import org.exoplatform.services.listener.ListenerService;
@@ -38,63 +62,46 @@ import org.exoplatform.task.service.StatusService;
 import org.exoplatform.task.service.TaskService;
 import org.exoplatform.task.util.ProjectUtil;
 import org.exoplatform.task.util.UserUtil;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.ArgumentMatchers;
-import org.mockito.Mock;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-
-import javax.ws.rs.ext.RuntimeDelegate;
-import java.util.*;
-
-import static org.junit.Assert.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.*;
 
 @RunWith(PowerMockRunner.class)
 public class ProcessesStorageImplTest {
 
   @Mock
-  private WorkFlowDAO      workFlowDAO;
+  private WorkFlowDAO                workFlowDAO;
 
   @Mock
-  private WorkDraftDAO    workDraftDAO;
-  
-  @Mock
-  private IdentityManager  identityManager;
+  private WorkDraftDAO               workDraftDAO;
 
   @Mock
-  private TaskService      taskService;
+  private IdentityManager            identityManager;
 
   @Mock
-  private ProjectService   projectService;
+  private TaskService                taskService;
 
   @Mock
-  private StatusService    statusService;
+  private ProjectService             projectService;
 
   @Mock
-  private SpaceService spaceService;
+  private StatusService              statusService;
 
   @Mock
-  private MembershipHandler membershipHandler;
+  private SpaceService               spaceService;
 
-  private ListenerService listenerService;
+  @Mock
+  private MembershipHandler          membershipHandler;
+
+  private ListenerService            listenerService;
 
   @Mock
   private ProcessesAttachmentService processesAttachmentService;
 
   @Mock
   private FileService                fileService;
-  @Mock
-  private OrganizationService organizationService;
 
-  private ProcessesStorage processesStorage;
+  @Mock
+  private OrganizationService        organizationService;
+
+  private ProcessesStorage           processesStorage;
 
   @Before
   public void setUp() throws Exception {
@@ -138,27 +145,30 @@ public class ProcessesStorageImplTest {
     verify(workFlowDAO, times(1)).delete(workFlowEntity);
     when(projectService.getProject(1L)).thenThrow(new EntityNotFoundException(1L, Object.class));
     this.processesStorage.deleteWorkflowById(1L);
-    Throwable exception2 = assertThrows(EntityNotFoundException.class,
-            () -> this.projectService.getProject(1L));
+    Throwable exception2 = assertThrows(EntityNotFoundException.class, () -> this.projectService.getProject(1L));
     assertEquals("Object does not exist with ID: 1", exception2.getMessage());
   }
 
   @Test
-  @PrepareForTest({ EntityMapper.class , UserUtil.class ,ProjectUtil.class ,ProcessesUtils.class})
+  @PrepareForTest({ EntityMapper.class, UserUtil.class, ProjectUtil.class, ProcessesUtils.class })
   public void saveWorkflow() throws EntityNotFoundException {
     PowerMockito.mockStatic(EntityMapper.class);
     PowerMockito.mockStatic(UserUtil.class);
     PowerMockito.mockStatic(ProjectUtil.class);
     PowerMockito.mockStatic(ProcessesUtils.class);
 
-    IllustrativeAttachment illustrativeAttachment = new IllustrativeAttachment(null, "image.png", "image/png", 1365L, new Date().getTime());
+    IllustrativeAttachment illustrativeAttachment = new IllustrativeAttachment(null,
+                                                                               "image.png",
+                                                                               "image/png",
+                                                                               1365L,
+                                                                               new Date().getTime());
     List<Attachment> attachments = new ArrayList<>();
     Attachment attachment = new Attachment();
     attachment.setId("1");
     attachments.add(attachment);
     Identity identity = mock(Identity.class);
     WorkFlow workFlow = mock(WorkFlow.class);
-    List<String > memberships = new ArrayList<>();
+    List<String> memberships = new ArrayList<>();
     memberships.add("manager");
     memberships.add("participator");
     Set<String> managers = new HashSet<>(Arrays.asList(memberships.get(0)));
@@ -166,13 +176,11 @@ public class ProcessesStorageImplTest {
     ProjectDto projectDto = new ProjectDto();
     Space space = mock(Space.class);
     WorkFlowEntity workFlowEntity = new WorkFlowEntity();
-    Throwable exception1 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesStorage.saveWorkFlow(null, 1l));
+    Throwable exception1 = assertThrows(IllegalArgumentException.class, () -> this.processesStorage.saveWorkFlow(null, 1l));
     assertEquals("workflow argument is null", exception1.getMessage());
 
     when(identityManager.getIdentity("1")).thenReturn(null);
-    Throwable exception2 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesStorage.saveWorkFlow(workFlow, 1l));
+    Throwable exception2 = assertThrows(IllegalArgumentException.class, () -> this.processesStorage.saveWorkFlow(workFlow, 1l));
     assertEquals("identity is not exist", exception2.getMessage());
 
     when(EntityMapper.toEntity(workFlow)).thenReturn(workFlowEntity);
@@ -190,7 +198,22 @@ public class ProcessesStorageImplTest {
     workFlow.setTitle("title");
     workFlow.setProjectId(1L);
     workFlow.setSpaceId("1");
-    when(ProjectUtil.newProjectInstanceDto(workFlow.getTitle(), workFlow.getDescription(), managers, participators)).thenReturn(projectDto);
+    List<CreatorIdentityEntity> identityEntities = new ArrayList<>();
+    ProfileEntity profile =
+                          new ProfileEntity(StringUtils.isNotEmpty(space.getAvatarUrl()) ? space.getAvatarUrl()
+                                                                                         : "/portal/rest/v1/social/spaces/"
+                                                                                             + space.getPrettyName() + "/avatar",
+                                            space.getDisplayName());
+    IdentityEntity identityEntity = new IdentityEntity("", space.getPrettyName(), "space", profile);
+    identityEntities.add(new CreatorIdentityEntity(identityEntity));
+    profile = new ProfileEntity(null, "users");
+    identityEntity = new IdentityEntity("group:users", "platform/users", "group", profile);
+    identityEntities.add(new CreatorIdentityEntity(identityEntity));
+    workFlow.setRequestsCreators(identityEntities);
+    when(ProjectUtil.newProjectInstanceDto(workFlow.getTitle(),
+                                           workFlow.getDescription(),
+                                           managers,
+                                           participators)).thenReturn(projectDto);
     when(ProcessesUtils.getProjectParentSpace(workFlow.getProjectId())).thenReturn(space);
     projectDto.setId(1L);
     when(projectService.createProject(projectDto)).thenReturn(projectDto);
@@ -209,11 +232,12 @@ public class ProcessesStorageImplTest {
     this.processesStorage.saveWorkFlow(workFlow, 1L);
     verify(workFlowDAO, times(1)).create(workFlowEntity);
     PowerMockito.verifyStatic(ProcessesUtils.class, times(1));
-    ProcessesUtils.broadcast(listenerService, "exo.process.created", 1L, EntityMapper.fromEntity(workFlowEntity, illustrativeAttachment));
-    verify(processesAttachmentService, times(1)).linkAttachmentsToEntity(attachments.toArray(new Attachment[0]),
-                                                                         1L,
-                                                                         1L,
-                                                                         "workflow", 1L);
+    ProcessesUtils.broadcast(listenerService,
+                             "exo.process.created",
+                             1L,
+                             EntityMapper.fromEntity(workFlowEntity, illustrativeAttachment, memberships));
+    verify(processesAttachmentService,
+           times(1)).linkAttachmentsToEntity(attachments.toArray(new Attachment[0]), 1L, 1L, "workflow", 1L);
     when(workFlow.getId()).thenReturn(1L);
     this.processesStorage.saveWorkFlow(workFlow, 1L);
     verify(workFlowDAO, times(1)).update(workFlowEntity);
@@ -243,7 +267,7 @@ public class ProcessesStorageImplTest {
   }
 
   @Test
-  @PrepareForTest({ EntityMapper.class , ProcessesUtils.class})
+  @PrepareForTest({ EntityMapper.class, ProcessesUtils.class })
   public void saveWork() throws EntityNotFoundException, IllegalAccessException, ObjectNotFoundException {
     PowerMockito.mockStatic(EntityMapper.class);
     PowerMockito.mockStatic(ProcessesUtils.class);
@@ -264,12 +288,10 @@ public class ProcessesStorageImplTest {
     when(identity.getProfile()).thenReturn(profile);
     when(taskDto.getStatus()).thenReturn(statusDto);
     when(statusDto.getProject()).thenReturn(projectDto);
-    Throwable exception1 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesStorage.saveWork(null, 1l));
+    Throwable exception1 = assertThrows(IllegalArgumentException.class, () -> this.processesStorage.saveWork(null, 1l));
     assertEquals("work argument is null", exception1.getMessage());
     when(identityManager.getIdentity("1")).thenReturn(null);
-    Throwable exception2 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesStorage.saveWork(work, 1l));
+    Throwable exception2 = assertThrows(IllegalArgumentException.class, () -> this.processesStorage.saveWork(work, 1l));
     assertEquals("identity is not exist", exception2.getMessage());
     work.setId(0L);
     work.setProjectId(1L);
@@ -291,8 +313,7 @@ public class ProcessesStorageImplTest {
     when(taskDto.getId()).thenReturn(1L);
     when(workDraftDAO.find(1L)).thenReturn(WorkEntity);
     processesStorage.saveWork(work, 1L);
-    verify(processesAttachmentService,
-           times(1)).moveAttachmentsToEntity(1L, 1L, "workdraft", 1L, "task", 1L);
+    verify(processesAttachmentService, times(1)).moveAttachmentsToEntity(1L, 1L, "workdraft", 1L, "task", 1L);
     verify(workDraftDAO, times(1)).delete(WorkEntity);
     when(projectService.getProject(work.getProjectId())).thenThrow(EntityNotFoundException.class);
 
@@ -315,13 +336,11 @@ public class ProcessesStorageImplTest {
     verify(taskService, times(1)).updateTask(taskDto);
 
     when(taskService.getTask(work.getId())).thenThrow(EntityNotFoundException.class);
-    Throwable exception3 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesStorage.saveWork(work, 1l));
+    Throwable exception3 = assertThrows(IllegalArgumentException.class, () -> this.processesStorage.saveWork(work, 1l));
     assertEquals("Task not found", exception3.getMessage());
 
     work.setId(0L);
-    Throwable exception4 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesStorage.saveWork(work, 1l));
+    Throwable exception4 = assertThrows(IllegalArgumentException.class, () -> this.processesStorage.saveWork(work, 1l));
     assertEquals("Task's project not found", exception4.getMessage());
   }
 
@@ -341,8 +360,7 @@ public class ProcessesStorageImplTest {
     workEntity.toString();
     Identity identity = mock(Identity.class);
     when(identityManager.getIdentity("1")).thenReturn(null);
-    Throwable exception1 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesStorage.saveWorkDraft(work, 1l));
+    Throwable exception1 = assertThrows(IllegalArgumentException.class, () -> this.processesStorage.saveWorkDraft(work, 1l));
     assertEquals("identity is not exist", exception1.getMessage());
     when(EntityMapper.toEntity(work)).thenReturn(workEntity);
     when(identityManager.getIdentity("1")).thenReturn(identity);
@@ -362,7 +380,7 @@ public class ProcessesStorageImplTest {
     org.exoplatform.processes.entity.WorkEntity WorkEntity = new org.exoplatform.processes.entity.WorkEntity();
     when(workDraftDAO.find(1L)).thenReturn(null);
     Throwable exception1 = assertThrows(javax.persistence.EntityNotFoundException.class,
-            () -> this.processesStorage.deleteWorkDraftById(1l));
+                                        () -> this.processesStorage.deleteWorkDraftById(1l));
     assertEquals("Work Draft not found", exception1.getMessage());
     when(workDraftDAO.find(1L)).thenReturn(WorkEntity);
     processesStorage.deleteWorkDraftById(1L);
@@ -379,8 +397,7 @@ public class ProcessesStorageImplTest {
     list.add(taskDto);
     when(identity.getRemoteId()).thenReturn("root");
     when(identityManager.getIdentity("1")).thenReturn(null);
-    Throwable exception1 = assertThrows(IllegalArgumentException.class,
-            () -> this.processesStorage.getWorkById(1L, 1L));
+    Throwable exception1 = assertThrows(IllegalArgumentException.class, () -> this.processesStorage.getWorkById(1L, 1L));
     assertEquals("identity is not exist", exception1.getMessage());
     when(identityManager.getIdentity("1")).thenReturn(identity);
     when(taskService.findTasks(any(), ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt())).thenReturn(list);
@@ -389,7 +406,7 @@ public class ProcessesStorageImplTest {
     EntityMapper.taskToWork(taskDto);
     when(taskService.findTasks(any(), anyInt(), anyInt())).thenThrow(new EntityNotFoundException(1L, Object.class));
     Throwable exception2 = assertThrows(javax.persistence.EntityNotFoundException.class,
-            () -> this.processesStorage.getWorkById(1L, 1L));
+                                        () -> this.processesStorage.getWorkById(1L, 1L));
     assertEquals("work not found", exception2.getMessage());
   }
 
@@ -397,6 +414,8 @@ public class ProcessesStorageImplTest {
   @PrepareForTest({ CommonsUtils.class })
   public void updateWorkCompleted() throws EntityNotFoundException {
     PowerMockito.mockStatic(CommonsUtils.class);
+    when(CommonsUtils.getService(OrganizationService.class)).thenReturn(organizationService);
+    when(CommonsUtils.getService(SpaceService.class)).thenReturn(spaceService);
     TaskDto taskDto = new TaskDto();
     StatusDto statusDto = new StatusDto();
     statusDto.setId(1L);
@@ -449,12 +468,12 @@ public class ProcessesStorageImplTest {
     verify(taskService, times(1)).updateTask(taskDto);
     when(taskService.getTask(1L)).thenThrow(new EntityNotFoundException(1L, Object.class));
     Throwable exception2 = assertThrows(javax.persistence.EntityNotFoundException.class,
-            () -> this.processesStorage.updateWorkCompleted(1L, true));
+                                        () -> this.processesStorage.updateWorkCompleted(1L, true));
     assertEquals("work not found", exception2.getMessage());
   }
 
   @Test
-  @PrepareForTest({ EntityMapper.class , CommonsUtils.class })
+  @PrepareForTest({ EntityMapper.class, CommonsUtils.class })
   public void getWorks() throws Exception {
     PowerMockito.mockStatic(EntityMapper.class);
     PowerMockito.mockStatic(CommonsUtils.class);
@@ -467,7 +486,11 @@ public class ProcessesStorageImplTest {
     tasks.add(taskDto);
     Work work = new Work();
     List<Work> works = new ArrayList<>();
+    List<org.exoplatform.processes.rest.model.WorkEntity> workEntities = EntityBuilder.toWorkEntityList(works);
+    Assert.assertEquals(0, workEntities.size());
     works.add(work);
+    workEntities = EntityBuilder.toWorkEntityList(works);
+    Assert.assertEquals(1, workEntities.size());
     workFilter.setStatus("Request");
     workFilter.setQuery("test");
     workFilter.setCompleted(true);
@@ -478,13 +501,15 @@ public class ProcessesStorageImplTest {
     List<WorkFlow> workFlows = new ArrayList<>();
     workFlows.add(workFlow1);
     workFlows.add(workFlow2);
-    ProjectDto projectDto = mock(ProjectDto.class);;
+    ProjectDto projectDto = mock(ProjectDto.class);
     projectDto.setId(1L);
     String username = "testuser";
     org.exoplatform.services.security.Identity root = new org.exoplatform.services.security.Identity(username);
     ConversationState.setCurrent(new ConversationState(root));
     long currentOwnerId = 2;
-    org.exoplatform.social.core.identity.model.Identity currentIdentity = new org.exoplatform.social.core.identity.model.Identity(OrganizationIdentityProvider.NAME, username);
+    org.exoplatform.social.core.identity.model.Identity currentIdentity =
+                                                                        new org.exoplatform.social.core.identity.model.Identity(OrganizationIdentityProvider.NAME,
+                                                                                                                                username);
     currentIdentity.setId(String.valueOf(currentOwnerId));
     Profile currentProfile = new Profile();
     currentProfile.setProperty(Profile.FULL_NAME, username);
@@ -492,7 +517,7 @@ public class ProcessesStorageImplTest {
 
     when(identityManager.getIdentity((String.valueOf(currentOwnerId)))).thenReturn(currentIdentity);
 
-    String user = ProcessesUtils.getUserNameByIdentityId(identityManager,1l);
+    String user = ProcessesUtils.getUserNameByIdentityId(identityManager, 1l);
     assertNotNull(user);
     when(CommonsUtils.getService(ProjectService.class)).thenReturn(projectService);
     when(projectService.getProject(1l)).thenReturn(projectDto);
@@ -535,7 +560,7 @@ public class ProcessesStorageImplTest {
 
   @Test
   public void getIllustrationImageById() throws Exception {
-    FileInfo fileInfo = new FileInfo(1L, "file", "image/png", "processesApp", 1253L, new Date(),null, "", false);
+    FileInfo fileInfo = new FileInfo(1L, "file", "image/png", "processesApp", 1253L, new Date(), null, "", false);
     FileItem fileItem = new FileItem(fileInfo.getId(),
                                      fileInfo.getName(),
                                      fileInfo.getMimetype(),
@@ -548,32 +573,33 @@ public class ProcessesStorageImplTest {
     IllustrativeAttachment illustrativeAttachment = processesStorage.getIllustrationImageById(null);
     assertNull(illustrativeAttachment);
     when(fileService.getFile(1L)).thenReturn(null);
-    Throwable exception = assertThrows(ObjectNotFoundException.class,
-            () -> this.processesStorage.getIllustrationImageById(1L));
+    Throwable exception = assertThrows(ObjectNotFoundException.class, () -> this.processesStorage.getIllustrationImageById(1L));
     assertEquals("Illustration image not found", exception.getMessage());
     when(fileService.getFile(1L)).thenReturn(fileItem);
     IllustrativeAttachment illustrativeAttachment1 = processesStorage.getIllustrationImageById(1L);
     assertNotNull(illustrativeAttachment1);
   }
 
-
-
   @Test
-  @PrepareForTest({ EntityMapper.class , UserUtil.class ,ProjectUtil.class ,ProcessesUtils.class})
+  @PrepareForTest({ EntityMapper.class, UserUtil.class, ProjectUtil.class, ProcessesUtils.class })
   public void findWorkflow() throws Exception {
     PowerMockito.mockStatic(EntityMapper.class);
     PowerMockito.mockStatic(UserUtil.class);
     PowerMockito.mockStatic(ProjectUtil.class);
     PowerMockito.mockStatic(ProcessesUtils.class);
 
-    IllustrativeAttachment illustrativeAttachment = new IllustrativeAttachment(null, "image.png", "image/png", 1365L, new Date().getTime());
+    IllustrativeAttachment illustrativeAttachment = new IllustrativeAttachment(null,
+                                                                               "image.png",
+                                                                               "image/png",
+                                                                               1365L,
+                                                                               new Date().getTime());
     List<Attachment> attachments = new ArrayList<>();
     Attachment attachment = new Attachment();
     attachment.setId("1");
     attachments.add(attachment);
     Identity identity = mock(Identity.class);
     WorkFlow workFlow = mock(WorkFlow.class);
-    List<String > memberships = new ArrayList<>();
+    List<String> memberships = new ArrayList<>();
     memberships.add("manager");
     memberships.add("participator");
     Set<String> managers = new HashSet<>(Arrays.asList(memberships.get(0)));
@@ -597,7 +623,10 @@ public class ProcessesStorageImplTest {
     workFlow.setTitle("title");
     workFlow.setProjectId(1L);
     workFlow.setSpaceId("1");
-    when(ProjectUtil.newProjectInstanceDto(workFlow.getTitle(), workFlow.getDescription(), managers, participators)).thenReturn(projectDto);
+    when(ProjectUtil.newProjectInstanceDto(workFlow.getTitle(),
+                                           workFlow.getDescription(),
+                                           managers,
+                                           participators)).thenReturn(projectDto);
     projectDto.setId(1L);
     when(projectService.createProject(projectDto)).thenReturn(projectDto);
     PowerMockito.doNothing().when(statusService).createInitialStatuses(projectDto);
@@ -613,7 +642,7 @@ public class ProcessesStorageImplTest {
     newWorkFlowEntity1.setId(1L);
     newWorkFlowEntity1.setProjectId(1L);
     when(workFlowDAO.create(workFlowEntity)).thenReturn(newWorkFlowEntity);
-    ProcessesFilter filter = new ProcessesFilter("",null);
+    ProcessesFilter filter = new ProcessesFilter("", null);
     List<WorkFlowEntity> workFlowEntities = new ArrayList<>();
     workFlowEntities.add(newWorkFlowEntity);
     memberships = new ArrayList<>();
@@ -621,22 +650,22 @@ public class ProcessesStorageImplTest {
     memberships.add("member:/platform/administrators");
     memberships.add("*:/platform/administrators");
     memberships.add("*:/platform/users");
-    when(workFlowDAO.findWorkFlows(filter,memberships,0,0)).thenReturn(workFlowEntities);
+    when(workFlowDAO.findWorkFlows(filter, memberships, 0, 0)).thenReturn(workFlowEntities);
     when(workFlow.getIllustrativeAttachment()).thenReturn(illustrativeAttachment);
     this.processesStorage.saveWorkFlow(workFlow, 1L);
     when(organizationService.getMembershipHandler()).thenReturn(membershipHandler);
 
     Collection<Membership> memberships_ = new ArrayList();
     MembershipImpl membership;
-      membership = new MembershipImpl();
-      membership.setMembershipType("member");
-      membership.setUserName("user");
-      membership.setGroupId("/platform/administrators");
+    membership = new MembershipImpl();
+    membership.setMembershipType("member");
+    membership.setUserName("user");
+    membership.setGroupId("/platform/administrators");
     memberships_.add(membership);
-      MembershipImpl admin = new MembershipImpl();
-      admin.setMembershipType("*");
-      admin.setUserName("user");
-      admin.setGroupId("/platform/administrators");
+    MembershipImpl admin = new MembershipImpl();
+    admin.setMembershipType("*");
+    admin.setUserName("user");
+    admin.setGroupId("/platform/administrators");
     memberships_.add(admin);
 
     membership = new MembershipImpl();
@@ -649,24 +678,29 @@ public class ProcessesStorageImplTest {
     when(EntityMapper.fromEntity(newWorkFlowEntity1, null)).thenReturn(workFlow);
 
     when(organizationService.getMembershipHandler().findMembershipsByUser(identity.getRemoteId())).thenReturn(memberships_);
-    assertEquals(1,this.processesStorage.findWorkFlows(filter,Long.parseLong(identity.getId()),0,0).size());
+    assertEquals(1, this.processesStorage.findWorkFlows(filter, Long.parseLong(identity.getId()), 0, 0).size());
   }
+
   @Test
-  @PrepareForTest({ EntityMapper.class , UserUtil.class ,ProjectUtil.class ,ProcessesUtils.class})
+  @PrepareForTest({ EntityMapper.class, UserUtil.class, ProjectUtil.class, ProcessesUtils.class })
   public void countWorkflow() {
     PowerMockito.mockStatic(EntityMapper.class);
     PowerMockito.mockStatic(UserUtil.class);
     PowerMockito.mockStatic(ProjectUtil.class);
     PowerMockito.mockStatic(ProcessesUtils.class);
 
-    IllustrativeAttachment illustrativeAttachment = new IllustrativeAttachment(null, "image.png", "image/png", 1365L, new Date().getTime());
+    IllustrativeAttachment illustrativeAttachment = new IllustrativeAttachment(null,
+                                                                               "image.png",
+                                                                               "image/png",
+                                                                               1365L,
+                                                                               new Date().getTime());
     List<Attachment> attachments = new ArrayList<>();
     Attachment attachment = new Attachment();
     attachment.setId("1");
     attachments.add(attachment);
     Identity identity = mock(Identity.class);
     WorkFlow workFlow = mock(WorkFlow.class);
-    List<String > memberships = new ArrayList<>();
+    List<String> memberships = new ArrayList<>();
     memberships.add("manager");
     memberships.add("participator");
     Set<String> managers = new HashSet<>(Arrays.asList(memberships.get(0)));
@@ -688,7 +722,10 @@ public class ProcessesStorageImplTest {
     workFlow.setTitle("title");
     workFlow.setProjectId(1L);
     workFlow.setSpaceId("1");
-    when(ProjectUtil.newProjectInstanceDto(workFlow.getTitle(), workFlow.getDescription(), managers, participators)).thenReturn(projectDto);
+    when(ProjectUtil.newProjectInstanceDto(workFlow.getTitle(),
+                                           workFlow.getDescription(),
+                                           managers,
+                                           participators)).thenReturn(projectDto);
     projectDto.setId(1L);
     when(projectService.createProject(projectDto)).thenReturn(projectDto);
     PowerMockito.doNothing().when(statusService).createInitialStatuses(projectDto);
@@ -701,10 +738,22 @@ public class ProcessesStorageImplTest {
     newWorkFlowEntity.toString();
     newWorkFlowEntity.equals(workFlow);
     when(workFlowDAO.create(workFlowEntity)).thenReturn(newWorkFlowEntity);
-    ProcessesFilter filter = new ProcessesFilter("",null);
+    ProcessesFilter filter = new ProcessesFilter("", null);
     when(workFlowDAO.countWorkFlows(filter)).thenReturn(1);
     when(workFlow.getIllustrativeAttachment()).thenReturn(illustrativeAttachment);
+    List<CreatorIdentityEntity> identityEntities = new ArrayList<>();
+    ProfileEntity profile =
+                          new ProfileEntity(StringUtils.isNotEmpty(space.getAvatarUrl()) ? space.getAvatarUrl()
+                                                                                         : "/portal/rest/v1/social/spaces/"
+                                                                                             + space.getPrettyName() + "/avatar",
+                                            space.getDisplayName());
+    IdentityEntity identityEntity = new IdentityEntity("", space.getPrettyName(), "space", profile);
+    identityEntities.add(new CreatorIdentityEntity(identityEntity));
+    profile = new ProfileEntity(null, "users");
+    identityEntity = new IdentityEntity("group:users", "platform/users", "group", profile);
+    identityEntities.add(new CreatorIdentityEntity(identityEntity));
+    workFlow.setRequestsCreators(identityEntities);
     this.processesStorage.saveWorkFlow(workFlow, 1L);
-    assertEquals(1,this.processesStorage.countWorkFlows(filter));
+    assertEquals(1, this.processesStorage.countWorkFlows(filter));
   }
 }

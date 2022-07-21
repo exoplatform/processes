@@ -19,15 +19,16 @@ package org.exoplatform.processes.rest.model;
 import java.util.Date;
 import java.util.List;
 
+import org.exoplatform.processes.model.CreatorIdentityEntity;
 import org.exoplatform.processes.model.IllustrativeAttachment;
 import org.exoplatform.processes.model.ProcessPermission;
+import org.exoplatform.services.attachments.model.Attachment;
+import org.exoplatform.social.core.space.model.Space;
+import org.exoplatform.task.dto.StatusDto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.exoplatform.services.attachments.model.Attachment;
-import org.exoplatform.social.core.space.model.Space;
-import org.exoplatform.task.dto.StatusDto;
 
 @Data
 @AllArgsConstructor
@@ -35,40 +36,42 @@ import org.exoplatform.task.dto.StatusDto;
 
 public class WorkFlowEntity {
 
-  private long                   id;
+  private long                        id;
 
-  private String                 title;
+  private String                      title;
 
-  private String                 description;
+  private String                      description;
 
-  private String                 summary;
+  private String                      summary;
 
-  private String                 image;
+  private String                      image;
 
-  private String                 helpLink;
+  private String                      helpLink;
 
-  private boolean                enabled;
+  private boolean                     enabled;
 
-  private long                   creatorId;
+  private long                        creatorId;
 
-  private Date                   createdDate;
+  private Date                        createdDate;
 
-  private long                   modifierId;
+  private long                        modifierId;
 
-  private Date                   modifiedDate;
+  private Date                        modifiedDate;
 
-  private long                   projectId;
+  private long                        projectId;
 
-  private Attachment[]           attachments;
+  private Attachment[]                attachments;
 
-  private List<StatusDto>        statuses;
+  private List<StatusDto>             statuses;
 
-  private ProcessPermission      acl;
+  private ProcessPermission           acl;
 
-  private Space                  parentSpace;
+  private Space                       parentSpace;
 
-  private boolean                  canShowPending;
+  private boolean                     canShowPending;
 
-  private IllustrativeAttachment illustrativeAttachment;
+  private IllustrativeAttachment      illustrativeAttachment;
+
+  private List<CreatorIdentityEntity> requestsCreators;
 
 }
