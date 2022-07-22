@@ -4,7 +4,8 @@
       flat
       class="mt-4 pr-4 pl-4 mb-1">
       <v-tabs
-        v-model="tab">
+        v-model="tab"
+        slider-size="4">
         <v-tabs-slider />
         <v-tab>
           {{ $t('processes.toolbar.label.workflow') }}
