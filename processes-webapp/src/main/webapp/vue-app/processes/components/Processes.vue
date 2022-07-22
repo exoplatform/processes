@@ -1,46 +1,49 @@
 <template>
   <v-app>
-    <v-toolbar
-      flat
-      class="mt-4 pr-4 pl-4 mb-1">
-      <v-tabs
-        v-model="tab"
-        slider-size="4">
-        <v-tabs-slider />
-        <v-tab>
-          {{ $t('processes.toolbar.label.workflow') }}
-        </v-tab>
-        <v-tab>
-          {{ $t('processes.toolbar.label.myWorks') }}
-        </v-tab>
-      </v-tabs>
-    </v-toolbar>
-    <v-card
-      elevation="0"
-      class="pr-4 pl-4">
-      <v-tabs-items
-        class="mt-2 pa-4"
-        v-model="tab">
-        <v-tab-item>
-          <workflow-list
-            :is-processes-manager="isManager"
-            :workflows="workflows"
-            :has-more="hasMoreTypes"
-            :loading-more="loadingMore"
-            :loading="loading"
-            :show-workflow-filter="showProcessFilter" />
-        </v-tab-item>
-        <v-tab-item>
-          <my-work-list
-            :available-work-statuses="availableWorkStatuses"
-            :works="works"
-            :work-drafts="workDrafts"
-            :completed-works="completedWorks"
-            :loading="loading"
-            :show-work-filter="requestSubmited || allWorkDrafts.length" />
-        </v-tab-item>
-      </v-tabs-items>
-    </v-card>
+    <div :class="isMobile ? '':'process-page'">
+      <v-toolbar
+        flat
+        class="mt-4 pr-4 pl-4 mb-1"
+        :class="isMobile ? '':'mb-7'">
+        <v-tabs
+          v-model="tab"
+          slider-size="4">
+          <v-tabs-slider />
+          <v-tab>
+            {{ $t('processes.toolbar.label.workflow') }}
+          </v-tab>
+          <v-tab>
+            {{ $t('processes.toolbar.label.myWorks') }}
+          </v-tab>
+        </v-tabs>
+      </v-toolbar>
+      <v-card
+        elevation="0"
+        class="pr-4 pl-4">
+        <v-tabs-items
+          class="mt-2 pa-4"
+          v-model="tab">
+          <v-tab-item>
+            <workflow-list
+              :is-processes-manager="isManager"
+              :workflows="workflows"
+              :has-more="hasMoreTypes"
+              :loading-more="loadingMore"
+              :loading="loading"
+              :show-workflow-filter="showProcessFilter" />
+          </v-tab-item>
+          <v-tab-item>
+            <my-work-list
+              :available-work-statuses="availableWorkStatuses"
+              :works="works"
+              :work-drafts="workDrafts"
+              :completed-works="completedWorks"
+              :loading="loading"
+              :show-work-filter="requestSubmited || allWorkDrafts.length" />
+          </v-tab-item>
+        </v-tabs-items>
+      </v-card>
+    </div>
     <v-alert
       :icon="type === 'warning' ? 'mdi-alert-circle' : ''"
       v-model="alert"
