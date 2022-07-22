@@ -11,6 +11,10 @@
     <artifactId>processes-services</artifactId>
     <name>eXo Processes - Services</name>
     <properties>
+        <rest.api.doc.title>Processes Rest Api</rest.api.doc.title>
+        <rest.api.doc.version>1.0</rest.api.doc.version>
+        <rest.api.doc.description>Processes addon rest endpoints</rest.api.doc.description>
+
         <exo.test.coverage.ratio>0.60</exo.test.coverage.ratio>
     </properties>
     <dependencies>
@@ -107,6 +111,29 @@
     </dependencies>
     <build>
         <finalName>processes-services</finalName>
+        <plugins>
+            <plugin>
+                <groupId>io.openapitools.swagger</groupId>
+                <artifactId>swagger-maven-plugin</artifactId>
+                <configuration>
+                    <useResourcePackagesChildren>true</useResourcePackagesChildren>
+                    <resourcePackages>
+                        <locations>org.exoplatform.processes.rest</locations>
+                    </resourcePackages>
+                    <swaggerConfig>
+                        <info>
+                            <title>${rest.api.doc.title}</title>
+                            <version>${rest.api.doc.version}</version>
+                            <description>${rest.api.doc.description}</description>
+                            <license>
+                                <url>https://www.gnu.org/licenses/agpl-3.0.en.html</url>
+                                <name>AGPL</name>
+                            </license>
+                        </info>
+                    </swaggerConfig>
+                </configuration>
+            </plugin>
+        </plugins>
     </build>
 
 
