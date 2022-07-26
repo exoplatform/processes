@@ -369,6 +369,8 @@ export default {
         required: v => !!v || this.$t('processes.work.form.required.error.message'),
       },
       originalWorkflowString: null,
+      validSpace: false,
+      showSpaceAlertMessage: false,
     };
   },
   created(){
@@ -412,6 +414,31 @@ export default {
     },
     illustrativeInput(value) {
       this.handleUpload(value);
+    },
+    originalWorkflowString() {
+      this.showSpaceAlertMessage = false;
+      this.validSpace = false;
+      if (this.workflow.parentSpace){
+        this.$processesService.getSpaceApps(this.workflow.parentSpace.id).then(data=>{
+          data.forEach(e=>{
+            if (e.id === 'TasksManagement'){
+              this.validSpace = true;
+              return;
+            }
+          });
+          if (!this.validSpace){
+            this.showSpaceAlertMessage = true;
+          }
+        });
+      }
+    },
+    showSpaceAlertMessage(val){
+      if (val){
+        this.$root.$emit('show-alert', {type: 'warning',message: this.$t('processes.alert.createProcess.manageSpaceNotValid.warning')});
+      }
+      else {
+        this.$root.$emit('hide-alert');
+      }
     }
   },
   methods: {
