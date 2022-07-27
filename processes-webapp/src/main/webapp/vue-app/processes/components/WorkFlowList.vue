@@ -31,11 +31,10 @@
           md="8"
           lg="6">
           <v-select
-            v-if="isProcessesManager"
             ref="filter"
             class="pt-5 workflow-filter mt-n3 float-e"
             v-model="filter"
-            :items="items"
+            :items="filterItems"
             item-text="label"
             item-value="value"
             return-object
@@ -119,12 +118,8 @@
 export default {
   data () {
     return {
-      filter: {label: this.$t('processes.works.form.label.enabled'), value: true},
-      items: [
-        {label: this.$t('processes.workflow.activated.label'), value: true },
-        {label: this.$t('processes.workflow.deactivated.label'), value: false },
-        {label: this.$t('processes.workflow.all.label'), value: null},
-      ],
+      filter: {},
+      filterItems: [],
       query: null,
       searchTimer: null,
       endTypingKeywordTimeout: 200,
@@ -159,6 +154,7 @@ export default {
     }
   },
   created() {
+    this.init();
     this.$root.$on('workflow-added', (event) => {
       if (event.filter == null || event.workflow.enabled === event.filter) {
         this.workflowList.unshift(event.workflow);
@@ -178,9 +174,6 @@ export default {
     });
   },
   computed: {
-    emptyWorkflow(){
-      return !this.workflowList.length > 0 ; 
-    },
     workflowList(){
       return this.workflows || [];
     },
@@ -216,6 +209,15 @@ export default {
     },
     updateFilter() {
       this.$root.$emit('workflow-filter-changed', {filter: this.filter.value, query: this.query});
+    },
+    init(){
+      this.filter = this.isProcessesManager ? {label: this.$t('processes.workflow.activated.label'), value: 'activated'} : {label: this.$t('processes.workflow.all.label'), value: null};
+      if (this.isProcessesManager) {
+        this.filterItems.push({label: this.$t('processes.workflow.activated.label'), value: 'activated'});
+        this.filterItems.push({label: this.$t('processes.workflow.deactivated.label'), value: 'deactivated'});
+      }
+      this.filterItems.push({label: this.$t('processes.workflow.manager.label'), value: 'manager' });
+      this.filterItems.push({label: this.$t('processes.workflow.all.label'), value: null});
     }
   }
 };
