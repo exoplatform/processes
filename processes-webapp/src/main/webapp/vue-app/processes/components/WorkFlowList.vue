@@ -72,9 +72,9 @@
         v-if="workflowList.length>0"
         no-gutters>
         <v-col
-          xl="3"
+          xl="4"
           :lg="lg"
-          md="6"
+          md="3"
           cols="12"
           v-for="workflow in workflowList"
           :key="workflow.id">
