@@ -83,15 +83,15 @@ public class ProcessesRestTest {
     List<WorkFlowEntity> workFlowEntities = new ArrayList<>();
     ProcessesFilter processesFilter = new ProcessesFilter();
     when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
-    Response response1 = processesRest.getWorkFlows(1L, null, null, null, 0, 10);
+    Response response1 = processesRest.getWorkFlows(1L, null, null,null, null, 0, 10);
     assertEquals(response1.getStatus(), Response.Status.UNAUTHORIZED.getStatusCode());
     when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
     when(processesService.getWorkFlows(processesFilter, 0, 10, 1L)).thenReturn(workFlows);
     when(EntityBuilder.toRestEntities(workFlows, null)).thenReturn(workFlowEntities);
-    Response response2 = processesRest.getWorkFlows(1L, true, "test", null, 0, 10);
+    Response response2 = processesRest.getWorkFlows(1L, true,null, "test", null, 0, 10);
     assertEquals(response2.getStatus(), Response.Status.OK.getStatusCode());
     when(processesService.getWorkFlows(processesFilter, 0, 10, 1L)).thenThrow(RuntimeException.class);
-    Response response3 = processesRest.getWorkFlows(1L, null, null, null, 0, 10);
+    Response response3 = processesRest.getWorkFlows(1L, null, null,null, null, 0, 10);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response3.getStatus());
 
   }
@@ -301,6 +301,8 @@ public class ProcessesRestTest {
     WorkEntity workEntity = new WorkEntity();
     Work work = mock(Work.class);
     WorkFlowEntity workFlowEntity = new WorkFlowEntity();
+    workFlowEntity.setCanShowPending(true);
+    workFlowEntity.setParentSpace(null);
     workEntity.setWorkFlow(workFlowEntity);
     workEntity.setProjectId(1L);
     workEntity.getWorkFlow().setProjectId(1L);
