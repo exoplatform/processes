@@ -93,6 +93,8 @@ public class ProcessesRest implements ResourceContainer {
   Long userId,
                                   @ApiParam(value = "filter workflow by status", required = false)
                                   @QueryParam("enabled") Boolean enabled,
+                                  @ApiParam(value = "filter workflow that i manage", required = false)
+                                  @QueryParam("manager") Boolean manager,
                                   @ApiParam(value = "Search query entered by the user", required = false)
                                   @QueryParam("query")
                                   String query,
@@ -113,6 +115,9 @@ public class ProcessesRest implements ResourceContainer {
       ProcessesFilter filter = new ProcessesFilter();
       if (enabled != null) {
         filter.setEnabled(enabled);
+      }
+      if (manager != null) {
+        filter.setManager(manager);
       }
       if (query != null) {
         filter.setQuery(query);

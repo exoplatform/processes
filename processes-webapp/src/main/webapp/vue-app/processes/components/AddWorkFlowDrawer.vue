@@ -94,8 +94,9 @@
                   <v-icon size="14" color="primary">
                     fa-paperclip
                   </v-icon>
-                  <a class="text-decoration-underline ma-auto ms-2"
-                     @click="uploadFile">{{ $t('processes.workflow.illustrative.add') }}</a>
+                  <a
+                    class="text-decoration-underline ma-auto ms-2"
+                    @click="uploadFile">{{ $t('processes.workflow.illustrative.add') }}</a>
                   <v-file-input
                     id="avatarInput"
                     v-model="illustrativeInput"
