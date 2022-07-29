@@ -111,7 +111,7 @@ public class EntityBuilderTest {
     List<WorkFlow> fromRestEntities = EntityBuilder.fromRestEntities(workFlowEntities);
     assertNotNull(fromRestEntities);
     List<WorkFlowEntity> toRestEntities = EntityBuilder.toRestEntities(workFlows, "test");
-    processesRest.getWorkFlows(1L, true, "test", "test", 0, 10);
+    processesRest.getWorkFlows(1L, true, null,"test", "test", 0, 10);
     assertNotNull(toRestEntities);
   }
 

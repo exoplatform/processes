@@ -25,6 +25,7 @@
           v-model="tab">
           <v-tab-item>
             <workflow-list
+              v-if="!initializing"
               :is-processes-manager="isManager"
               :workflows="workflows"
               :has-more="hasMoreTypes"
@@ -89,6 +90,7 @@ export default {
       completedWorks: [],
       query: null,
       enabled: true,
+      manager: false,
       status: null,
       offset: 0,
       limit: 0,
@@ -102,13 +104,14 @@ export default {
       targetModel: null,
       myRequestsTabVisited: null,
       showProcessFilter: false,
-      requestSubmited: false,   
+      requestSubmited: false,
+      initializing: true
     };
   },
   beforeCreate() {
     this.$processesService.isProcessesManager().then(value => {
       this.isManager = value === 'true';
-    });
+    }).finally(() => this.initializing = false);
     this.$processesService.getAvailableWorkStatuses().then(statuses => {
       this.availableWorkStatuses = statuses;
     });
@@ -159,8 +162,22 @@ export default {
     });
     this.$root.$on('workflow-filter-changed', event => {
       this.workflows = [];
-      this.enabled = event.filter;
       this.query = event.query;
+      switch (event.filter)
+      {
+      case 'deactivated':
+        this.enabled = false;
+        this.manager =false;
+        break;
+      case 'manager':
+        this.manager = true;
+        this.enabled = true;
+        break;
+      default:
+        this.enabled = true;
+        this.manager =false;
+      }
+
       this.getWorkFlows();
     });
     this.$root.$on('show-confirm-action', event => {
@@ -339,6 +356,7 @@ export default {
         filter.query = this.query;
       }
       filter.enabled = this.enabled;
+      filter.manager = this.manager;
       const expand = '';
       this.limit = this.limit || this.pageSize;
       this.offset = this.workflows.length || 0;

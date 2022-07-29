@@ -3,6 +3,7 @@ package org.exoplatform.processes.dao;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import javax.persistence.NoResultException;
 import javax.persistence.Query;
@@ -53,6 +54,7 @@ public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
   private String  buildWorkflowQuery(ProcessesFilter processesFilter, List<String> memberships) {
     String q = processesFilter.getQuery();
     Boolean enabled = processesFilter.getEnabled();
+    Boolean manager = processesFilter.getManager();
     String queryString = "SELECT DISTINCT workFlow FROM WorkFlow workFlow";
     if(memberships != null) {
       queryString = queryString + " LEFT JOIN workFlow.manager manager "
@@ -72,6 +74,13 @@ public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
       }
       if ( memberships != null){
         queryString = queryString + " manager IN ('"+String.join("','", memberships)+"') OR participator IN ('"+String.join("','", memberships)+"') ";
+        queryString = queryString + " AND";
+      }
+      if ( Boolean.TRUE.equals(manager) && memberships != null){
+        memberships = memberships.stream()
+                   .map(s -> (!s.startsWith("manager:/") && !s.startsWith("member:/")) ? s : s.replace("manager:","").replace("member:","") )
+                   .collect(Collectors.toList());
+        queryString = queryString + " manager IN ('"+String.join("','", memberships)+"') ";
       }
       if (queryString.endsWith(" AND")) {
         queryString = queryString.substring(0, queryString.length() - 4);

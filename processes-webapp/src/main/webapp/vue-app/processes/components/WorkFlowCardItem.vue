@@ -27,7 +27,7 @@
           <v-list-item
             @click="editWorkflow">
             <v-list-item-title small>
-              <v-icon size = "13" class="processes-work-menu-icon mt-1">
+              <v-icon size="13" class="processes-work-menu-icon mt-1">
                 mdi-square-edit-outline
               </v-icon>
               <span class="card-edit-text-size">{{ $t('processes.workflow.edit.label') }}</span>
@@ -36,7 +36,7 @@
           <v-list-item
             @click="deleteWorkflow">
             <v-list-item-title>
-              <v-icon  size = "13" class="processes-work-menu-icon mt-1">
+              <v-icon size="13" class="processes-work-menu-icon mt-1">
                 mdi-trash-can-outline
               </v-icon>
               <span class="card-edit-text-size">{{ $t('processes.workflow.delete.label') }}</span>
@@ -44,42 +44,42 @@
           </v-list-item>
         </v-list>
       </v-menu>
-    <div v-if="!isMobile">
-      <div class="mb-n5">
-        <v-btn
-          outlined
-          color="grey"
-          class="invisible"
-          icon>
-          <v-icon>mdi-information</v-icon>
-        </v-btn>  
-      </div> 
-      <div class="d-flex justify-center image-height">
-        <v-avatar
-          v-if="avatarUrl"
-          size="50px">
-          <v-img
-            :src="avatarUrl" />
-        </v-avatar>         
-      </div>   
-      <v-card-title
-        class="text-center d-block card-title title-size">
-      <div> {{ workflow.title }}</div>
-      </v-card-title>
-    </div>
-    <div v-else>
-      <div class="process-img mt-3 ml-3">
-        <v-avatar
-          v-if="avatarUrl"
-          size="34px">
-          <v-img
-            :src="avatarUrl" /> 
-        </v-avatar>
-      </div>  
-      <div class="ml-14 mr-5 mt-5">
-        {{ workflow.title }} 
+      <div v-if="!isMobile">
+        <div class="mb-n5">
+          <v-btn
+            outlined
+            color="grey"
+            class="invisible"
+            icon>
+            <v-icon>mdi-information</v-icon>
+          </v-btn>  
+        </div> 
+        <div class="d-flex justify-center image-height">
+          <v-avatar
+            v-if="avatarUrl"
+            size="50px">
+            <v-img
+              :src="avatarUrl" />
+          </v-avatar>         
+        </div>   
+        <v-card-title
+          class="text-center d-block card-title title-size">
+          <div> {{ workflow.title }}</div>
+        </v-card-title>
       </div>
-    </div>
+      <div v-else>
+        <div class="process-img mt-3 ml-3">
+          <v-avatar
+            v-if="avatarUrl"
+            size="34px">
+            <v-img
+              :src="avatarUrl" /> 
+          </v-avatar>
+        </div>  
+        <div class="ml-14 mr-5 mt-5">
+          {{ workflow.title }} 
+        </div>
+      </div>
       <v-card-text :class=" isMobile ? 'card-content':'card-content mt-2'">
         <div>
           <p
@@ -90,41 +90,44 @@
         <div>
         </div>
       </v-card-text>
-      <v-card-footer class="d-inline-flex" elevation ="0">
-      <v-card elevation ="0" class="mb-5 ml-3 card-footer-request">
-        <span
-          :class="isMobile ? 'ml-8':''">
-          <v-chip
-            :class="completedWorksCount == 0 ? 'no-pending-requests':'pending-requests'"
-            v-if="showPending"
-            color="white"
-            :href="projectLink(workflow.projectId)"
-            target="_blank"
-            :loading="!completedWorksCount">
+      <v-card-footer class="d-inline-flex" elevation="0">
+        <v-card elevation="0" class="mb-5 ml-3 card-footer-request">
+          <span
+            :class="isMobile ? 'ml-8':''">
+            <v-chip
+              :class="completedWorksCount == 0 ? 'no-pending-requests':'pending-requests'"
+              v-if="showPending"
+              color="white"
+              :href="projectLink(workflow.projectId)"
+              target="_blank"
+              :loading="!completedWorksCount">
               <v-icon small>mdi-clock-time-four-outline</v-icon>
 
-            {{ completedWorksCount }} {{ $t('processes.workflow.label.pending') }}
-          </v-chip>
-        </span>
-      </v-card >
-      <v-card v-if="workflow.acl.canAddRequest" class="card-footer-btn mr-3 mb-4 px-2" elevation="0" outlined>
-        <v-btn 
-          outlined
-          right
-          plain
-          :disabled="!workflow.enabled"
-          depressed
-          @click="open"
-          >
-          {{ $t('processes.workflow.label.request') }}
-        </v-btn>
+              {{ completedWorksCount }} {{ $t('processes.workflow.label.pending') }}
+            </v-chip>
+          </span>
         </v-card>
-    </v-card-footer>
+        <v-card
+          v-if="workflow.acl.canAddRequest"
+          class="card-footer-btn mr-3 mb-4 px-2"
+          elevation="0"
+          outlined>
+          <v-btn 
+            outlined
+            right
+            plain
+            :disabled="!workflow.enabled"
+            depressed
+            @click="open">
+            {{ $t('processes.workflow.label.request') }}
+          </v-btn>
+        </v-card>
+      </v-card-footer>
     </v-card>
     <process-mobile-action-drawer
       @editWorkflow="editWorkflow"
       @deleteWorkflow="deleteWorkflow"
-      ref="mobileActionDrawer"/>
+      ref="mobileActionDrawer" />
   </div> 
 </template>
 
