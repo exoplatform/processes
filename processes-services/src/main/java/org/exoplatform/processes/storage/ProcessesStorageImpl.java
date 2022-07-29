@@ -8,8 +8,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
-
 import org.apache.xmlbeans.impl.util.Base64;
+
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.file.model.FileInfo;
 import org.exoplatform.commons.file.model.FileItem;
@@ -45,48 +45,29 @@ import org.exoplatform.task.service.TaskService;
 import org.exoplatform.task.util.ProjectUtil;
 import org.exoplatform.task.util.UserUtil;
 
-
 public class ProcessesStorageImpl implements ProcessesStorage {
 
   private static final Log                 LOG                      = ExoLogger.getLogger(ProcessesStorageImpl.class);
-
-  private final WorkFlowDAO                workFlowDAO;
-
-  private final WorkDraftDAO               workDraftDAO;
-
-  private final IdentityManager            identityManager;
-
-  private final TaskService                taskService;
-
-  private final ProjectService             projectService;
-
-  private final StatusService              statusService;
-
-  private final SpaceService               spaceService;
-
-  private final ListenerService            listenerService;
-
-  private final ProcessesAttachmentService processesAttachmentService;
-
-  private final FileService                fileService;
-
-  private final OrganizationService                organizationService;
-
-  private final String                     DATE_FORMAT              = "yyyy/MM/dd";
-
-  private static final String PROCESSES_GROUP = "/platform/processes";
-
+  private static final String              PROCESSES_GROUP          = "/platform/processes";
   private static final String              WORK_DRAFT_ENTITY_TYPE   = "workdraft";
-
   private static final String              TASK_ENTITY_TYPE         = "task";
-
   private static final String              WORKFLOW_ENTITY_TYPE     = "workflow";
-
-  private static final String[]            DEFAULT_PROCESS_STATUS   = { "Request", "RequestInProgress", "Validated", "Refused", "Canceled" };
-
+  private static final String[]            DEFAULT_PROCESS_STATUS   = { "Request", "RequestInProgress", "Validated", "Refused",
+      "Canceled" };
   private static final String              PROCESS_FILES_NAME_SPACE = "processesApp";
-
-  private final SimpleDateFormat formatter   = new SimpleDateFormat(DATE_FORMAT);
+  private final WorkFlowDAO                workFlowDAO;
+  private final WorkDraftDAO               workDraftDAO;
+  private final IdentityManager            identityManager;
+  private final TaskService                taskService;
+  private final ProjectService             projectService;
+  private final StatusService              statusService;
+  private final SpaceService               spaceService;
+  private final ListenerService            listenerService;
+  private final ProcessesAttachmentService processesAttachmentService;
+  private final FileService                fileService;
+  private final OrganizationService        organizationService;
+  private final String                     DATE_FORMAT              = "yyyy/MM/dd";
+  private final SimpleDateFormat           formatter                = new SimpleDateFormat(DATE_FORMAT);
 
   public ProcessesStorageImpl(WorkFlowDAO workFlowDAO,
                               WorkDraftDAO workDraftDAO,
@@ -141,12 +122,12 @@ public class ProcessesStorageImpl implements ProcessesStorage {
 
   @Override
   public WorkFlow getWorkFlowById(long id) {
-    return EntityMapper.fromEntity(workFlowDAO.find(id));
+    return EntityMapper.fromEntity(workFlowDAO.find(id), null);
   }
-  
+
   @Override
   public WorkFlow getWorkFlowByProjectId(long projectId) {
-    return EntityMapper.fromEntity(workFlowDAO.getWorkFlowByProjectId(projectId));
+    return EntityMapper.fromEntity(workFlowDAO.getWorkFlowByProjectId(projectId), null);
   }
 
   @Override
@@ -173,14 +154,14 @@ public class ProcessesStorageImpl implements ProcessesStorage {
         workFlow = createProject(workFlow);
         workFlowEntity.setProjectId(workFlow.getProjectId());
         workFlowEntity.setParticipator(workFlow.getParticipator());
-        workFlowEntity.setManager(workFlow.getManager());
+        workFlowEntity.setManager(getManagers(workFlow.getRequestsCreators()));
       }
       workFlowEntity = workFlowDAO.create(workFlowEntity);
-      WorkFlow newWorkflow = EntityMapper.fromEntity(workFlowEntity, illustrativeAttachment);
+      WorkFlow newWorkflow = EntityMapper.fromEntity(workFlowEntity, illustrativeAttachment, null);
       ProcessesUtils.broadcast(listenerService, "exo.process.created", userId, newWorkflow);
     } else {
       Space space = ProcessesUtils.getProjectParentSpace(workFlow.getProjectId());
-      if(space != null && !space.getId().equals(workFlow.getSpaceId())){
+      if (space != null && !space.getId().equals(workFlow.getSpaceId())) {
         Space newSpace = spaceService.getSpaceById(workFlow.getSpaceId());
         List<String> memberships = UserUtil.getSpaceMemberships(newSpace.getGroupId());
         Set<String> managers = new HashSet<>(Arrays.asList(memberships.get(0)));
@@ -192,14 +173,15 @@ public class ProcessesStorageImpl implements ProcessesStorage {
           project.setParticipator(participators);
           projectService.updateProjectNoReturn(project);
           workFlowEntity.setProjectId(project.getId());
-          managers.addAll(participators);
-          workFlowEntity.setManager(managers);
-          workFlowEntity.setParticipator(managers);
+          participators.addAll(managers);
+          workFlowEntity.setParticipator(participators);
         } catch (EntityNotFoundException e) {
           throw new IllegalArgumentException("Process project does not exist");
         }
+      } else {
+        workFlowEntity.setParticipator(workFlowDAO.find(workFlowEntity.getId()).getParticipator());
       }
-
+      workFlowEntity.setManager(getManagers(workFlow.getRequestsCreators()));
       workFlowEntity.setModifiedDate(new Date());
       workFlowEntity.setModifierId(userId);
       workFlowEntity = workFlowDAO.update(workFlowEntity);
@@ -209,7 +191,22 @@ public class ProcessesStorageImpl implements ProcessesStorage {
                                                        workFlowEntity.getId(),
                                                        WORKFLOW_ENTITY_TYPE,
                                                        workFlowEntity.getProjectId());
-    return EntityMapper.fromEntity(workFlowEntity, illustrativeAttachment);
+    return EntityMapper.fromEntity(workFlowEntity, illustrativeAttachment, null);
+  }
+
+  Set<String> getManagers(List<CreatorIdentityEntity> requestsCreators) {
+    List<String> managers = new ArrayList();
+    for (CreatorIdentityEntity id : requestsCreators) {
+      if (id.getIdentity().getProviderId().equals("space")) {
+        Space space = spaceService.getSpaceByPrettyName(id.getIdentity().getRemoteId());
+        if (space != null) {
+          managers.add(space.getGroupId());
+        }
+      } else {
+        managers.add(id.getIdentity().getRemoteId());
+      }
+    }
+    return new HashSet<>(managers);
   }
 
   /**
@@ -234,7 +231,6 @@ public class ProcessesStorageImpl implements ProcessesStorage {
                                       fileInfo.getSize(),
                                       fileInfo.getUpdatedDate().getTime());
   }
-
 
   private IllustrativeAttachment createIllustrativeImage(IllustrativeAttachment illustrativeAttachment) {
     if (illustrativeAttachment == null) {
@@ -313,8 +309,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     try {
       taskQuery.setId(workId);
       taskQuery.setCreatedBy(identity.getRemoteId());
-      List<TaskDto> list = taskService.findTasks(taskQuery,0,0);
-      if(!list.isEmpty()) {
+      List<TaskDto> list = taskService.findTasks(taskQuery, 0, 0);
+      if (!list.isEmpty()) {
         taskDto = list.get(0);
       }
     } catch (EntityNotFoundException e) {
@@ -377,10 +373,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     taskDto.setCompleted(work.isCompleted());
     long projectId = work.getProjectId();
     List<StatusDto> statuses = statusService.getStatuses(projectId);
-    StatusDto status = statuses.stream()
-                               .filter(statusDto -> work.getStatus().equals(statusDto.getName()))
-                               .findAny()
-                               .orElse(null);
+    StatusDto status = statuses.stream().filter(statusDto -> work.getStatus().equals(statusDto.getName())).findAny().orElse(null);
     if (status != null) {
       taskDto.setStatus(status);
     }
@@ -391,7 +384,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     }
     return taskDto;
   }
-  
+
   @Override
   public Work saveWork(Work work, long userId) throws IllegalArgumentException {
     if (work == null) {
@@ -432,7 +425,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     List<String> memberships = UserUtil.getSpaceMemberships(processSpace.getGroupId());
     Set<String> managers = new HashSet<>(Arrays.asList(memberships.get(0)));
     Set<String> participators = new HashSet<>(Arrays.asList(memberships.get(1)));
-    ProjectDto project = ProjectUtil.newProjectInstanceDto(workFlow.getTitle(), workFlow.getDescription(), managers, participators);
+    ProjectDto project =
+                       ProjectUtil.newProjectInstanceDto(workFlow.getTitle(), workFlow.getDescription(), managers, participators);
     project = projectService.createProject(project);
     for (String statusName : DEFAULT_PROCESS_STATUS) {
       statusService.createStatus(project, statusName);
@@ -553,7 +547,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    * {@inheritDoc}
    */
   @Override
-  public void deleteWorkDraftById(long id) throws javax.persistence.EntityNotFoundException{
+  public void deleteWorkDraftById(long id) throws javax.persistence.EntityNotFoundException {
     WorkEntity workEntity = workDraftDAO.find(id);
     if (workEntity == null) {
       throw new javax.persistence.EntityNotFoundException("Work Draft not found");
@@ -581,16 +575,16 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   public List<WorkFlow> findWorkFlows(ProcessesFilter processesFilter, long userIdentityId, int offset, int limit) {
     String userName = "";
     List<String> memberships = new ArrayList<>();
-    if( userIdentityId > 0){
+    if (userIdentityId > 0) {
       Identity identity = identityManager.getIdentity(String.valueOf(userIdentityId));
-      if(identity!=null){
+      if (identity != null) {
         userName = identity.getRemoteId();
         memberships.add(userName);
         try {
           Collection<Membership> ms = organizationService.getMembershipHandler().findMembershipsByUser(userName);
-          if(ms != null){
-            for(Membership membership : ms){
-              if(membership.getGroupId().equals(PROCESSES_GROUP)){
+          if (ms != null) {
+            for (Membership membership : ms) {
+              if (membership.getGroupId().equals(PROCESSES_GROUP)) {
                 memberships = null;
                 break;
               }
@@ -605,6 +599,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     }
     List<WorkFlowEntity> workFlowEntities = workFlowDAO.findWorkFlows(processesFilter, memberships, offset, limit);
     List<WorkFlow> workFlows = new ArrayList<>();
+    List<String> finalMemberships = memberships;
     workFlowEntities.forEach(workflowEntity -> {
       IllustrativeAttachment illustrativeAttachment = null;
       try {
@@ -615,19 +610,20 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       } catch (Exception e) {
         LOG.error("Error while getting workflow illustration image", e);
       }
-      WorkFlow entityMapper = EntityMapper.fromEntity(workflowEntity, illustrativeAttachment);
-      workFlows.add(entityMapper);
+      workFlows.add(EntityMapper.fromEntity(workflowEntity, illustrativeAttachment, finalMemberships));
     });
     String finalUserName = userName;
     workFlows.forEach(workflow -> {
-      boolean canShowPending = false;
-      try {
-        Space space = ProcessesUtils.getProjectParentSpace(workflow.getProjectId());
-        canShowPending = canShowPending(finalUserName, space);
-      } catch (Exception e) {
-        LOG.error("Error while getting workflow can Show Pending", e);
+      if (workflow != null) {
+        boolean canShowPending = false;
+        try {
+          Space space = ProcessesUtils.getProjectParentSpace(workflow.getProjectId());
+          canShowPending = canShowPending(finalUserName, space);
+        } catch (Exception e) {
+          LOG.error("Error while getting workflow can Show Pending", e);
+        }
+        workflow.setCanShowPending(canShowPending);
       }
-      workflow.setCanShowPending(canShowPending);
     });
     return workFlows;
   }
@@ -647,4 +643,4 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       return false;
   }
 
-  }
+}

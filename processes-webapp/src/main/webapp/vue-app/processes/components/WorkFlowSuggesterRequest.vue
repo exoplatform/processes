@@ -54,6 +54,13 @@ export default {
       groupType: 'GROUP',
     };
   },
+  created(){
+    this.$root.$on('set-workflow-creators', (creators) => {
+      if (creators){
+        this.workflowRequest = creators;
+      }
+    });
+  },
   computed: {
     workFlowSuggesterLabels() {
       return {
