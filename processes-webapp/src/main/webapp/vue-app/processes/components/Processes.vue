@@ -165,10 +165,6 @@ export default {
       this.query = event.query;
       switch (event.filter)
       {
-      case 'activated':
-        this.enabled = true;
-        this.manager =false;
-        break;
       case 'deactivated':
         this.enabled = false;
         this.manager =false;
@@ -177,6 +173,9 @@ export default {
         this.manager = true;
         this.enabled = true;
         break;
+      default:
+        this.enabled = true;
+        this.manager =false;
       }
 
       this.getWorkFlows();
