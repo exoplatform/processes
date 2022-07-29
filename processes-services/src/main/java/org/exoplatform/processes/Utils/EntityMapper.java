@@ -45,7 +45,8 @@ public class EntityMapper {
                         null,
                         new IllustrativeAttachment(workFlowEntity.getIllustrationImageId()),
                         workFlowEntity.getManager(),
-                        workFlowEntity.getParticipator());
+                        workFlowEntity.getParticipator(),
+                        false);
   }
 
   public static WorkFlow fromEntity(WorkFlowEntity workFlowEntity, IllustrativeAttachment illustrativeAttachment) {
