@@ -73,14 +73,10 @@ public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
         queryString = queryString + " AND";
       }
       if ( memberships != null){
-        queryString = queryString + " manager IN ('"+String.join("','", memberships)+"') OR participator IN ('"+String.join("','", memberships)+"') ";
-        queryString = queryString + " AND";
-      }
-      if ( Boolean.TRUE.equals(manager) && memberships != null){
-        memberships = memberships.stream()
-                   .map(s -> (!s.startsWith("manager:/") && !s.startsWith("member:/")) ? s : s.replace("manager:","").replace("member:","") )
-                   .collect(Collectors.toList());
-        queryString = queryString + " manager IN ('"+String.join("','", memberships)+"') ";
+        queryString = queryString + " manager IN ('"+String.join("','", getMembersShipGroup(memberships))+"') ";
+        if ( Boolean.FALSE.equals(manager)){
+          queryString = queryString + " OR participator IN ('"+String.join("','", memberships)+"') ";
+        }
       }
       if (queryString.endsWith(" AND")) {
         queryString = queryString.substring(0, queryString.length() - 4);
@@ -88,6 +84,12 @@ public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
     }
 
     return queryString;
+  }
+
+  private List<String> getMembersShipGroup(List<String> memberships) {
+    return memberships.stream()
+                             .map(s -> (!s.startsWith("manager:/") && !s.startsWith("member:/")) ? s : s.replace("manager:","").replace("member:","") )
+                             .collect(Collectors.toList());
   }
 
   private Query buildWorkflowQueryCriteria(ProcessesFilter processesFilter) {
