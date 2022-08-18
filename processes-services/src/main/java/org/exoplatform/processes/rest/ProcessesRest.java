@@ -28,8 +28,14 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.*;
 
 import org.exoplatform.services.rest.http.PATCH;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.apache.commons.lang.StringUtils;
-import org.exoplatform.common.http.HTTPStatus;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.processes.model.*;
 import org.exoplatform.processes.rest.model.WorkEntity;
@@ -46,10 +52,9 @@ import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 
-import io.swagger.annotations.*;
 
 @Path("/v1/processes")
-@Api(value = "/v1/processes", description = "Manages processes") // NOSONAR
+@Tag(name = "/v1/processes", description = "Manages processes")
 public class ProcessesRest implements ResourceContainer {
 
   private static final Log LOG = ExoLogger.getLogger(ProcessesRest.class);
@@ -82,29 +87,35 @@ public class ProcessesRest implements ResourceContainer {
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @Path("/workflows")
-  @ApiOperation(value = "Retrieves the list of workFlows for an authenticated user", httpMethod = "GET", response = Response.class, produces = "application/json")
-  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-      @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-      @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Not found"),
-      @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-      @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
-  public Response getWorkFlows(@ApiParam(value = "Identity technical identifier", required = false)
+  @Operation(
+          summary = "Retrieves the list of workFlows",
+          description = "Retrieves the list of workFlows for an authenticated user",
+          method = "GET"
+  )
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+      @ApiResponse(responseCode = "400", description = "Invalid query input"),
+      @ApiResponse(responseCode = "404", description = "Not found"),
+      @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+      @ApiResponse(responseCode = "500", description = "Internal server error"), })
+  public Response getWorkFlows(@Parameter(name = "Identity technical identifier", required = false)
   @QueryParam("userId")
   Long userId,
-                                  @ApiParam(value = "filter workflow by status", required = false)
+                                  @Parameter(description = "filter workflow by status", required = false)
                                   @QueryParam("enabled") Boolean enabled,
-                                  @ApiParam(value = "filter workflow that i manage", required = false)
+                                  @Parameter(description = "filter workflow that i manage", required = false)
                                   @QueryParam("manager") Boolean manager,
-                                  @ApiParam(value = "Search query entered by the user", required = false)
+                                  @Parameter(description = "Search query entered by the user", required = false)
                                   @QueryParam("query")
                                   String query,
-                                  @ApiParam(value = "Processes properties to expand.", required = false)
+                                  @Parameter(description = "Processes properties to expand.", required = false)
                                   @QueryParam("expand")
                                   String expand,
-                                  @ApiParam(value = "Offset of results to return", required = false, defaultValue = "0")
+                                  @Parameter(description = "Offset of results to return", required = false)
+                                  @Schema(defaultValue = "0")
                                   @QueryParam("offset")
                                   int offset,
-                                  @ApiParam(value = "Limit of results to return", required = false, defaultValue = "10")
+                                  @Parameter(description = "Limit of results to return", required = false)
+                                  @Schema(defaultValue = "10")
                                   @QueryParam("limit")
                                   int limit) {
     try {
@@ -139,12 +150,15 @@ public class ProcessesRest implements ResourceContainer {
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @Path("/workflows")
-  @ApiOperation(value = "Creates a new WorkFlow", httpMethod = "POST", response = Response.class, consumes = "application/json")
-  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-      @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-      @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-      @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
-  public Response createWorkFlow(@ApiParam(value = "WorkFlow object to create", required = true)
+  @Operation(
+          summary = "Creates a new WorkFlow",
+          description = "Creates a new WorkFlow",
+          method = "POST")
+  @ApiResponses(value = { @ApiResponse(responseCode = "204", description = "Request fulfilled"),
+      @ApiResponse(responseCode = "400", description = "Invalid query input"),
+      @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+      @ApiResponse(responseCode = "500", description = "Internal server error"), })
+  public Response createWorkFlow(@RequestBody(description = "WorkFlow object to create", required = true)
   WorkFlowEntity workFlowEntity) {
     if (workFlowEntity == null) {
       return Response.status(Response.Status.BAD_REQUEST).entity("WorkFlow object is mandatory").build();
@@ -171,13 +185,16 @@ public class ProcessesRest implements ResourceContainer {
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @Path("/workflows")
-  @ApiOperation(value = "Updates a workFlow", httpMethod = "PUT", response = Response.class, consumes = "application/json")
-  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-      @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-      @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-      @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object to update not found"),
-      @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
-  public Response updateWorkFlow(@ApiParam(value = "WorkFlow object to update", required = true)
+  @Operation(
+          summary = "Updates a workFlow",
+          description = "Updates a workFlow",
+          method = "PUT")
+  @ApiResponses(value = { @ApiResponse(responseCode = "204", description = "Request fulfilled"),
+      @ApiResponse(responseCode = "400", description = "Invalid query input"),
+      @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+      @ApiResponse(responseCode = "404", description = "Object to update not found"),
+      @ApiResponse(responseCode = "500", description = "Internal server error"), })
+  public Response updateWorkFlow(@RequestBody(description = "WorkFlow object to update", required = true)
   WorkFlowEntity workFlowEntity) {
     if (workFlowEntity == null) {
       return Response.status(Response.Status.BAD_REQUEST).entity("WorkFlow object is mandatory").build();
@@ -206,24 +223,29 @@ public class ProcessesRest implements ResourceContainer {
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @Path("/works")
-  @ApiOperation(value = "Retrieves the list of works for an authenticated user", httpMethod = "GET", response = Response.class, produces = "application/json")
-  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
-  public Response getWorks(@ApiParam(value = "Identity technical identifier", required = false)
+  @Operation(
+          summary = "Retrieves the list of works",
+          description = "Retrieves the list of works for an authenticated user",
+          method = "GET")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"), })
+  public Response getWorks(@Parameter(description = "Identity technical identifier")
                                   @QueryParam("userId")
                                           Long userId,
-                                  @ApiParam(value = "Processes properties to expand.", required = false)
+                                  @Parameter(description = "Processes properties to expand.")
                                   @QueryParam("expand")
                                           String expand,
-                                  @ApiParam("work completed property") @QueryParam("completed") Boolean completed,
-                                  @ApiParam("Works status") @QueryParam("status") String status,
-                                  @ApiParam("Works query") @QueryParam("query") String query,
-                                  @ApiParam(value = "Offset of results to return", required = false, defaultValue = "0")
+                                  @Parameter(description = "work completed property") @QueryParam("completed") Boolean completed,
+                                  @Parameter(description = "Works status") @QueryParam("status") String status,
+                                  @Parameter(description = "Works query") @QueryParam("query") String query,
+                                  @Parameter(description = "Offset of results to return")
+                                  @Schema(defaultValue = "0")
                                   @QueryParam("offset")
                                           int offset,
-                                  @ApiParam(value = "Limit of results to return", required = false, defaultValue = "10")
+                                  @Parameter(description = "Limit of results to return")
+                                  @Schema(defaultValue = "10")
                                   @QueryParam("limit")
                                           int limit) {
     try {
@@ -260,12 +282,15 @@ public class ProcessesRest implements ResourceContainer {
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @Path("/works")
-  @ApiOperation(value = "Creates a Work", httpMethod = "POST", response = Response.class, consumes = "application/json")
-  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
-  public Response createWork(@ApiParam(value = "Work object to create", required = true)
+  @Operation(
+          summary = "Creates a Work",
+          description = "Creates a Work",
+          method = "POST")
+  @ApiResponses(value = { @ApiResponse(responseCode = "204", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"), })
+  public Response createWork(@RequestBody(description = "Work object to create", required = true)
                                      WorkEntity workEntity) {
     if (workEntity == null) {
       return Response.status(Response.Status.BAD_REQUEST).entity("Work object is mandatory").build();
@@ -297,12 +322,15 @@ public class ProcessesRest implements ResourceContainer {
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @Path("/works")
-  @ApiOperation(value = "Updates a new work", httpMethod = "PUT", response = Response.class, consumes = "application/json")
-  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.NO_CONTENT, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
-  public Response updateWork(@ApiParam(value = "Work object to update", required = true)
+  @Operation(
+          summary = "Updates a new work",
+          description = "Updates a new work",
+          method = "PUT")
+  @ApiResponses(value = { @ApiResponse(responseCode = "204", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"), })
+  public Response updateWork(@RequestBody(description = "Work object to update", required = true)
                                          WorkEntity workEntity) {
     if (workEntity == null) {
       return Response.status(Response.Status.BAD_REQUEST).entity("Work object is mandatory").build();
@@ -330,11 +358,14 @@ public class ProcessesRest implements ResourceContainer {
   @Produces(MediaType.TEXT_PLAIN)
   @RolesAllowed("users")
   @Path("/permissions")
-  @ApiOperation(value = "checks is current user is a processes manager", httpMethod = "GET", response = Response.class, produces = "text/plain")
-  @ApiResponses(value = {@ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),})
+  @Operation(
+          summary = "checks is current user is a processes manager",
+          description = "checks is current user is a processes manager",
+          method = "GET")
+  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"),})
   public Response isProcessesManager() {
 
     long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
@@ -355,13 +386,16 @@ public class ProcessesRest implements ResourceContainer {
   @Produces(MediaType.TEXT_PLAIN)
   @RolesAllowed("processes")
   @Path("/workflow/{workflowId}")
-  @ApiOperation(value = "delete a workflow by its id", httpMethod = "DELETE", response = Response.class, produces = "text/plain")
-  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
-  public Response deleteWorkflow(@ApiParam(value = "Workflow id to delete", required = true)
+  @Operation(
+          summary = "delete a workflow by its id",
+          description = "delete a workflow by its id",
+          method = "DELETE")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "404", description = "Object not found"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"), })
+  public Response deleteWorkflow(@Parameter(description = "Workflow id to delete", required = true)
                                  @PathParam("workflowId") Long workflowId) {
     if (workflowId == null) {
       return Response.status(Response.Status.BAD_REQUEST).entity("Workflow id is mandatory").build();
@@ -386,15 +420,18 @@ public class ProcessesRest implements ResourceContainer {
   @Produces(MediaType.TEXT_PLAIN)
   @RolesAllowed("users")
   @Path("/countWorks/{projectId}")
-  @ApiOperation(value = "Count tasks by completed and uncompleted status", httpMethod = "GET", response = Response.class, produces = "text/plain")
-  @ApiResponses(value = {@ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-          @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"),})
-  public Response countWorksByWorkflow(@ApiParam(value = "Tasks project id", required = true)
+  @Operation(
+          summary = "Count tasks by completed and uncompleted status",
+          description = "Count tasks by completed and uncompleted status",
+          method = "GET")
+  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "404", description = "Object not found"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"),})
+  public Response countWorksByWorkflow(@Parameter(description = "Tasks project id", required = true)
                                        @PathParam("projectId") Long projectId,
-                                       @ApiParam(value = "Processes properties to expand.")
+                                       @Parameter(description = "Processes properties to expand.")
                                        @QueryParam("isCompleted") @DefaultValue("true") Boolean isCompleted) {
     long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
     if (currentIdentityId == 0) {
@@ -419,12 +456,15 @@ public class ProcessesRest implements ResourceContainer {
   @Produces(MediaType.TEXT_PLAIN)
   @RolesAllowed("users")
   @Path("/work/{workId}")
-  @ApiOperation(value = "delete a work by its id", httpMethod = "DELETE", response = Response.class, produces = "text/plain")
-  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
-  public Response deleteWork(@ApiParam(value = "work id to delete", required = true)
+  @Operation(
+          summary = "delete a work by its id",
+          description = "delete a work by its id",
+          method = "DELETE")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"), })
+  public Response deleteWork(@Parameter(description = "work id to delete", required = true)
                              @PathParam("workId") Long workId) {
 
     if (workId == null) {
@@ -447,13 +487,16 @@ public class ProcessesRest implements ResourceContainer {
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @Path("/work/{workId}")
-  @ApiOperation(value = "cancel or resume a work by its id", httpMethod = "PATCH", response = Response.class, produces = "text/plain")
-  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
-  public Response updateWorkCompleted(@ApiParam(value = "completed object property", required = true) Map<String,Boolean> completed,
-                                      @ApiParam(value = "work id to be updated", required = true)
+  @Operation(
+          summary = "cancel or resume a work by its id",
+          description = "cancel or resume a work by its id",
+          method = "PATCH")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"), })
+  public Response updateWorkCompleted(@Parameter(description = "completed object property", required = true) Map<String,Boolean> completed,
+                                      @Parameter(description = "work id to be updated", required = true)
                                       @PathParam("workId") Long workId) {
 
     long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
@@ -486,12 +529,15 @@ public class ProcessesRest implements ResourceContainer {
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @Path("/workDraft")
-  @ApiOperation(value = "Creates a new WorkDraft", httpMethod = "POST", response = Response.class, consumes = "application/json")
-  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-                          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-                          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-                          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
-  public Response createWorkDraft(@ApiParam(value = "WorkDaft object to create", required = true)
+  @Operation(
+          summary = "Creates a new WorkDraft",
+          description = "Creates a new WorkDraft",
+          method = "POST")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+                          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+                          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+                          @ApiResponse(responseCode = "500", description = "Internal server error"), })
+  public Response createWorkDraft(@RequestBody(description = "WorkDaft object to create", required = true)
   WorkEntity workEntity) {
     if (workEntity == null) {
       return Response.status(Response.Status.BAD_REQUEST).entity("workDraft object is mandatory").build();
@@ -514,12 +560,15 @@ public class ProcessesRest implements ResourceContainer {
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @Path("/workDraft")
-  @ApiOperation(value = "Updates a new workDraft", httpMethod = "PUT", response = Response.class, consumes = "application/json")
-  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-                          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-                          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-                          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
-  public Response updateWorkDraft(@ApiParam(value = "Work object to update", required = true)
+  @Operation(
+          summary = "Updates a new workDraft",
+          description = "Updates a new workDraft",
+          method = "PUT")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+                          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+                          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+                          @ApiResponse(responseCode = "500", description = "Internal server error"), })
+  public Response updateWorkDraft(@RequestBody(description = "Work object to update", required = true)
   WorkEntity workEntity) {
     if (workEntity == null) {
       return Response.status(Response.Status.BAD_REQUEST).entity("workDraft object is mandatory").build();
@@ -544,19 +593,24 @@ public class ProcessesRest implements ResourceContainer {
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @Path("/workDrafts")
-  @ApiOperation(value = "Retrieves the list of workDrafts for an authenticated user", httpMethod = "GET", response = Response.class, produces = "application/json")
-  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
-  public Response getWorkDrafts(@ApiParam(value = "Identity technical identifier", required = false)
+  @Operation(
+          summary = "Retrieves the list of workDrafts",
+          description = "Retrieves the list of workDrafts for an authenticated user",
+          method = "GET")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"), })
+  public Response getWorkDrafts(@Parameter(description = "Identity technical identifier", required = false)
                                 @QueryParam("userId") Long userId,
-                                @ApiParam(value = "Processes properties to expand.", required = false)
+                                @Parameter(description = "Processes properties to expand.", required = false)
                                 @QueryParam("expand") String expand,
-                                @ApiParam(value = "Work query.", required = false)
+                                @Parameter(description = "Work query.", required = false)
                                 @QueryParam("query") String query,
-                                @ApiParam(value = "Offset of results to return", required = false, defaultValue = "0")
+                                @Parameter(description = "Offset of results to return", required = false)
+                                @Schema(defaultValue = "0")
                                 @QueryParam("offset") int offset,
-                                @ApiParam(value = "Limit of results to return", required = false, defaultValue = "10")
+                                @Parameter(description = "Limit of results to return", required = false)
+                                @Schema(defaultValue = "10")
                                 @QueryParam("limit") int limit) {
     try {
       long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
@@ -585,13 +639,16 @@ public class ProcessesRest implements ResourceContainer {
   @Produces(MediaType.TEXT_PLAIN)
   @RolesAllowed("users")
   @Path("/workDraft/{draftId}")
-  @ApiOperation(value = "delete a work draft by its id", httpMethod = "DELETE", response = Response.class, produces = "text/plain")
-  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
-  public Response deleteWorkDraft(@ApiParam(value = "Work draft id to delete", required = true)
+  @Operation(
+          summary = "delete a work draft by its id",
+          description = "delete a work draft by its id",
+          method = "DELETE")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "404", description = "Object not found"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"), })
+  public Response deleteWorkDraft(@Parameter(description = "Work draft id to delete", required = true)
                                  @PathParam("draftId") Long workflowId) {
     if (workflowId == null) {
       return Response.status(Response.Status.BAD_REQUEST).entity("Work draft id is mandatory").build();
@@ -615,10 +672,13 @@ public class ProcessesRest implements ResourceContainer {
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @Path("/works/statuses")
-  @ApiOperation(value = "Retrieves the list of workDrafts for an authenticated user", httpMethod = "GET", response = Response.class, produces = "application/json")
-  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
+  @Operation(
+          summary = "Retrieves the list of workDrafts",
+          description = "Retrieves the list of workDrafts for an authenticated user",
+          method = "GET")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"), })
   public Response getAvailableWorkStatuses() {
     try {
       long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
@@ -637,15 +697,18 @@ public class ProcessesRest implements ResourceContainer {
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @Path("/works/{workId}")
-  @ApiOperation(value = "Retrieves a work by its given id", httpMethod = "GET", response = Response.class, produces = "application/json")
-  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-          @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Object not found"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
-  public Response getWorkById(@ApiParam(value = "Work id.", required = true)
+  @Operation(
+          summary = "Retrieves a work by its given id",
+          description = "Retrieves a work by its given id",
+          method = "GET")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "404", description = "Object not found"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"), })
+  public Response getWorkById(@Parameter(description = "Work id.", required = true)
                               @PathParam("workId") Long workId,
-                              @ApiParam(value = "Processes properties to expand.")
+                              @Parameter(description = "Processes properties to expand.")
                               @QueryParam("expand") String expand) {
     try {
       long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
@@ -669,15 +732,18 @@ public class ProcessesRest implements ResourceContainer {
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @Path("/workflows/{workflowId}")
-  @ApiOperation(value = "Retrieves a workflow by its given id", httpMethod = "GET", response = Response.class, produces = "application/json")
-  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-      @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-      @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Not found"),
-      @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-      @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
-  public Response getWorkFlowById(@ApiParam(value = "workflow id", required = true)
+  @Operation(
+          summary = "Retrieves a workflow by its given id",
+          description = "Retrieves a workflow by its given id",
+          method = "GET")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+      @ApiResponse(responseCode = "400", description = "Invalid query input"),
+      @ApiResponse(responseCode = "404", description = "Not found"),
+      @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+      @ApiResponse(responseCode = "500", description = "Internal server error"), })
+  public Response getWorkFlowById(@Parameter(description = "workflow id", required = true)
                                @PathParam("workflowId") Long workflowId,
-                               @ApiParam(value = "Processes properties to expand")
+                               @Parameter(description = "Processes properties to expand")
                                @QueryParam("expand") String expand) {
     try {
       long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
@@ -702,23 +768,28 @@ public class ProcessesRest implements ResourceContainer {
   @Path("/attachment/newDoc")
   @RolesAllowed("users")
   @Produces(MediaType.APPLICATION_JSON)
-  @ApiOperation(value = "create new form document", httpMethod = "POST", response = Response.class, notes = "This returns a new created document")
-  @ApiResponses(value = { @ApiResponse(code = HTTPStatus.OK, message = "Request fulfilled"),
-          @ApiResponse(code = HTTPStatus.BAD_REQUEST, message = "Invalid query input"),
-          @ApiResponse(code = HTTPStatus.NOT_FOUND, message = "Not found"),
-          @ApiResponse(code = HTTPStatus.UNAUTHORIZED, message = "Unauthorized operation"),
-          @ApiResponse(code = HTTPStatus.INTERNAL_ERROR, message = "Internal server error"), })
-  public Response createNewFormDocument(@ApiParam(value = "title", required = true, defaultValue = "20")
-                                       @FormParam("title") String title,
-                                        @ApiParam(value = "path of new document", required = true)
+  @Operation(
+          summary = "create new form document",
+          description = "create new form document",
+          method = "POST")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "404", description = "Not found"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"), })
+  public Response createNewFormDocument(@Parameter(description = "title", required = true)
+                                        @Schema(defaultValue = "20")
+                                        @FormParam("title") String title,
+                                        @Parameter(description = "path of new document", required = true)
                                         @FormParam("path") String path,
-                                        @ApiParam(value = "New destination path's drive", required = true)
+                                        @Parameter(description = "New destination path's drive", required = true)
                                         @FormParam("pathDrive") String pathDrive,
-                                        @ApiParam(value = "template name of new document", required = true, defaultValue = "20")
+                                        @Parameter(description = "template name of new document", required = true)
+                                        @Schema(defaultValue = "20")
                                         @FormParam("templateName") String templateName,
-                                        @ApiParam(value = "entity type")
+                                        @Parameter(description = "entity type")
                                         @FormParam("entityType") String entityType,
-                                        @ApiParam(value = "entity id")
+                                        @Parameter(description = "entity id")
                                         @FormParam("entityId") Long entityId) {
     long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
     if (currentIdentityId == 0) {
@@ -753,14 +824,18 @@ public class ProcessesRest implements ResourceContainer {
   @GET
   @Path( "/illustration/{workflowId}")
   @RolesAllowed("users")
-  @ApiOperation(value = "Gets a workflow illustration image by its id", httpMethod = "GET", response = Response.class)
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled"),
-          @ApiResponse(code = 500, message = "Internal server error"), @ApiResponse(code = 400, message = "Invalid query input"),
-          @ApiResponse(code = 404, message = "Resource not found") })
+  @Operation(
+          summary = "Gets a workflow illustration image by its id",
+          description = "Gets a workflow illustration image by its id",
+          method = "GET")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "404", description = "Resource not found") })
   public Response getImageIllustration(@Context Request request,
-                                             @ApiParam(value = "workflow id", required = true) @PathParam("workflowId") Long workflowId,
-                                             @ApiParam(value = "Optional last modified parameter") @QueryParam("v") long lastModified) {
-    
+                                             @Parameter(description = "workflow id", required = true) @PathParam("workflowId") Long workflowId,
+                                             @Parameter(description = "Optional last modified parameter") @QueryParam("v") long lastModified) {
+
     if (workflowId == null) {
       return Response.status(Response.Status.BAD_REQUEST).entity("workflow id is mandatory").build();
     }
