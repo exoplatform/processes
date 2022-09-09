@@ -8,7 +8,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.xmlbeans.impl.util.Base64;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.file.model.FileInfo;
@@ -246,7 +245,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     FileItem fileItem;
     try {
       String data = illustrativeAttachment.getFileBody().split("base64,")[1];
-      byte[] bytes = Base64.decode(data.getBytes(Charset.defaultCharset().name()));
+      byte[] bytes = Base64.getDecoder().decode(data.getBytes(Charset.defaultCharset().name()));
       fileItem = new FileItem(illustrativeAttachment.getId(),
                               illustrativeAttachment.getFileName(),
                               illustrativeAttachment.getMimeType(),
