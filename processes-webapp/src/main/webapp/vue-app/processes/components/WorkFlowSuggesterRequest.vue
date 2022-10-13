@@ -86,12 +86,17 @@ export default {
       }
 
       const found = this.workflowRequest.find(attendee => {
-        return attendee.identity.remoteId === this.invitedAttendee.remoteId
+        return (attendee.identity.remoteId === this.invitedAttendee.remoteId
+            || attendee.identity.remoteId === this.invitedAttendee.spaceId)
             && attendee.identity.providerId === this.invitedAttendee.providerId;
       });
       if (!found) {
+        const suggesterItemToIdentity = this.$suggesterService.convertSuggesterItemToIdentity(this.invitedAttendee);
+        if (this.invitedAttendee && this.invitedAttendee.providerId === 'group'){
+          suggesterItemToIdentity.remoteId = this.invitedAttendee.spaceId ;
+        }
         this.workflowRequest.push({
-          identity: this.$suggesterService.convertSuggesterItemToIdentity(this.invitedAttendee),
+          identity: suggesterItemToIdentity,
         });
       }
       this.invitedAttendee = null;

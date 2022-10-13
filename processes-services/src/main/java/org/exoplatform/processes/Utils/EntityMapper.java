@@ -76,7 +76,7 @@ public class EntityMapper {
         identityEntities.add(new CreatorIdentityEntity(identityEntity));
       } else {
         try {
-          Group group = groupHandler.findGroupById(manager);
+          Group group = manager.contains("/platform/") ? groupHandler.findGroupById(manager) : groupHandler.findGroupById("/platform/" + manager);
           ProfileEntity profile = new ProfileEntity(null, group.getLabel());
           IdentityEntity identityEntity = new IdentityEntity("group:" + group.getGroupName(), group.getId(), "group", profile);
           identityEntities.add(new CreatorIdentityEntity(identityEntity));
