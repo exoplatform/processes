@@ -40,9 +40,6 @@ public interface ProcessesStorage {
    * @param userIdentityId {@link Identity} technical identifier of the user
    *                       acessing files
    * @return {@link List} of {@link WorkFlow}
-   * @throws IllegalAccessException  when the user isn't allowed to access
-   *                                 documents of the designated ownerId
-   * @throws ObjectNotFoundException when ownerId doesn't exisits
    */
 
   List<WorkFlow> findAllWorkFlowsByUser(ProcessesFilter filter, int offset, int limit, long userIdentityId);
@@ -114,7 +111,7 @@ public interface ProcessesStorage {
    * @param projectId:   Tasks project id
    * @param isCompleted: filter by completed and uncompleted tasks
    * @throws Exception
-   * @return: Filtered tasks count
+   * @return Filtered tasks count
    */
   int countWorksByWorkflow(long projectId, boolean isCompleted) throws Exception;
 
