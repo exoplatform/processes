@@ -40,7 +40,6 @@ public interface ProcessesService {
    * @return {@link List} of {@link WorkFlow}
    * @throws IllegalAccessException when the user isn't allowed to access
    *           documents of the designated ownerId
-   * @throws ObjectNotFoundException when ownerId doesn't exisits
    */
   List<WorkFlow> getWorkFlows(ProcessesFilter filter,
                                     int offset,
