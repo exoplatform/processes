@@ -16,10 +16,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     <textarea
       ref="requestEditor"
       :id="id"
-      v-mode="inputVal"
+      v-model="inputVal"
       :placeholder="placeholder"
-      cols="60"
-      rows="40"
+      cols="50"
+      rows="35"
       autofocus>
       </textarea>
   </div>
@@ -106,7 +106,7 @@ export default {
         toolbar: [
           ['Bold', 'Italic', 'BulletedList', 'NumberedList', 'Blockquote'],
         ],
-        height: 160,
+        height: 150,
         autoGrow_maxHeight: 400,
         autoGrow_minHeight: 160,
         format_tags: 'p;h1;h2;h3',
@@ -131,6 +131,9 @@ export default {
           change: function (event) {
             const newData = event.editor.getData();
             self.inputVal = newData;
+          },
+          blur: function (event) {
+            self.$emit('blur', event);
           },
           destroy: function () {
             self.inputVal = '';
