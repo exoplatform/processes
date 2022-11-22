@@ -13,7 +13,15 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 -->
 <template>
   <v-app>
-    <div>
+    <div
+      class="ma-auto"
+      v-if="isLoading">
+      <v-progress-circular
+        :size="20"
+        color="primary"
+        indeterminate />
+    </div>
+    <div v-else>
       <v-icon
         color="primary"
         small>
@@ -21,8 +29,13 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       </v-icon>
       <a
         @click="openAttachmentDrawer"
-        class="viewAllAttachments primary--text font-weight-bold text-decoration-underline">
+        class="viewAllAttachments primary--text font-weight-bold">
         {{ $t('processes.work.add.attachment.label') }} {{ attachmentsLength }}
+        <v-icon
+          size="medium"
+          color="primary">
+          fa-plus
+        </v-icon>
       </a>
       <create-document-from
         v-if="allowDocFormCreation"
@@ -54,6 +67,7 @@ export default {
       attachments: this.files,
       entityIdVal: this.entityId,
       entityTypeVal: this.entityType,
+      isLoading: false
     };
   },
   props: {
@@ -156,12 +170,14 @@ export default {
       }
     },
     initEntityAttachmentsList() {
+      this.isLoading = true;
       if (this.entityTypeVal && this.entityIdVal) {
         this.$processesAttachmentService.getEntityAttachments(this.entityTypeVal, this.entityIdVal).then(attachments => {
           attachments.forEach(attachment => {
             attachment.name = attachment.title;
           });
           this.attachments = attachments;
+          this.isLoading = false;
         });
       }
     },
