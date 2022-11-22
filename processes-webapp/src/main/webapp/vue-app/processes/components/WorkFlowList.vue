@@ -163,7 +163,9 @@ export default {
     this.$root.$on('workflow-updated', (workflow) => {
       workflow = JSON.parse(workflow);
       const index = this.workflowList.map(workflow => workflow.id).indexOf(workflow.id);
-      if (this.filter.value === workflow.enabled) {
+      if (this.filter.value === 'activated' && workflow.enabled) {
+        this.workflowList.splice(index, 1, workflow);
+      } else if (this.filter.value === 'deactivated' && !workflow.enabled) {
         this.workflowList.splice(index, 1, workflow);
       } else {
         this.workflowList.splice(index, 1);
