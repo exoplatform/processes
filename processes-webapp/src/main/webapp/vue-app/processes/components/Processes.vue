@@ -40,7 +40,7 @@
               :work-drafts="workDrafts"
               :completed-works="completedWorks"
               :loading="loading"
-              :show-work-filter="requestSubmited || allWorkDrafts.length" />
+              :show-work-filter="requestSubmitted || allWorkDrafts.length > 0" />
           </v-tab-item>
         </v-tabs-items>
       </v-card>
@@ -49,9 +49,32 @@
       :icon="type === 'warning' ? 'mdi-alert-circle' : ''"
       v-model="alert"
       :type="type"
-      class="processesAlert alertLength"
-      dismissible>
-      {{ message }}
+      :class="isMobile? 'processes-alert-mobile': ''"
+      :dismissible="!isMobile">
+      <v-row align="center">
+        <v-col class="grow pt-0 pb-0">
+          {{ message }}
+        </v-col>
+        <v-col class="shrink">
+          <v-btn
+            v-if="messageAction"
+            @click="handleMessageAction"
+            class="primary--text me-2 mt-0 mt-n5 pa-0 position-absolute"
+            text>
+            {{ messageActionLabel }}
+          </v-btn>
+          <template #close="{ toggle }">
+            <v-btn
+              v-if="!isMobile"
+              icon
+              @click="handleMessageClose(toggle)">
+              <v-icon>
+                mdi-close-circle
+              </v-icon>
+            </v-btn>
+          </template>
+        </v-col>
+      </v-row>
     </v-alert>
     <exo-confirm-dialog
       ref="confirmDialog"
@@ -104,8 +127,12 @@ export default {
       targetModel: null,
       myRequestsTabVisited: null,
       showProcessFilter: false,
-      requestSubmited: false,
-      initializing: true
+      requestSubmitted: false,
+      initializing: true,
+      messageActionLabel: '',
+      messageAction: null,
+      messageTargetModel: null,
+      messageTimer: null
     };
   },
   beforeCreate() {
@@ -236,6 +263,9 @@ export default {
       this.updateWorkCompleted(work, !work.completed);
     });
     this.$root.$on('update-url-path',  this.handleUpdateUrlPath);
+    this.$root.$on('keep-work-draft', () => {
+      this.alert = false;
+    });
   },
   mounted() {
     window.setTimeout(() => {
@@ -252,7 +282,7 @@ export default {
       }));
     }, 300);
     this.$processesService.getWorks(null,0,0,'workFlow').then(list =>{
-      this.requestSubmited = list.length > 0;
+      this.requestSubmitted = list.length > 0;
     });
   },
   computed: {
@@ -264,6 +294,18 @@ export default {
     }
   },
   methods: {
+    handleMessageClose() {
+      if (this.messageTargetModel && this.messageTargetModel.id) {
+        this.deleteWorkDraftById(this.messageTargetModel);
+        this.messageTargetModel = null;
+      }
+      this.alert = false;
+    },
+    handleMessageAction() {
+      if (this.messageAction) {
+        this.$root.$emit(this.messageAction);
+      }
+    },
     handleUpdateUrlPath(data, path) {
       window.history.pushState(data, '', `${eXo.env.portal.context}/${eXo.env.portal.portalName}/processes${path}`);
     },
@@ -428,10 +470,19 @@ export default {
       }).finally(() => this.loading = false);
     },
     displayMessage(alert) {
+      clearTimeout(this.messageTimer);
       this.message = alert.message;
       this.type = alert.type;
+      this.messageActionLabel = alert.messageActionLabel;
+      this.messageTargetModel = alert.messageTargetModel || null;
+      this.messageAction = alert.messageAction || null;
       this.alert = true;
-      window.setTimeout(() => this.alert = false, 5000);
+      this.messageTimer = setTimeout(() => {
+        if (this.alert) {
+          this.alert = false;
+          this.handleMessageClose();
+        }
+      }, 6000);
     },
     addNewWorkFlow(workflow) {
       this.saving = true;
@@ -454,7 +505,7 @@ export default {
             this.workDrafts.splice(this.workDrafts.indexOf(work.draftId), 1);
           }
           this.displayMessage({type: 'success', message: this.$t('processes.work.add.success.message')});
-          this.requestSubmited = true;
+          this.requestSubmitted = true;
         }
       }).catch(() => {
         this.displayMessage({type: 'error', message: this.$t('processes.work.add.error.message')});
@@ -465,11 +516,12 @@ export default {
         if (draft) {
           if (preSave) {
             this.$root.$emit('pre-save-work-draft-added', draft);
+            this.displayMessage({type: 'success', message: this.$t('processes.workDraft.created.success.message')});
           } else {
             this.$root.$emit('work-draft-added', draft);
+            this.displayMessage({type: 'success', message: this.$t('processes.workDraft.add.success.message')});
           }
           this.workDrafts.unshift(draft);
-          this.displayMessage({type: 'success', message: this.$t('processes.workDraft.add.success.message')});
         }
       }).catch(() => {
         this.displayMessage({type: 'error', message: this.$t('processes.workDraft.save.error.message')});

@@ -161,14 +161,13 @@ export default {
 
   data () {
     return {
-      stp: 1,
       work: {
         description: '',
         workFlow: {},
         draftId: null,
-        isDraft: false
+        isDraft: false,
+        attachments: []
       },
-      preSavedDraftId: null,
       preSaving: false,
       attachments: [],
       oldWork: {},
@@ -183,7 +182,8 @@ export default {
       rules: {
         maxLength: len => v => (v || '').length <= len || this.$t('processes.work.form.description.maxLength.message', {0: len}),
       },
-      showEditor: false
+      showEditor: false,
+      firstCreation: false
     };
   },
   created(){
@@ -205,24 +205,32 @@ export default {
     });
     this.$root.$on('pre-save-work-draft-added', (draft) => {
       this.work = draft;
+      this.work.attachments = draft.attachments || [];
+      this.oldWork = Object.assign({}, this.work);
       this.editDraft = true;
       this.$root.$emit('init-list-attachments', {
         entityId: draft.id,
         entityType: this.entityType
       });
       this.preSaving = false;
-      this.stp++;
+      this.firstCreation = true;
     });
     this.$root.$on('close-work-drawer', () => {
       this.close();
     });
   },
   computed: {
+    isMobile() {
+      return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
+    },
     entityType() {
       return this.editDraft || this.viewDraft ? 'workdraft' : 'task';
     },
     canUpdateDraft() {
-      return this.valid && this.work.description && this.work.description.length > 0 && JSON.stringify(this.work) !== JSON.stringify(this.oldWork);
+      return this.valid && this.work.description && this.work.description.length > 0 && this.hasChanges;
+    },
+    hasChanges() {
+      return JSON.stringify(this.work) !== JSON.stringify(this.oldWork);
     },
     validWorkDescription() {
       return this.work && this.work.description && this.$utils.htmlToText(this.work.description).length <= this.maxLength;
@@ -237,6 +245,11 @@ export default {
       return this.work.workFlow && this.work.workFlow.illustrativeAttachment
                                 && this.work.workFlow.illustrativeAttachment.id
                                 && `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/illustration/${this.work.workFlow.id}`;
+    }
+  },
+  watch: {
+    attachments(newAttachments) {
+      this.work.attachments = newAttachments;
     }
   },
   methods: {
@@ -256,6 +269,7 @@ export default {
         this.oldWork = Object.assign({}, this.work);
         this.viewMode = false;
         this.editDraft = true;
+        this.firstCreation = false;
       } else {
         this.viewDraft = isDraft || false;
         this.editDraft = false;
@@ -270,7 +284,6 @@ export default {
         entityType: this.entityType
       });
       this.initEditor();
-      this.stp = 1;
       this.$refs.work.open();
     },
     initEditor() {
@@ -300,9 +313,6 @@ export default {
         this.$refs.requestEditor.initCKEditorData('');
       }
     },
-    previousStep() {
-      this.stp--;
-    },
     addWork() {
       this.saving = true;
       if (this.editDraft) {
@@ -329,6 +339,16 @@ export default {
         } else {
           this.$root.$emit('create-work-draft', {draft: this.workDraft});
         }
+      } else if (this.firstCreation && !this.hasChanges) {
+        this.toWorkDraft(this.work);
+        this.$root.$emit('show-alert', {
+          type: 'warning',
+          messageTargetModel: this.workDraft,
+          messageAction: 'keep-work-draft',
+          messageActionLabel: this.$t('processes.work.keep.draft.label'),
+          message: this.isMobile ? this.$t('processes.work.keep.draft.warn.message.question')
+            : this.$t('processes.work.keep.draft.warn.message')
+        });
       }
     },
     preSaveWork() {
@@ -338,7 +358,6 @@ export default {
         this.$root.$emit('create-work-draft', {draft: this.workDraft, preSave: true});
       } else {
         this.preSaving = false;
-        this.stp ++;
       }
     }
   }
