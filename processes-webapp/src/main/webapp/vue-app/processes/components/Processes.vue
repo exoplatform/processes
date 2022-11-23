@@ -63,18 +63,19 @@
             text>
             {{ messageActionLabel }}
           </v-btn>
-          <template #close="{ toggle }">
-            <v-btn
-              v-if="!isMobile"
-              icon
-              @click="handleMessageClose(toggle)">
-              <v-icon>
-                mdi-close-circle
-              </v-icon>
-            </v-btn>
-          </template>
         </v-col>
       </v-row>
+      <template #close="{ toggle }">
+        <v-btn
+          class="processes-alert-close-btn pl-2"
+          v-if="!isMobile"
+          icon
+          @click="handleMessageClose(toggle)">
+          <v-icon>
+            mdi-close-circle
+          </v-icon>
+        </v-btn>
+      </template>
     </v-alert>
     <exo-confirm-dialog
       ref="confirmDialog"
@@ -482,7 +483,7 @@ export default {
           this.alert = false;
           this.handleMessageClose();
         }
-      }, 6000);
+      }, 5000);
     },
     addNewWorkFlow(workflow) {
       this.saving = true;

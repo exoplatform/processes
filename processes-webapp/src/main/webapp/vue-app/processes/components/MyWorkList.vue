@@ -151,7 +151,8 @@ export default {
       this.draftList.splice(index, 1, object);
     });
     this.$root.$on('work-draft-removed', (draft) => {
-      this.draftList.splice(this.draftList.indexOf(draft), 1);
+      const index = this.draftList.map(draft => draft.id).indexOf(draft.id);
+      this.draftList.splice(index, 1);
     });
     this.$root.$on('work-removed', (work) => {
       this.workList.splice(this.workList.indexOf(work), 1);
