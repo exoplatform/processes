@@ -67,7 +67,8 @@ export default {
       attachments: this.files,
       entityIdVal: this.entityId,
       entityTypeVal: this.entityType,
-      isLoading: false
+      isLoading: false,
+      subscribedDocuments: new Map()
     };
   },
   props: {
@@ -142,15 +143,21 @@ export default {
       } else {
         this.attachments.push(event.detail.attachment);
       }
+      this.subscribeDocument(event.detail.attachment.id);
+      this.$root.$emit('attachments-updated');
     });
     this.$root.$on('add-new-created-form-document', (doc) => {
       this.attachments.push(doc);
+      this.subscribeDocument(doc.id);
+      this.$root.$emit('attachments-updated', this.attachments);
     });
     document.addEventListener('attachment-removed', event => {
       const index = this.attachments.findIndex(attachment => attachment.id === event.detail.id);
       if (index >= 0) {
         this.attachments.splice(index, 1);
       }
+      this.unsubscribeDocument(event.detail.id);
+      this.$root.$emit('attachments-updated', this.attachments);
     });
     this.$root.$on('reset-list-attachments', () => {
       this.attachments = [];
@@ -161,7 +168,34 @@ export default {
       this.initEntityAttachmentsList();
     });
   },
+  beforeDestroy() {
+    for (const docId of this.subscribedDocuments.keys()){
+      this.unsubscribeDocument(docId);
+    }
+  },
   methods: {
+    unsubscribeDocument(docId) {
+      const self = this;
+      const subscription = this.subscribedDocuments.get(docId);
+      cCometd.unsubscribe(subscription, {}, function (unsubscribeReply) {
+        if (unsubscribeReply.successful) {
+          self.subscribedDocuments.delete(docId);
+        }
+      });
+    },
+    subscribeDocument(docId) {
+      const cometdContext = eXo.env.portal.cometdContext;
+      const self = this;
+      const subscription = cCometd.subscribe(`/eXo/Application/Onlyoffice/editor/${docId}`, function (message) {
+        if (message.data && message.data.type === 'DOCUMENT_CHANGED') {
+          self.$root.$emit('attachment-content-updated', docId);
+        }
+      }, cometdContext, function (subscribeReply) {
+        if (subscribeReply.successful) {
+          self.subscribedDocuments.set(docId, subscription);
+        }
+      });
+    },
     openAttachmentDrawer() {
       if (this.attachments.length === 0) {
         document.dispatchEvent(new CustomEvent('open-attachments-app-drawer', {detail: this.attachmentDrawerParams}));
@@ -175,6 +209,7 @@ export default {
         this.$processesAttachmentService.getEntityAttachments(this.entityTypeVal, this.entityIdVal).then(attachments => {
           attachments.forEach(attachment => {
             attachment.name = attachment.title;
+            this.subscribeDocument(attachment.id);
           });
           this.attachments = attachments;
           this.isLoading = false;

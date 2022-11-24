@@ -38,7 +38,11 @@
       </template>
       <template slot="content">
         <div class="pa-4">
-          <p class="ml-2 mr-2 font-weight-bold">{{ $t('processes.work.complete.request.question') }}</p>
+          <p
+            v-if="!viewMode"
+            class="ml-2 mr-2 font-weight-bold">
+            {{ $t('processes.work.complete.request.question') }}
+          </p>
           <p
             v-if="!viewMode"
             v-sanitized-html="work.workFlow.summary"
@@ -72,7 +76,7 @@
                   v-if="!showEditor"
                   @click="showRequestEditor"
                   v-sanitized-html="workDescription || $t('processes.work.message.to.manager.placeholder')"
-                  class="grey--text text--darken-1">
+                  class="grey--text text--darken-1 text-break">
                 </p>
                 <div v-else>
                   <request-editor
@@ -81,6 +85,7 @@
                     required
                     ref="requestEditor"
                     id="request-editor"
+                    :auto-focus="true"
                     :placeholder="$t('processes.works.form.placeholder.workDetail')"
                     v-model="work.description" />
                   <custom-counter
@@ -146,7 +151,7 @@
         <v-btn
           :loading="saving"
           @click="addWork"
-          :disabled="!validWorkDescription"
+          :disabled="!validWorkDescription && !attachmentsChanged"
           class="btn btn-primary float-e">
           {{ $t('processes.work.sendWork.label') }}
         </v-btn>
@@ -183,7 +188,9 @@ export default {
         maxLength: len => v => (v || '').length <= len || this.$t('processes.work.form.description.maxLength.message', {0: len}),
       },
       showEditor: false,
-      firstCreation: false
+      firstCreation: false,
+      attachmentsUpdated: false,
+      updatedAttachments: []
     };
   },
   created(){
@@ -218,8 +225,24 @@ export default {
     this.$root.$on('close-work-drawer', () => {
       this.close();
     });
+    this.$root.$on('attachments-updated', (updatedAttachments) => {
+      this.attachmentsUpdated = true;
+      this.updatedAttachments = updatedAttachments;
+    });
+    this.$root.$on('attachment-content-updated', (docId) => {
+      const index = this.attachments.findIndex(attachment => attachment.id === docId);
+      if (index !== -1) {
+        this.attachmentsUpdated = true;
+      }
+    });
   },
   computed: {
+    hasChanges() {
+      return JSON.stringify(this.work) !== JSON.stringify(this.oldWork);
+    },
+    attachmentsChanged() {
+      return this.attachmentsUpdated && JSON.stringify(this.updatedAttachments) !== JSON.stringify(this.attachments);
+    },
     workDescription() {
       return this.work && this.work.description || this.workDraft && this.workDraft.description;
     },
@@ -230,13 +253,12 @@ export default {
       return this.editDraft || this.viewDraft ? 'workdraft' : 'task';
     },
     canUpdateDraft() {
-      return this.valid && this.work.description && this.work.description.length > 0 && this.hasChanges;
-    },
-    hasChanges() {
-      return JSON.stringify(this.work) !== JSON.stringify(this.oldWork);
+      return this.valid && this.validWorkDescription && this.hasChanges;
     },
     validWorkDescription() {
-      return this.work && this.work.description && this.$utils.htmlToText(this.work.description).length <= this.maxLength;
+      return this.work && this.work.description
+                       && this.work.description.length > 0
+                       && this.$utils.htmlToText(this.work.description).length <= this.maxLength;
     },
     workflowParentSpace() {
       return this.work && this.work.workflow && this.work.workflow.parentSpace;
@@ -251,8 +273,12 @@ export default {
     }
   },
   watch: {
-    attachments(newAttachments) {
-      this.work.attachments = newAttachments;
+    showEditor(value) {
+      if (value) {
+        setTimeout(() => {
+          this.$refs.requestEditor.setFocus();
+        }, 200);
+      }
     }
   },
   methods: {
@@ -268,6 +294,7 @@ export default {
         this.$root.$emit('update-url-path', 'createRequest', `/${this.work.workFlow.id}/createRequest` );
         this.preSaveWork();
       } else if (mode === 'edit_work_draft') {
+        object.attachments = [];
         this.work = Object.assign({}, object);
         this.oldWork = Object.assign({}, this.work);
         this.viewMode = false;
@@ -287,6 +314,7 @@ export default {
         entityType: this.entityType
       });
       this.initEditor();
+      this.attachmentsUpdated = false;
       this.$refs.work.open();
     },
     initEditor() {
@@ -341,8 +369,6 @@ export default {
           this.$root.$emit('update-work-draft', this.workDraft);
           this.firstCreation = false;
         }
-      } else if (!this.viewMode && this.workDescription) {
-        this.work.description = this.workDescription;
       }
       this.showEditor = false;
     },
@@ -353,10 +379,10 @@ export default {
         if (this.workDraft.id && this.workDraft.id !== 0) {
           this.$root.$emit('update-work-draft', this.workDraft);
           this.firstCreation = false;
-        } else {
+        } else if (this.workDraft && this.workDraft.workflow) {
           this.$root.$emit('create-work-draft', {draft: this.workDraft});
         }
-      } else if (this.firstCreation && !this.hasChanges) {
+      } else if (this.firstCreation && !this.hasChanges && !this.attachmentsChanged) {
         this.toWorkDraft(this.work);
         this.$root.$emit('show-alert', {
           type: 'warning',
