@@ -37,6 +37,10 @@
                 <module>eXoVueI18n</module>
             </depends>
             <depends>
+                <module>commons-cometd3</module>
+                <as>cCometd</as>
+            </depends>
+            <depends>
                 <module>jquery</module>
                 <as>$</as>
             </depends>
