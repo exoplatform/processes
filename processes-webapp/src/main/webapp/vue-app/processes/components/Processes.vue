@@ -137,6 +137,7 @@ export default {
     };
   },
   beforeCreate() {
+    this.$processesService.initCometd();
     this.$processesService.isProcessesManager().then(value => {
       this.isManager = value === 'true';
     }).finally(() => this.initializing = false);
@@ -503,7 +504,8 @@ export default {
           this.$root.$emit('work-added', {work: newWork, draftId: work.draftId});
           this.works.unshift(newWork);
           if (work.draftId) {
-            this.workDrafts.splice(this.workDrafts.indexOf(work.draftId), 1);
+            const index = this.workDrafts.findIndex(draft => draft.id === work.draftId);
+            this.workDrafts.splice(index, 1);
           }
           this.displayMessage({type: 'success', message: this.$t('processes.work.add.success.message')});
           this.requestSubmitted = true;
