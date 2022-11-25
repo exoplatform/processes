@@ -1,3 +1,14 @@
+export function initCometd() {
+  const loc = window.location;
+  const cometdContext = eXo.env.portal.cometdContext;
+  const cometdToken = eXo.env.portal.cometdToken;
+  cCometd.configure({
+    url: `${loc.protocol}//${loc.hostname}${(loc.port && ':') || ''}${loc.port || ''}/${cometdContext}/cometd`,
+    exoId: eXo.env.portal.userName,
+    exoToken: cometdToken,
+  });
+}
+
 export function getWorkFlows(itemsFilter, offset, limit, expand) {
   const formData = new FormData();
   if (itemsFilter) {

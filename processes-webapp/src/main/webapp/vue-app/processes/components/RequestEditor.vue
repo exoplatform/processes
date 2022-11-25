@@ -19,8 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       v-model="inputVal"
       :placeholder="placeholder"
       cols="50"
-      rows="35"
-      autofocus>
+      rows="35">
       </textarea>
   </div>
 </template>
@@ -45,6 +44,10 @@ export default {
       default: () => {
         return '';
       }
+    },
+    autoFocus: {
+      type: Boolean,
+      default: false
     },
   },
   data() {
@@ -160,6 +163,9 @@ export default {
     setFocus: function() {
       if (this.editorReady) {
         window.setTimeout(() => {
+          const range = this.editor.createRange();
+          range.moveToElementEditablePosition(range.root, true);
+          this.editor.getSelection().selectRanges([range]);
           this.$nextTick().then(() => this.editor.focus());
         }, 200);
       }
