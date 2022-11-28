@@ -51,7 +51,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
             :attachment="attachment"
             :can-access="attachment.acl && attachment.acl.canAccess"
             :allow-to-detach="false"
-            :allow-to-edit="false"
+            :open-in-editor="true"
+            :is-file-editable="isFileEditable(attachment)"
             allow-to-preview
             small-attachment-icon />
         </v-list-item-group>
@@ -68,7 +69,8 @@ export default {
       entityIdVal: this.entityId,
       entityTypeVal: this.entityType,
       isLoading: false,
-      subscribedDocuments: new Map()
+      subscribedDocuments: new Map(),
+      supportedDocuments: null
     };
   },
   props: {
@@ -118,6 +120,7 @@ export default {
         attachments: JSON.parse(JSON.stringify(this.attachments)),
         spaceId: this.workflowParentSpace && this.workflowParentSpace.id,
         attachToEntity: this.editMode,
+        openAttachmentsInEditor: true
       };
     },
     attachmentsLength() {
@@ -167,6 +170,8 @@ export default {
       this.entityTypeVal = event.entityType;
       this.initEntityAttachmentsList();
     });
+    document.addEventListener('documents-supported-document-types-updated', this.refreshSupportedDocumentExtensions);
+    this.refreshSupportedDocumentExtensions();
   },
   beforeDestroy() {
     for (const docId of this.subscribedDocuments.keys()){
@@ -174,6 +179,14 @@ export default {
     }
   },
   methods: {
+    isFileEditable(attachment) {
+      const type = attachment && attachment.mimetype || '';
+      return this.supportedDocuments && this.supportedDocuments.filter(doc => doc.edit && doc.mimeType === type
+                                                                                       && !attachment.cloudDriveFile).length > 0;
+    },
+    refreshSupportedDocumentExtensions () {
+      this.supportedDocuments = extensionRegistry.loadExtensions('documents', 'supported-document-types');
+    },
     unsubscribeDocument(docId) {
       const self = this;
       const subscription = this.subscribedDocuments.get(docId);
