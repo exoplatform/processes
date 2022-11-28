@@ -26,6 +26,7 @@
       :group-type="groupType"
       class="user-suggester workFlowOwnerAutocomplete"
       name="inviteAttendee"
+      :all-groups-for-admin="true"
       include-spaces
       include-groups
       required />
