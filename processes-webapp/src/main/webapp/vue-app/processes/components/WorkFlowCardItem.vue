@@ -14,11 +14,11 @@
         left>
         <template #activator="{ on, attrs }">
           <v-btn
-            :class=" isMobile ? 'three-dots mr-n2 mt-3' : 'three-dots mt-1'"
+            :class="isMobile ? 'three-dots mr-n2 mt-3' : 'three-dots mt-1'"
             dark
             icon
             v-bind="attrs"
-            v-on="!isMobile && on"
+            v-on="!isMobileMenu && on"
             @click="openMobileDrawer">
             <v-icon size="18">mdi-dots-vertical</v-icon>
           </v-btn>
@@ -136,6 +136,7 @@
 export default {
   data () {
     return {
+      MOBILE_WIDTH: 768,
       showMenu: false,
       completedWorksCount: 0,
     };
@@ -171,13 +172,16 @@ export default {
     isMobile() {
       return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
     },
+    isMobileMenu() {
+      return this.$vuetify.breakpoint.width < this.MOBILE_WIDTH;
+    },
     showPending() {
       return this.workflow && this.workflow.canShowPending ;
     },
   },
   methods: {
     openMobileDrawer() {
-      if (this.isMobile){
+      if (this.isMobileMenu){
         this.$refs.mobileActionDrawer.open();
       }
     },

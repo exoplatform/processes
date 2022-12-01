@@ -46,18 +46,22 @@
       </v-card>
     </div>
     <v-alert
-      :icon="type === 'warning' ? 'mdi-alert-circle' : ''"
       v-model="alert"
-      :type="type"
-      :class="isMobile? 'processes-alert-mobile': ''"
-      :dismissible="!isMobile">
+      :icon="type === 'warning' && !isMobileAlert ? 'mdi-alert-circle' : ''"
+      :colored-border="isMobileAlert"
+      :border="isMobileAlert? 'top' : ''"
+      :color="type"
+      :type="!isMobileAlert? type: ''"
+      :class="isMobileAlert? 'processes-alert-mobile': ''"
+      :dismissible="!isMobileAlert">
       <v-row align="center">
         <v-col class="grow pt-0 pb-0">
           {{ message }}
         </v-col>
-        <v-col class="shrink">
+        <v-col
+          v-if="messageAction"
+          class="shrink">
           <v-btn
-            v-if="messageAction"
             @click="handleMessageAction"
             class="primary--text me-2 mt-0 mt-n5 pa-0 position-absolute"
             text>
@@ -68,7 +72,7 @@
       <template #close="{ toggle }">
         <v-btn
           class="processes-alert-close-btn pl-2"
-          v-if="!isMobile"
+          v-if="!isMobileAlert"
           icon
           @click="handleMessageClose(toggle)">
           <v-icon>
@@ -100,6 +104,7 @@
 export default {
   data () {
     return {
+      MOBILE_WIDTH: 768,
       work: null,
       workComments: [],
       availableWorkStatuses: null,
@@ -133,7 +138,7 @@ export default {
       messageActionLabel: '',
       messageAction: null,
       messageTargetModel: null,
-      messageTimer: null
+      messageTimer: null,
     };
   },
   beforeCreate() {
@@ -290,6 +295,9 @@ export default {
   computed: {
     isMobile() {
       return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
+    },
+    isMobileAlert() {
+      return this.$vuetify.breakpoint.width < this.MOBILE_WIDTH;
     },
     pageSize() {
       return this.isMobile && 4 || 8;
