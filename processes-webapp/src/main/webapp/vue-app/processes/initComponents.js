@@ -19,7 +19,7 @@ import CreateDocumentForm from './components/attachments-integration/CreateDocum
 import ProcessesAttachments from './components/attachments-integration/ProcessesAttachments.vue';
 
 import ProcessMobileActionDrawer from './components/ProcessMobileActionDrawer.vue';
-import WorkFlowMobileFilter from './components/WorkFlowMobileFilter.vue';
+import MobileFilter from './components/MobileFilter.vue';
 
 import * as processesService from './js/ProcessesService.js';
 import * as ProcessesAttachmentService from './js/ProcessesAttachmentService.js';
@@ -44,7 +44,7 @@ const components = {
   'request-status': RequestStatus,
   'create-document-from': CreateDocumentForm,
   'process-mobile-action-drawer': ProcessMobileActionDrawer,
-  'workflow-mobile-filter': WorkFlowMobileFilter
+  'mobile-filter': MobileFilter
 };
 
 for (const key in components) {
