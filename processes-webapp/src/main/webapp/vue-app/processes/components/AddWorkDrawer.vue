@@ -38,10 +38,11 @@
       </template>
       <template slot="content">
         <div class="pa-4">
+          <p class="ml-2 mr-2 font-weight-bold">{{ $t('processes.work.complete.request.question') }}</p>
           <p
             v-if="!viewMode"
-            class="pa-1 ml-2 mr-2 font-weight-regular text-truncate-3 text-break grey--text darken-1 font-italic">
-            {{ work.workFlow.summary }}
+            v-sanitized-html="work.workFlow.summary"
+            class="pa-1 ml-2 mr-2 font-weight-regular text-caption text-truncate-6 text-break grey--text darken-1 font-italic">
           </p>
           <div
             class="pb-4"
@@ -65,20 +66,18 @@
               v-model="valid"
               ref="form"
               id="add-work-form">
-              <v-stepper
-                class="pe-4"
-                v-model="stp"
-                vertical>
-                <v-stepper-step
-                  class="text-uppercase"
-                  :complete="stp > 1"
-                  step="1">
-                  {{ $t('processes.works.form.label.description') }}
-                </v-stepper-step>
-                <v-stepper-content
-                  class="pe-6"
-                  step="1">
+              <div>
+                <p class="mt-5 font-weight-bold">{{ $t('processes.work.message.to.manager') }}</p>
+                <p
+                  v-if="!showEditor"
+                  @click="showRequestEditor"
+                  class="grey--text text--darken-1">
+                  {{ $t('processes.work.message.to.manager.placeholder') }}
+                </p>
+                <div v-else>
                   <request-editor
+                    @blur="updateDraft"
+                    class="ml-2 mr-2"
                     required
                     ref="requestEditor"
                     id="request-editor"
@@ -88,44 +87,21 @@
                     class="mt-n4 me-4"
                     :value="work.description"
                     :max-length="maxLength" />
-                  <v-btn
-                    :disabled="!validWorkDescription"
-                    :loading="preSaving"
-                    class="mt-1 btn btn-primary v-btn--outlined float-e"
-                    color="primary"
-                    @click="nextStep">
-                    {{ $t('processes.works.form.label.continue') }}
-                  </v-btn>
-                </v-stepper-content>
-                <v-stepper-step
-                  class="text-uppercase"
-                  :complete="stp > 2"
-                  step="2">
-                  {{ $t('processes.works.form.label.documents') }}
-                </v-stepper-step>
-                <v-stepper-content
-                  class="pt-0 pb-0 pe-3"
-                  step="2">
-                  <p class="font-weight-regular grey--text darken-1 font-italic mt-1">
-                    {{ $t('processes.work.add.attachment.info.message') }}
-                  </p>
-                  <processes-attachments
-                    v-model="attachments"
-                    :workflow-parent-space="workflowParentSpace"
-                    :edit-mode="this.editDraft"
-                    :entity-id="work.id"
-                    :entity-type="entityType" />
-                  <v-btn
-                    class="btn mt-4"
-                    @click="previousStep"
-                    text>
-                    <v-icon size="18" class="me-2">
-                      {{ $vuetify.rtl && 'fa-caret-right' || 'fa-caret-left' }}
-                    </v-icon>
-                    {{ $t('processes.works.form.label.back') }}
-                  </v-btn>
-                </v-stepper-content>
-              </v-stepper>
+                </div>
+              </div>
+              <div class="mt-7">
+                <v-divider />
+                <p class="mt-5 font-weight-bold">{{ $t('processes.works.form.label.documents') }}</p>
+                <p class="font-weight-regular text-caption grey--text darken-1 font-italic">
+                  {{ $t('processes.work.add.attachment.info.message') }}
+                </p>
+                <processes-attachments
+                  v-model="attachments"
+                  :workflow-parent-space="workflowParentSpace"
+                  :edit-mode="this.editDraft"
+                  :entity-id="work.id"
+                  :entity-type="entityType" />
+              </div>
             </v-form>
           </div>
           <div
@@ -207,6 +183,7 @@ export default {
       rules: {
         maxLength: len => v => (v || '').length <= len || this.$t('processes.work.form.description.maxLength.message', {0: len}),
       },
+      showEditor: false
     };
   },
   created(){
@@ -220,10 +197,11 @@ export default {
       this.resetInputs();
       this.close();
     });
-    this.$root.$on('work-draft-updated', () => {
+    this.$root.$on('work-draft-updated', (draft) => {
       this.savingDraft = false;
-      this.resetInputs();
-      this.close();
+      const draftObject = JSON.parse(draft);
+      this.work.description = draftObject.description;
+      this.oldWork = Object.assign({}, this.work);
     });
     this.$root.$on('pre-save-work-draft-added', (draft) => {
       this.work = draft;
@@ -262,12 +240,8 @@ export default {
     }
   },
   methods: {
-    updateUrlPath(data, path, replace) {
-      if (replace) {
-        window.history.replaceState(data, '', `${eXo.env.portal.context}/${eXo.env.portal.portalName}/processes${path}`);
-      } else {
-        window.history.pushState(data, '', `${eXo.env.portal.context}/${eXo.env.portal.portalName}/processes${path}`);
-      }
+    showRequestEditor() {
+      this.showEditor = !this.showEditor;
     },
     open(object, mode, isDraft) {
       if (mode === 'create_work') {
@@ -275,7 +249,8 @@ export default {
         this.work.workFlow = object;
         this.editDraft = false;
         this.viewMode = false;
-        this.updateUrlPath('createRequest', `/${this.work.workFlow.id}/createRequest`);
+        this.$root.$emit('update-url-path', 'createRequest', `/${this.work.workFlow.id}/createRequest` );
+        this.preSaveWork();
       } else if (mode === 'edit_work_draft') {
         this.work = Object.assign({}, object);
         this.oldWork = Object.assign({}, this.work);
@@ -287,7 +262,7 @@ export default {
         this.work = object;
         this.viewMode = true;
         if (!this.viewDraft) {
-          this.updateUrlPath('requestDetails', `/myRequests/requestDetails/${this.work.id}`);
+          this.$root.$emit('update-url-path', 'requestDetails', `/myRequests/requestDetails/${this.work.id}`);
         }
       }
       this.$root.$emit('init-list-attachments', {
@@ -310,10 +285,11 @@ export default {
       this.$refs.work.close();
       this.$root.$emit('reset-list-attachments');
       if (document.location.pathname.includes('myRequests')) {
-        this.updateUrlPath('myRequest', '/myRequests');
+        this.$root.$emit('update-url-path', 'myRequest', '/myRequests');
       } else {
-        this.updateUrlPath('processes', '');
+        this.$root.$emit('update-url-path', 'processes', '');
       }
+      this.showEditor = false;
     },
     resetInputs() {
       this.work = {
@@ -322,11 +298,6 @@ export default {
       };
       if (this.$refs.requestEditor) {
         this.$refs.requestEditor.initCKEditorData('');
-      }
-    },
-    nextStep() {
-      if (this.valid) {
-        this.preSaveWork();
       }
     },
     previousStep() {

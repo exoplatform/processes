@@ -235,6 +235,7 @@ export default {
     this.$root.$on('update-work-completed', work => {
       this.updateWorkCompleted(work, !work.completed);
     });
+    this.$root.$on('update-url-path',  this.handleUpdateUrlPath);
   },
   mounted() {
     window.setTimeout(() => {
@@ -263,6 +264,9 @@ export default {
     }
   },
   methods: {
+    handleUpdateUrlPath(data, path) {
+      window.history.pushState(data, '', `${eXo.env.portal.context}/${eXo.env.portal.portalName}/processes${path}`);
+    },
     showFilter(){
       if (this.isManager){
         if ((this.enabled == null && !this.query)||this.workflows.length){
@@ -292,6 +296,7 @@ export default {
       if (path.endsWith('/myRequests')) {
         this.tab = 1;
         this.$root.$emit('close-work-drawer');
+        this.$root.$emit('hideTaskComment');
       }
       if (path.includes('/requestDetails') && !path.endsWith('/comments')) {
         this.tab = 1;
