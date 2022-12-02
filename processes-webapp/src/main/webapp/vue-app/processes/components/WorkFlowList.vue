@@ -7,9 +7,9 @@
         no-gutters>
         <v-col
           v-if="!showMobileFilter || !isMobile"
-          :cols="3"
+          :cols="2"
           md="4"
-          sm="2"
+          sm="1"
           xs="1"
           lg="6">
           <v-btn
@@ -23,17 +23,17 @@
               dark>
               mdi-plus-thick
             </v-icon>
-            <span v-if="!isMobile">
+            <span v-if="!isCMobile">
               {{ $t('processes.works.label.addRequestType') }}
             </span>
           </v-btn>
         </v-col>
         <v-col
           v-show="showWorkflowFilter"
-          :cols="9"
+          :cols="10"
           md="8"
           xs="11"
-          sm="10"
+          sm="11"
           lg="6">
           <v-select
             v-if="!isMobile"
@@ -170,7 +170,8 @@
 export default {
   data () {
     return {
-      MOBILE_WIDTH: 768,
+      MOBILE_WIDTH: 600,
+      CUSTOM_MOBILE_WIDTH: 768,
       filter: {},
       showMobileFilter: false,
       displayFilterMenu: true,
@@ -237,12 +238,15 @@ export default {
     },
     lg() {
       if (this.workflowList.length >= 4) {
-        return 3;
+        return 4;
       }
       return this.workflowList.length === 3 ? 4 : 6;
     },
     isMobile() {
       return this.$vuetify.breakpoint.width < this.MOBILE_WIDTH;
+    },
+    isCMobile() {
+      return this.$vuetify.breakpoint.width < this.CUSTOM_MOBILE_WIDTH;
     },
   },
   methods: {

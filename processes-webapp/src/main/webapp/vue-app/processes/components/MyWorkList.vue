@@ -173,7 +173,7 @@ export default {
       panel: [],
       filter: {label: this.$t('processes.workflow.all.label'), value: null},
       query: null,
-      MOBILE_WIDTH: 768,
+      MOBILE_WIDTH: 600,
       showMobileFilter: false,
       activatedFilters: ['quick_filter'],
     };
