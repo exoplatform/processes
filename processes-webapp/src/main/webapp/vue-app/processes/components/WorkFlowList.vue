@@ -158,7 +158,11 @@
         </div>
       </template>
     </empty-or-loading>
-    <workflow-mobile-filter :items="filterItems" />
+    <mobile-filter
+      ref="workMobileFilter"
+      :items="filterItems"
+      @filter-changed="handleFilterChange"
+      @activated-filters-update="handleActiveFilters" />
   </div>
 </template>
 
@@ -226,19 +230,6 @@ export default {
     this.$root.$on('workflow-removed', (workflow) => {
       this.workflowList.splice(this.workflowList.indexOf(workflow), 1);
     });
-    this.$root.$on('workflow-filter-mobile-changed', (event) => {
-      this.filter.value = event.filter;
-      this.updateFilter();
-    });
-    this.$root.$on('workflow-activated-filters-update', (filter) => {
-      const exists = this.activatedFilters.includes(filter.filterType);
-      if (!exists && filter.enabled) {
-        this.activatedFilters.push(filter.filterType);
-      } else if (exists && !filter.enabled) {
-        const index = this.activatedFilters.indexOf(filter.filterType);
-        this.activatedFilters.splice(index, 1);
-      }
-    });
   },
   computed: {
     workflowList(){
@@ -255,15 +246,28 @@ export default {
     },
   },
   methods: {
+    openMobileFilter() {
+      this.$refs.workMobileFilter.open();
+    },
+    handleFilterChange(event) {
+      this.filter.value = event.filter;
+      this.updateFilter();
+    },
+    handleActiveFilters(filter) {
+      const exists = this.activatedFilters.includes(filter.filterType);
+      if (!exists && filter.enabled) {
+        this.activatedFilters.push(filter.filterType);
+      } else if (exists && !filter.enabled) {
+        const index = this.activatedFilters.indexOf(filter.filterType);
+        this.activatedFilters.splice(index, 1);
+      }
+    },
     resetQueryInput() {
       if (!this.query) {
         return;
       }
       this.query = null;
       this.updateFilter();
-    },
-    openMobileFilter() {
-      this.$root.$emit('open-workflow-filter');
     },
     switchToMobileFilter() {
       this.showMobileFilter = !this.showMobileFilter;
