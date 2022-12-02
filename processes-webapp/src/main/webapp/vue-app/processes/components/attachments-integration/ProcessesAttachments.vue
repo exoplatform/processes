@@ -51,7 +51,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
             :attachment="attachment"
             :can-access="attachment.acl && attachment.acl.canAccess"
             :allow-to-detach="false"
-            :open-in-editor="true"
+            :open-in-editor="!isMobileDevice"
             :is-file-editable="isFileEditable(attachment)"
             allow-to-preview
             small-attachment-icon />
@@ -136,6 +136,9 @@ export default {
         };
       }
       return null;
+    },
+    isMobileDevice() {
+      return (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
     }
   },
   created() {
