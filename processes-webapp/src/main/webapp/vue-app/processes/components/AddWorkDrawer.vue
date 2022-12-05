@@ -71,12 +71,12 @@
                 <p
                   v-if="!showEditor"
                   @click="showRequestEditor"
+                  v-sanitized-html="workDescription || $t('processes.work.message.to.manager.placeholder')"
                   class="grey--text text--darken-1">
-                  {{ $t('processes.work.message.to.manager.placeholder') }}
                 </p>
                 <div v-else>
                   <request-editor
-                    @blur="updateDraft"
+                    @blur="blurOnDescriptionComposer"
                     class="ml-2 mr-2"
                     required
                     ref="requestEditor"
@@ -220,6 +220,9 @@ export default {
     });
   },
   computed: {
+    workDescription() {
+      return this.work && this.work.description || this.workDraft && this.workDraft.description;
+    },
     isMobile() {
       return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
     },
@@ -330,12 +333,26 @@ export default {
       this.workDraft.workFlow = work.workFlow;
       this.workDraft.isDraft = true;
     },
+    blurOnDescriptionComposer() {
+      if (!this.viewMode && this.canUpdateDraft) {
+        this.savingDraft = true;
+        this.toWorkDraft(this.work);
+        if (this.workDraft.id && this.workDraft.id !== 0) {
+          this.$root.$emit('update-work-draft', this.workDraft);
+          this.firstCreation = false;
+        }
+      } else if (!this.viewMode && this.workDescription) {
+        this.work.description = this.workDescription;
+      }
+      this.showEditor = false;
+    },
     updateDraft() {
       if (!this.viewMode && this.canUpdateDraft) {
         this.savingDraft = true;
         this.toWorkDraft(this.work);
         if (this.workDraft.id && this.workDraft.id !== 0) {
           this.$root.$emit('update-work-draft', this.workDraft);
+          this.firstCreation = false;
         } else {
           this.$root.$emit('create-work-draft', {draft: this.workDraft});
         }
