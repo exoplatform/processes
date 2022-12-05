@@ -1,5 +1,5 @@
 <template>
-  <span>{{ formatDate(timestamp) }}</span>
+  <span>{{ message }} {{ formatDate(timestamp) }}</span>
 </template>
 
 <script>
@@ -8,6 +8,10 @@ export default {
     timestamp: {
       type: Number,
       default: null
+    },
+    message: {
+      type: String,
+      default: ''
     }
   },
   methods: {
