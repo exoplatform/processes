@@ -112,9 +112,17 @@
           md="4"
           class="pa-0 ma-0 text-truncate text-caption"
           lg="3">
-          <span>
-            {{ this.$utils.htmlToText(workObject.description) }}
-          </span>
+          <v-tooltip
+            bottom>
+            <template #activator="{ on, attrs }">
+              <span
+                v-bind="attrs"
+                v-on="on">
+                {{ workDescription }}
+              </span>
+            </template>
+            <span v-sanitized-html="workObject.description"></span>
+          </v-tooltip>
         </v-col>
         <v-col
           cols="6"
@@ -193,6 +201,9 @@ export default {
     }
   },
   computed: {
+    workDescription() {
+      return this.workObject.description && this.$utils.htmlToText(this.workObject.description);
+    },
     workObject() {
       return this.work || {};
     },
