@@ -2,6 +2,7 @@
   <div>
     <v-card
       :class="isMobile ? 'mt-2 mb-2 ml-n3':'mt-2 mb-2 mr-8'"
+      class="workflow-card"
       outlined>
       <v-menu
         v-model="showMenu"
@@ -44,7 +45,7 @@
           </v-list-item>
         </v-list>
       </v-menu>
-      <div v-if="!isMobile">
+      <div>
         <div class="mb-n5">
           <v-btn
             outlined
@@ -63,27 +64,14 @@
           </v-avatar>         
         </div>   
         <v-card-title
-          class="text-center d-block card-title title-size">
+          class="text-center mt-n4 d-block card-title title-size">
           <div> {{ workflow.title }}</div>
         </v-card-title>
       </div>
-      <div v-else>
-        <div class="process-img mt-3 ml-3">
-          <v-avatar
-            v-if="avatarUrl"
-            size="34px">
-            <v-img
-              :src="avatarUrl" /> 
-          </v-avatar>
-        </div>  
-        <div class="ml-14 mr-5 mt-5">
-          {{ workflow.title }} 
-        </div>
-      </div>
-      <v-card-text :class=" isMobile ? 'card-content':'card-content mt-2'">
+      <v-card-text class="card-content mt-2">
         <div>
           <p
-            :class="isMobile ? 'text-truncate-2 ml-10 description-size' : 'text-truncate-3 text-center mt-n4 description-size'">
+            class="text-truncate-3 text-center mt-n4 description-size">
             {{ workflow.description }}
           </p>
         </div>
@@ -136,7 +124,7 @@
 export default {
   data () {
     return {
-      MOBILE_WIDTH: 768,
+      MOBILE_WIDTH: 600,
       showMenu: false,
       completedWorksCount: 0,
     };
