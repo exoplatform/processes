@@ -91,7 +91,11 @@
                 </v-icon>
               </v-btn>
             </template>
-            <span>{{ $t('processes.work.request.comment.message') }}</span>
+            <custom-date-format
+              v-if="comments.length"
+              :message="$t('processes.work.last.comment.message')"
+              :timestamp="lastCommentDate" />
+            <span v-else>{{ $t('processes.work.write.comment.message') }}</span>
           </v-tooltip>
           <span v-if="!isDraft">{{ comments.length }}</span>
         </v-col>
@@ -100,12 +104,9 @@
           md="3"
           class="pa-0 ma-0 text-truncate grey--text"
           lg="2">
-          <span
-            v-if="!isDraft && lastCommentDate">
-            {{ $t('processes.myWorks.label.lastComment') }}
-            <custom-date-format
-              :timestamp="lastCommentDate" />
-          </span>
+          <custom-date-format
+            :message="$t('processes.myWorks.label.lastComment')"
+            :timestamp="lastCommentDate" />
         </v-col>
         <v-col
           cols="12"
