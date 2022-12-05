@@ -19,11 +19,13 @@
             @click="open"
             color="primary">
             <v-icon
+              :class="isCMobile? 'me-n1':''"
               left
               dark>
               mdi-plus-thick
             </v-icon>
-            <span v-if="!isCMobile">
+            <span
+              v-if="!isCMobile">
               {{ $t('processes.works.label.addRequestType') }}
             </span>
           </v-btn>
