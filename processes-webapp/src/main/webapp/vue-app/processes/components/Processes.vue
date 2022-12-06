@@ -218,6 +218,9 @@ export default {
       this.showConfirmDialog(event.model, event.reason);
     });
     this.$root.$on('open-add-work-drawer', event => {
+      if (this.alert) {
+        this.handleMessageClose();
+      }
       this.work = event.object;
       this.workComments = event.object.comments;
       this.$refs.addWork.open(event.object, event.mode, event.isDraft);
