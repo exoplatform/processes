@@ -3,6 +3,7 @@
     <v-card
       :class="isMobile ? 'mt-2 mb-2 ml-n3':'mt-2 mb-2 mr-8'"
       class="workflow-card"
+      @click="open"
       outlined>
       <v-menu
         v-model="showMenu"
@@ -20,7 +21,7 @@
             icon
             v-bind="attrs"
             v-on="!isMobileMenu && on"
-            @click="openMobileDrawer">
+            @click.stop.prevent="openMobileDrawer">
             <v-icon size="18">mdi-dots-vertical</v-icon>
           </v-btn>
         </template>
@@ -79,7 +80,7 @@
         </div>
       </v-card-text>
       <v-card-footer class="d-inline-flex" elevation="0">
-        <v-card elevation="0" class="mb-5 ml-3 card-footer-request">
+        <v-card elevation="0" class="mb-5 width-full transparent align-center card-footer-request">
           <span
             :class="isMobile ? 'ml-8':''">
             <v-chip
@@ -90,25 +91,9 @@
               target="_blank"
               :loading="!completedWorksCount">
               <v-icon small>mdi-clock-time-four-outline</v-icon>
-
               {{ completedWorksCount }} {{ $t('processes.workflow.label.pending') }}
             </v-chip>
           </span>
-        </v-card>
-        <v-card
-          v-if="workflow.acl.canAddRequest"
-          class="card-footer-btn mr-3 mb-4 px-2"
-          elevation="0"
-          outlined>
-          <v-btn 
-            outlined
-            right
-            plain
-            :disabled="!workflow.enabled"
-            depressed
-            @click="open">
-            {{ $t('processes.workflow.label.request') }}
-          </v-btn>
         </v-card>
       </v-card-footer>
     </v-card>
@@ -180,7 +165,9 @@ export default {
       this.$root.$emit('show-confirm-action', {model: this.workflow, reason: 'delete_workflow'});
     },
     open() {
-      this.$root.$emit('open-add-work-drawer', {object: this.workflow, mode: 'create_work'});
+      if (this.workflow.enabled && this.workflow.acl.canAddRequest) {
+        this.$root.$emit('open-add-work-drawer', {object: this.workflow, mode: 'create_work'});
+      }
     },
     countWorksByWorkflow(isCompleted) {
       if (this.workflow) {
