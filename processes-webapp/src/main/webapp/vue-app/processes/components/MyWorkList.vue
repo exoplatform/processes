@@ -74,7 +74,7 @@
               size="16">
               fa-sliders-h
             </v-icon>
-            <span v-if="activatedFilters">({{ activatedFilters.length }})</span>
+            <span v-if="activatedFilters.length">({{ activatedFilters.length }})</span>
           </v-btn>
         </v-col>
       </v-row>
@@ -161,6 +161,7 @@
     <mobile-filter
       ref="workMobileFilter"
       :items="filterItems"
+      default-value-index="0"
       @filter-changed="handleFilterChange"
       @activated-filters-update="handleActiveFilters" />
   </div>
@@ -175,7 +176,7 @@ export default {
       query: null,
       MOBILE_WIDTH: 600,
       showMobileFilter: false,
-      activatedFilters: ['quick_filter'],
+      activatedFilters: [],
     };
   },
   props: {
