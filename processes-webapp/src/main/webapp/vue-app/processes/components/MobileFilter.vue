@@ -76,7 +76,8 @@ export default {
       selectedItem: 0,
       displayQuickFilter: false,
       displayOptions: true,
-      filterOptions: [{label: this.$t('processes.quick.filter.label'), value: 'quick_filter'}]
+      filterOptions: [{label: this.$t('processes.quick.filter.label'), value: 'quick_filter'}],
+      defaultValueIndex: ''
     };
   },
   props: {
@@ -89,7 +90,7 @@ export default {
     selectedItem(value) {
       this.$emit('activated-filters-update', {
         filterType: 'quick_filter',
-        enabled: value >= 0 && true || false
+        enabled: value && value !== this.defaultValueIndex && true || false
       });
     }
   },
