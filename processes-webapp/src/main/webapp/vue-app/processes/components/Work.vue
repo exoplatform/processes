@@ -105,6 +105,7 @@
           class="pa-0 ma-0 text-truncate grey--text"
           lg="2">
           <custom-date-format
+            v-if="comments.length && !isDraft"
             :message="$t('processes.myWorks.label.lastComment')"
             :timestamp="lastCommentDate" />
         </v-col>
