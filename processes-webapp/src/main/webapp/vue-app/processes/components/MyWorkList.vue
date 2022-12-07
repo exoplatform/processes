@@ -6,6 +6,7 @@
         <v-col
           height="150">
           <v-select
+            v-if="!isMobile"
             ref="filter"
             class="work-filter pt-5 me-9 float-e"
             v-model="filter"
@@ -18,11 +19,63 @@
             dense
             outlined />
           <v-text-field
+            v-if="!isMobile"
             class="work-filter-query me-4"
             @keyup="updateFilter"
             v-model="query"
             :placeholder="$t('processes.work.filter.query.placeholder')"
             prepend-inner-icon="mdi-filter" />
+          <v-btn
+            v-if="!showMobileFilter && isMobile"
+            class="float-e mt-2"
+            @click="switchToMobileFilter"
+            icon>
+            <v-icon>
+              mdi-filter
+            </v-icon>
+          </v-btn>
+        </v-col>
+        <v-col
+          v-if="showMobileFilter && isMobile"
+          v-show="showWorkFilter"
+          class="d-flex me-4 mb-n4"
+          cols="12">
+          <v-text-field
+            class="pt-5 me-2 mb-1 workflow-filter-query float-e d-flex"
+            @keyup="updateFilter"
+            v-model="query"
+            :placeholder="$t('processes.workflow.filter.query.placeholder')">
+            <template #prepend>
+              <btn
+                @click="switchToMobileFilter"
+                icon>
+                <v-icon class="mt-1">
+                  fa-arrow-left
+                </v-icon>
+              </btn>
+            </template>
+            <template #append>
+              <btn
+                v-if="query"
+                @click="resetQueryInput"
+                icon>
+                <v-icon>
+                  fa-times
+                </v-icon>
+              </btn>
+            </template>
+          </v-text-field>
+          <v-btn
+            outlined
+            class="btn btn-primary pa-0 mt-2 mobile-filter-btn"
+            @click="openMobileFilter">
+            <v-icon
+              class="pa-0"
+              size="16">
+              fa-sliders-h
+            </v-icon>
+            <span v-if="activatedFilters">({{ activatedFilters.length }})</span>
+          </v-btn>
         </v-col>
       </v-row>
     </v-container>
@@ -105,6 +158,11 @@
         </v-expansion-panel-content>
       </v-expansion-panel>
     </v-expansion-panels>
+    <mobile-filter
+      ref="workMobileFilter"
+      :items="filterItems"
+      @filter-changed="handleFilterChange"
+      @activated-filters-update="handleActiveFilters" />
   </div>
 </template>
 
@@ -115,6 +173,9 @@ export default {
       panel: [],
       filter: {label: this.$t('processes.workflow.all.label'), value: null},
       query: null,
+      MOBILE_WIDTH: 768,
+      showMobileFilter: false,
+      activatedFilters: ['quick_filter'],
     };
   },
   props: {
@@ -178,6 +239,9 @@ export default {
     }
   },
   computed: {
+    isMobile() {
+      return this.$vuetify.breakpoint.width < this.MOBILE_WIDTH;
+    },
     draftList() {
       return this.workDrafts || [];
     },
@@ -215,6 +279,32 @@ export default {
     }
   },
   methods: {
+    openMobileFilter() {
+      this.$refs.workMobileFilter.open();
+    },
+    handleFilterChange(event) {
+      this.filter.value = event.filter;
+      this.updateFilter();
+    },
+    handleActiveFilters(filter) {
+      const exists = this.activatedFilters.includes(filter.filterType);
+      if (!exists && filter.enabled) {
+        this.activatedFilters.push(filter.filterType);
+      } else if (exists && !filter.enabled) {
+        const index = this.activatedFilters.indexOf(filter.filterType);
+        this.activatedFilters.splice(index, 1);
+      }
+    },
+    resetQueryInput() {
+      if (!this.query) {
+        return;
+      }
+      this.query = null;
+      this.updateFilter();
+    },
+    switchToMobileFilter() {
+      this.showMobileFilter = !this.showMobileFilter;
+    },
     handleCompleted(work) {
       const index = this.workList.map(work => work.id).indexOf(work.id);
       this.workList.splice(index, 1);

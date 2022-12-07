@@ -18,7 +18,7 @@
 -->
 <template>
   <exo-drawer
-    ref="workflowMobileFilter"
+    ref="mobileFilter"
     :bottom="true">
     <template slot="content">
       <v-list dense>
@@ -76,7 +76,7 @@ export default {
       selectedItem: 0,
       displayQuickFilter: false,
       displayOptions: true,
-      filterOptions: [{label: this.$t('processes.workflow.quick.filter.label'), value: 'quick_filter'}]
+      filterOptions: [{label: this.$t('processes.quick.filter.label'), value: 'quick_filter'}]
     };
   },
   props: {
@@ -87,7 +87,7 @@ export default {
   },
   watch: {
     selectedItem(value) {
-      this.$root.$emit('workflow-activated-filters-update', {
+      this.$emit('activated-filters-update', {
         filterType: 'quick_filter',
         enabled: value >= 0 && true || false
       });
@@ -98,13 +98,9 @@ export default {
       return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
     },
   },
-  created() {
-    this.$root.$on('open-workflow-filter', this.open);
-    this.$root.$on('close-workflow-filter', this.close);
-  },
   methods: {
     updateFilter(value) {
-      this.$root.$emit('workflow-filter-mobile-changed', {filter: value});
+      this.$emit('filter-changed', {filter: value});
     },
     showOption(option) {
       if (option === 'quick_filter') {
@@ -116,11 +112,11 @@ export default {
       this.displayQuickFilter = !this.displayQuickFilter;
     },
     close() {
-      this.$refs.workflowMobileFilter.close();
+      this.$refs.mobileFilter.close();
     },
     open() {
       this.reset();
-      this.$refs.workflowMobileFilter.open();
+      this.$refs.mobileFilter.open();
     },
     reset(){
       this.displayOptions = true;
