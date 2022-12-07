@@ -31,11 +31,16 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         @click="openAttachmentDrawer"
         class="viewAllAttachments primary--text font-weight-bold">
         {{ $t('processes.work.add.attachment.label') }} {{ attachmentsLength }}
+        <v-btn
+          @click.stop.prevent="openAddDocumentDrawer"
+          class="ms-n2"
+          icon>
         <v-icon
-          size="medium"
+          size="15"
           color="primary">
           fa-plus
         </v-icon>
+        </v-btn>
       </a>
       <create-document-from
         v-if="allowDocFormCreation"
@@ -212,9 +217,12 @@ export default {
         }
       });
     },
+    openAddDocumentDrawer() {
+      document.dispatchEvent(new CustomEvent('open-attachments-app-drawer', {detail: this.attachmentDrawerParams}));
+    },
     openAttachmentDrawer() {
       if (this.attachments.length === 0) {
-        document.dispatchEvent(new CustomEvent('open-attachments-app-drawer', {detail: this.attachmentDrawerParams}));
+        this.openAddDocumentDrawer();
       } else {
         document.dispatchEvent(new CustomEvent('open-attachments-list-drawer', {detail: this.attachmentDrawerParams}));
       }
