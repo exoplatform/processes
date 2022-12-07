@@ -17,12 +17,9 @@
 <template>
   <v-app>
     <exo-drawer
-      :confirm-close="confirmClose"
-      :confirm-close-labels="confirmCloseLabels"
       @closed="close()"
       ref="actionDrawer"
-      :bottom="true"
-      class="mobile-drawer-height">
+      :bottom="true">
       <template #content>
         <v-list dense>
           <v-list-item

@@ -1,17 +1,20 @@
 <template>
-  <v-main
+  <div
     id="workflows">
     <v-container class="workflow-controls pb-0">
       <v-row
-        class="pe-0"
+        :class="isMobile? 'pe-5': 'pe-0'"
         no-gutters>
         <v-col
+          v-if="!showMobileFilter || !isMobile"
           :cols="3"
           md="4"
+          sm="2"
+          xs="1"
           lg="6">
           <v-btn
             v-if="isProcessesManager"
-            class="ml-1 mt-2 mb-4 btn-primary btn add-process-btn"
+            class="mt-2 mb-4 btn-primary btn add-process-btn"
             dark
             @click="open"
             color="primary">
@@ -29,8 +32,11 @@
           v-show="showWorkflowFilter"
           :cols="9"
           md="8"
+          xs="11"
+          sm="10"
           lg="6">
           <v-select
+            v-if="!isMobile"
             ref="filter"
             class="pt-5 workflow-filter mt-n3 float-e"
             v-model="filter"
@@ -42,25 +48,64 @@
             @change="updateFilter"
             dense
             outlined />
+          <v-btn
+            v-if="!showMobileFilter && isMobile"
+            class="float-e mt-2"
+            @click="switchToMobileFilter"
+            icon>
+            <v-icon>
+              mdi-filter
+            </v-icon>
+          </v-btn>
           <v-text-field
-            v-if="!isXSmall"
+            v-if="!isMobile"
             class="me-4 workflow-filter-query filter-query-width float-e"
             @keyup="filterByQuery"
             v-model="query"
             :placeholder="$t('processes.workflow.filter.query.placeholder')"
             prepend-inner-icon="mdi-filter" />
         </v-col>
-      </v-row>
-      <v-row v-if="isXSmall && showWorkflowFilter">
         <v-col
-          class="d-flex"
+          v-if="showMobileFilter && isMobile"
+          v-show="showWorkflowFilter"
+          class="d-flex me-4"
           cols="12">
           <v-text-field
-            class="me-10 workflow-filter-query float-e"
+            class="pt-5 me-2 mb-1 workflow-filter-query float-e d-flex"
             @keyup="filterByQuery"
             v-model="query"
-            :placeholder="$t('processes.workflow.filter.query.placeholder')"
-            prepend-inner-icon="mdi-filter" />
+            :placeholder="$t('processes.workflow.filter.query.placeholder')">
+            <template #prepend>
+              <btn
+                @click="switchToMobileFilter"
+                icon>
+                <v-icon class="mt-1">
+                  fa-arrow-left
+                </v-icon>
+              </btn>
+            </template>
+            <template #append>
+              <btn
+                v-if="query"
+                @click="resetQueryInput"
+                icon>
+                <v-icon>
+                  fa-times
+                </v-icon>
+              </btn>
+            </template>
+          </v-text-field>
+          <v-btn
+            outlined
+            class="btn btn-primary pa-0 mt-2 mobile-filter-btn"
+            @click="openMobileFilter">
+            <v-icon
+              class="pa-0"
+              size="16">
+              fa-sliders-h
+            </v-icon>
+            <span v-if="activatedFilters">({{ activatedFilters.length }})</span>
+          </v-btn>
         </v-col>
       </v-row>
     </v-container>
@@ -69,11 +114,13 @@
       no-gutters>
       <v-row
         v-if="workflowList.length>0"
+        class="d-flex flex-wrap"
         no-gutters>
         <v-col
           xl="4"
           :lg="lg"
-          md="3"
+          md="6"
+          sm="6"
           cols="12"
           v-for="workflow in workflowList"
           :key="workflow.id">
@@ -111,18 +158,23 @@
         </div>
       </template>
     </empty-or-loading>
-  </v-main>
+    <workflow-mobile-filter :items="filterItems" />
+  </div>
 </template>
 
 <script>
 export default {
   data () {
     return {
+      MOBILE_WIDTH: 768,
       filter: {},
+      showMobileFilter: false,
+      displayFilterMenu: true,
       filterItems: [],
       query: null,
       searchTimer: null,
       endTypingKeywordTimeout: 200,
+      activatedFilters: ['quick_filter'],
     };
   },
   props: {
@@ -174,6 +226,19 @@ export default {
     this.$root.$on('workflow-removed', (workflow) => {
       this.workflowList.splice(this.workflowList.indexOf(workflow), 1);
     });
+    this.$root.$on('workflow-filter-mobile-changed', (event) => {
+      this.filter.value = event.filter;
+      this.updateFilter();
+    });
+    this.$root.$on('workflow-activated-filters-update', (filter) => {
+      const exists = this.activatedFilters.includes(filter.filterType);
+      if (!exists && filter.enabled) {
+        this.activatedFilters.push(filter.filterType);
+      } else if (exists && !filter.enabled) {
+        const index = this.activatedFilters.indexOf(filter.filterType);
+        this.activatedFilters.splice(index, 1);
+      }
+    });
   },
   computed: {
     workflowList(){
@@ -185,14 +250,24 @@ export default {
       }
       return this.workflowList.length === 3 ? 4 : 6;
     },
-    isXSmall() {
-      return this.$vuetify.breakpoint.name === 'xs';
-    },
     isMobile() {
-      return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
-    }
+      return this.$vuetify.breakpoint.width < this.MOBILE_WIDTH;
+    },
   },
   methods: {
+    resetQueryInput() {
+      if (!this.query) {
+        return;
+      }
+      this.query = null;
+      this.updateFilter();
+    },
+    openMobileFilter() {
+      this.$root.$emit('open-workflow-filter');
+    },
+    switchToMobileFilter() {
+      this.showMobileFilter = !this.showMobileFilter;
+    },
     open() {
       this.$root.$emit('open-workflow-drawer', {workflow: null, mode: 'create_workflow'});
     },
