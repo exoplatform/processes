@@ -244,7 +244,7 @@ export default {
       return this.attachmentsUpdated && JSON.stringify(this.updatedAttachments) !== JSON.stringify(this.attachments);
     },
     workDescription() {
-      return this.work && this.work.description || this.workDraft && this.workDraft.description;
+      return this.work && this.work.description || '';
     },
     isMobile() {
       return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
