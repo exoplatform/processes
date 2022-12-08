@@ -303,7 +303,7 @@ export default {
       return this.$vuetify.breakpoint.width < this.MOBILE_WIDTH;
     },
     pageSize() {
-      return this.isMobile && 4 || 8;
+      return this.isMobile && 4 || 9;
     }
   },
   methods: {

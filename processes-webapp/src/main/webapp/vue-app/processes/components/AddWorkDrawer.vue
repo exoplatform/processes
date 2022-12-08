@@ -244,7 +244,7 @@ export default {
       return this.attachmentsUpdated && JSON.stringify(this.updatedAttachments) !== JSON.stringify(this.attachments);
     },
     workDescription() {
-      return this.work && this.work.description || this.workDraft && this.workDraft.description;
+      return this.work && this.work.description || '';
     },
     isMobile() {
       return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
@@ -253,12 +253,13 @@ export default {
       return this.editDraft || this.viewDraft ? 'workdraft' : 'task';
     },
     canUpdateDraft() {
-      return this.valid && this.validWorkDescription && this.hasChanges;
+      return this.valid && this.emptyOrValidWorkDescription && this.hasChanges;
     },
     validWorkDescription() {
-      return this.work && this.work.description
-                       && this.work.description.length > 0
-                       && this.$utils.htmlToText(this.work.description).length <= this.maxLength;
+      return this.work?.description?.length > 0 && this.$utils.htmlToText(this.work.description).length <= this.maxLength;
+    },
+    emptyOrValidWorkDescription() {
+      return this.validWorkDescription || !this.work?.description?.length;
     },
     workflowParentSpace() {
       return this.work && this.work.workflow && this.work.workflow.parentSpace;
