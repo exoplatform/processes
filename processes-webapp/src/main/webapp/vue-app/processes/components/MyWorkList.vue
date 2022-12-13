@@ -30,8 +30,12 @@
             class="float-e mt-2"
             @click="switchToMobileFilter"
             icon>
-            <v-icon>
+            <v-icon v-if="activatedFilters.length || query">
               mdi-filter
+            </v-icon>
+            <v-icon
+              v-else>
+              mdi-filter-outline
             </v-icon>
           </v-btn>
         </v-col>
