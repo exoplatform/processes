@@ -1,8 +1,8 @@
 <template>
-  <span>
+  <div class="width-fit-content ma-auto">
     <v-chip
       v-if="type === 'chip' && !isCompleted"
-      class="ma-2"
+      class="ma-2 d-flex"
       :color="statusColor"
       text-color="white">
       <v-tooltip
@@ -11,7 +11,7 @@
           <span
             v-bind="attrs"
             v-on="on"
-            class="text-truncate work-status">
+            class="text-truncate ">
             {{ translatedLabel }}
           </span>
         </template>
@@ -23,7 +23,7 @@
       :style="'background-color:' + statusColor"
       class="indicator position-absolute">
     </div>
-  </span>
+  </div>
 </template>
 
 <script>

@@ -38,6 +38,14 @@
     background: #F4F6F9 0 0 no-repeat padding-box;
   }
 
+  .description-text {
+    color: @textLightColor;
+    margin-left:58px ~'; /** orientation=lt */ ';
+    margin-right:58px ~'; /** orientation=rt */ ';
+    top: -8px;
+    font-size: 14px;
+  }
+
   .text-align-start {
     text-align: start !important;
   }
@@ -64,6 +72,10 @@
 
   .request-title {
     cursor: pointer;
+  }
+
+  .work-card {
+    height: 55px;
   }
 
   .float-e {
@@ -115,14 +127,32 @@
     resize: none;
   }
 
-  .work-title-text {
-    padding-left: 8px ~'; /** orientation=lt */ ';
-    padding-right: 8px ~'; /** orientation=rt */ ';
+  .work-title-text-mobile {
+    top: 2px;
   }
 
-  .work-avatar {
-    margin-left: 10px ~'; /** orientation=lt */ ';
-    margin-right: 10px ~'; /** orientation=rt */ ';
+  .work-title-text {
+    top: -2px;
+  }
+
+  .work-title-text-no-avatar {
+    top: 10px;
+  }
+
+  .work-mobile-date {
+    color: @greyColorLighten1Default;
+  }
+
+  .align-items-center {
+    align-items: center;
+  }
+
+  .work-avatar-mobile {
+    top: 12px;
+  }
+
+  .work-avatar-wrapper {
+    min-height: 61px;
   }
 
   .card-footer-btn {
@@ -193,18 +223,22 @@
   }
 
   .work-status-col {
-    min-height: 48px;
+    height: 48px;
   }
 
   .complete-btn {
-    left: 6px ~'; /** orientation=lt */ ';
-    right: 6px ~'; /** orientation=rt */ ';
+    left: 10px ~'; /** orientation=lt */ ';
+    right: 10px ~'; /** orientation=rt */ ';
     width: 23px;
     height: 23px;
     top: 0;
     bottom: 0;
     margin: auto;
     position: absolute;
+  }
+
+  .complete-btn-mobile {
+    top: -22px !important;
   }
 
   .panel-custom-header {
@@ -271,12 +305,14 @@
   }
 
   .indicator {
-    width: 3px;
+    width: 5px;
     height: 100%;
+    left: 0 ~'; /** orientation=lt */ ';
+    right: 0 ~'; /** orientation=rt */ ';
   }
 
   .work-status {
-    max-width: 150px;
+    max-width: 85%;
   }
   .v-autocomplete.identitySuggester {
     width: 290px;
@@ -405,7 +441,11 @@
   }
 
   .custom-icon-color {
-    color: #5F708A;
+    color: @greyColorLighten1Default;
+  }
+
+  .size-icon-btn {
+    height: 20px !important;
   }
 
   #myWorks {
