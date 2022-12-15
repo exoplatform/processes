@@ -98,7 +98,9 @@
                       {{ workDescription }}
                     </div>
                   </template>
-                  <span v-sanitized-html="workObject.description"></span>
+                  <p
+                    class="work-description-tooltip mb-0 text-break"
+                    v-sanitized-html="workObject.description"></p>
                 </v-tooltip>
               </div>
             </v-col>
