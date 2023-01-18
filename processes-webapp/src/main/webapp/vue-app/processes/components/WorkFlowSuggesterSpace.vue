@@ -72,20 +72,16 @@ export default {
   watch: {
     workFlowOwner() {
       this.resetCustomValidity();
-      if (this.workFlowOwner) {
-        this.workflow.parentSpace = {
-          id: this.workFlowOwner.spaceId,
-          displayName: this.workFlowOwner.profile.fullName,
-          groupId: `/spaces/${this.workFlowOwner.remoteId}`,
-          name: this.workFlowOwner.remoteId,
-          prettyName: this.workFlowOwner.remoteId,
-          url: this.workFlowOwner.remoteId,
-          avatarUrl: this.workFlowOwner.profile.avatar,
-        };
+      if (this.workFlowOwner && this.workFlowOwner.spaceId) {
+        this.$spaceService.getSpaceById(this.workFlowOwner.spaceId)
+          .then(space => {
+            this.workflow.parentSpace = space;
+            this.$emit('initialized');
+          });
       } else {
         this.workflow.parentSpace = null;
+        this.$emit('initialized');
       }
-      this.$emit('initialized');
     },
   },
   methods: {

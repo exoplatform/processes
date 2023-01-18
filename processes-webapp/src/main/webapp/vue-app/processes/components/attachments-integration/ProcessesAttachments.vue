@@ -131,23 +131,22 @@ export default {
     attachmentsLength() {
       return this.attachments && this.attachments.length > 0 ? `(${this.attachments.length})` : '';
     },
-    drive() {
-      if (this.workflowParentSpace) {
-        const spaceGroupId = this.workflowParentSpace.groupId.split('/spaces/')[1];
-        return {
-          name: `.spaces.${spaceGroupId}`,
-          title: this.workflowParentSpace.prettyName,
-          isSelected: true
-        };
-      }
-      return null;
-    },
     isMobileDevice() {
       return (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
     }
   },
   created() {
     this.initEntityAttachmentsList();
+    if (this.workflowParentSpace) {
+      this.$spaceService.getSpaceByPrettyName(this.workflowParentSpace.prettyName)
+        .then(space => {
+          this.drive = {
+            name: `${space.groupId.replaceAll('/', '.')}`,
+            title: space.displayName,
+            isSelected: true
+          };
+        });
+    }
     document.addEventListener('attachment-added', event => {
       if (this.editMode) {
         this.initEntityAttachmentsList();
