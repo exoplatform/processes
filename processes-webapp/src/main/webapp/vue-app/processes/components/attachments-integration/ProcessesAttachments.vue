@@ -108,9 +108,6 @@ export default {
     attachmentsLength() {
       return this.attachments && this.attachments.length > 0 ? `(${this.attachments.length})` : '';
     },
-    isMobileDevice() {
-      return (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
-    }
   },
   created() {
     this.initEntityAttachmentsList();
