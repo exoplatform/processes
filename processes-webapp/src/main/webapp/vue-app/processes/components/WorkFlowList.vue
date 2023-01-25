@@ -69,7 +69,18 @@
             @keyup="filterByQuery"
             v-model="query"
             :placeholder="$t('processes.workflow.filter.query.placeholder')"
-            prepend-inner-icon="mdi-filter" />
+            prepend-inner-icon="mdi-filter">
+            <template #append>
+              <btn
+                v-if="query"
+                @click="resetQueryInput"
+                icon>
+                <v-icon class="mt-1">
+                  fa-times
+                </v-icon>
+              </btn>
+            </template>
+          </v-text-field>
         </v-col>
         <v-col
           v-if="showMobileFilter && isMobile"
