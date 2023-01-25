@@ -24,7 +24,18 @@
             @keyup="updateFilter"
             v-model="query"
             :placeholder="$t('processes.work.filter.query.placeholder')"
-            prepend-inner-icon="mdi-filter" />
+            prepend-inner-icon="mdi-filter" >
+            <template #append>
+              <btn
+                  v-if="query"
+                  @click="resetQueryInput"
+                  icon>
+                <v-icon class="mt-1">
+                  fa-times
+                </v-icon>
+              </btn>
+            </template>
+          </v-text-field>
           <v-btn
             v-if="!showMobileFilter && isMobile"
             class="float-e mt-2"
