@@ -3,10 +3,13 @@ package org.exoplatform.processes.listener;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.model.PluginKey;
 import org.exoplatform.commons.notification.impl.NotificationContextImpl;
+import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.processes.model.Work;
+import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.notification.plugin.CreateRequestPlugin;
 import org.exoplatform.processes.notification.utils.NotificationArguments;
 import org.exoplatform.processes.notification.utils.NotificationUtils;
+import org.exoplatform.processes.service.ProcessesService;
 import org.exoplatform.services.listener.Event;
 import org.exoplatform.services.listener.Listener;
 import org.exoplatform.task.dto.ProjectDto;
@@ -23,6 +26,7 @@ public class CreateRequestNotificationListener extends Listener<Work, ProjectDto
     ctx.append(NotificationArguments.REQUEST_DESCRIPTION, work.getDescription());
     ctx.append(NotificationArguments.PROCESS_URL, NotificationUtils.getProcessLink(projectDto.getId()));
     ctx.append(NotificationArguments.REQUEST_URL, NotificationUtils.getRequestLink(work.getId()));
+    ctx.append(NotificationArguments.WORKFLOW_PROJECT_ID, String.valueOf(work.getProjectId()));
     ctx.getNotificationExecutor()
             .with(ctx.makeCommand(PluginKey.key(CreateRequestPlugin.ID))).execute(ctx);
   }

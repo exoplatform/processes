@@ -18,7 +18,6 @@ package org.exoplatform.processes.notification.utils;
 
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.commons.utils.ListAccess;
-import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.organization.OrganizationService;
@@ -28,8 +27,11 @@ import org.exoplatform.social.core.identity.model.Profile;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.service.LinkProvider;
+import org.exoplatform.social.core.space.model.Space;
+import org.exoplatform.social.core.space.spi.SpaceService;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class NotificationUtils {
   private static final Log    LOG             = ExoLogger.getLogger(NotificationUtils.class);
@@ -104,5 +106,20 @@ public class NotificationUtils {
             .append(taskId)
             .append("/comments");
     return stringBuilder.toString();
+  }
+
+
+  public static List<String> getSpacesMembers(Set<String> spacesGroupsId) {
+    List<String> managers = new ArrayList<>();
+    SpaceService spaceService = CommonsUtils.getService(SpaceService.class);
+    if (spaceService == null)
+      return managers;
+    spacesGroupsId.forEach(groupId -> {
+      Space space = spaceService.getSpaceByGroupId(groupId);
+      if (space != null) {
+        managers.addAll(Arrays.stream(space.getMembers()).collect(Collectors.toList()));
+      }
+    });
+    return managers;
   }
 }

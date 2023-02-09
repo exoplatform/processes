@@ -7,8 +7,10 @@ import org.exoplatform.commons.notification.impl.NotificationContextImpl;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.xml.InitParams;
+import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.notification.utils.NotificationArguments;
 import org.exoplatform.processes.notification.utils.NotificationUtils;
+import org.exoplatform.processes.service.ProcessesService;
 import org.exoplatform.services.idgenerator.IDGeneratorService;
 import org.junit.Before;
 import org.junit.Test;
@@ -20,7 +22,9 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.Assert.*;
 import static org.powermock.api.mockito.PowerMockito.when;
@@ -33,6 +37,9 @@ public class CreateRequestPluginTest {
   @Mock
   private InitParams          initParams;
 
+  @Mock
+  private ProcessesService processesService;
+
   private CreateRequestPlugin createRequestPlugin;
 
   @Before
@@ -42,6 +49,7 @@ public class CreateRequestPluginTest {
     PowerMockito.mockStatic(NotificationUtils.class);
     PowerMockito.mockStatic(ExoContainerContext.class);
     when(ExoContainerContext.getService(IDGeneratorService.class)).thenReturn(null);
+    when(CommonsUtils.getService(ProcessesService.class)).thenReturn(processesService);
   }
 
   @Test
@@ -53,10 +61,20 @@ public class CreateRequestPluginTest {
     ctx.append(NotificationArguments.REQUEST_DESCRIPTION, "test description");
     ctx.append(NotificationArguments.PROCESS_URL, "http://exoplatfrom.com/dw/tasks/projectDetail/1");
     ctx.append(NotificationArguments.REQUEST_URL, "http://exoplatfrom.com/dw/tasks/taskDetail/1");
+    ctx.append(NotificationArguments.WORKFLOW_PROJECT_ID, "1");
     List<String> receivers = new ArrayList<>();
     receivers.add("user1");
-    receivers.add("user1");
+    receivers.add("user2");
+    List<String> spacesMembers = new ArrayList<>();
+    spacesMembers.add("root1");
+    spacesMembers.add("root2");
+    WorkFlow workFlow = new WorkFlow() ;
+    Set<String> spaces =  new HashSet<>();
+    spaces.add("/space/spaces");
+    workFlow.setManager(spaces);
+    when(processesService.getWorkFlowByProjectId(1l)).thenReturn(workFlow);
     when(NotificationUtils.getProcessAdmins("root")).thenReturn(receivers);
+    when(NotificationUtils.getSpacesMembers(spaces)).thenReturn(spacesMembers);
     NotificationInfo notificationInfo = createRequestPlugin.makeNotification(ctx);
     assertEquals("root", notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_CREATOR.getKey()));
     assertEquals("http://exoplatfrom.com/dw/tasks/projectDetail/1",
@@ -66,6 +84,6 @@ public class CreateRequestPluginTest {
     assertEquals("test description", notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_DESCRIPTION.getKey()));
     assertEquals("my request", notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_TITLE.getKey()));
     assertEquals("root", notificationInfo.getFrom());
-    assertEquals(receivers, notificationInfo.getSendToUserIds());
+    assertEquals(4, notificationInfo.getSendToUserIds().size());
   }
 }

@@ -8,8 +8,10 @@ import org.exoplatform.commons.notification.impl.NotificationContextImpl;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.xml.InitParams;
+import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.notification.utils.NotificationArguments;
 import org.exoplatform.processes.notification.utils.NotificationUtils;
+import org.exoplatform.processes.service.ProcessesService;
 import org.exoplatform.services.idgenerator.IDGeneratorService;
 import org.junit.Before;
 import org.junit.Test;
@@ -21,7 +23,9 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 import static org.powermock.api.mockito.PowerMockito.when;
@@ -34,6 +38,9 @@ public class RequestCommentPluginTest extends TestCase {
     @Mock
     private InitParams initParams;
 
+    @Mock
+    private ProcessesService processesService;
+
     private RequestCommentPlugin requestCommentPlugin;
 
     @Before
@@ -43,20 +50,7 @@ public class RequestCommentPluginTest extends TestCase {
         PowerMockito.mockStatic(NotificationUtils.class);
         PowerMockito.mockStatic(ExoContainerContext.class);
         when(ExoContainerContext.getService(IDGeneratorService.class)).thenReturn(null);
-    }
-
-    @Test
-    public void isValid() {
-        NotificationContext ctx1 = NotificationContextImpl.cloneInstance();
-        ctx1.append(NotificationArguments.REQUEST_CREATOR, "root");
-        ctx1.append(NotificationArguments.REQUEST_COMMENT_AUTHOR, "user");
-        boolean valid = requestCommentPlugin.isValid(ctx1);
-        assertTrue(valid);
-        NotificationContext ctx2 = NotificationContextImpl.cloneInstance();
-        ctx2.append(NotificationArguments.REQUEST_CREATOR, "root");
-        ctx2.append(NotificationArguments.REQUEST_COMMENT_AUTHOR, "root");
-        valid = requestCommentPlugin.isValid(ctx2);
-        assertFalse(valid);
+        when(CommonsUtils.getService(ProcessesService.class)).thenReturn(processesService);
     }
 
     @Test
@@ -69,9 +63,20 @@ public class RequestCommentPluginTest extends TestCase {
         ctx.append(NotificationArguments.REQUEST_COMMENT, "test");
         ctx.append(NotificationArguments.PROCESS_URL, "http://exoplatfrom.com/dw/tasks/projectDetail/1");
         ctx.append(NotificationArguments.REQUEST_COMMENT_URL, "http://exoplatfrom.com/dw/processes/myRequests/requestDetails/1/comments");
+        ctx.append(NotificationArguments.WORKFLOW_PROJECT_ID, "1");
 
         List<String> receivers = new ArrayList<>();
         receivers.add("root");
+        List<String> spacesMembers = new ArrayList<>();
+        spacesMembers.add("root1");
+        spacesMembers.add("root2");
+        WorkFlow workFlow = new WorkFlow() ;
+        Set<String> spaces =  new HashSet<>();
+        spaces.add("/space/spaces");
+        workFlow.setManager(spaces);
+        when(processesService.getWorkFlowByProjectId(1l)).thenReturn(workFlow);
+        when(NotificationUtils.getSpacesMembers(spaces)).thenReturn(spacesMembers);
+
         NotificationInfo notificationInfo = requestCommentPlugin.makeNotification(ctx);
         assertEquals("root", notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_CREATOR.getKey()));
         assertEquals("http://exoplatfrom.com/dw/tasks/projectDetail/1",
@@ -81,6 +86,6 @@ public class RequestCommentPluginTest extends TestCase {
         assertEquals("test", notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_COMMENT.getKey()));
         assertEquals("test request", notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_TITLE.getKey()));
         assertEquals("user", notificationInfo.getFrom());
-        assertEquals(receivers, notificationInfo.getSendToUserIds());
+        assertEquals(3, notificationInfo.getSendToUserIds().size());
     }
 }

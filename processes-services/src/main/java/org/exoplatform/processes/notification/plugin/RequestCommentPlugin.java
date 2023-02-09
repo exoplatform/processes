@@ -19,8 +19,16 @@ package org.exoplatform.processes.notification.plugin;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.model.NotificationInfo;
 import org.exoplatform.commons.api.notification.plugin.BaseNotificationPlugin;
+import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.xml.InitParams;
+import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.notification.utils.NotificationArguments;
+import org.exoplatform.processes.notification.utils.NotificationUtils;
+import org.exoplatform.processes.service.ProcessesService;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class RequestCommentPlugin extends BaseNotificationPlugin {
 
@@ -37,8 +45,7 @@ public class RequestCommentPlugin extends BaseNotificationPlugin {
 
   @Override
   public boolean isValid(NotificationContext notificationContext) {
-    return !notificationContext.value(NotificationArguments.REQUEST_COMMENT_AUTHOR)
-                               .equals(notificationContext.value(NotificationArguments.REQUEST_CREATOR));
+    return true ;
   }
 
   @Override
@@ -50,9 +57,16 @@ public class RequestCommentPlugin extends BaseNotificationPlugin {
     String commentAuthor = notificationContext.value(NotificationArguments.REQUEST_COMMENT_AUTHOR);
     String comment = notificationContext.value(NotificationArguments.REQUEST_COMMENT);
     String requestCommentUrl = notificationContext.value(NotificationArguments.REQUEST_COMMENT_URL);
+    String workflowProjectId = notificationContext.value(NotificationArguments.WORKFLOW_PROJECT_ID);
+    List<String> receivers = new ArrayList<>();
+    ProcessesService processesService = CommonsUtils.getService(ProcessesService.class);
+    WorkFlow workFlow = processesService.getWorkFlowByProjectId(Long.parseLong(workflowProjectId));
+    receivers.addAll(NotificationUtils.getSpacesMembers(workFlow.getManager()));
+    receivers.add(requester);
+    receivers = receivers.stream().distinct().collect(Collectors.toList());
     return NotificationInfo.instance()
                            .setFrom(commentAuthor)
-                           .to(requester)
+                           .to(receivers)
                            .with(NotificationArguments.REQUEST_CREATOR.getKey(), requester)
                            .with(NotificationArguments.REQUEST_PROCESS.getKey(), processTitle)
                            .with(NotificationArguments.REQUEST_TITLE.getKey(), requestTitle)
