@@ -293,10 +293,11 @@ export default {
         this.editDraft = false;
         this.viewMode = false;
         this.$root.$emit('update-url-path', 'createRequest', `/${this.work.workFlow.id}/createRequest` );
-        this.preSaveWork();
+        this.toWorkDraft(this.work);
       } else if (mode === 'edit_work_draft') {
         object.attachments = [];
         this.work = Object.assign({}, object);
+        this.toWorkDraft(this.work);
         this.oldWork = Object.assign({}, this.work);
         this.viewMode = false;
         this.editDraft = true;
@@ -326,7 +327,11 @@ export default {
       });
     },
     close() {
-      this.updateDraft();
+      if (!this.workDraft.id && (this.validWorkDescription || this.attachmentsChanged)) {
+        this.preSaveWork();
+      } else {
+        this.updateDraft();
+      }
       this.$refs.work.close();
       this.$root.$emit('reset-list-attachments');
       if (document.location.pathname.includes('myRequests')) {
@@ -383,22 +388,12 @@ export default {
         } else if (this.workDraft && this.workDraft.workflow) {
           this.$root.$emit('create-work-draft', {draft: this.workDraft});
         }
-      } else if (this.firstCreation && !this.hasChanges && !this.attachmentsChanged) {
-        this.toWorkDraft(this.work);
-        this.$root.$emit('show-alert', {
-          type: 'warning',
-          messageTargetModel: this.workDraft,
-          messageAction: 'keep-work-draft',
-          messageActionLabel: this.$t('processes.work.keep.draft.label'),
-          message: this.isMobile ? this.$t('processes.work.keep.draft.warn.message.question')
-            : this.$t('processes.work.keep.draft.warn.message')
-        });
       }
     },
     preSaveWork() {
       this.preSaving = true;
       this.toWorkDraft(this.work);
-      if (this.workDraft.id === 0) {
+      if (!this.workDraft.id) {
         this.$root.$emit('create-work-draft', {draft: this.workDraft, preSave: true});
       } else {
         this.preSaving = false;
