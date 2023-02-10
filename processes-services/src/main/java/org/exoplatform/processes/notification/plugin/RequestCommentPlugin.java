@@ -19,16 +19,11 @@ package org.exoplatform.processes.notification.plugin;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.model.NotificationInfo;
 import org.exoplatform.commons.api.notification.plugin.BaseNotificationPlugin;
-import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.xml.InitParams;
-import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.notification.utils.NotificationArguments;
 import org.exoplatform.processes.notification.utils.NotificationUtils;
-import org.exoplatform.processes.service.ProcessesService;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class RequestCommentPlugin extends BaseNotificationPlugin {
 

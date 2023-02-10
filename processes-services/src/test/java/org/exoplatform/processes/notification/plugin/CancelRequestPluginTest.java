@@ -6,7 +6,6 @@ import org.exoplatform.commons.notification.impl.NotificationContextImpl;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.xml.InitParams;
-import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.notification.utils.NotificationArguments;
 import org.exoplatform.processes.notification.utils.NotificationUtils;
 import org.exoplatform.processes.service.ProcessesService;

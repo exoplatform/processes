@@ -117,8 +117,6 @@ public class NotificationUtils {
   public static List<String> getSpacesMembers(Set<String> spacesGroupsId) {
     List<String> members = new ArrayList<>();
     SpaceService spaceService = CommonsUtils.getService(SpaceService.class);
-    if (spaceService == null)
-      return members;
     spacesGroupsId.forEach(groupId -> {
       Space space = spaceService.getSpaceByGroupId(groupId);
       if (space != null) {
