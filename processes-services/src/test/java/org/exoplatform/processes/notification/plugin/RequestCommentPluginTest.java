@@ -66,16 +66,9 @@ public class RequestCommentPluginTest extends TestCase {
         ctx.append(NotificationArguments.WORKFLOW_PROJECT_ID, "1");
 
         List<String> receivers = new ArrayList<>();
-        receivers.add("root");
-        List<String> spacesMembers = new ArrayList<>();
-        spacesMembers.add("root1");
-        spacesMembers.add("root2");
-        WorkFlow workFlow = new WorkFlow() ;
-        Set<String> spaces =  new HashSet<>();
-        spaces.add("/space/spaces");
-        workFlow.setManager(spaces);
-        when(processesService.getWorkFlowByProjectId(1l)).thenReturn(workFlow);
-        when(NotificationUtils.getSpacesMembers(spaces)).thenReturn(spacesMembers);
+        receivers.add("user1");
+        receivers.add("user2");
+        when(NotificationUtils.getReceivers(1l , "root", false)).thenReturn(receivers);
 
         NotificationInfo notificationInfo = requestCommentPlugin.makeNotification(ctx);
         assertEquals("root", notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_CREATOR.getKey()));
@@ -86,6 +79,6 @@ public class RequestCommentPluginTest extends TestCase {
         assertEquals("test", notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_COMMENT.getKey()));
         assertEquals("test request", notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_TITLE.getKey()));
         assertEquals("user", notificationInfo.getFrom());
-        assertEquals(3, notificationInfo.getSendToUserIds().size());
+        assertEquals(receivers, notificationInfo.getSendToUserIds());
     }
 }

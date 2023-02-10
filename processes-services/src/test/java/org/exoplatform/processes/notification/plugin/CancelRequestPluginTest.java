@@ -57,22 +57,13 @@ public class CancelRequestPluginTest {
     List<String> receivers = new ArrayList<>();
     receivers.add("user1");
     receivers.add("user2");
-    List<String> spacesMembers = new ArrayList<>();
-    spacesMembers.add("root1");
-    spacesMembers.add("root2");
     ctx.append(NotificationArguments.PROCESS_URL, "http://exoplatfrom.com/dw/tasks/projectDetail/1");
-    WorkFlow workFlow = new WorkFlow() ;
-    Set<String> spaces =  new HashSet<>();
-    spaces.add("/space/spaces");
-    workFlow.setManager(spaces);
-    when(processesService.getWorkFlowByProjectId(1l)).thenReturn(workFlow);
-    when(NotificationUtils.getProcessAdmins("root")).thenReturn(receivers);
-    when(NotificationUtils.getSpacesMembers(spaces)).thenReturn(spacesMembers);
+    when(NotificationUtils.getReceivers(1l , "root", true)).thenReturn(receivers);
     NotificationInfo notificationInfo = cancelRequestPlugin.makeNotification(ctx);
     assertEquals("root", notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_CREATOR.getKey()));
     assertEquals("http://exoplatfrom.com/dw/tasks/projectDetail/1",
                  notificationInfo.getValueOwnerParameter(NotificationArguments.PROCESS_URL.getKey()));
     assertEquals("root", notificationInfo.getFrom());
-    assertEquals(4, notificationInfo.getSendToUserIds().size());
+    assertEquals(receivers, notificationInfo.getSendToUserIds());
   }
 }

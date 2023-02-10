@@ -18,6 +18,8 @@ package org.exoplatform.processes.notification.utils;
 
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.commons.utils.ListAccess;
+import org.exoplatform.processes.model.WorkFlow;
+import org.exoplatform.processes.service.ProcessesService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.organization.OrganizationService;
@@ -108,18 +110,39 @@ public class NotificationUtils {
     return stringBuilder.toString();
   }
 
+  /**
+   * retrieves the members of spaces
+   **/
 
   public static List<String> getSpacesMembers(Set<String> spacesGroupsId) {
-    List<String> managers = new ArrayList<>();
+    List<String> members = new ArrayList<>();
     SpaceService spaceService = CommonsUtils.getService(SpaceService.class);
     if (spaceService == null)
-      return managers;
+      return members;
     spacesGroupsId.forEach(groupId -> {
       Space space = spaceService.getSpaceByGroupId(groupId);
       if (space != null) {
-        managers.addAll(Arrays.stream(space.getMembers()).collect(Collectors.toList()));
+        members.addAll(Arrays.stream(space.getMembers()).collect(Collectors.toList()));
       }
     });
-    return managers;
+    return members;
+  }
+
+  public static WorkFlow getWorkFlowByProjectId(long workflowProjectId) {
+    ProcessesService processesService = CommonsUtils.getService(ProcessesService.class);
+    return processesService != null ? processesService.getWorkFlowByProjectId(workflowProjectId) : null;
+  }
+
+  public static List<String> getReceivers(long workflowProjectId, String requester, boolean withAdministrators) {
+    List<String> receivers = new ArrayList<>();
+    if (withAdministrators) {
+      receivers.addAll(getProcessAdmins(requester));
+    }
+    WorkFlow workFlow = getWorkFlowByProjectId(workflowProjectId);
+    if (workFlow != null) {
+      receivers.addAll(getSpacesMembers(workFlow.getManager()));
+    }
+    receivers.remove(requester);
+    return receivers.stream().distinct().collect(Collectors.toList());
   }
 }
