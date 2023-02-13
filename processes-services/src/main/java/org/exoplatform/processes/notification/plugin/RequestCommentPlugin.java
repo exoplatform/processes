@@ -53,7 +53,10 @@ public class RequestCommentPlugin extends BaseNotificationPlugin {
     String comment = notificationContext.value(NotificationArguments.REQUEST_COMMENT);
     String requestCommentUrl = notificationContext.value(NotificationArguments.REQUEST_COMMENT_URL);
     String workflowProjectId = notificationContext.value(NotificationArguments.WORKFLOW_PROJECT_ID);
-    List<String> receivers = NotificationUtils.getReceivers(Long.parseLong(workflowProjectId), requester, false);
+    List<String> receivers = NotificationUtils.getReceivers(Long.parseLong(workflowProjectId), commentAuthor, false);
+    if (!receivers.contains(requester) && !requester.equals(commentAuthor)) {
+      receivers.add(requester);
+    }
     return NotificationInfo.instance()
                            .setFrom(commentAuthor)
                            .to(receivers)

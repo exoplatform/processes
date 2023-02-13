@@ -64,7 +64,8 @@ public class RequestCommentPluginTest extends TestCase {
         List<String> receivers = new ArrayList<>();
         receivers.add("user1");
         receivers.add("user2");
-        when(NotificationUtils.getReceivers(1l , "root", false)).thenReturn(receivers);
+        receivers.add("root");
+        when(NotificationUtils.getReceivers(1l , "user", false)).thenReturn(receivers);
 
         NotificationInfo notificationInfo = requestCommentPlugin.makeNotification(ctx);
         assertEquals("root", notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_CREATOR.getKey()));
