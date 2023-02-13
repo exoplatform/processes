@@ -23,6 +23,7 @@ public class CreateRequestNotificationListener extends Listener<Work, ProjectDto
     ctx.append(NotificationArguments.REQUEST_DESCRIPTION, work.getDescription());
     ctx.append(NotificationArguments.PROCESS_URL, NotificationUtils.getProcessLink(projectDto.getId()));
     ctx.append(NotificationArguments.REQUEST_URL, NotificationUtils.getRequestLink(work.getId()));
+    ctx.append(NotificationArguments.WORKFLOW_PROJECT_ID, String.valueOf(work.getProjectId()));
     ctx.getNotificationExecutor()
             .with(ctx.makeCommand(PluginKey.key(CreateRequestPlugin.ID))).execute(ctx);
   }

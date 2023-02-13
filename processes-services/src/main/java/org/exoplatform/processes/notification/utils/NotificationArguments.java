@@ -22,4 +22,6 @@ public class NotificationArguments {
 
   public static final ArgumentLiteral<String> REQUEST_COMMENT_URL    = new ArgumentLiteral<>(String.class, "REQUEST_COMMENT_URL");
 
+  public static final ArgumentLiteral<String> WORKFLOW_PROJECT_ID    = new ArgumentLiteral<>(String.class, "WORKFLOW_PROJECT_ID");
+
 }

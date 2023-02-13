@@ -18,7 +18,8 @@ package org.exoplatform.processes.notification.utils;
 
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.commons.utils.ListAccess;
-import org.exoplatform.services.listener.ListenerService;
+import org.exoplatform.processes.model.WorkFlow;
+import org.exoplatform.processes.service.ProcessesService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.organization.OrganizationService;
@@ -28,8 +29,11 @@ import org.exoplatform.social.core.identity.model.Profile;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.service.LinkProvider;
+import org.exoplatform.social.core.space.model.Space;
+import org.exoplatform.social.core.space.spi.SpaceService;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class NotificationUtils {
   private static final Log    LOG             = ExoLogger.getLogger(NotificationUtils.class);
@@ -104,5 +108,39 @@ public class NotificationUtils {
             .append(taskId)
             .append("/comments");
     return stringBuilder.toString();
+  }
+
+  /**
+   * retrieves the members of spaces
+   **/
+
+  public static List<String> getSpacesMembers(Set<String> spacesGroupsId) {
+    List<String> members = new ArrayList<>();
+    SpaceService spaceService = CommonsUtils.getService(SpaceService.class);
+    spacesGroupsId.forEach(groupId -> {
+      Space space = spaceService.getSpaceByGroupId(groupId);
+      if (space != null) {
+        members.addAll(Arrays.stream(space.getMembers()).collect(Collectors.toList()));
+      }
+    });
+    return members;
+  }
+
+  public static WorkFlow getWorkFlowByProjectId(long workflowProjectId) {
+    ProcessesService processesService = CommonsUtils.getService(ProcessesService.class);
+    return processesService != null ? processesService.getWorkFlowByProjectId(workflowProjectId) : null;
+  }
+
+  public static List<String> getReceivers(long workflowProjectId, String requester, boolean withAdministrators) {
+    List<String> receivers = new ArrayList<>();
+    if (withAdministrators) {
+      receivers.addAll(getProcessAdmins(requester));
+    }
+    WorkFlow workFlow = getWorkFlowByProjectId(workflowProjectId);
+    if (workFlow != null) {
+      receivers.addAll(getSpacesMembers(workFlow.getManager()));
+    }
+    receivers.remove(requester);
+    return receivers.stream().distinct().collect(Collectors.toList());
   }
 }
