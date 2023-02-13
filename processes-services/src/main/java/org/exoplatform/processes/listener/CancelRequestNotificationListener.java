@@ -20,6 +20,7 @@ public class CancelRequestNotificationListener extends Listener<TaskDto, Project
     ctx.append(NotificationArguments.REQUEST_CREATOR, taskDto.getCreatedBy());
     ctx.append(NotificationArguments.PROCESS_URL, NotificationUtils.getProcessLink(projectDto.getId()));
     ctx.append(NotificationArguments.REQUEST_URL, NotificationUtils.getRequestLink(taskDto.getId()));
+    ctx.append(NotificationArguments.WORKFLOW_PROJECT_ID, String.valueOf(projectDto.getId()));
     ctx.getNotificationExecutor()
             .with(ctx.makeCommand(PluginKey.key(CancelRequestPlugin.ID))).execute(ctx);
   }

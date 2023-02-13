@@ -55,7 +55,8 @@ public class RequestCommentNotificationListener extends TaskCommentNotificationL
     ctx.append(NotificationArguments.REQUEST_COMMENT_AUTHOR, comment.getAuthor());
     ctx.append(NotificationArguments.REQUEST_COMMENT, comment.getComment());
     ctx.append(NotificationArguments.PROCESS_URL, NotificationUtils.getProcessLink(project.getId()));
-    ctx.append(NotificationArguments.REQUEST_COMMENT_URL, NotificationUtils.getRequestCommentsLink(task.getId()));
+    ctx.append(NotificationArguments.REQUEST_COMMENT_URL, NotificationUtils.getRequestLink(task.getId()));
+    ctx.append(NotificationArguments.WORKFLOW_PROJECT_ID, String.valueOf(project.getId()));
     ctx.getNotificationExecutor()
             .with(ctx.makeCommand(PluginKey.key(RequestCommentPlugin.ID))).execute(ctx);
   }
