@@ -21,6 +21,9 @@ import org.exoplatform.commons.api.notification.model.NotificationInfo;
 import org.exoplatform.commons.api.notification.plugin.BaseNotificationPlugin;
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.processes.notification.utils.NotificationArguments;
+import org.exoplatform.processes.notification.utils.NotificationUtils;
+
+import java.util.List;
 
 public class RequestCommentPlugin extends BaseNotificationPlugin {
 
@@ -37,8 +40,7 @@ public class RequestCommentPlugin extends BaseNotificationPlugin {
 
   @Override
   public boolean isValid(NotificationContext notificationContext) {
-    return !notificationContext.value(NotificationArguments.REQUEST_COMMENT_AUTHOR)
-                               .equals(notificationContext.value(NotificationArguments.REQUEST_CREATOR));
+    return true ;
   }
 
   @Override
@@ -50,9 +52,14 @@ public class RequestCommentPlugin extends BaseNotificationPlugin {
     String commentAuthor = notificationContext.value(NotificationArguments.REQUEST_COMMENT_AUTHOR);
     String comment = notificationContext.value(NotificationArguments.REQUEST_COMMENT);
     String requestCommentUrl = notificationContext.value(NotificationArguments.REQUEST_COMMENT_URL);
+    String workflowProjectId = notificationContext.value(NotificationArguments.WORKFLOW_PROJECT_ID);
+    List<String> receivers = NotificationUtils.getReceivers(Long.parseLong(workflowProjectId), commentAuthor, false);
+    if (!receivers.contains(requester) && !requester.equals(commentAuthor)) {
+      receivers.add(requester);
+    }
     return NotificationInfo.instance()
                            .setFrom(commentAuthor)
-                           .to(requester)
+                           .to(receivers)
                            .with(NotificationArguments.REQUEST_CREATOR.getKey(), requester)
                            .with(NotificationArguments.REQUEST_PROCESS.getKey(), processTitle)
                            .with(NotificationArguments.REQUEST_TITLE.getKey(), requestTitle)

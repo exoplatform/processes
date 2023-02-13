@@ -8,6 +8,7 @@ import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.processes.notification.utils.NotificationArguments;
 import org.exoplatform.processes.notification.utils.NotificationUtils;
+import org.exoplatform.processes.service.ProcessesService;
 import org.exoplatform.services.idgenerator.IDGeneratorService;
 import org.junit.Before;
 import org.junit.Test;
@@ -18,8 +19,7 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 import static org.junit.Assert.*;
 import static org.powermock.api.mockito.PowerMockito.when;
@@ -33,6 +33,9 @@ public class CancelRequestPluginTest {
   @Mock
   private InitParams          initParams;
 
+  @Mock
+  private ProcessesService processesService;
+
   private CancelRequestPlugin cancelRequestPlugin;
 
   @Before
@@ -42,17 +45,19 @@ public class CancelRequestPluginTest {
     PowerMockito.mockStatic(NotificationUtils.class);
     PowerMockito.mockStatic(ExoContainerContext.class);
     when(ExoContainerContext.getService(IDGeneratorService.class)).thenReturn(null);
+    when(CommonsUtils.getService(ProcessesService.class)).thenReturn(processesService);
   }
 
   @Test
   public void makeNotification() {
     NotificationContext ctx = NotificationContextImpl.cloneInstance();
     ctx.append(NotificationArguments.REQUEST_CREATOR, "root");
+    ctx.append(NotificationArguments.WORKFLOW_PROJECT_ID, "1");
     List<String> receivers = new ArrayList<>();
     receivers.add("user1");
-    receivers.add("user1");
+    receivers.add("user2");
     ctx.append(NotificationArguments.PROCESS_URL, "http://exoplatfrom.com/dw/tasks/projectDetail/1");
-    when(NotificationUtils.getProcessAdmins("root")).thenReturn(receivers);
+    when(NotificationUtils.getReceivers(1l , "root", true)).thenReturn(receivers);
     NotificationInfo notificationInfo = cancelRequestPlugin.makeNotification(ctx);
     assertEquals("root", notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_CREATOR.getKey()));
     assertEquals("http://exoplatfrom.com/dw/tasks/projectDetail/1",
