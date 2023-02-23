@@ -140,7 +140,8 @@ public class NotificationUtils {
     if (workFlow != null) {
       receivers.addAll(getSpacesMembers(workFlow.getManager()));
     }
+    receivers = receivers.stream().distinct().collect(Collectors.toList());
     receivers.remove(requester);
-    return receivers.stream().distinct().collect(Collectors.toList());
+    return receivers;
   }
 }
