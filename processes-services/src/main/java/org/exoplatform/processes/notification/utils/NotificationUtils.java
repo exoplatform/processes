@@ -114,15 +114,13 @@ public class NotificationUtils {
    * retrieves the members of spaces
    **/
 
-  public static List<String> getSpacesMembers(Set<String> spacesGroupsId) {
+  public static List<String> getSpacesMembers(String groupId) {
     List<String> members = new ArrayList<>();
     SpaceService spaceService = CommonsUtils.getService(SpaceService.class);
-    spacesGroupsId.forEach(groupId -> {
-      Space space = spaceService.getSpaceByGroupId(groupId);
-      if (space != null) {
-        members.addAll(Arrays.stream(space.getMembers()).collect(Collectors.toList()));
-      }
-    });
+    Space space = spaceService.getSpaceByGroupId(groupId);
+    if (space != null) {
+      members.addAll(Arrays.stream(space.getMembers()).collect(Collectors.toList()));
+    }
     return members;
   }
 
@@ -138,7 +136,8 @@ public class NotificationUtils {
     }
     WorkFlow workFlow = getWorkFlowByProjectId(workflowProjectId);
     if (workFlow != null) {
-      receivers.addAll(getSpacesMembers(workFlow.getManager()));
+      String spaceGroupId = workFlow.getParticipator().iterator().next().split(":")[1];
+      receivers.addAll(getSpacesMembers(spaceGroupId));
     }
     receivers = receivers.stream().distinct().collect(Collectors.toList());
     receivers.remove(requester);
