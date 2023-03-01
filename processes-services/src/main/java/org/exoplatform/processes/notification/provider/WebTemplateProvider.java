@@ -83,12 +83,13 @@ public class WebTemplateProvider extends TemplateProvider {
       String requestCommentUrl = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_COMMENT_URL.getKey());
       String language = getLanguage(notificationInfo);
       TemplateContext templateContext = TemplateContext.newChannelInstance(getChannelKey(), pluginId, language);
+      String commentText = NotificationUtils.formatMention(comment);
 
       templateContext.put("PROCESS_TITLE", processTitle);
       templateContext.put("REQUEST_TITLE", requestTitle);
       templateContext.put("REQUEST_COMMENT_AUTHOR", commentAuthor);
       templateContext.put("REQUEST_COMMENT_URL", requestCommentUrl);
-      templateContext.put("REQUEST_COMMENT", comment);
+      templateContext.put("REQUEST_COMMENT", commentText);
       buildCommonTemplateParams(templateContext, notificationInfo, language, commentAuthor);
 
       String body = TemplateUtils.processGroovy(templateContext);
