@@ -1,5 +1,19 @@
 package org.exoplatform.processes.notification.plugin;
 
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mockStatic;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.junit.MockitoJUnitRunner;
+
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.model.NotificationInfo;
 import org.exoplatform.commons.notification.impl.NotificationContextImpl;
@@ -10,25 +24,16 @@ import org.exoplatform.processes.notification.utils.NotificationArguments;
 import org.exoplatform.processes.notification.utils.NotificationUtils;
 import org.exoplatform.processes.service.ProcessesService;
 import org.exoplatform.services.idgenerator.IDGeneratorService;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-
-import java.util.*;
-
-import static org.junit.Assert.*;
-import static org.powermock.api.mockito.PowerMockito.when;
 
 
-@RunWith(PowerMockRunner.class)
-@PowerMockIgnore({ "javax.management.*" })
-@PrepareForTest({ CommonsUtils.class, NotificationUtils.class, CommonsUtils.class, ExoContainerContext.class })
+@RunWith(MockitoJUnitRunner.class)
 public class CancelRequestPluginTest {
+
+  private static final MockedStatic<CommonsUtils>        COMMONS_UTILS       = mockStatic(CommonsUtils.class);
+
+  private static final MockedStatic<ExoContainerContext> EXO_CONTAINER_CONTEXT = mockStatic(ExoContainerContext.class);
+
+  private static final MockedStatic<NotificationUtils>   NOTIFICATION_UTILS   = mockStatic(NotificationUtils.class);
 
   @Mock
   private InitParams          initParams;
@@ -38,14 +43,18 @@ public class CancelRequestPluginTest {
 
   private CancelRequestPlugin cancelRequestPlugin;
 
+  @AfterClass
+  public static void afterRunBare() throws Exception { // NOSONAR
+    COMMONS_UTILS.close();
+    EXO_CONTAINER_CONTEXT.close();
+    NOTIFICATION_UTILS.close();
+  }
+
   @Before
   public void setUp() throws Exception {
     this.cancelRequestPlugin = new CancelRequestPlugin(initParams);
-    PowerMockito.mockStatic(CommonsUtils.class);
-    PowerMockito.mockStatic(NotificationUtils.class);
-    PowerMockito.mockStatic(ExoContainerContext.class);
-    when(ExoContainerContext.getService(IDGeneratorService.class)).thenReturn(null);
-    when(CommonsUtils.getService(ProcessesService.class)).thenReturn(processesService);
+    EXO_CONTAINER_CONTEXT.when(() -> ExoContainerContext.getService(IDGeneratorService.class)).thenReturn(null);
+    COMMONS_UTILS.when(() -> CommonsUtils.getService(ProcessesService.class)).thenReturn(processesService);
   }
 
   @Test
@@ -57,7 +66,7 @@ public class CancelRequestPluginTest {
     receivers.add("user1");
     receivers.add("user2");
     ctx.append(NotificationArguments.PROCESS_URL, "http://exoplatfrom.com/dw/tasks/projectDetail/1");
-    when(NotificationUtils.getReceivers(1l , "root", true)).thenReturn(receivers);
+    NOTIFICATION_UTILS.when(() -> NotificationUtils.getReceivers(1l , "root", true)).thenReturn(receivers);
     NotificationInfo notificationInfo = cancelRequestPlugin.makeNotification(ctx);
     assertEquals("root", notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_CREATOR.getKey()));
     assertEquals("http://exoplatfrom.com/dw/tasks/projectDetail/1",

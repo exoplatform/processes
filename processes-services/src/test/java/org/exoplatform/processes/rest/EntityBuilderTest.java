@@ -2,6 +2,7 @@ package org.exoplatform.processes.rest;
 
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
@@ -10,13 +11,13 @@ import java.util.List;
 
 import javax.ws.rs.ext.RuntimeDelegate;
 
+import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.MockedStatic;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.CommonsUtils;
@@ -40,21 +41,34 @@ import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.task.service.StatusService;
 
-@RunWith(PowerMockRunner.class)
+@RunWith(MockitoJUnitRunner.Silent.class)
 public class EntityBuilderTest {
 
-  @Mock
-  private IdentityManager            identityManager;
+  private static final MockedStatic<CommonsUtils>   COMMONS_UTILS   = mockStatic(CommonsUtils.class);
+
+  private static final MockedStatic<RestUtils>      REST_UTILS      = mockStatic(RestUtils.class);
+
+  private static final MockedStatic<ProcessesUtils> PROCESSES_UTILS = mockStatic(ProcessesUtils.class);
 
   @Mock
-  private ProcessesService           processesService;
+  private IdentityManager                           identityManager;
 
   @Mock
-  private ProcessesAttachmentService processesAttachmentService;
+  private ProcessesService                          processesService;
 
-  private ProcessesRest              processesRest;
+  @Mock
+  private ProcessesAttachmentService                processesAttachmentService;
 
-  private IdentityRegistry           identityRegistry;
+  private ProcessesRest                             processesRest;
+
+  private IdentityRegistry                          identityRegistry;
+
+  @AfterClass
+  public static void afterRunBare() throws Exception { // NOSONAR
+    COMMONS_UTILS.close();
+    REST_UTILS.close();
+    PROCESSES_UTILS.close();
+  }
 
   @Before
   public void setUp() {
@@ -64,13 +78,9 @@ public class EntityBuilderTest {
   }
 
   @Test
-  @PrepareForTest({ RestUtils.class, CommonsUtils.class, ProcessesUtils.class })
   public void toRestEntities() throws Exception {
     StatusService statusService = mock(StatusService.class);
     List<WorkFlow> workFlows = new ArrayList<>();
-    PowerMockito.mockStatic(RestUtils.class);
-    PowerMockito.mockStatic(CommonsUtils.class);
-    PowerMockito.mockStatic(ProcessesUtils.class);
     Space space = new Space();
     space.setId("test");
     space.setPrettyName("test");
@@ -98,10 +108,10 @@ public class EntityBuilderTest {
     ProcessesFilter processesFilter = new ProcessesFilter();
     processesFilter.setQuery("test");
     processesFilter.setEnabled(true);
-    when(CommonsUtils.getService(StatusService.class)).thenReturn(statusService);
-    when(CommonsUtils.getService(IdentityManager.class)).thenReturn(identityManager);
-    when(ProcessesUtils.getProjectParentSpace(workFlow.getProjectId())).thenReturn(space);
-    when(RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    COMMONS_UTILS.when(() -> CommonsUtils.getService(StatusService.class)).thenReturn(statusService);
+    COMMONS_UTILS.when(() -> CommonsUtils.getService(IdentityManager.class)).thenReturn(identityManager);
+    PROCESSES_UTILS.when(() -> ProcessesUtils.getProjectParentSpace(workFlow.getProjectId())).thenReturn(space);
+    REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
     when(processesService.getWorkFlows(processesFilter, 0, 10, 1L)).thenReturn(workFlows);
     when(identityManager.getOrCreateSpaceIdentity("test")).thenReturn(spaceIdentity);
     EntityBuilder.toEntity(workFlow);
@@ -111,12 +121,11 @@ public class EntityBuilderTest {
     List<WorkFlow> fromRestEntities = EntityBuilder.fromRestEntities(workFlowEntities);
     assertNotNull(fromRestEntities);
     List<WorkFlowEntity> toRestEntities = EntityBuilder.toRestEntities(workFlows, "test");
-    processesRest.getWorkFlows(1L, true, null,"test", "test", 0, 10);
+    processesRest.getWorkFlows(1L, true, null, "test", "test", 0, 10);
     assertNotNull(toRestEntities);
   }
 
   @Test
-  @PrepareForTest({ CommonsUtils.class, ProcessesUtils.class })
   public void toWorkEntity() throws ObjectNotFoundException, IllegalAccessException {
 
     String username = "testuser";
