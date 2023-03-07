@@ -1,5 +1,20 @@
 package org.exoplatform.processes.Utils;
 
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.when;
+
+import java.util.HashSet;
+import java.util.Set;
+
+import org.junit.AfterClass;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.mockito.junit.MockitoJUnitRunner;
+
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.processes.entity.WorkFlowEntity;
 import org.exoplatform.processes.model.WorkFlow;
@@ -8,19 +23,13 @@ import org.exoplatform.services.organization.GroupHandler;
 import org.exoplatform.services.organization.OrganizationService;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-import java.util.*;
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.when;
 
-@RunWith(PowerMockRunner.class)
+@RunWith(MockitoJUnitRunner.Silent.class)
 public class EntityMapperTest {
+
+  private static final MockedStatic<CommonsUtils>                                             COMMONS_UTILS             =
+                                                                                                            mockStatic(CommonsUtils.class);
+
   @Mock
   private OrganizationService organizationService;
 
@@ -39,12 +48,15 @@ public class EntityMapperTest {
   @Mock
   private GroupHandler        groupHandler;
 
+  @AfterClass
+  public static void afterRunBare() throws Exception { // NOSONAR
+    COMMONS_UTILS.close();
+  }
+
   @Test
-  @PrepareForTest({ CommonsUtils.class })
   public void fromEntity() throws Exception {
-    PowerMockito.mockStatic(CommonsUtils.class);
-    when(CommonsUtils.getService(OrganizationService.class)).thenReturn(organizationService);
-    when(CommonsUtils.getService(SpaceService.class)).thenReturn(spaceService);
+    COMMONS_UTILS.when(() -> CommonsUtils.getService(OrganizationService.class)).thenReturn(organizationService);
+    COMMONS_UTILS.when(() -> CommonsUtils.getService(SpaceService.class)).thenReturn(spaceService);
     when(spaceService.getSpaceByGroupId("web-contributors")).thenReturn(null);
     when(spaceService.getSpaceByGroupId("/platform/administrators")).thenReturn(null);
     Space testSpace = Mockito.mock(Space.class);
