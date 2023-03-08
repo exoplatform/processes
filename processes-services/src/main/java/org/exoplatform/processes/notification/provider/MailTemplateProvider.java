@@ -98,12 +98,13 @@ public class MailTemplateProvider extends TemplateProvider {
       String requestCommentUrl = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_COMMENT_URL.getKey());
       String language = getLanguage(notificationInfo);
       TemplateContext templateContext = TemplateContext.newChannelInstance(getChannelKey(), pluginId, language);
+      String commentText = NotificationUtils.formatMention(comment);
 
       templateContext.put("PROCESS_TITLE", encoder.encode(processTitle));
       templateContext.put("REQUEST_TITLE", encoder.encode(requestTitle));
       templateContext.put("REQUEST_COMMENT_AUTHOR", encoder.encode(commentAuthor));
       templateContext.put("REQUEST_COMMENT_URL", encoder.encode(requestCommentUrl));
-      templateContext.put("REQUEST_COMMENT", encoder.encode(comment));
+      templateContext.put("REQUEST_COMMENT", commentText);
       buildCommonTemplateParams(templateContext, notificationInfo, language, commentAuthor, encoder);
 
       String subject = TemplateUtils.processSubject(templateContext);

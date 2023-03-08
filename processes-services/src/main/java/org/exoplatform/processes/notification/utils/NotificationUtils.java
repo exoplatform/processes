@@ -18,6 +18,8 @@ package org.exoplatform.processes.notification.utils;
 
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.commons.utils.ListAccess;
+import org.exoplatform.portal.config.UserPortalConfigService;
+import org.exoplatform.portal.webui.util.Util;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.service.ProcessesService;
 import org.exoplatform.services.log.ExoLogger;
@@ -31,6 +33,7 @@ import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.service.LinkProvider;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
+import org.exoplatform.social.core.utils.MentionUtils;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -142,5 +145,17 @@ public class NotificationUtils {
     receivers = receivers.stream().distinct().collect(Collectors.toList());
     receivers.remove(requester);
     return receivers;
+  }
+
+  public static String formatMention(String comment){
+    UserPortalConfigService userPortalConfigService = CommonsUtils.getService(UserPortalConfigService.class);
+    String portalOwner = null;
+    try {
+      portalOwner = Util.getPortalRequestContext().getPortalOwner();
+    } catch (Exception e){
+      //default value for testing and social
+      portalOwner = userPortalConfigService.getDefaultPortal();
+    }
+    return MentionUtils.substituteUsernames(portalOwner, comment);
   }
 }
