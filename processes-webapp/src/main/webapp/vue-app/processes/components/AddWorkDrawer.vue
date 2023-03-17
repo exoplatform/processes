@@ -70,7 +70,7 @@
               v-model="valid"
               ref="form"
               id="add-work-form">
-              <div>
+              <div class="work-message">
                 <p class="mt-5 font-weight-bold">{{ $t('processes.work.message.to.manager') }}</p>
                 <p
                   v-if="!showEditor"
