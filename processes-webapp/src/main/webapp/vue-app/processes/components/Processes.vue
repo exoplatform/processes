@@ -47,23 +47,31 @@
     </div>
     <v-alert
       v-model="alert"
-      :icon="type === 'warning' && !isMobileAlert ? 'mdi-alert-circle' : ''"
       :colored-border="isMobileAlert"
       :border="isMobileAlert? 'top' : ''"
       :color="type"
       :type="!isMobileAlert? type: ''"
       :class="isMobileAlert? 'processes-alert-mobile': ''"
       :dismissible="!isMobileAlert">
+      <template #prepend>
+        <v-icon
+          v-if="!isMobile"
+          class="me-2"
+          size="22">
+          fa-exclamation-circle
+        </v-icon>
+        <span v-else/>
+      </template>
       <v-row align="center">
-        <v-col class="grow pt-0 pb-0">
+        <v-col class="grow pt-0 pb-0 mt-1">
           {{ message }}
         </v-col>
         <v-col
           v-if="messageAction"
-          class="shrink">
+          class="shrink pa-0">
           <v-btn
             @click="handleMessageAction"
-            class="primary--text me-2 mt-0 mt-n5 pa-0 position-absolute"
+            class="primary--text"
             text>
             {{ messageActionLabel }}
           </v-btn>
@@ -71,7 +79,7 @@
       </v-row>
       <template #close="{ toggle }">
         <v-btn
-          class="processes-alert-close-btn pl-2"
+          class="processes-alert-close-btn ms-n10"
           v-if="!isMobileAlert"
           icon
           @click="handleMessageClose(toggle)">
