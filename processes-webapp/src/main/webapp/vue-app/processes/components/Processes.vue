@@ -126,7 +126,7 @@ export default {
       allWorkDrafts: [],
       completedWorks: [],
       query: null,
-      enabled: true,
+      enabled: null,
       manager: false,
       status: null,
       offset: 0,
@@ -153,7 +153,11 @@ export default {
     this.$processesService.initCometd();
     this.$processesService.isProcessesManager().then(value => {
       this.isManager = value === 'true';
-    }).finally(() => this.initializing = false);
+    }).finally(() => {
+      this.initializing = false;
+      this.enabled = this.isManager ? null : true;
+      this.getWorkFlows();
+    });
     this.$processesService.getAvailableWorkStatuses().then(statuses => {
       this.availableWorkStatuses = statuses;
     });
@@ -181,7 +185,6 @@ export default {
     },
   },
   created() {
-    this.getWorkFlows();
     this.handleTabChanges();
     window.addEventListener('popstate', this.handleTabChanges);
     this.$root.$on('show-alert', alert => {
@@ -205,21 +208,34 @@ export default {
     this.$root.$on('workflow-filter-changed', event => {
       this.workflows = [];
       this.query = event.query;
-      switch (event.filter)
-      {
-      case 'deactivated':
-        this.enabled = false;
-        this.manager =false;
-        break;
-      case 'manager':
-        this.manager = true;
-        this.enabled = true;
-        break;
-      default:
-        this.enabled = true;
-        this.manager =false;
+      if (this.isManager) {
+        switch (event.filter)
+        {
+        case 'deactivated':
+          this.manager = false;
+          this.enabled = false;
+          break;
+        case 'manager':
+          this.manager = true;
+          this.enabled = null;
+          break;
+        case 'activated':
+          this.manager = false;
+          this.enabled = true;
+          break;
+        default:
+          this.manager = false;
+          this.enabled = null;
+        }
+      } else {
+        if (event.filter === 'manager') {
+          this.manager = true;
+          this.enabled = true;
+        } else {
+          this.manager = false;
+          this.enabled = true;
+        }
       }
-
       this.getWorkFlows();
     });
     this.$root.$on('show-confirm-action', event => {
@@ -335,19 +351,13 @@ export default {
         if ((this.enabled == null && !this.query)||this.workflows.length){
           this.showProcessFilter = this.workflows.length > 0;
         }
-        else {
-          this.$processesService.getWorkFlows().then(workflows =>{
-            this.showProcessFilter = workflows.length > 0;});
-        }
-      }
-      else if (this.query){
+      } else {
         const filter = {};
         filter.enabled = true;
+        filter.manager = false;
+        this.query = '';
         this.$processesService.getWorkFlows(filter).then(workflows =>{
           this.showProcessFilter = workflows.length > 0;});
-      }
-      else {
-        this.showProcessFilter = this.workflows.length > 0;
       }
     },
     handleTabChanges() {
