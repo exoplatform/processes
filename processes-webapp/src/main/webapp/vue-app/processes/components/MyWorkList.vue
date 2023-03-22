@@ -24,12 +24,12 @@
             @keyup="updateFilter"
             v-model="query"
             :placeholder="$t('processes.work.filter.query.placeholder')"
-            prepend-inner-icon="mdi-filter" >
+            prepend-inner-icon="mdi-filter">
             <template #append>
               <btn
-                  v-if="query"
-                  @click="resetQueryInput"
-                  icon>
+                v-if="query"
+                @click="resetQueryInput"
+                icon>
                 <v-icon class="mt-1">
                   fa-times
                 </v-icon>

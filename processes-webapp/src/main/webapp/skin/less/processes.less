@@ -382,14 +382,16 @@
       min-height: 140px;
     }
 
-    .work-description {
-      min-height: 150px;
-      word-break: break-word;
-
+    .work-description, .work-message {
       ul li {
         list-style-position: inside;
         list-style-type: disc;
       }
+    }
+
+    .work-description {
+      min-height: 150px;
+      word-break: break-word;
 
       .uiIconMessageLength {
         font-size: 14px;
@@ -530,6 +532,11 @@
 
 .work-description-tooltip {
   max-width: 388px;
+
+  ul li {
+    list-style-position: inside;
+    list-style-type: disc;
+  }
 
   p:last-child {
     margin-bottom: 0 !important;
