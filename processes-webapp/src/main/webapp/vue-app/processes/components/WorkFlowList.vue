@@ -327,7 +327,9 @@ export default {
       if (this.isProcessesManager) {
         this.filterItems.push({label: this.$t('processes.workflow.activated.label'), value: 'activated'});
         this.filterItems.push({label: this.$t('processes.workflow.deactivated.label'), value: 'deactivated'});
-      } 
+      }
+      this.filterItems.push({label: this.$t('processes.workflow.manager.label'), value: 'manager' });
+      this.filterItems.push({label: this.$t('processes.workflow.all.label'), value: null});
     }
   }
 };
