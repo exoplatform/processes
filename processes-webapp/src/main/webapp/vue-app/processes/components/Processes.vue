@@ -156,7 +156,7 @@ export default {
     }).finally(() => {
       this.initializing = false;
       this.enabled = this.isManager ? null : true;
-      this.getWorkFlows();
+      this.getWorkFlows({ 'enabled': this.enabled});
     });
     this.$processesService.getAvailableWorkStatuses().then(statuses => {
       this.availableWorkStatuses = statuses;
@@ -428,12 +428,16 @@ export default {
         }
       });
     },
-    getWorkFlows() {
-      const filter = {};
+    getWorkFlows(filter) {
+      if (!filter) {
+        filter = {};
+      }
       if (this.query) {
         filter.query = this.query;
       }
-      filter.enabled = this.enabled;
+      if (!filter.enabled) {
+        filter.enabled = this.enabled;
+      }
       filter.manager = this.manager;
       const expand = '';
       this.limit = this.limit || this.pageSize;
