@@ -315,6 +315,14 @@ export default {
       this.$root.$emit('workflow-filter-changed', {filter: this.filter.value, query: this.query});
     },
     init(){
+      if (!this.isProcessesManager) {
+        const filter = {};
+        filter.enabled = true;
+        filter.manager = true;
+        this.$processesService.getWorkFlows(filter).then(workflows =>{
+          this.isMemberSpaceManager = workflows.length > 0;
+        });
+      }
       this.filter = this.isProcessesManager ? {label: this.$t('processes.workflow.activated.label'), value: 'activated'} : {label: this.$t('processes.workflow.all.label'), value: null};
       if (this.isProcessesManager) {
         this.filterItems.push({label: this.$t('processes.workflow.activated.label'), value: 'activated'});
