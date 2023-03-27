@@ -156,7 +156,7 @@ export default {
     }).finally(() => {
       this.initializing = false;
       this.enabled = this.isManager ? null : true;
-      this.getWorkFlows({ 'enabled': this.enabled});
+      this.getWorkFlows({ 'enabled': true});
     });
     this.$processesService.getAvailableWorkStatuses().then(statuses => {
       this.availableWorkStatuses = statuses;
