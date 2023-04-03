@@ -78,7 +78,7 @@
               <v-img :src="workflowAvatarUrl" />
             </v-avatar>
             <span
-              class="work-title-text ms-2 position-relative"
+              class="work-title-text ms-2"
               :class="workObject.completed? 'text-decoration-line-through': ''">
               {{ workObject.workFlow.title }}
             </span>
