@@ -76,7 +76,8 @@
                   v-if="!showEditor"
                   @click="showRequestEditor"
                   v-sanitized-html="workDescription || $t('processes.work.message.to.manager.placeholder')"
-                  class="grey--text text--darken-1 text-break">
+                  :class="workDescription?'':'grey--text'"
+                  class="text--darken-1 text-break">
                 </p>
                 <div v-else>
                   <request-editor
