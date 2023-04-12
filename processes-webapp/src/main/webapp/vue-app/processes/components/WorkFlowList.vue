@@ -6,6 +6,7 @@
         :class="isMobile? 'pe-5': 'pe-0'"
         no-gutters>
         <v-col
+        id="workflowFilter"
           v-if="!showMobileFilter || !isMobile"
           :cols="2"
           md="4"
@@ -46,6 +47,7 @@
             item-text="label"
             item-value="value"
             return-object
+            attach
             @blur="$refs.filter.blur();"
             @change="updateFilter"
             dense
@@ -65,6 +67,7 @@
           </v-btn>
           <v-text-field
             v-if="!isMobile"
+            id="workflow-filter-query"
             class="me-4 workflow-filter-query filter-query-width float-e"
             @keyup="filterByQuery"
             v-model="query"
