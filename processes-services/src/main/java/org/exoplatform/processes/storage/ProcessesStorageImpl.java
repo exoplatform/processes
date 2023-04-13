@@ -574,6 +574,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   public List<WorkFlow> findWorkFlows(ProcessesFilter processesFilter, long userIdentityId, int offset, int limit) {
     String userName = "";
     List<String> memberships = new ArrayList<>();
+    boolean isMemberProcessesGroup = false;
     if (userIdentityId > 0) {
       Identity identity = identityManager.getIdentity(String.valueOf(userIdentityId));
       if (identity != null) {
@@ -583,9 +584,9 @@ public class ProcessesStorageImpl implements ProcessesStorage {
           Collection<Membership> ms = organizationService.getMembershipHandler().findMembershipsByUser(userName);
           if (ms != null) {
             for (Membership membership : ms) {
+              isMemberProcessesGroup = false;
               if (membership.getGroupId().equals(PROCESSES_GROUP)) {
-                memberships = null;
-                break;
+                isMemberProcessesGroup = true;
               }
               String membership_ = membership.getMembershipType() + ":" + membership.getGroupId();
               memberships.add(membership_);
@@ -596,7 +597,12 @@ public class ProcessesStorageImpl implements ProcessesStorage {
         }
       }
     }
-    List<WorkFlowEntity> workFlowEntities = workFlowDAO.findWorkFlows(processesFilter, memberships, offset, limit);
+    List<WorkFlowEntity> workFlowEntities;
+    if (isMemberProcessesGroup) {
+      workFlowEntities = workFlowDAO.findWorkFlows(processesFilter, null, offset, limit);
+    } else {
+      workFlowEntities = workFlowDAO.findWorkFlows(processesFilter, memberships, offset, limit);
+    }
     List<WorkFlow> workFlows = new ArrayList<>();
     List<String> finalMemberships = memberships;
     workFlowEntities.forEach(workflowEntity -> {
