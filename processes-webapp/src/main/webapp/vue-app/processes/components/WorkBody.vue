@@ -147,8 +147,8 @@
           cols="6"
           md="4"
           class="pa-0 ma-0 text-align-center text-truncate work-status-col font-weight-bold"
-          :lg="isDraft? '2': '3'"
-          :xl="isDraft? '2': '3'">
+          lg="2"
+          xl="2">
           <request-status
             :is-completed="workObject.completed"
             :is-draft="isDraft"
@@ -158,8 +158,8 @@
           cols="6"
           md="4"
           class="pa-0 ma-0 text-align-end"
-          :xl="isDraft?'2':'1'"
-          :lg="isDraft?'2':'1'">
+          xl="2"
+          lg="2">
           <v-btn
             v-if="isDraft"
             @click="openDraft"
