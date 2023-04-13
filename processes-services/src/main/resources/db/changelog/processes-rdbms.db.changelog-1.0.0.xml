@@ -130,4 +130,9 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.-->
         </modifySql>
     </changeSet>
 
+    <changeSet author="processes" id="1.0.0-8">
+        <modifyDataType tableName="WORK_FLOW_MANAGERS" columnName="MANAGER" newDataType="NVARCHAR(300)"/>
+        <modifyDataType tableName="WORK_FLOW_PARTICIPATOR" columnName="PARTICIPATOR" newDataType="NVARCHAR(300)"/>
+    </changeSet>
+
 </databaseChangeLog>
