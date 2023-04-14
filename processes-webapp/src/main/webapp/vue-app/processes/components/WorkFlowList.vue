@@ -6,7 +6,7 @@
         :class="isMobile? 'pe-5': 'pe-0'"
         no-gutters>
         <v-col
-        id="workflowFilter"
+          id="workflowFilter"
           v-if="!showMobileFilter || !isMobile"
           :cols="2"
           md="4"
