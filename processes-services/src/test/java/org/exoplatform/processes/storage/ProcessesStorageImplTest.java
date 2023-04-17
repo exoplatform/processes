@@ -680,6 +680,18 @@ public class ProcessesStorageImplTest {
 
     when(organizationService.getMembershipHandler().findMembershipsByUser(identity.getRemoteId())).thenReturn(memberships_);
     assertEquals(1, this.processesStorage.findWorkFlows(filter, Long.parseLong(identity.getId()), 0, 0).size());
+
+    MembershipImpl adminProcesses = new MembershipImpl();
+    adminProcesses.setMembershipType("*");
+    adminProcesses.setUserName("user");
+    adminProcesses.setGroupId("/platform/processes");
+    memberships_.add(adminProcesses);
+
+    PROCESSES_UTILS.when(() -> ProcessesUtils.getProjectParentSpace(workFlow.getProjectId())).thenReturn(space);
+    ENTITY_MAPPER.when(() -> EntityMapper.fromEntity(newWorkFlowEntity1, null)).thenReturn(workFlow);
+
+    when(organizationService.getMembershipHandler().findMembershipsByUser(identity.getRemoteId())).thenReturn(memberships_);
+    assertEquals(0, this.processesStorage.findWorkFlows(filter, Long.parseLong(identity.getId()), 0, 0).size());
   }
 
   @Test
