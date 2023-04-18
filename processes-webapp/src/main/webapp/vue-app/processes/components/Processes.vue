@@ -283,7 +283,13 @@ export default {
       }
     });
     document.addEventListener('Task-comments-drawer-closed', () => {
-      const url = `${eXo.env.portal.context}/${eXo.env.portal.portalName}/processes/myRequests`;
+      const urlInst = window.location.href;
+      if (urlInst.includes('comments')) {
+        const tab = urlInst.split('/');
+        const workId = tab[tab.length - 2];
+        this.openWorkDetails(workId);
+      }
+      const url = `${eXo.env.portal.context}/${eXo.env.portal.portalName}/processes/myRequests`;  
       window.history.pushState('myRequests', '', url);
     });
     this.$root.$on('processes-attachments-notification-alert', event => {
