@@ -161,14 +161,14 @@ export default {
       }
     },
     setFocus: function() {
-      if (this.editorReady) {
-        window.setTimeout(() => {
+      window.setTimeout(() => {
+        if (this.editorReady) {
           const range = this.editor.createRange();
           range.moveToElementEditablePosition(range.root, true);
           this.editor.getSelection().selectRanges([range]);
           this.$nextTick().then(() => this.editor.focus());
-        }, 200);
-      }
+        }
+      }, 1000);
     },
     getMessage: function() {
       const newData = this.editor && this.editor.getData();
