@@ -11,7 +11,7 @@
           <span
             v-bind="attrs"
             v-on="on"
-            class="text-truncate ">
+            class="text-truncate cursor-default">
             {{ translatedLabel }}
           </span>
         </template>
