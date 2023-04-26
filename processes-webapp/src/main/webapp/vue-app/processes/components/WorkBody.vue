@@ -70,7 +70,7 @@
           <div
             :class="!isDraft? 'ms-6':''"
             class="text-truncate"
-            @click="openRequest">
+            @click="openRequest(false)">
             <v-avatar
               v-if="workflowAvatarUrl"
               class="ms-2 me-n1"
@@ -133,9 +133,18 @@
             bottom>
             <template #activator="{ on, attrs }">
               <span
+                v-if="workDescription"
                 v-bind="attrs"
-                v-on="on">
+                v-on="on"
+                @click="openRequest(true)">
                 {{ workDescription }}
+              </span>
+              <span
+                v-else
+                class="grey--text"
+                v-bind="attrs"
+                @click="openRequest(true)">
+                {{ $t('processes.work.description.empty') }}
               </span>
             </template>
             <p
@@ -241,8 +250,11 @@ export default {
     updateCompleted() {
       this.$emit('update-work-completed');
     },
-    openRequest() {
+    openRequest(showEditor) {
       this.$emit('open-request');
+      if (showEditor) {
+        this.$root.$emit('can-show-request-editor');
+      }
     },
     openCommentsDrawer() {
       this.$emit('open-comments-drawer');
