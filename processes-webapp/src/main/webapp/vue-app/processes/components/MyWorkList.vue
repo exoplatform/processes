@@ -14,6 +14,7 @@
             item-text="label"
             item-value="value"
             return-object
+            attach
             @blur="$refs.filter.blur();"
             @change="updateFilter"
             dense
