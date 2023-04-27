@@ -64,9 +64,16 @@ export default {
       };
     },
     searchOptions() {
-      return {
-        filterType: 'all',
-      };
+      if (eXo.env.portal.isAdministrator) {
+        return {
+          filterType: 'all',
+        };
+      } else {
+        return {
+          filterType: 'member',
+        };
+      }
+      
     },
   },
   watch: {
