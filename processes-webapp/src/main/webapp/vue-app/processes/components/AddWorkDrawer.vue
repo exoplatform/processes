@@ -302,6 +302,12 @@ export default {
         this.viewMode = false;
         this.editDraft = true;
         this.firstCreation = false;
+        this.$root.$on('can-show-request-editor',() => {
+          this.showEditor = true;
+          window.setTimeout(() => {
+            this.$refs?.requestEditor?.setFocus();
+          }, 200);
+        });
       } else {
         this.viewDraft = isDraft || false;
         this.editDraft = false;
