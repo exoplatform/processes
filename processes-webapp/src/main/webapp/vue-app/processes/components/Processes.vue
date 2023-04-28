@@ -529,7 +529,8 @@ export default {
       this.saving = true;
       this.$processesService.addNewWorkFlow(workflow).then(workflow => {
         if (workflow){
-          this.$root.$emit('workflow-added', {workflow: workflow, filter: this.enabled});
+          this.getWorkFlows(workflow);
+          this.$root.$emit('workflow-added');
           this.displayMessage({type: 'success', message: this.$t('processes.workflow.add.success.message')});
           this.showProcessFilter = true;
         }

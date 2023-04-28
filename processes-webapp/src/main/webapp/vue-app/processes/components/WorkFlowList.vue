@@ -234,11 +234,6 @@ export default {
   },
   created() {
     this.init();
-    this.$root.$on('workflow-added', (event) => {
-      if (event.filter == null || event.workflow.enabled === event.filter) {
-        this.workflowList.unshift(event.workflow);
-      }
-    });
     this.$root.$on('workflow-updated', (workflow) => {
       workflow = JSON.parse(workflow);
       const index = this.workflowList.map(workflow => workflow.id).indexOf(workflow.id);
