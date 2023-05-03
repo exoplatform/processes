@@ -4,9 +4,9 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <artifactId>addons-parent-pom</artifactId>
+        <artifactId>addons-parent-exo-pom</artifactId>
         <groupId>org.exoplatform.addons</groupId>
-        <version>17-exo-M01</version>
+        <version>17-security-fix-SNAPSHOT</version>
     </parent>
     <groupId>org.exoplatform.processes</groupId>
     <artifactId>processes-parent</artifactId>
@@ -28,11 +28,6 @@
     <properties>
         <!-- 3rd party libraries versions -->
         <addon.exo.ecms.version>6.5.x-SNAPSHOT</addon.exo.ecms.version>
-        <org.exoplatform.social.version>6.5.x-exo-SNAPSHOT</org.exoplatform.social.version>
-        <org.exoplatform.platform-ui.version>6.5.x-exo-SNAPSHOT</org.exoplatform.platform-ui.version>
-        <addon.exo.tasks.version>3.5.x-exo-SNAPSHOT</addon.exo.tasks.version>
-        <addon.exo.analytics.version>1.4.x-exo-SNAPSHOT</addon.exo.analytics.version>
-
         <!-- Sonar properties -->
     <sonar.organization>exoplatform</sonar.organization>
     </properties>
@@ -42,34 +37,6 @@
                 <groupId>org.exoplatform.ecms</groupId>
                 <artifactId>ecms</artifactId>
                 <version>${addon.exo.ecms.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.exoplatform.social</groupId>
-                <artifactId>social</artifactId>
-                <version>${org.exoplatform.social.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.exoplatform.addons.task</groupId>
-                <artifactId>task-management-parent</artifactId>
-                <version>${addon.exo.tasks.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.exoplatform.platform-ui</groupId>
-                <artifactId>platform-ui</artifactId>
-                <version>${org.exoplatform.platform-ui.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.exoplatform.addons.analytics</groupId>
-                <artifactId>analytics-parent</artifactId>
-                <version>${addon.exo.analytics.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
