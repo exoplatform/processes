@@ -65,7 +65,7 @@ public class MailTemplateProvider extends TemplateProvider {
         String processTitle = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_PROCESS.getKey());
         templateContext.put("PROCESS_TITLE", encoder.encode(processTitle));
         templateContext.put("REQUEST_TITLE", encoder.encode(requestTitle));
-        templateContext.put("REQUEST_DESCRIPTION", encoder.encode(requestDescription));
+        templateContext.put("REQUEST_DESCRIPTION", requestDescription);
       }
       templateContext.put("PROCESS_URL", encoder.encode(processUrl));
       templateContext.put("REQUEST_URL", encoder.encode(requestUrl));
