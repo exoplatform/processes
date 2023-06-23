@@ -100,7 +100,7 @@ export default {
       CKEDITOR.basePath = '/commons-extension/ckeditor/';
       const self = this;
       $(this.$refs.requestEditor).ckeditor({
-        customConfig: '/commons-extension/ckeditorCustom/config.js',
+        customConfig: `${eXo.env.portal.context}/${eXo.env.portal.rest}/richeditor/configuration?type=processes&v=${eXo.env.client.assetsVersion}`,
         extraPlugins,
         removePlugins,
         allowedContent: true,
