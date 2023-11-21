@@ -18,6 +18,10 @@
           <name>system</name>
           <value>true</value>
         </value-param>
+        <value-param>
+          <name>merge</name>
+          <value>true</value>
+        </value-param>
         <object-param>
           <name>tools</name>
           <description>description</description>
