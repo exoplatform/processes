@@ -35,6 +35,7 @@ const config = {
   ],
   entry: {
     processes: './src/main/webapp/vue-app/processes/main.js',
+    notificationExtension: './src/main/webapp/vue-app/notification-extension/main.js',
   },
   output: {
     path: path.join(__dirname, 'target/processes/'),

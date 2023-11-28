@@ -25,23 +25,22 @@ import org.exoplatform.processes.notification.utils.NotificationUtils;
 import org.exoplatform.processes.service.ProcessesService;
 import org.exoplatform.services.idgenerator.IDGeneratorService;
 
-
 @RunWith(MockitoJUnitRunner.class)
 public class CancelRequestPluginTest {
 
-  private static final MockedStatic<CommonsUtils>        COMMONS_UTILS       = mockStatic(CommonsUtils.class);
+  private static final MockedStatic<CommonsUtils>        COMMONS_UTILS         = mockStatic(CommonsUtils.class);
 
   private static final MockedStatic<ExoContainerContext> EXO_CONTAINER_CONTEXT = mockStatic(ExoContainerContext.class);
 
-  private static final MockedStatic<NotificationUtils>   NOTIFICATION_UTILS   = mockStatic(NotificationUtils.class);
+  private static final MockedStatic<NotificationUtils>   NOTIFICATION_UTILS    = mockStatic(NotificationUtils.class);
 
   @Mock
-  private InitParams          initParams;
+  private InitParams                                     initParams;
 
   @Mock
-  private ProcessesService processesService;
+  private ProcessesService                               processesService;
 
-  private CancelRequestPlugin cancelRequestPlugin;
+  private CancelRequestPlugin                            cancelRequestPlugin;
 
   @AfterClass
   public static void afterRunBare() throws Exception { // NOSONAR
@@ -61,16 +60,20 @@ public class CancelRequestPluginTest {
   public void makeNotification() {
     NotificationContext ctx = NotificationContextImpl.cloneInstance();
     ctx.append(NotificationArguments.REQUEST_CREATOR, "root");
+    ctx.append(NotificationArguments.REQUEST_PROCESS, "processTitle");
+    ctx.append(NotificationArguments.REQUEST_TITLE, "requestTitle");
     ctx.append(NotificationArguments.WORKFLOW_PROJECT_ID, "1");
     List<String> receivers = new ArrayList<>();
     receivers.add("user1");
     receivers.add("user2");
     ctx.append(NotificationArguments.PROCESS_URL, "http://exoplatfrom.com/dw/tasks/projectDetail/1");
-    NOTIFICATION_UTILS.when(() -> NotificationUtils.getReceivers(1l , "root", true)).thenReturn(receivers);
+    NOTIFICATION_UTILS.when(() -> NotificationUtils.getReceivers(1l, "root", true)).thenReturn(receivers);
     NotificationInfo notificationInfo = cancelRequestPlugin.makeNotification(ctx);
     assertEquals("root", notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_CREATOR.getKey()));
     assertEquals("http://exoplatfrom.com/dw/tasks/projectDetail/1",
                  notificationInfo.getValueOwnerParameter(NotificationArguments.PROCESS_URL.getKey()));
+    assertEquals("processTitle", notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_PROCESS.getKey()));
+    assertEquals("requestTitle", notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_TITLE.getKey()));
     assertEquals("root", notificationInfo.getFrom());
     assertEquals(receivers, notificationInfo.getSendToUserIds());
   }
