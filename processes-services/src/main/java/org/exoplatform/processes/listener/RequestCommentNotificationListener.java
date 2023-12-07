@@ -19,6 +19,8 @@ package org.exoplatform.processes.listener;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.model.PluginKey;
 import org.exoplatform.commons.notification.impl.NotificationContextImpl;
+import org.exoplatform.commons.utils.CommonsUtils;
+import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.notification.plugin.RequestCommentPlugin;
 import org.exoplatform.processes.notification.utils.NotificationArguments;
@@ -26,6 +28,7 @@ import org.exoplatform.processes.notification.utils.NotificationUtils;
 import org.exoplatform.processes.service.ProcessesService;
 import org.exoplatform.services.listener.Event;
 import org.exoplatform.services.organization.OrganizationService;
+import org.exoplatform.social.core.utils.MentionUtils;
 import org.exoplatform.task.dto.CommentDto;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.TaskDto;
@@ -53,10 +56,14 @@ public class RequestCommentNotificationListener extends TaskCommentNotificationL
     ctx.append(NotificationArguments.REQUEST_TITLE, task.getTitle());
     ctx.append(NotificationArguments.REQUEST_PROCESS, workFlow.getTitle());
     ctx.append(NotificationArguments.REQUEST_COMMENT_AUTHOR, comment.getAuthor());
-    ctx.append(NotificationArguments.REQUEST_COMMENT, comment.getComment());
+    ctx.append(NotificationArguments.REQUEST_COMMENT, MentionUtils.substituteUsernames(getPortalOwner(), comment.getComment()));
     ctx.append(NotificationArguments.PROCESS_URL, NotificationUtils.getProcessLink(project.getId()));
     ctx.append(NotificationArguments.REQUEST_COMMENT_URL, NotificationUtils.getRequestCommentsLink(task.getId()));
     ctx.getNotificationExecutor()
             .with(ctx.makeCommand(PluginKey.key(RequestCommentPlugin.ID))).execute(ctx);
+  }
+
+  private String getPortalOwner() {
+    return CommonsUtils.getService(UserPortalConfigService.class).getDefaultPortal();
   }
 }
