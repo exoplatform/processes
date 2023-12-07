@@ -34,13 +34,17 @@ public class CancelRequestPlugin extends BaseNotificationPlugin {
   protected NotificationInfo makeNotification(NotificationContext notificationContext) {
     String requester = notificationContext.value(NotificationArguments.REQUEST_CREATOR);
     String processUrl = notificationContext.value(NotificationArguments.PROCESS_URL);
+    String processTitle = notificationContext.value(NotificationArguments.REQUEST_PROCESS);
     String requestUrl = notificationContext.value(NotificationArguments.REQUEST_URL);
+    String requestTitle = notificationContext.value(NotificationArguments.REQUEST_TITLE);
     String workflowProjectId = notificationContext.value(NotificationArguments.WORKFLOW_PROJECT_ID);
     List<String> receivers = NotificationUtils.getReceivers(Long.parseLong(workflowProjectId), requester, true);
     return NotificationInfo.instance()
                            .setFrom(requester)
                            .to(receivers)
                            .with(NotificationArguments.REQUEST_CREATOR.getKey(), requester)
+                           .with(NotificationArguments.REQUEST_PROCESS.getKey(), processTitle)
+                           .with(NotificationArguments.REQUEST_TITLE.getKey(), requestTitle)
                            .with(NotificationArguments.PROCESS_URL.getKey(), processUrl)
                            .with(NotificationArguments.REQUEST_URL.getKey(), requestUrl)
                            .key(getKey())
