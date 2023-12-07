@@ -45,50 +45,6 @@
         </v-tabs-items>
       </v-card>
     </div>
-    <v-alert
-      v-model="alert"
-      :colored-border="isMobileAlert"
-      :border="isMobileAlert? 'top' : ''"
-      :color="type"
-      :type="!isMobileAlert? type: ''"
-      :class="isMobileAlert? 'processes-alert-mobile': ''"
-      :dismissible="!isMobileAlert">
-      <template #prepend>
-        <v-icon
-          v-if="!isMobile"
-          class="me-2"
-          size="22">
-          fa-exclamation-circle
-        </v-icon>
-        <span v-else/>
-      </template>
-      <v-row align="center">
-        <v-col class="grow pt-0 pb-0 mt-1">
-          {{ message }}
-        </v-col>
-        <v-col
-          v-if="messageAction"
-          class="shrink pa-0">
-          <v-btn
-            @click="handleMessageAction"
-            class="primary--text"
-            text>
-            {{ messageActionLabel }}
-          </v-btn>
-        </v-col>
-      </v-row>
-      <template #close="{ toggle }">
-        <v-btn
-          class="processes-alert-close-btn ms-n10"
-          v-if="!isMobileAlert"
-          icon
-          @click="handleMessageClose(toggle)">
-          <v-icon>
-            mdi-close-circle
-          </v-icon>
-        </v-btn>
-      </template>
-    </v-alert>
     <exo-confirm-dialog
       ref="confirmDialog"
       :title="confirmTitle"
@@ -117,7 +73,6 @@ export default {
       workComments: [],
       availableWorkStatuses: null,
       tab: 0,
-      alert: false,
       type: '',
       message: '',
       workflows: [],
@@ -191,7 +146,7 @@ export default {
       this.displayMessage(alert);
     });
     this.$root.$on('hide-alert',()=>{
-      this.alert = false;
+      this.closeAlert();
     });
     this.$root.$on('add-work', work => {
       this.addWork(work);
@@ -304,8 +259,9 @@ export default {
     });
     this.$root.$on('update-url-path',  this.handleUpdateUrlPath);
     this.$root.$on('keep-work-draft', () => {
-      this.alert = false;
+      this.closeAlert();
     });
+    document.addEventListener('alert-message-dismissed', this.handleMessageClose);
   },
   mounted() {
     window.setTimeout(() => {
@@ -342,12 +298,14 @@ export default {
         this.deleteWorkDraftById(this.messageTargetModel);
         this.messageTargetModel = null;
       }
-      this.alert = false;
     },
     handleMessageAction() {
       if (this.messageAction) {
         this.$root.$emit(this.messageAction);
       }
+    },
+    closeAlert() {
+      document.dispatchEvent(new CustomEvent('close-alert-message'));
     },
     handleUpdateUrlPath(data, path) {
       window.history.pushState(data, '', `${eXo.env.portal.context}/${eXo.env.portal.portalName}/processes${path}`);
@@ -511,19 +469,16 @@ export default {
       }).finally(() => this.loading = false);
     },
     displayMessage(alert) {
-      clearTimeout(this.messageTimer);
-      this.message = alert.message;
-      this.type = alert.type;
-      this.messageActionLabel = alert.messageActionLabel;
-      this.messageTargetModel = alert.messageTargetModel || null;
       this.messageAction = alert.messageAction || null;
-      this.alert = true;
-      this.messageTimer = setTimeout(() => {
-        if (this.alert) {
-          this.alert = false;
-          this.handleMessageClose();
+      this.messageTargetModel = alert.messageTargetModel || null;
+      document.dispatchEvent(new CustomEvent('alert-message', {
+        detail: {
+          alertMessage: alert?.message,
+          alertType: alert?.type,
+          alertLinkText: alert?.messageActionLabel,
+          alertLinkCallback: this.messageAction && this.handleMessageAction || null,
         }
-      }, 5000);
+      }));
     },
     addNewWorkFlow(workflow) {
       this.saving = true;
