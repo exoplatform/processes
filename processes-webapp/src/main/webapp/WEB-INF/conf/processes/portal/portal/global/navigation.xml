@@ -21,27 +21,26 @@
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="http://www.gatein.org/xml/ns/gatein_objects_1_6 http://www.gatein.org/xml/ns/gatein_objects_1_6"
         xmlns="http://www.gatein.org/xml/ns/gatein_objects_1_6">
-    <priority>3</priority>
-
-    <page-nodes>
-        <node>
-            <name>processes</name>
-            <label>#{portal.global.processes}</label>
-            <visibility>SYSTEM</visibility>
-            <page-reference>portal::global::processes</page-reference>
-        </node>
-    </page-nodes>
-    <page-nodes>
-        <node>
-            <name>analytics</name>
-            <label>#{analytics.navigation.Analytics}</label>
-            <visibility>SYSTEM</visibility>
-            <node>
-                <name>analyticsProcesses</name>
-                <label>#{analytics.navigation.AnalyticsProcesses}</label>
-                <visibility>DISPLAYED</visibility>
-                <page-reference>portal::global::analytics-processes</page-reference>
-            </node>
-        </node>
-    </page-nodes>
+  <priority>3</priority>
+  
+  <page-nodes>
+    <node>
+      <name>processes</name>
+      <label>#{portal.global.processes}</label>
+      <visibility>SYSTEM</visibility>
+      <page-reference>portal::global::processes</page-reference>
+    </node>
+    <node>
+      <name>analytics</name>
+      <label>#{analytics.navigation.Analytics}</label>
+      <visibility>SYSTEM</visibility>
+      <page-reference>portal::global::analytics</page-reference>
+      <node>
+        <name>analyticsProcesses</name>
+        <label>#{analytics.navigation.AnalyticsProcesses}</label>
+        <visibility>DISPLAYED</visibility>
+        <page-reference>portal::global::analytics-processes</page-reference>
+      </node>
+    </node>
+  </page-nodes>
 </node-navigation>
