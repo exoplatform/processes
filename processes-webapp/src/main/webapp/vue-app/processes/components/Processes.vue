@@ -3,7 +3,7 @@
     <div :class="isMobile ? '':'process-page'">
       <v-toolbar
         flat
-        class="mt-4 pr-4 pl-4 mb-1"
+        class="mt-4 pr-4 pl-4 mb-1 card-border-radius"
         :class="isMobile ? '':'mb-7'">
         <v-tabs
           v-model="tab"
@@ -19,9 +19,8 @@
       </v-toolbar>
       <v-card
         elevation="0"
-        class="pr-4 pl-4">
+        class="pa-5 card-border-radius">
         <v-tabs-items
-          class="mt-2 pa-4"
           v-model="tab">
           <v-tab-item>
             <workflow-list
