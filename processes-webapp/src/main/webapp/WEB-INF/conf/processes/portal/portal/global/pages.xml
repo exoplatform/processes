@@ -25,7 +25,7 @@
         <title>processes</title>
         <access-permissions>*:/platform/users</access-permissions>
         <edit-permission>*:/platform/administrators</edit-permission>
-        <container id="processesParentContainer" template="system:/groovy/portal/webui/container/UIContainer.gtmpl">
+        <container cssClass="singlePageApplication" id="processesParentContainer" template="system:/groovy/portal/webui/container/UIContainer.gtmpl">
             <access-permissions>Everyone</access-permissions>
             <container id="top-processes-container" template="system:/groovy/portal/webui/container/UIAddOnContainer.gtmpl">
                 <name>top-processes-container</name>
