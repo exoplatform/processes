@@ -1,10 +1,9 @@
 <template>
   <v-app>
-    <div :class="isMobile ? '':'process-page'">
+    <div>
       <v-toolbar
         flat
-        class="mt-4 pr-4 pl-4 mb-1"
-        :class="isMobile ? '':'mb-7'">
+        class="pr-4 pl-4 card-border-radius">
         <v-tabs
           v-model="tab"
           slider-size="4">
@@ -19,9 +18,8 @@
       </v-toolbar>
       <v-card
         elevation="0"
-        class="pr-4 pl-4">
+        class="pa-5 card-border-radius process-tab-items">
         <v-tabs-items
-          class="mt-2 pa-4"
           v-model="tab">
           <v-tab-item>
             <workflow-list
