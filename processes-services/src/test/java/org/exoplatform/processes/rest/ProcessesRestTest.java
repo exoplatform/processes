@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 import javax.jcr.ItemExistsException;
-import javax.persistence.EntityNotFoundException;
+import jakarta.persistence.EntityNotFoundException;
 import javax.ws.rs.core.EntityTag;
 import javax.ws.rs.core.Request;
 import javax.ws.rs.core.Response;
