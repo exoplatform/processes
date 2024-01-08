@@ -40,7 +40,7 @@ public class CreateRequestPlugin extends BaseNotificationPlugin {
     String requestDescription = notificationContext.value(NotificationArguments.REQUEST_DESCRIPTION);
     String requestUrl = notificationContext.value(NotificationArguments.REQUEST_URL);
     String workflowProjectId = notificationContext.value(NotificationArguments.WORKFLOW_PROJECT_ID);
-    List<String> receivers = NotificationUtils.getReceivers(Long.parseLong(workflowProjectId), requester, true);
+    List<String> receivers = NotificationUtils.getReceivers(Long.parseLong(workflowProjectId), requester, false);
     return NotificationInfo.instance()
                            .setFrom(requester)
                            .to(receivers)
