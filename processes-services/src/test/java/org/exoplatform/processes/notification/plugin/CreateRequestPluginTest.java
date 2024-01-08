@@ -69,7 +69,7 @@ public class CreateRequestPluginTest {
     List<String> receivers = new ArrayList<>();
     receivers.add("user1");
     receivers.add("user2");
-    NOTIFICATION_UTILS.when(() -> NotificationUtils.getReceivers(1l , "root", true)).thenReturn(receivers);
+    NOTIFICATION_UTILS.when(() -> NotificationUtils.getReceivers(1l , "root", false)).thenReturn(receivers);
     NotificationInfo notificationInfo = createRequestPlugin.makeNotification(ctx);
     assertEquals("root", notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_CREATOR.getKey()));
     assertEquals("http://exoplatfrom.com/dw/tasks/projectDetail/1",
