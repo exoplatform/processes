@@ -145,6 +145,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     } else if (illustrativeAttachment != null && illustrativeAttachment.isToDelete()) {
       workFlowEntity.setIllustrationImageId(null);
     }
+    workFlowEntity.setModifiedDate(new Date());
+    workFlowEntity.setModifierId(userId);
     if (workFlow.getId() == 0) {
       workFlowEntity.setId(null);
       workFlowEntity.setCreatedDate(new Date());
@@ -181,8 +183,6 @@ public class ProcessesStorageImpl implements ProcessesStorage {
         workFlowEntity.setParticipator(workFlowDAO.find(workFlowEntity.getId()).getParticipator());
       }
       workFlowEntity.setManager(getManagers(workFlow.getRequestsCreators()));
-      workFlowEntity.setModifiedDate(new Date());
-      workFlowEntity.setModifierId(userId);
       workFlowEntity = workFlowDAO.update(workFlowEntity);
     }
     processesAttachmentService.linkAttachmentsToEntity(workFlow.getAttachments(),
@@ -515,6 +515,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       throw new IllegalArgumentException("identity is not exist");
     }
     WorkEntity workEntity = EntityMapper.toEntity(work);
+    workEntity.setModifiedDate(new Date());
     if (work.getId() == 0) {
       workEntity.setId(null);
       workEntity.setCreatedDate(new Date());
@@ -527,7 +528,6 @@ public class ProcessesStorageImpl implements ProcessesStorage {
                                                          WORK_DRAFT_ENTITY_TYPE,
                                                          work.getWorkFlow().getProjectId());
     } else {
-      workEntity.setModifiedDate(new Date());
       workEntity = workDraftDAO.update(workEntity);
     }
 
