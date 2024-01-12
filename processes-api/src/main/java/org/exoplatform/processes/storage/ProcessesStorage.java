@@ -24,7 +24,7 @@ import org.exoplatform.commons.file.services.FileStorageException;
 import org.exoplatform.processes.model.*;
 import org.exoplatform.social.core.identity.model.Identity;
 
-import javax.persistence.EntityNotFoundException;
+import jakarta.persistence.EntityNotFoundException;
 
 public interface ProcessesStorage {
 

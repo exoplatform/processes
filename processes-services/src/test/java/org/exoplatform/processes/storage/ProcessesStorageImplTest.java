@@ -25,7 +25,7 @@ import java.util.Set;
 
 import javax.ws.rs.ext.RuntimeDelegate;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
@@ -169,7 +169,7 @@ public class ProcessesStorageImplTest {
     List<WorkEntity> drafts = new ArrayList<>();
     drafts.add(new WorkEntity());
     when(workFlowDAO.find(1l)).thenReturn(null);
-    Throwable exception = assertThrows(javax.persistence.EntityNotFoundException.class,
+    Throwable exception = assertThrows(jakarta.persistence.EntityNotFoundException.class,
                                        () -> this.processesStorage.deleteWorkflowById(1l));
     assertEquals("Workflow not found", exception.getMessage());
     verify(projectService, times(0)).getProject(0l);
@@ -404,7 +404,7 @@ public class ProcessesStorageImplTest {
   public void deleteWorkDraftById() {
     org.exoplatform.processes.entity.WorkEntity WorkEntity = new org.exoplatform.processes.entity.WorkEntity();
     when(workDraftDAO.find(1L)).thenReturn(null);
-    Throwable exception1 = assertThrows(javax.persistence.EntityNotFoundException.class,
+    Throwable exception1 = assertThrows(jakarta.persistence.EntityNotFoundException.class,
                                         () -> this.processesStorage.deleteWorkDraftById(1l));
     assertEquals("Work Draft not found", exception1.getMessage());
     when(workDraftDAO.find(1L)).thenReturn(WorkEntity);
@@ -427,7 +427,7 @@ public class ProcessesStorageImplTest {
     processesStorage.getWorkById(1L, 1L);
     EntityMapper.taskToWork(taskDto);
     when(taskService.findTasks(any(), anyInt(), anyInt())).thenThrow(new EntityNotFoundException(1L, Object.class));
-    Throwable exception2 = assertThrows(javax.persistence.EntityNotFoundException.class,
+    Throwable exception2 = assertThrows(jakarta.persistence.EntityNotFoundException.class,
                                         () -> this.processesStorage.getWorkById(1L, 1L));
     assertEquals("work not found", exception2.getMessage());
   }
@@ -487,7 +487,7 @@ public class ProcessesStorageImplTest {
     processesStorage.updateWorkCompleted(1L, true);
     verify(taskService, times(1)).updateTask(taskDto);
     when(taskService.getTask(1L)).thenThrow(new EntityNotFoundException(1L, Object.class));
-    Throwable exception2 = assertThrows(javax.persistence.EntityNotFoundException.class,
+    Throwable exception2 = assertThrows(jakarta.persistence.EntityNotFoundException.class,
                                         () -> this.processesStorage.updateWorkCompleted(1L, true));
     assertEquals("work not found", exception2.getMessage());
   }

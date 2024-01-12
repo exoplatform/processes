@@ -7,7 +7,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.file.model.FileInfo;
@@ -313,7 +313,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
         taskDto = list.get(0);
       }
     } catch (EntityNotFoundException e) {
-      throw new javax.persistence.EntityNotFoundException("work not found");
+      throw new jakarta.persistence.EntityNotFoundException("work not found");
     } catch (Exception e) {
       LOG.error("Error while getting work");
     }
@@ -442,10 +442,10 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    * {@inheritDoc}
    */
   @Override
-  public void deleteWorkflowById(Long workflowId) throws javax.persistence.EntityNotFoundException {
+  public void deleteWorkflowById(Long workflowId) throws jakarta.persistence.EntityNotFoundException {
     WorkFlowEntity workFlowEntity = this.workFlowDAO.find(workflowId);
     if (workFlowEntity == null) {
-      throw new javax.persistence.EntityNotFoundException("Workflow not found");
+      throw new jakarta.persistence.EntityNotFoundException("Workflow not found");
     }
     try {
       ProjectDto project = projectService.getProject(workFlowEntity.getProjectId());
@@ -492,7 +492,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
         taskDto = taskService.updateTask(taskDto);
       }
     } catch (EntityNotFoundException e) {
-      throw new javax.persistence.EntityNotFoundException("work not found");
+      throw new jakarta.persistence.EntityNotFoundException("work not found");
     }
     return EntityMapper.taskToWork(taskDto);
   }
@@ -546,10 +546,10 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    * {@inheritDoc}
    */
   @Override
-  public void deleteWorkDraftById(long id) throws javax.persistence.EntityNotFoundException {
+  public void deleteWorkDraftById(long id) throws jakarta.persistence.EntityNotFoundException {
     WorkEntity workEntity = workDraftDAO.find(id);
     if (workEntity == null) {
-      throw new javax.persistence.EntityNotFoundException("Work Draft not found");
+      throw new jakarta.persistence.EntityNotFoundException("Work Draft not found");
     }
     workDraftDAO.delete(workEntity);
   }
