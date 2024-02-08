@@ -209,7 +209,9 @@ export default {
       this.work = work;
       this.workComments = comments;
       this.$root.$emit('displayTaskComment');
-      const url = `${eXo.env.portal.context}/${eXo.env.portal.portalName}/processes/myRequests/requestDetails/${this.work.id}/comments`;
+      const spacePath = eXo.env.portal.spaceName ? `${eXo.env.portal.context}/g/:spaces:${eXo.env.portal.spaceName}/${eXo.env.portal.selectedNodeUri}` : null;
+      const baseProcessPath = `${eXo.env.portal.context}/${eXo.env.portal.metaPortalName}`;
+      const url = `${spacePath != null ? spacePath : baseProcessPath}/processes/myRequests/requestDetails/${this.work.id}/comments`;
       window.history.pushState('requestComments', '', url);
     });
     this.$root.$on('create-work-draft', event => {
@@ -242,7 +244,9 @@ export default {
         const workId = tab[tab.length - 2];
         this.openWorkDetails(workId);
       }
-      const url = `${eXo.env.portal.context}/${eXo.env.portal.portalName}/processes/myRequests`;  
+      const spacePath = eXo.env.portal.spaceName ? `${eXo.env.portal.context}/g/:spaces:${eXo.env.portal.spaceName}/${eXo.env.portal.selectedNodeUri}` : null;
+      const baseProcessPath = `${eXo.env.portal.context}/${eXo.env.portal.metaPortalName}`;
+      const url = `${spacePath != null ? spacePath : baseProcessPath}/processes/myRequests`;
       window.history.pushState('myRequests', '', url);
     });
     this.$root.$on('processes-attachments-notification-alert', event => {
@@ -306,7 +310,9 @@ export default {
       document.dispatchEvent(new CustomEvent('close-alert-message'));
     },
     handleUpdateUrlPath(data, path) {
-      window.history.pushState(data, '', `${eXo.env.portal.context}/${eXo.env.portal.portalName}/processes${path}`);
+      const spacePath = eXo.env.portal.spaceName ? `${eXo.env.portal.context}/g/:spaces:${eXo.env.portal.spaceName}/${eXo.env.portal.selectedNodeUri}` : null;
+      const baseProcessPath = `${eXo.env.portal.context}/${eXo.env.portal.metaPortalName}`;
+      window.history.pushState(data, '', `${spacePath != null ? spacePath : baseProcessPath }/processes${path}`);
     },
     showFilter(){
       if (this.isManager){
@@ -355,15 +361,17 @@ export default {
       });
     },
     updateState(value) {
+      const spacePath = eXo.env.portal.spaceName ? `${eXo.env.portal.context}/g/:spaces:${eXo.env.portal.spaceName}/${eXo.env.portal.selectedNodeUri}` : null;
+      const baseProcessPath = `${eXo.env.portal.context}/${eXo.env.portal.metaPortalName}`;
       if (value === 1) {
-        window.history.pushState('myRequests', '', `${eXo.env.portal.context}/${eXo.env.portal.portalName}/processes/myRequests`);
+        window.history.pushState('myRequests', '', `${spacePath != null ? spacePath : baseProcessPath}/processes/myRequests`);
         if (!this.myRequestsTabVisited) {
           this.getWorkDrafts();
           this.getWorks();
           this.myRequestsTabVisited = 1;
         }
       } else {
-        window.history.replaceState('processes', '', `${eXo.env.portal.context}/${eXo.env.portal.portalName}/processes`);
+        window.history.replaceState('processes', '', `${spacePath != null ? spacePath : baseProcessPath}/processes`);
       }
     },
     openWorkDetails(workId) {
