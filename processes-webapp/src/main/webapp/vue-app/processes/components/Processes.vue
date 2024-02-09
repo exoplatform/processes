@@ -209,7 +209,7 @@ export default {
       this.work = work;
       this.workComments = comments;
       this.$root.$emit('displayTaskComment');
-      const spacePath = eXo.env.portal.spaceName ? `${eXo.env.portal.context}/g/:spaces:${eXo.env.portal.spaceName}/${eXo.env.portal.selectedNodeUri}` : null;
+      const spacePath = eXo.env.portal.spaceName ? `${eXo.env.portal.context}/g/:spaces:${eXo.env.portal.spaceGroup}/${eXo.env.portal.selectedNodeUri}` : null;
       const baseProcessPath = `${eXo.env.portal.context}/${eXo.env.portal.metaPortalName}`;
       const url = `${spacePath != null ? spacePath : baseProcessPath}/processes/myRequests/requestDetails/${this.work.id}/comments`;
       window.history.pushState('requestComments', '', url);
@@ -244,7 +244,7 @@ export default {
         const workId = tab[tab.length - 2];
         this.openWorkDetails(workId);
       }
-      const spacePath = eXo.env.portal.spaceName ? `${eXo.env.portal.context}/g/:spaces:${eXo.env.portal.spaceName}/${eXo.env.portal.selectedNodeUri}` : null;
+      const spacePath = eXo.env.portal.spaceName ? `${eXo.env.portal.context}/g/:spaces:${eXo.env.portal.spaceGroup}/${eXo.env.portal.selectedNodeUri}` : null;
       const baseProcessPath = `${eXo.env.portal.context}/${eXo.env.portal.metaPortalName}`;
       const url = `${spacePath != null ? spacePath : baseProcessPath}/processes/myRequests`;
       window.history.pushState('myRequests', '', url);
@@ -310,7 +310,7 @@ export default {
       document.dispatchEvent(new CustomEvent('close-alert-message'));
     },
     handleUpdateUrlPath(data, path) {
-      const spacePath = eXo.env.portal.spaceName ? `${eXo.env.portal.context}/g/:spaces:${eXo.env.portal.spaceName}/${eXo.env.portal.selectedNodeUri}` : null;
+      const spacePath = eXo.env.portal.spaceName ? `${eXo.env.portal.context}/g/:spaces:${eXo.env.portal.spaceGroup}/${eXo.env.portal.selectedNodeUri}` : null;
       const baseProcessPath = `${eXo.env.portal.context}/${eXo.env.portal.metaPortalName}`;
       window.history.pushState(data, '', `${spacePath != null ? spacePath : baseProcessPath }/processes${path}`);
     },
@@ -361,7 +361,7 @@ export default {
       });
     },
     updateState(value) {
-      const spacePath = eXo.env.portal.spaceName ? `${eXo.env.portal.context}/g/:spaces:${eXo.env.portal.spaceName}/${eXo.env.portal.selectedNodeUri}` : null;
+      const spacePath = eXo.env.portal.spaceName ? `${eXo.env.portal.context}/g/:spaces:${eXo.env.portal.spaceGroup}/${eXo.env.portal.selectedNodeUri}` : null;
       const baseProcessPath = `${eXo.env.portal.context}/${eXo.env.portal.metaPortalName}`;
       if (value === 1) {
         window.history.pushState('myRequests', '', `${spacePath != null ? spacePath : baseProcessPath}/processes/myRequests`);
