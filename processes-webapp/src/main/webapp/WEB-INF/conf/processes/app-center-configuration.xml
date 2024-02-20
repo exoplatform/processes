@@ -55,6 +55,9 @@
                                 <value>
                                     <string>*:/platform/users</string>
                                 </value>
+                                <value>
+                                    <string>*:/platform/externals</string>
+                                </value>
                             </collection>
                         </field>
                         <field name="system">
