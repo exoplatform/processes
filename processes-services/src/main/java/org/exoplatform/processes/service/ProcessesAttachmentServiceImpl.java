@@ -138,10 +138,21 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
     permissions.put(GROUP_PROCESSES, PermissionType.ALL);
     permissions.put(currentUser, PermissionType.ALL);
     ProjectDto projectDto;
+    Space space = ProcessesUtils.getProjectParentSpace(projectId);
     try {
       projectDto = projectService.getProject(projectId);
-      projectDto.getManager().forEach(manager -> permissions.put(manager, PermissionType.ALL));
       projectDto.getParticipator().forEach(participator -> permissions.put(participator, new String[] { PermissionType.READ }));
+      projectDto.getManager().forEach(manager -> permissions.put(manager, PermissionType.ALL));
+      if (space != null) {
+        String participator = projectDto.getParticipator().iterator().next();
+        String groupId = participator.substring(participator.indexOf(":") + 1);
+        boolean spaceHasARedactor = space != null && space.getRedactors() != null && space.getRedactors().length > 0;
+        if (spaceHasARedactor){
+          permissions.put("redactor:" + groupId, PermissionType.ALL);
+        } else {
+          permissions.put("*:" + groupId, PermissionType.ALL);
+        }
+      }
     } catch (EntityNotFoundException e) {
       LOG.error("Task project not found", e);
       return;
@@ -158,7 +169,6 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
     IntStream.range(0, attachments.size()).forEach(index -> {
       String attachmentId = attachments.get(index).getId();
       try {
-        Space space = ProcessesUtils.getProjectParentSpace(projectId);
         DriveData driveData;
         Node rootNode;
         if (space != null) {
@@ -191,7 +201,8 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
         if (destNode.canAddMixin(NodetypeConstant.EXO_PRIVILEGEABLE)) {
           destNode.addMixin(NodetypeConstant.EXO_PRIVILEGEABLE);
         }
-        ((ExtendedNode) destNode).setPermissions(permissions);
+        Map<String, String[]> unmodifiablePermissions = Collections.unmodifiableMap(permissions);
+        ((ExtendedNode) destNode).setPermissions(unmodifiablePermissions);
         String destPath = destNode.getPath().concat("/").concat(attachmentNode.getName());
         if (copy) {
           session.save();
