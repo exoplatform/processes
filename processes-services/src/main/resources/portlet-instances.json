@@ -1,0 +1,23 @@
+{
+  "descriptors":[
+    {
+      "nameId":"Processes",
+      "categoryNameId":"tools",
+      "portletName":"Processes",
+      "names":{
+        "en":"layout.portletInstance.Processes.name"
+      },
+      "descriptions":{
+        "en":"layout.portletInstance.Processes.description"
+      },
+      "illustrationPath":"war:/../skin/DefaultSkin/portletIcons/Processes.png",
+      "preferences":[
+        
+      ],
+      "permissions":[
+        "*:/platform/administrators"
+      ],
+      "system":true
+    }
+  ]
+}
