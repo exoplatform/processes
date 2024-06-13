@@ -16,8 +16,8 @@
  */
 package org.exoplatform.processes.listener;
 
-import org.exoplatform.analytics.model.StatisticData;
-import org.exoplatform.analytics.utils.AnalyticsUtils;
+import io.meeds.analytics.model.StatisticData;
+import io.meeds.analytics.utils.AnalyticsUtils;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.services.listener.Event;
 import org.exoplatform.services.listener.Listener;
