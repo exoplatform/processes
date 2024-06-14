@@ -5,6 +5,7 @@
       :confirm-close-labels="confirmCloseLabels"
       @closed="close()"
       ref="workFlow"
+      attached
       id="addWorkFlowDrawer"
       right>
       <template #title>
