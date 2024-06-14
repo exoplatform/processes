@@ -137,7 +137,7 @@ export default {
         doc.date = doc.created;
         this.$root.$emit('add-new-created-form-document', doc);
         this.restInput();
-        window.open(`${eXo.env.portal.context}/${eXo.env.portal.portalName}/oeditor?docId=${doc.id}`, '_blank');
+        window.open(`${eXo.env.portal.context}/${eXo.env.portal.portalName}/oeditor?docId=${doc.id}&backTo=${window.location.pathname}`, '_blank');
       }
     },
     restInput() {
