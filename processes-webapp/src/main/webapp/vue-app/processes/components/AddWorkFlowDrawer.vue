@@ -421,17 +421,7 @@ export default {
       this.showSpaceAlertMessage = false;
       this.validSpace = false;
       if (this.workflow.parentSpace){
-        this.$processesService.getSpaceApps(this.workflow.parentSpace.id).then(data=>{
-          data.forEach(e=>{
-            if (e.id === 'TasksManagement'){
-              this.validSpace = true;
-              return;
-            }
-          });
-          if (!this.validSpace){
-            this.showSpaceAlertMessage = true;
-          }
-        });
+        this.validSpace = true;
       }
     },
     showSpaceAlertMessage(val){
