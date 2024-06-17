@@ -1,0 +1,23 @@
+{
+    "descriptors": [
+        {
+            "name": "Processes",
+            "imagePath": "war:/../images/processesAppIcon.png",
+            "override": false,
+            "enabled": true,
+            "application": {
+                "title": "Processes",
+                "description": "Processes application",
+                "url": "./processes",
+                "system": true,
+                "active": true,
+                "mandatory": true,
+                "mobile": true,
+                "permissions": [
+                    "*:/platform/users",
+                    "*:/platform/externals"
+                ]
+            }
+        }
+    ]
+}
