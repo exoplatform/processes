@@ -303,6 +303,7 @@ export default {
         this.viewMode = false;
         this.editDraft = true;
         this.firstCreation = false;
+        this.$root.$emit('update-url-path', 'draftDetails', `/myRequests/draftDetails/${this.work.id}`);
         this.$root.$on('can-show-request-editor',() => {
           this.showEditor = true;
           window.setTimeout(() => {
