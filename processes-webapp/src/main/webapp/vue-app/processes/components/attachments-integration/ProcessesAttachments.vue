@@ -133,6 +133,7 @@ export default {
     }
   },
   created() {
+
     this.initEntityAttachmentsList();
     if (this.workflowParentSpace) {
       this.$spaceService.getSpaceByPrettyName(this.workflowParentSpace.prettyName)
@@ -181,8 +182,12 @@ export default {
   methods: {
     isFileEditable(attachment) {
       const type = attachment && attachment.mimetype || '';
-      return this.supportedDocuments && this.supportedDocuments.filter(doc => doc.edit && doc.mimeType === type
+      if (!this.allowDocFormCreation && type === 'application/pdf') {
+        return false;
+      } else {
+        return this.supportedDocuments && this.supportedDocuments.filter(doc => doc.edit && doc.mimeType === type
                                                                                        && !attachment.cloudDriveFile).length > 0;
+      }
     },
     refreshSupportedDocumentExtensions () {
       this.supportedDocuments = extensionRegistry.loadExtensions('documents', 'supported-document-types');
