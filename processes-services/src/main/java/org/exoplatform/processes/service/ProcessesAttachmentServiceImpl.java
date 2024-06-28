@@ -60,11 +60,11 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
 
   private static final String          GROUP_PROCESSES      = "*:/platform/processes";
 
-  private static final String          DOC_OFORM_MIMETYPE   = "application/vnd.openxmlformats-officedocument.wordprocessingml.document.form";
+  private static final String          DOC_OFORM_MIMETYPE   = "application/pdf";
 
-  private static final String          DOCXF_EXTENSION      = ".docxf";
+  private static final String          DOCXF_EXTENSION      = ".pdf";
 
-  private static final String          OFORM_EXTENSION      = ".oform";
+  private static final String          OFORM_EXTENSION      = ".pdf";
   
   private static final String          WORKFLOW_ENTITY_TYPE = "workflow";
 
