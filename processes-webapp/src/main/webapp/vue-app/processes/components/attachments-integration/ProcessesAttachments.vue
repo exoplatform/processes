@@ -58,6 +58,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
             :allow-to-detach="false"
             :open-in-editor="true"
             :is-file-editable="isFileEditable(attachment)"
+            :is-file-fillable="isFileFillable(attachment)"
             allow-to-preview
             small-attachment-icon />
         </v-list-item-group>
@@ -133,6 +134,7 @@ export default {
     }
   },
   created() {
+
     this.initEntityAttachmentsList();
     if (this.workflowParentSpace) {
       this.$spaceService.getSpaceByPrettyName(this.workflowParentSpace.prettyName)
@@ -182,7 +184,11 @@ export default {
     isFileEditable(attachment) {
       const type = attachment && attachment.mimetype || '';
       return this.supportedDocuments && this.supportedDocuments.filter(doc => doc.edit && doc.mimeType === type
-                                                                                       && !attachment.cloudDriveFile).length > 0;
+                                                                                && !attachment.cloudDriveFile).length > 0;
+    },
+    isFileFillable(attachment) {
+      const type = attachment && attachment.mimetype || '';
+      return type === 'application/pdf';
     },
     refreshSupportedDocumentExtensions () {
       this.supportedDocuments = extensionRegistry.loadExtensions('documents', 'supported-document-types');
