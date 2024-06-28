@@ -63,10 +63,10 @@ export default {
     return {
       newDocumentTitle: null,
       NewFormDocInputHidden: true,
-      extension: '.docxf',
+      extension: '.pdf',
       personalDrive: 'Personal Documents',
       defaultFolder: 'Documents',
-      templateName: 'OnlyOfficeDocumentForm',
+      templateName: 'OnlyOfficeDocumentFormPdf',
       MAX_FILE_NAME_LENGTH: 200
     };
   },
