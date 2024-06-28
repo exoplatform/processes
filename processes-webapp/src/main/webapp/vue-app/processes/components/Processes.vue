@@ -101,6 +101,7 @@ export default {
       messageTargetModel: null,
       messageTimer: null,
       draftId: null,
+      updated: false,
     };
   },
   beforeCreate() {
@@ -201,7 +202,7 @@ export default {
       }
       this.work = event.object;
       this.workComments = event.object.comments;
-      this.$refs.addWork.open(event.object, event.mode, event.isDraft);
+      this.$refs.addWork.open(event.object, event.mode, event.isDraft,event.allowSave);
     });
     this.$root.$on('open-workflow-drawer', event => {
       this.$refs.addWorkFlow.open(event.workflow, event.mode);
@@ -359,6 +360,13 @@ export default {
         const workId = path.split('requestDetails/')[1].split(/\D/)[0];
         this.openWorkComments(workId);
       }
+      if (path.includes('/myRequests/draftDetails')||path.includes('/myRequests/requestDetails')) {
+        const currentUrlSearchParams = window.location.search;
+        const queryParams = new URLSearchParams(currentUrlSearchParams);
+        if (queryParams.has('updated')) {
+          this.updated = queryParams.get('updated') === 'true';
+        }
+      }
     },
     openCreateWork(workflowId) {
       this.$processesService.getWorkflowById(workflowId, '').then(workflow => {
@@ -472,7 +480,7 @@ export default {
         if (this.draftId) {
           const draft = this.allWorkDrafts.find((element) => element.id.toString() === this.draftId.toString());
           if (draft){
-            this.$root.$emit('open-add-work-drawer', {object: draft, mode: 'edit_work_draft'});
+            this.$root.$emit('open-add-work-drawer', {object: draft, mode: 'edit_work_draft', allowSave: this.updated});
             this.handleUpdateUrlPath('draftDetails', `/myRequests/draftDetails/${draft.id}`);
           }
         }

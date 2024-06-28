@@ -288,7 +288,7 @@ export default {
     showRequestEditor() {
       this.showEditor = !this.showEditor;
     },
-    open(object, mode, isDraft) {
+    open(object, mode, isDraft, allowSave) {
       if (mode === 'create_work') {
         this.work = {};
         this.work.workFlow = object;
@@ -324,7 +324,7 @@ export default {
         entityType: this.entityType
       });
       this.initEditor();
-      this.attachmentsUpdated = false;
+      this.attachmentsUpdated = allowSave;
       this.$refs.work.open();
     },
     initEditor() {
