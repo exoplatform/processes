@@ -2,6 +2,8 @@
   <div>
     <v-card
       :class="isMobile ? 'mt-2 mb-2 ml-n3':'mt-2 mb-2 mr-8'"
+      height="230"
+      max-height="230"
       class="workflow-card"
       @click="open"
       outlined>
@@ -64,21 +66,13 @@
               :src="avatarUrl" />
           </v-avatar>         
         </div>   
-        <v-card-title
-          class="text-center mt-n4 d-block card-title title-size">
-          <div> {{ workflow.title }}</div>
-        </v-card-title>
+        <div class="d-flex justify-center font-weight-bold">
+          {{ workflow.title }}
+        </div>
       </div>
-      <v-card-text class="card-content mt-2">
-        <div>
-          <p
-            class="text-truncate-3 text-center mt-n4 description-size">
-            {{ workflow.description }}
-          </p>
-        </div>
-        <div>
-        </div>
-      </v-card-text>
+      <div class="text-center text-truncate-3 px-4">
+        {{ workflow.description }}
+      </div>
       <v-card-footer class="d-inline-flex" elevation="0">
         <v-card elevation="0" class="mb-5 width-full transparent align-center card-footer-request">
           <span

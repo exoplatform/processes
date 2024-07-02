@@ -1,333 +1,331 @@
 <template>
-  <v-app>
-    <exo-drawer
-      :confirm-close="confirmClose"
-      :confirm-close-labels="confirmCloseLabels"
-      @closed="close()"
-      ref="workFlow"
-      attached
-      id="addWorkFlowDrawer"
-      right>
-      <template #title>
-        <span v-if="!editMode">
-          {{ $t('processes.works.label.creatProcessType') }}
-        </span>
-        <span v-if="editMode">
-          {{ $t('processes.works.label.editProcessType') }}
-        </span>
-      </template>
-      <template #content>
-        <v-stepper
-          class="pa-4"
-          v-model="stp"
-          vertical>
-          <v-stepper-step
-            class="primary--text stepperTitle"
-            :complete="stp > 1"
-            step="1">
-            {{ $t('processes.workflow.form.label.description') }}
-          </v-stepper-step>
-          <v-stepper-content step="1">
-            <v-form
-              v-model="valid"
-              ref="form1">
-              <v-label for="name">
-                {{ $t('processes.works.form.label.title') }}
-              </v-label>
-              <v-text-field
-                :rules="[rules.required, rules.maxLength(titleMaxLength)]"
-                class="mt-n3 mb-1"
-                name="name"
-                dense
-                outlined
-                v-model="workflow.title"
-                :placeholder="$t('processes.works.form.placeholder.addTitle')" />
-              <custom-counter
-                :max-length="titleMaxLength"
-                :value="workflow.title" />
-              <v-label for="description">
-                {{ $t('processes.works.form.label.presentation') }}
-              </v-label>
-              <v-textarea
-                class="mt-n3 mb-1"
-                dense
-                :rules="[rules.required, rules.maxLength(descriptionMaxLength)]"
-                name="description"
-                v-model="workflow.description"
-                rows="10"
-                outlined
-                auto-grow
-                row-height="8"
-                :placeholder="$t('processes.works.form.placeholder.addPresentation')" />
-              <custom-counter
-                :max-length="descriptionMaxLength"
-                :value="workflow.description" />
-              <v-label for="summary">
-                {{ $t('processes.works.form.label.summary') }}
-              </v-label>
-              <v-textarea
-                :rules="[rules.required, rules.maxLength(summaryMaxLength)]"
-                class="mt-n3 mb-1"
-                v-model="workflow.summary"
-                name="summary"
-                rows="12"
-                outlined
-                auto-grow
-                row-height="10"
-                :placeholder="$t('processes.works.form.placeholder.addSummary')" />
-              <custom-counter
-                :max-length="summaryMaxLength"
-                :value="workflow.summary" />
-              <v-label for="illustrative">
-                {{ $t('processes.works.form.label.illustration') }}
-                <small class="grey--text">
-                  ( {{ $t('processes.workflow.illustrative.imageSize.info.message1') }} )
-                </small>
-              </v-label>
+  <exo-drawer
+    :confirm-close="confirmClose"
+    :confirm-close-labels="confirmCloseLabels"
+    @closed="close()"
+    ref="workFlow"
+    attached
+    id="addWorkFlowDrawer"
+    right>
+    <template #title>
+      <span v-if="!editMode">
+        {{ $t('processes.works.label.creatProcessType') }}
+      </span>
+      <span v-if="editMode">
+        {{ $t('processes.works.label.editProcessType') }}
+      </span>
+    </template>
+    <template #content>
+      <v-stepper
+        class="pa-4"
+        v-model="stp"
+        vertical>
+        <v-stepper-step
+          class="primary--text"
+          :complete="stp > 1"
+          step="1">
+          {{ $t('processes.workflow.form.label.description') }}
+        </v-stepper-step>
+        <v-stepper-content step="1">
+          <v-form
+            v-model="valid"
+            ref="form1">
+            <v-label for="name">
+              {{ $t('processes.works.form.label.title') }}
+            </v-label>
+            <v-text-field
+              :rules="[rules.required, rules.maxLength(titleMaxLength)]"
+              class="mt-n3 mb-1"
+              name="name"
+              dense
+              outlined
+              v-model="workflow.title"
+              :placeholder="$t('processes.works.form.placeholder.addTitle')" />
+            <custom-counter
+              :max-length="titleMaxLength"
+              :value="workflow.title" />
+            <v-label for="description">
+              {{ $t('processes.works.form.label.presentation') }}
+            </v-label>
+            <v-textarea
+              class="mt-n3 mb-1"
+              dense
+              :rules="[rules.required, rules.maxLength(descriptionMaxLength)]"
+              name="description"
+              v-model="workflow.description"
+              rows="10"
+              outlined
+              auto-grow
+              row-height="8"
+              :placeholder="$t('processes.works.form.placeholder.addPresentation')" />
+            <custom-counter
+              :max-length="descriptionMaxLength"
+              :value="workflow.description" />
+            <v-label for="summary">
+              {{ $t('processes.works.form.label.summary') }}
+            </v-label>
+            <v-textarea
+              :rules="[rules.required, rules.maxLength(summaryMaxLength)]"
+              class="mt-n3 mb-1"
+              v-model="workflow.summary"
+              name="summary"
+              rows="12"
+              outlined
+              auto-grow
+              row-height="10"
+              :placeholder="$t('processes.works.form.placeholder.addSummary')" />
+            <custom-counter
+              :max-length="summaryMaxLength"
+              :value="workflow.summary" />
+            <v-label for="illustrative">
+              {{ $t('processes.works.form.label.illustration') }}
               <small class="grey--text">
-                {{ $t('processes.workflow.illustrative.imageSize.info.message2') }}
+                ( {{ $t('processes.workflow.illustrative.imageSize.info.message1') }} )
               </small>
-              <div
-                class="addIllustrative d-flex ma-auto">
+            </v-label>
+            <small class="grey--text">
+              {{ $t('processes.workflow.illustrative.imageSize.info.message2') }}
+            </small>
+            <div
+              class="addIllustrative d-flex ma-auto">
+              <a
+                v-if="!illustrativeImage"
+                class="addIllustrativeLabel my-auto d-flex primary--text not-clickable font-weight-bold mb-5">
+                <v-icon size="14" color="primary">
+                  fa-paperclip
+                </v-icon>
                 <a
-                  v-if="!illustrativeImage"
-                  class="addIllustrativeLabel my-auto d-flex primary--text not-clickable font-weight-bold mb-5">
-                  <v-icon size="14" color="primary">
-                    fa-paperclip
+                  class="text-decoration-underline ma-auto ms-2"
+                  @click="uploadFile">{{ $t('processes.workflow.illustrative.add') }}</a>
+                <v-file-input
+                  id="avatarInput"
+                  v-model="illustrativeInput"
+                  show-size
+                  ref="avatarInput"
+                  prepend-icon="fa-plus"
+                  color="primary"
+                  size="16"
+                  class="addIllustrativeButton clickable primary--text ma-0 mt-0 pt-0"
+                  accept="image/*"
+                  clearable
+                  @change="handleUpload" />
+              </a>
+              <div v-if="illustrativeImage" class="d-flex width-full mb-5">
+                <div class="d-flex illustrativeName">
+                  <v-icon
+                    size="20">
+                    fas fa-file-image
                   </v-icon>
-                  <a
-                    class="text-decoration-underline ma-auto ms-2"
-                    @click="uploadFile">{{ $t('processes.workflow.illustrative.add') }}</a>
-                  <v-file-input
-                    id="avatarInput"
-                    v-model="illustrativeInput"
-                    show-size
-                    ref="avatarInput"
-                    prepend-icon="fa-plus"
-                    color="primary"
-                    size="16"
-                    class="addIllustrativeButton clickable primary--text ma-0 mt-0 pt-0"
-                    accept="image/*"
-                    clearable
-                    @change="handleUpload" />
-                </a>
-                <div v-if="illustrativeImage" class="d-flex width-full mb-5">
-                  <div class="d-flex illustrativeName">
-                    <v-icon
-                      size="20">
-                      fas fa-file-image
-                    </v-icon>
-                    <div
-                      v-sanitized-html="illustrativeImage.fileName"
-                      class="text--secondary text-truncate ms-2">
-                    </div>
-                  </div>
-                  <v-spacer />
-                  <div class="ma-auto">
-                    <v-btn
-                      class="d-flex"
-                      outlined
-                      x-small
-                      height="24"
-                      width="24"
-                      @click="deleteIllustrative">
-                      <v-icon
-                        small
-                        class="fas fa-unlink error--text" />
-                    </v-btn>
+                  <div
+                    v-sanitized-html="illustrativeImage.fileName"
+                    class="text--secondary text-truncate ms-2">
                   </div>
                 </div>
+                <v-spacer />
+                <div class="ma-auto">
+                  <v-btn
+                    class="d-flex"
+                    outlined
+                    x-small
+                    height="24"
+                    width="24"
+                    @click="deleteIllustrative">
+                    <v-icon
+                      small
+                      class="fas fa-unlink error--text" />
+                  </v-btn>
+                </div>
               </div>
-              <v-label
-                class="mt-1"
-                for="status">
-                {{ $t('processes.works.form.label.status') }}
-              </v-label>
-              <span class="mt-2 float-e-inverse grey--text text--darken-1">
+            </div>
+            <v-label
+              class="mt-1"
+              for="status">
+              {{ $t('processes.works.form.label.status') }}
+            </v-label>
+            <div class="d-flex mt-2">
+              <div>
                 {{ requestStatus }}
-              </span>
+              </div>
               <v-switch
-                class="mt-n1 float-e pr-2"
+                class="mt-n1 ms-auto pe-2"
                 color="primary"
                 value
                 name="status"
                 v-model="workflowEnabled" />
-              <div class="mt-10">
-                <v-btn
-                  :disabled="!valid"
-                  class="btn btn-primary v-btn--outlined float-e"
-                  color="primary"
-                  @click="setSpace(); nextStep()">
-                  {{ $t('processes.works.form.label.continue') }}
-                </v-btn>
-              </div>
-            </v-form>
-          </v-stepper-content>
-          <v-stepper-step
-            class="primary--text width-full d-flex"
-            :complete="stp > 2"
-            step="2">
-            <div class="width-full d-flex">
-              <div class="width-full stepperTitle">{{ $t('processes.works.form.label.manage') }}</div>
-              <v-spacer />
-              <v-tooltip bottom>
-                <template #activator="{ on, attrs }">
-                  <v-icon
-                    dark
-                    v-bind="attrs"
-                    v-on="on"
-                    size="17"
-                    class="primary--text"
-                    @mouseenter="applyItemClass(infoManage)">
-                    fa-info-circle
-                  </v-icon>
-                </template>
-                <span class="center">{{ infoManage }}</span>
-              </v-tooltip>
             </div>
-          </v-stepper-step>
-          <v-stepper-content step="2">
-            <v-label>
-              <span class="text-color ms-1 pe-1 body-2">
-                {{ $t('processes.works.form.label.add.manage') + ' *' }}
-              </span>
-            </v-label>
-            <div class="d-flex flex-row">
-              <workflow-suggester-space
-                ref="workFLowOwner"
-                :workflow="workflow"
-                class="ms-1 pe-1"
-                @initialized="formInitialized" />
-            </div>
-            <v-card-actions class="d-flex flex-row mt-4 ms-2 px-0">
-              <v-btn class="btn" @click="previousStep">
-                <v-icon size="18" class="me-2">
-                  {{ $vuetify.rtl && 'fa-caret-right' || 'fa-caret-left' }}
-                </v-icon>
-                {{ $t('processes.works.form.label.back') }}
-              </v-btn>
-              <v-spacer />
+            <div class="mt-10">
               <v-btn
-                class="btn btn-primary me-4"
-                outlined
-                :disabled="!workflowChanged || !validSpace"
-                @click="setCreators(); nextStep()">
+                :disabled="!valid"
+                class="btn btn-primary v-btn--outlined float-e"
+                color="primary"
+                @click="setSpace(); nextStep()">
                 {{ $t('processes.works.form.label.continue') }}
-                <v-icon size="18" class="ms-2">
-                  {{ $vuetify.rtl && 'fa-caret-left' || 'fa-caret-right' }}
-                </v-icon>
               </v-btn>
-            </v-card-actions>
-          </v-stepper-content>
-          <v-stepper-step
-            class="primary--text stepperTitle"
-            :complete="stp > 3"
-            step="3">
-            <div class="width-full d-flex">
-              <div class="width-full stepperTitle">{{ $t('processes.works.form.label.request') }}</div>
-              <v-spacer />
-              <v-tooltip bottom>
-                <template #activator="{ on, attrs }">
-                  <v-icon
-                    dark
-                    v-bind="attrs"
-                    v-on="on"
-                    size="17"
-                    class="primary--text"
-                    @mouseenter="applyItemClass(infoRequest)">
-                    fa-info-circle
-                  </v-icon>
-                </template>
-                <span class="center">{{ infoRequest }}</span>
-              </v-tooltip>
             </div>
-          </v-stepper-step>
-          <v-stepper-content step="3">
-            <v-label>
-              <span class="text-color body-2">
-                {{ $t('processes.works.form.label.add.request') + ' *' }}
-              </span>
-            </v-label>
-            <div class="d-flex flex-row">
-              <workflow-suggester-request
-                ref="workFLowOwner"
-                :workflow-request="workflowRequest"
-                class="ms-1 pe-1"
-                @initialized="formInitialized" />
-            </div>
-            <v-card-actions class="d-flex flex-row mt-4 ms-2 px-0">
-              <v-btn class="btn" @click="previousStep">
-                <v-icon size="18" class="me-2">
-                  {{ $vuetify.rtl && 'fa-caret-right' || 'fa-caret-left' }}
+          </v-form>
+        </v-stepper-content>
+        <v-stepper-step
+          class="primary--text width-full d-flex"
+          :complete="stp > 2"
+          step="2">
+          <div class="width-full d-flex">
+            <div class="width-full">{{ $t('processes.works.form.label.manage') }}</div>
+            <v-spacer />
+            <v-tooltip bottom>
+              <template #activator="{ on, attrs }">
+                <v-icon
+                  dark
+                  v-bind="attrs"
+                  v-on="on"
+                  size="17"
+                  class="primary--text"
+                  @mouseenter="applyItemClass(infoManage)">
+                  fa-info-circle
                 </v-icon>
-                {{ $t('processes.works.form.label.back') }}
-              </v-btn>
-              <v-spacer />
-              <v-btn
-                class="btn btn-primary me-4"
-                outlined
-                :disabled="!workflowRequestChanged"
-                @click="nextStep">
-                {{ $t('processes.works.form.label.continue') }}
-                <v-icon size="18" class="ms-2">
-                  {{ $vuetify.rtl && 'fa-caret-left' || 'fa-caret-right' }}
-                </v-icon>
-              </v-btn>
-            </v-card-actions>
-          </v-stepper-content>
-          <v-stepper-step
-            class="primary--text stepperTitle"
-            :complete="stp > 4"
-            step="4">
-            {{ $t('processes.works.form.label.documents') }}
-          </v-stepper-step>
-          <v-stepper-content step="4">
-            <processes-attachments
-              v-model="attachments"
-              :workflow-parent-space="workflowParentSpace"
-              :allow-doc-form-creation="true"
-              :edit-mode="editMode"
-              :entity-id="workflow.id"
-              entity-type="workflow" />
-            <v-btn
-              class="btn mt-4"
-              @click="previousStep"
-              text>
+              </template>
+              <span class="center">{{ infoManage }}</span>
+            </v-tooltip>
+          </div>
+        </v-stepper-step>
+        <v-stepper-content step="2">
+          <v-label>
+            <span class="ms-1 pe-1">
+              {{ $t('processes.works.form.label.add.manage') + ' *' }}
+            </span>
+          </v-label>
+          <div class="d-flex flex-row">
+            <workflow-suggester-space
+              ref="workFLowOwner"
+              :workflow="workflow"
+              class="ms-1 pe-1"
+              @initialized="formInitialized" />
+          </div>
+          <v-card-actions class="d-flex flex-row mt-4 ms-2 px-0">
+            <v-btn class="btn" @click="previousStep">
               <v-icon size="18" class="me-2">
                 {{ $vuetify.rtl && 'fa-caret-right' || 'fa-caret-left' }}
               </v-icon>
               {{ $t('processes.works.form.label.back') }}
             </v-btn>
-          </v-stepper-content>
-        </v-stepper>
-      </template>
-      <template #footer>
-        <v-btn
-          :disabled="!(valid && workflowChanged && workflowRequestChanged)"
-          v-if="!editMode"
-          :loading="saving"
-          @click="addNewWorkFlow"
-          class="btn btn-primary float-e"
-          color="primary">
-          {{ $t('processes.works.form.label.save') }}
-        </v-btn>
-        <v-btn
-          :disabled="!(valid && workflowChanged && workflowRequestChanged)"
-          v-if="editMode"
-          :loading="saving"
-          @click="updateWorkFlow"
-          class="btn btn-primary float-e"
-          color="primary">
-          {{ $t('processes.workflow.label.update') }}
-        </v-btn>
-        <v-btn
-          @click="close"
-          class="btn me-4 float-e">
-          {{ $t('processes.workflow.cancel.label') }}
-        </v-btn>
-      </template>
-    </exo-drawer>
-  </v-app>
+            <v-spacer />
+            <v-btn
+              class="btn btn-primary me-4"
+              outlined
+              :disabled="!workflowChanged || !validSpace"
+              @click="setCreators(); nextStep()">
+              {{ $t('processes.works.form.label.continue') }}
+              <v-icon size="18" class="ms-2">
+                {{ $vuetify.rtl && 'fa-caret-left' || 'fa-caret-right' }}
+              </v-icon>
+            </v-btn>
+          </v-card-actions>
+        </v-stepper-content>
+        <v-stepper-step
+          :complete="stp > 3"
+          step="3">
+          <div class="width-full d-flex">
+            <div class="width-full">{{ $t('processes.works.form.label.request') }}</div>
+            <v-spacer />
+            <v-tooltip bottom>
+              <template #activator="{ on, attrs }">
+                <v-icon
+                  dark
+                  v-bind="attrs"
+                  v-on="on"
+                  size="17"
+                  class="primary--text"
+                  @mouseenter="applyItemClass(infoRequest)">
+                  fa-info-circle
+                </v-icon>
+              </template>
+              <span class="center">{{ infoRequest }}</span>
+            </v-tooltip>
+          </div>
+        </v-stepper-step>
+        <v-stepper-content step="3">
+          <v-label>
+            <span class="text-color body-2">
+              {{ $t('processes.works.form.label.add.request') + ' *' }}
+            </span>
+          </v-label>
+          <div class="d-flex flex-row">
+            <workflow-suggester-request
+              ref="workFLowOwner"
+              :workflow-request="workflowRequest"
+              class="ms-1 pe-1"
+              @initialized="formInitialized" />
+          </div>
+          <v-card-actions class="d-flex flex-row mt-4 ms-2 px-0">
+            <v-btn class="btn" @click="previousStep">
+              <v-icon size="18" class="me-2">
+                {{ $vuetify.rtl && 'fa-caret-right' || 'fa-caret-left' }}
+              </v-icon>
+              {{ $t('processes.works.form.label.back') }}
+            </v-btn>
+            <v-spacer />
+            <v-btn
+              class="btn btn-primary me-4"
+              outlined
+              :disabled="!workflowRequestChanged"
+              @click="nextStep">
+              {{ $t('processes.works.form.label.continue') }}
+              <v-icon size="18" class="ms-2">
+                {{ $vuetify.rtl && 'fa-caret-left' || 'fa-caret-right' }}
+              </v-icon>
+            </v-btn>
+          </v-card-actions>
+        </v-stepper-content>
+        <v-stepper-step
+          :complete="stp > 4"
+          step="4">
+          {{ $t('processes.works.form.label.documents') }}
+        </v-stepper-step>
+        <v-stepper-content step="4">
+          <processes-attachments
+            v-model="attachments"
+            :workflow-parent-space="workflowParentSpace"
+            :allow-doc-form-creation="true"
+            :edit-mode="editMode"
+            :entity-id="workflow.id"
+            entity-type="workflow" />
+          <v-btn
+            class="btn mt-4"
+            @click="previousStep"
+            text>
+            <v-icon size="18" class="me-2">
+              {{ $vuetify.rtl && 'fa-caret-right' || 'fa-caret-left' }}
+            </v-icon>
+            {{ $t('processes.works.form.label.back') }}
+          </v-btn>
+        </v-stepper-content>
+      </v-stepper>
+    </template>
+    <template #footer>
+      <v-btn
+        :disabled="!(valid && workflowChanged && workflowRequestChanged)"
+        v-if="!editMode"
+        :loading="saving"
+        @click="addNewWorkFlow"
+        class="btn btn-primary float-e"
+        color="primary">
+        {{ $t('processes.works.form.label.save') }}
+      </v-btn>
+      <v-btn
+        :disabled="!(valid && workflowChanged && workflowRequestChanged)"
+        v-if="editMode"
+        :loading="saving"
+        @click="updateWorkFlow"
+        class="btn btn-primary float-e"
+        color="primary">
+        {{ $t('processes.workflow.label.update') }}
+      </v-btn>
+      <v-btn
+        @click="close"
+        class="btn me-4 float-e">
+        {{ $t('processes.workflow.cancel.label') }}
+      </v-btn>
+    </template>
+  </exo-drawer>
 </template>
 
 <script>

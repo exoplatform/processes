@@ -1,165 +1,163 @@
 <template>
-  <v-app id="addWorkDrawer">
-    <exo-drawer
-      @closed="close"
-      ref="work"
-      attached
-      right>
-      <template slot="title">
-        <v-container
+  <exo-drawer
+    @closed="close"
+    ref="work"
+    attached
+    right>
+    <template slot="title">
+      <v-container
+        class="pa-0"
+        no-gutters>
+        <v-row
           class="pa-0"
-          no-gutters>
-          <v-row
-            class="pa-0"
-            align="center">
-            <v-col
-              cols="3">
-              <span>{{ $t('processes.works.work.label') }}</span>
-            </v-col>
-            <v-col
-              cols="8"
-              class="pa-0 text-align-start">
-              <p class="work-title white--text text-truncate pa-2">
-                <v-avatar
-                  v-if="workflowAvatarUrl"
-                  class="me-1"
-                  color="blue"
-                  size="18px">
-                  <v-img :src="workflowAvatarUrl" />
-                </v-avatar>
-                <span
-                  :style="textDecoration"
-                  class="white--text">
-                  {{ this.work.workFlow.title }}
-                </span>
-              </p>
-            </v-col>
-          </v-row>
-        </v-container>
-      </template>
-      <template slot="content">
-        <div class="pa-4">
-          <p
-            v-if="!viewMode"
-            class="ml-2 mr-2 font-weight-bold">
-            {{ $t('processes.work.complete.request.question') }}
-          </p>
-          <p
-            v-if="!viewMode"
-            v-sanitized-html="work.workFlow.summary"
-            class="pa-1 ml-2 mr-2 font-weight-regular text-caption text-truncate-6 text-break grey--text darken-1 font-italic">
-          </p>
-          <div
-            class="pb-4"
-            v-if="viewMode">
-            <request-status
-              class="float-e"
-              :is-draft="editDraft || viewDraft"
-              :status="work.status" />
-            <v-label class="mb-1">
-              {{ $t('processes.works.form.label.requestDate') }}
-            </v-label>
-            <div class="grey--text mt-2">
-              <custom-date-format :timestamp="work.createdTime.time" />
-            </div>
-          </div>
-          <v-divider />
-          <div
-            v-if="!viewMode"
-            class="mt-5 mb-8">
-            <v-form
-              v-model="valid"
-              ref="form"
-              id="add-work-form">
-              <div class="work-message">
-                <p class="mt-5 font-weight-bold">{{ $t('processes.work.message.to.manager') }}</p>
-                <p
-                  v-if="!showEditor"
-                  @click="showRequestEditor"
-                  v-sanitized-html="workDescription || $t('processes.work.message.to.manager.placeholder')"
-                  :class="workDescription?'':'grey--text'"
-                  class="text--darken-1 text-break">
-                </p>
-                <div v-else>
-                  <request-editor
-                    @blur="blurOnDescriptionComposer"
-                    class="ml-2 mr-2"
-                    required
-                    ref="requestEditor"
-                    id="request-editor"
-                    :auto-focus="true"
-                    :placeholder="$t('processes.works.form.placeholder.workDetail')"
-                    v-model="work.description" />
-                  <custom-counter
-                    class="mt-n4 me-4"
-                    :value="work.description"
-                    :max-length="maxLength" />
-                </div>
-              </div>
-              <div class="mt-7">
-                <v-divider />
-                <p class="mt-5 font-weight-bold">{{ $t('processes.works.form.label.documents') }}</p>
-                <p class="font-weight-regular text-caption grey--text darken-1 font-italic">
-                  {{ $t('processes.work.add.attachment.info.message') }}
-                </p>
-                <processes-attachments
-                  v-model="attachments"
-                  :workflow-parent-space="workflowParentSpace"
-                  :edit-mode="this.editDraft"
-                  :entity-id="work.id"
-                  :entity-type="entityType" />
-              </div>
-            </v-form>
-          </div>
-          <div
-            v-if="viewMode"
-            class="mt-5 mb-6">
-            <v-label for="description">
-              {{ $t('processes.works.form.label.workDetail') }}
-            </v-label>
-            <v-divider class="mt-5" />
-            <div
-              class="text-truncate-8 pa-2 mt-3 work-description"
-              v-if="viewMode"
-              v-sanitized-html="work.description"></div>
-          </div>
-          <v-divider v-if="viewMode" />
-          <div
-            v-if="viewMode"
-            class="mt-4">
-            <v-label for="attachment">
-              {{ $t('processes.works.form.label.attachment') }}
-            </v-label>
-            <p class="font-weight-regular grey--text darken-1 font-italic mt-1">
-              {{ $t('processes.work.add.attachment.info.message') }}
+          align="center">
+          <v-col
+            cols="3">
+            <span>{{ $t('processes.works.work.label') }}</span>
+          </v-col>
+          <v-col
+            cols="8"
+            class="pa-0 text-align-start">
+            <p class="work-title white--text text-truncate pa-2">
+              <v-avatar
+                v-if="workflowAvatarUrl"
+                class="me-1"
+                color="blue"
+                size="18px">
+                <v-img :src="workflowAvatarUrl" />
+              </v-avatar>
+              <span
+                :style="textDecoration"
+                class="white--text">
+                {{ this.work.workFlow.title }}
+              </span>
             </p>
-            <processes-attachments
-              v-model="attachments"
-              :workflow-parent-space="workflowParentSpace"
-              :edit-mode="viewMode"
-              :entity-id="work.id"
-              :entity-type="entityType" />
-            <div v-if="viewMode && !viewDraft" class="taskCommentsAndChanges">
-              <v-divider class="mt-1" />
-              <task-view-all-comments
-                class="mt-4"
-                :task="this.work"
-                :comments="this.work.comments" />
-            </div>
+          </v-col>
+        </v-row>
+      </v-container>
+    </template>
+    <template slot="content">
+      <div class="pa-4">
+        <p
+          v-if="!viewMode"
+          class="ml-2 mr-2 font-weight-bold">
+          {{ $t('processes.work.complete.request.question') }}
+        </p>
+        <p
+          v-if="!viewMode"
+          v-sanitized-html="work.workFlow.summary"
+          class="pa-1 ml-2 mr-2 font-weight-regular text-caption text-truncate-6 text-break grey--text darken-1 font-italic">
+        </p>
+        <div
+          class="pb-4"
+          v-if="viewMode">
+          <request-status
+            class="float-e"
+            :is-draft="editDraft || viewDraft"
+            :status="work.status" />
+          <v-label class="mb-1">
+            {{ $t('processes.works.form.label.requestDate') }}
+          </v-label>
+          <div class="grey--text mt-2">
+            <custom-date-format :timestamp="work.createdTime.time" />
           </div>
         </div>
-      </template>
-      <template slot="footer" v-if="!viewMode">
-        <v-btn
-          :loading="saving"
-          @click="addWork"
-          :disabled="!validWorkDescription && !attachmentsChanged"
-          class="btn btn-primary float-e">
-          {{ $t('processes.work.sendWork.label') }}
-        </v-btn>
-      </template>
-    </exo-drawer>
-  </v-app>
+        <v-divider />
+        <div
+          v-if="!viewMode"
+          class="mt-5 mb-8">
+          <v-form
+            v-model="valid"
+            ref="form"
+            id="add-work-form">
+            <div class="work-message">
+              <p class="mt-5 font-weight-bold">{{ $t('processes.work.message.to.manager') }}</p>
+              <p
+                v-if="!showEditor"
+                @click="showRequestEditor"
+                v-sanitized-html="workDescription || $t('processes.work.message.to.manager.placeholder')"
+                :class="workDescription?'':'grey--text'"
+                class="text--darken-1 text-break">
+              </p>
+              <div v-else>
+                <request-editor
+                  @blur="blurOnDescriptionComposer"
+                  class="ml-2 mr-2"
+                  required
+                  ref="requestEditor"
+                  id="request-editor"
+                  :auto-focus="true"
+                  :placeholder="$t('processes.works.form.placeholder.workDetail')"
+                  v-model="work.description" />
+                <custom-counter
+                  class="mt-n4 me-4"
+                  :value="work.description"
+                  :max-length="maxLength" />
+              </div>
+            </div>
+            <div class="mt-7">
+              <v-divider />
+              <p class="mt-5 font-weight-bold">{{ $t('processes.works.form.label.documents') }}</p>
+              <p class="font-weight-regular text-caption grey--text darken-1 font-italic">
+                {{ $t('processes.work.add.attachment.info.message') }}
+              </p>
+              <processes-attachments
+                v-model="attachments"
+                :workflow-parent-space="workflowParentSpace"
+                :edit-mode="this.editDraft"
+                :entity-id="work.id"
+                :entity-type="entityType" />
+            </div>
+          </v-form>
+        </div>
+        <div
+          v-if="viewMode"
+          class="mt-5 mb-6">
+          <v-label for="description">
+            {{ $t('processes.works.form.label.workDetail') }}
+          </v-label>
+          <v-divider class="mt-5" />
+          <div
+            class="text-truncate-8 pa-2 mt-3 work-description"
+            v-if="viewMode"
+            v-sanitized-html="work.description"></div>
+        </div>
+        <v-divider v-if="viewMode" />
+        <div
+          v-if="viewMode"
+          class="mt-4">
+          <v-label for="attachment">
+            {{ $t('processes.works.form.label.attachment') }}
+          </v-label>
+          <p class="font-weight-regular grey--text darken-1 font-italic mt-1">
+            {{ $t('processes.work.add.attachment.info.message') }}
+          </p>
+          <processes-attachments
+            v-model="attachments"
+            :workflow-parent-space="workflowParentSpace"
+            :edit-mode="viewMode"
+            :entity-id="work.id"
+            :entity-type="entityType" />
+          <div v-if="viewMode && !viewDraft" class="taskCommentsAndChanges">
+            <v-divider class="mt-1" />
+            <task-view-all-comments
+              class="mt-4"
+              :task="this.work"
+              :comments="this.work.comments" />
+          </div>
+        </div>
+      </div>
+    </template>
+    <template slot="footer" v-if="!viewMode">
+      <v-btn
+        :loading="saving"
+        @click="addWork"
+        :disabled="!validWorkDescription && !attachmentsChanged"
+        class="btn btn-primary float-e">
+        {{ $t('processes.work.sendWork.label') }}
+      </v-btn>
+    </template>
+  </exo-drawer>
 </template>
 
 <script>

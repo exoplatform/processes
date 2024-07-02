@@ -3,7 +3,7 @@
     <div>
       <v-toolbar
         flat
-        class="pr-4 pl-4 card-border-radius">
+        class="pr-4 pl-4 application-body">
         <v-tabs
           v-model="tab"
           slider-size="4">
@@ -18,7 +18,7 @@
       </v-toolbar>
       <v-card
         elevation="0"
-        class="pa-5 card-border-radius process-tab-items">
+        class="pa-5 application-body process-tab-items">
         <v-tabs-items
           v-model="tab">
           <v-tab-item>
