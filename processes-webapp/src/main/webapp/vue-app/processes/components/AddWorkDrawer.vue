@@ -286,7 +286,7 @@ export default {
     showRequestEditor() {
       this.showEditor = !this.showEditor;
     },
-    open(object, mode, isDraft) {
+    open(object, mode, isDraft, allowSave) {
       if (mode === 'create_work') {
         this.work = {};
         this.work.workFlow = object;
@@ -301,6 +301,7 @@ export default {
         this.viewMode = false;
         this.editDraft = true;
         this.firstCreation = false;
+        this.$root.$emit('update-url-path', 'draftDetails', `/myRequests/draftDetails/${this.work.id}`);
         this.$root.$on('can-show-request-editor',() => {
           this.showEditor = true;
           window.setTimeout(() => {
@@ -321,7 +322,7 @@ export default {
         entityType: this.entityType
       });
       this.initEditor();
-      this.attachmentsUpdated = false;
+      this.attachmentsUpdated = allowSave;
       this.$refs.work.open();
     },
     initEditor() {

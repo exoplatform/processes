@@ -100,6 +100,8 @@ export default {
       messageAction: null,
       messageTargetModel: null,
       messageTimer: null,
+      draftId: null,
+      updated: false,
     };
   },
   beforeCreate() {
@@ -200,7 +202,7 @@ export default {
       }
       this.work = event.object;
       this.workComments = event.object.comments;
-      this.$refs.addWork.open(event.object, event.mode, event.isDraft);
+      this.$refs.addWork.open(event.object, event.mode, event.isDraft,event.allowSave);
     });
     this.$root.$on('open-workflow-drawer', event => {
       this.$refs.addWorkFlow.open(event.workflow, event.mode);
@@ -339,6 +341,10 @@ export default {
         this.$root.$emit('close-work-drawer');
         this.$root.$emit('hideTaskComment');
       }
+      if (path.includes('/myRequests/draftDetails')) {
+        this.tab = 1;
+        this.draftId =path.split('draftDetails/')[1].split(/\D/)[0];
+      }
       if (path.includes('/requestDetails') && !path.endsWith('/comments')) {
         this.tab = 1;
         const workId = path.split('requestDetails/')[1].split(/\D/)[0];
@@ -353,6 +359,13 @@ export default {
         this.tab = 1;
         const workId = path.split('requestDetails/')[1].split(/\D/)[0];
         this.openWorkComments(workId);
+      }
+      if (path.includes('/myRequests/draftDetails')||path.includes('/myRequests/requestDetails')) {
+        const currentUrlSearchParams = window.location.search;
+        const queryParams = new URLSearchParams(currentUrlSearchParams);
+        if (queryParams.has('updated')) {
+          this.updated = queryParams.get('updated') === 'true';
+        }
       }
     },
     openCreateWork(workflowId) {
@@ -464,6 +477,13 @@ export default {
       this.loading = true;
       return this.$processesService.getWorkDrafts(null, 0, 0, expand).then(drafts => {
         this.allWorkDrafts = drafts || [];
+        if (this.draftId) {
+          const draft = this.allWorkDrafts.find((element) => element.id.toString() === this.draftId.toString());
+          if (draft){
+            this.$root.$emit('open-add-work-drawer', {object: draft, mode: 'edit_work_draft', allowSave: this.updated});
+            this.handleUpdateUrlPath('draftDetails', `/myRequests/draftDetails/${draft.id}`);
+          }
+        }
         if (this.query){
           this.workDrafts = this.allWorkDrafts.filter(elem=>{
             return elem.description && elem.description.replace(/\s/g,'').replace(/<\/?[^>]+(>|$)/gi, '').includes(this.query.replace(/\s/g,''));
@@ -526,6 +546,7 @@ export default {
             this.displayMessage({type: 'success', message: this.$t('processes.workDraft.add.success.message')});
           }
           this.workDrafts.unshift(draft);
+          this.$root.$emit('update-url-path', 'draftDetails', `/myRequests/draftDetails/${draft.id}`);
         }
       }).catch(() => {
         this.displayMessage({type: 'error', message: this.$t('processes.workDraft.save.error.message')});
