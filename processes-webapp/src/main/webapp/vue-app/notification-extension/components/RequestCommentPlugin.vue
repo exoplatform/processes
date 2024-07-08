@@ -28,7 +28,7 @@
       </div>
       <div class="text-truncate">
         <v-icon size="14" class="me-1">fa-comment</v-icon>
-        <span v-sanitized-html="requestComment" />
+        <span v-sanitized-html="requestComment"></span>
       </div>
     </template>
   </user-notification-template>
