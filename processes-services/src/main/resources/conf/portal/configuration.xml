@@ -43,6 +43,15 @@
         <type>org.exoplatform.processes.rest.ProcessesRest</type>
     </component>
 
+    <component>
+        <type>org.exoplatform.processes.notification.pwa.CancelRequestPwaPlugin</type>
+    </component>
+    <component>
+        <type>org.exoplatform.processes.notification.pwa.CreateRequestPwaPlugin</type>
+    </component>
+    <component>
+        <type>org.exoplatform.processes.notification.pwa.RequestCommentPwaPlugin</type>
+    </component>
     <external-component-plugins>
         <target-component>org.exoplatform.commons.file.services.NameSpaceService</target-component>
         <component-plugin>
