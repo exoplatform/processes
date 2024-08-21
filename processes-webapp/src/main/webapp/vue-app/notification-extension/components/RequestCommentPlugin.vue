@@ -63,7 +63,8 @@ export default {
     message() {
       return this.$t('Notification.process.request.commented', {
         0: `<a class="user-name font-weight-bold">${this.profileFullName}</a>`,
-        1: `<a class="user-name font-weight-bold">${this.processTitle}</a>`});
+        1: `<a class="user-name font-weight-bold">${this.requestTitle}</a>`,
+        2: `<a class="user-name font-weight-bold">${this.processTitle}</a>`});
     }
   }
 };
