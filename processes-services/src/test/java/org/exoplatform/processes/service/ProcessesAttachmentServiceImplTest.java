@@ -106,8 +106,11 @@ public class ProcessesAttachmentServiceImplTest {
     ConversationState conversationState = mock(ConversationState.class);
     CONVERSATION_STATE.when(() -> ConversationState.getCurrent()).thenReturn(conversationState);
     Identity identity = mock(Identity.class);
+    org.exoplatform.social.core.identity.model.Identity userIdentity = mock(org.exoplatform.social.core.identity.model.Identity.class);
     when(conversationState.getIdentity()).thenReturn(identity);
+    when(identityManager.getIdentity(any())).thenReturn(userIdentity);
     when(identity.getUserId()).thenReturn("test");
+    when(userIdentity.getRemoteId()).thenReturn("test");
   }
 
   @Test

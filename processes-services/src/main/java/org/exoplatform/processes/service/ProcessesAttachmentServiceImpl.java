@@ -247,6 +247,8 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
     if (!attachments.isEmpty()) {
       moveOrCopyAttachmentsJcrNodes(attachments, destEntityId, destEntityType, false, projectId);
       linkFromEntityToEntity(userId, attachments, sourceEntityId, sourceEntityType, destEntityId, destEntityType, true);
+    } else {
+      createWorkflowTaskFolder(userId, projectId, destEntityType, destEntityId);
     }
   }
 
@@ -290,7 +292,7 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
     }
     return attachmentService.getAttachmentById(attachment.getId());
   }
-  
+
   private void processDocument(Node node, String currentUser) {
     try {
       org.exoplatform.social.core.identity.model.Identity identity =
@@ -323,5 +325,74 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
       LOG.error("Error while processing docxf file", e);
     }
 
+  }
+
+  private void createWorkflowTaskFolder(long userId, long projectId, String entityType, long entityId) {
+    org.exoplatform.social.core.identity.model.Identity userIdentity = identityManager.getIdentity(String.valueOf(userId));
+    Map<String, String[]> permissions = new HashMap<>();
+    permissions.put(GROUP_ADMINISTRATORS, PermissionType.ALL);
+    permissions.put(GROUP_PROCESSES, PermissionType.ALL);
+    permissions.put(userIdentity.getRemoteId(), PermissionType.ALL);
+    ProjectDto projectDto;
+    Space space = ProcessesUtils.getProjectParentSpace(projectId);
+    try {
+      projectDto = projectService.getProject(projectId);
+      projectDto.getParticipator().forEach(participator -> permissions.put(participator, new String[]{PermissionType.READ}));
+      projectDto.getManager().forEach(manager -> permissions.put(manager, PermissionType.ALL));
+      if (space != null) {
+        String participator = projectDto.getParticipator().iterator().next();
+        String groupId = participator.substring(participator.indexOf(":") + 1);
+        boolean spaceHasARedactor = space != null && space.getRedactors() != null && space.getRedactors().length > 0;
+        if (spaceHasARedactor) {
+          permissions.put("redactor:" + groupId, PermissionType.ALL);
+        } else {
+          permissions.put("*:" + groupId, PermissionType.ALL);
+        }
+      }
+    } catch (EntityNotFoundException e) {
+      LOG.error("Task project not found", e);
+      return;
+    }
+    Session jcrSession;
+    try {
+      jcrSession = Utils.getSystemSession(this.sessionProviderService, this.repositoryService);
+    } catch (RepositoryException e) {
+      LOG.error("Error while getting jcr session", e);
+      return;
+    }
+    final Session session = jcrSession;
+    final ProjectDto project = projectDto;
+    try {
+      DriveData driveData;
+      Node rootNode;
+      if (space != null) {
+        driveData = manageDriveService.getGroupDrive(space.getGroupId());
+        rootNode = (Node) session.getItem(driveData.getHomePath());
+      } else {
+        String user = project.getManager().iterator().next();
+        driveData = manageDriveService.getUserDrive(user);
+        String publicFolderPath = driveData.getHomePath().replace(PRIVATE_FOLDER, PUBLIC_FOLDER);
+        rootNode = (Node) session.getItem(publicFolderPath);
+      }
+      Node destEntityNode;
+      if (!rootNode.hasNode(entityType)) {
+        destEntityNode = rootNode.addNode(entityType, NodetypeConstant.NT_FOLDER);
+      } else {
+        destEntityNode = rootNode.getNode(entityType);
+      }
+      if (!destEntityNode.hasNode(String.valueOf(entityId))) {
+        destEntityNode = destEntityNode.addNode(String.valueOf(entityId), NodetypeConstant.NT_FOLDER);
+      } else {
+        destEntityNode = destEntityNode.getNode(String.valueOf(entityId));
+      }
+      if (destEntityNode.canAddMixin(NodetypeConstant.EXO_PRIVILEGEABLE)) {
+        destEntityNode.addMixin(NodetypeConstant.EXO_PRIVILEGEABLE);
+      }
+      Map<String, String[]> unmodifiablePermissions = Collections.unmodifiableMap(permissions);
+      ((ExtendedNode) destEntityNode).setPermissions(unmodifiablePermissions);
+      session.save();
+    } catch (Exception e) {
+      LOG.error("Error while Creating entity folder", e);
+    }
   }
 }
