@@ -514,6 +514,20 @@
     margin-left: -8px ~'; /** orientation=lt */ ';
     margin-right: -8px ~'; /** orientation=rt */ ';
   }
+  
+  .work-message{
+    position: relative;
+    .cke_bottom, .cke_top {
+      background: transparent;
+      height: 30px;
+      .cke_button_icon {
+        filter: opacity(0.2);
+      }
+    }
+    .cke_focus .cke_button_icon {
+      filter: opacity(0.4);
+    }
+  }
 }
 
 .processes-work-menu-icon {
