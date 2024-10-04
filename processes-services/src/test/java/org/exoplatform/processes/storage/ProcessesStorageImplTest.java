@@ -336,12 +336,13 @@ public class ProcessesStorageImplTest {
     work.setIsDraft(true);
     work.setId(0);
     work.setDraftId(1L);
+    work.setAttachments(new ArrayList<Attachment>());
     WorkFlow workFlow = new WorkFlow();
     workFlow.setProjectId(1L);
     when(taskDto.getId()).thenReturn(1L);
     when(workDraftDAO.find(1L)).thenReturn(WorkEntity);
     processesStorage.saveWork(work, 1L);
-    verify(processesAttachmentService, times(1)).moveAttachmentsToEntity(1L, 1L, "workdraft", 1L, "task", 1L);
+    verify(processesAttachmentService, times(1)).moveAttachmentsToEntity(new ArrayList<Attachment>(), 1L, 1L, "workdraft", 1L, "task", 1L);
     verify(workDraftDAO, times(1)).delete(WorkEntity);
     when(projectService.getProject(work.getProjectId())).thenThrow(EntityNotFoundException.class);
 

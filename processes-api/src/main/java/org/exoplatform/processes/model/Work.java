@@ -19,8 +19,10 @@ package org.exoplatform.processes.model;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.exoplatform.services.attachments.model.Attachment;
 
 import java.util.Date;
+import java.util.List;
 
 @Data
 @AllArgsConstructor
@@ -60,6 +62,8 @@ public class Work {
   private Long     draftId;
 
   private WorkFlow workFlow;
+
+  private List<Attachment> attachments;
 
   /**
    * constructor for Work task object
