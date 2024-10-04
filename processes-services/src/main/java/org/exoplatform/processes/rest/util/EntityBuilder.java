@@ -176,6 +176,7 @@ public class EntityBuilder {
                          workEntity.getIsDraft(),
                          workEntity.getDraftId(),
                          workEntity.getProjectId());
+    work.setAttachments(workEntity.getAttachments());
     if (workEntity.getWorkFlow() != null) {
       try {
         WorkFlow workFlow = processesService.getWorkFlow(workEntity.getWorkFlow().getId());
@@ -208,6 +209,7 @@ public class EntityBuilder {
     if (expandProperties.contains("comments")) {
       // TODO: Add comments
     }
+    workEntity.setAttachments(work.getAttachments());
 
     try {
       workEntity.setDescription(HTMLSanitizer.sanitize(work.getDescription()));
