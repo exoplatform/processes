@@ -204,7 +204,15 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
         Map<String, String[]> unmodifiablePermissions = Collections.unmodifiableMap(permissions);
         ((ExtendedNode) destNode).setPermissions(unmodifiablePermissions);
         String destPath = destNode.getPath().concat("/").concat(attachmentNode.getName());
-        if (copy) {
+        if (!copy && attachmentNode.getPath().contains("temp/"+destEntityType)) {
+          Node sourceEntityIdNode = attachmentNode.getParent();
+          session.move(attachmentNode.getPath(), destPath);
+          if (attachments.size() - 1 == index && sourceEntityIdNode != null
+                  && sourceEntityIdNode.getPrimaryNodeType().isNodeType(NodetypeConstant.NT_FOLDER)) {
+            sourceEntityIdNode.remove();
+          }
+          session.save();
+        } else {
           session.save();
           Workspace workspace = session.getWorkspace();
           workspace.copy(attachmentNode.getPath(), destPath);
@@ -212,14 +220,6 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
           processDocument(copyNode, currentUser);
           Attachment copyAttachment = attachmentService.getAttachmentById(copyNode.getUUID());
           updatedAttachments.put(index, copyAttachment);
-        } else {
-          Node sourceEntityIdNode = attachmentNode.getParent();
-          session.move(attachmentNode.getPath(), destPath);
-          if (attachments.size() - 1 == index && sourceEntityIdNode != null
-              && sourceEntityIdNode.getPrimaryNodeType().isNodeType(NodetypeConstant.NT_FOLDER)) {
-            sourceEntityIdNode.remove();
-          }
-          session.save();
         }
       } catch (Exception e) {
         LOG.error("Error while moving or copying attachments", e);
