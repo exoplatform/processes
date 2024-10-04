@@ -120,7 +120,7 @@ export default {
       return {
         entityType: this.entityType,
         entityId: this.entityId,
-        defaultFolder: 'Documents',
+        defaultFolder: this.entityId ? `Documents/${this.entityType}/${this.entityId}`:`Documents/temp/${this.entityType}`,
         sourceApp: 'processesApp',
         attachments: JSON.parse(JSON.stringify(this.attachments)),
         spaceId: this.workflowParentSpace && this.workflowParentSpace.id,
