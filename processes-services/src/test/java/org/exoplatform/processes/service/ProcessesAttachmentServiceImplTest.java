@@ -185,11 +185,11 @@ public class ProcessesAttachmentServiceImplTest {
     when(extendedNode.canAddMixin(NodetypeConstant.EXO_PRIVILEGEABLE)).thenReturn(true);
     when(extendedNode.getName()).thenReturn("test");
     when(node.getName()).thenReturn("test");
-    when(node.getPath()).thenReturn("srcPath/temp/workdraft");
+    when(node.getPath()).thenReturn("srcPath");
     when(extendedNode.getPath()).thenReturn("destPath");
     when(node.getParent()).thenReturn(node);
     processesAttachmentService.moveAttachmentsToEntity(1L, 1L, "workflow", 1L, "workdraft", 1L);
-    verify(session, times(1)).move("srcPath/temp/workdraft", "destPath/test");
+    verify(session, times(1)).move("srcPath", "destPath/test");
 
   }
 

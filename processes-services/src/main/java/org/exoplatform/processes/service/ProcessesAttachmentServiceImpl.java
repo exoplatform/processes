@@ -167,7 +167,8 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
     final Session session = jcrSession;
     final ProjectDto project = projectDto;
     IntStream.range(0, attachments.size()).forEach(index -> {
-      String attachmentId = attachments.get(index).getId();
+      Attachment attachment = attachments.get(index);
+      String attachmentId = attachment.getId();
       try {
         DriveData driveData;
         Node rootNode;
@@ -204,7 +205,7 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
         Map<String, String[]> unmodifiablePermissions = Collections.unmodifiableMap(permissions);
         ((ExtendedNode) destNode).setPermissions(unmodifiablePermissions);
         String destPath = destNode.getPath().concat("/").concat(attachmentNode.getName());
-        if (!copy && attachmentNode.getPath().contains("temp/"+destEntityType)) {
+        if (!copy && !attachment.isEXoDrive()) {
           Node sourceEntityIdNode = attachmentNode.getParent();
           session.move(attachmentNode.getPath(), destPath);
           if (attachments.size() - 1 == index && sourceEntityIdNode != null
