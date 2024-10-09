@@ -397,7 +397,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       TaskDto taskDto = createWorkTask(work, identity);
       ProjectDto projectDto = taskDto.getStatus().getProject();
       if (work.getDraftId() != null) {
-        processesAttachmentService.moveAttachmentsToEntity(userId,
+        processesAttachmentService.moveAttachmentsToEntity(work.getAttachments(),
+                                                           userId,
                                                            work.getDraftId(),
                                                            WORK_DRAFT_ENTITY_TYPE,
                                                            taskDto.getId(),

@@ -252,6 +252,21 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
       createWorkflowTaskFolder(userId, projectId, destEntityType, destEntityId);
     }
   }
+  @Override
+  public void moveAttachmentsToEntity(List<Attachment> attachments,
+                                      Long userId,
+                                      Long sourceEntityId,
+                                      String sourceEntityType,
+                                      Long destEntityId,
+                                      String destEntityType,
+                                      Long projectId) {
+    if (attachments!= null && !attachments.isEmpty()) {
+      moveOrCopyAttachmentsJcrNodes(attachments, destEntityId, destEntityType, false, projectId);
+      linkFromEntityToEntity(userId, attachments, sourceEntityId, sourceEntityType, destEntityId, destEntityType, true);
+    } else {
+      createWorkflowTaskFolder(userId, projectId, destEntityType, destEntityId);
+    }
+  }
 
   @Override
   public void copyAttachmentsToEntity(Long userId,
