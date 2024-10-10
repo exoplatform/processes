@@ -145,13 +145,9 @@ export default {
         });
     }
     document.addEventListener('attachment-added', event => {
-      if (this.editMode) {
-        this.initEntityAttachmentsList();
-      } else {
-        this.attachments.push(event.detail.attachment);
-      }
+      this.attachments.push(event.detail.attachment);
       this.subscribeDocument(event.detail.attachment.id);
-      this.$root.$emit('attachments-updated');
+      this.$root.$emit('attachments-updated',this.attachments);
     });
     this.$root.$on('add-new-created-form-document', (doc) => {
       this.attachments.push(doc);

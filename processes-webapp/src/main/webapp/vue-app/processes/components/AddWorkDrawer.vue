@@ -358,6 +358,7 @@ export default {
         this.work.draftId = this.work.id;
         this.work.id = 0;
       }
+      this.work.attachments=this.attachments;
       this.$root.$emit('add-work', this.work);
     },
     toWorkDraft(work) {
