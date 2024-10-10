@@ -2,6 +2,8 @@ package org.exoplatform.processes.service;
 
 import org.exoplatform.services.attachments.model.Attachment;
 
+import java.util.List;
+
 public interface ProcessesAttachmentService {
 
     /**
@@ -26,6 +28,26 @@ public interface ProcessesAttachmentService {
      * @param projectId task project id
      */
     void moveAttachmentsToEntity(Long userId, Long sourceEntityId, String sourceEntityType, Long destEntityId, String destEntityType, Long projectId);
+
+
+    /**
+     * Move attachments from source entity to a dest entity
+     *
+     * @param attachments list of attachment
+     * @param userId user identity id
+     * @param sourceEntityId source entity of attachments
+     * @param sourceEntityType target entity type to attach files from source entity
+     * @param destEntityId target entity id
+     * @param destEntityType target entity type
+     * @param projectId task project id
+     */
+    void moveAttachmentsToEntity(List<Attachment> attachments,
+                                 Long userId,
+                                 Long sourceEntityId,
+                                 String sourceEntityType,
+                                 Long destEntityId,
+                                 String destEntityType,
+                                 Long projectId);
 
     /**
      * Copy attachments from source entity to a dest entity

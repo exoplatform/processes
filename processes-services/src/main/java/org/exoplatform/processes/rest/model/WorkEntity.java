@@ -18,10 +18,12 @@
 package org.exoplatform.processes.rest.model;
 
 import java.util.Date;
+import java.util.List;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.exoplatform.services.attachments.model.Attachment;
 
 @Data
 @AllArgsConstructor
@@ -61,6 +63,8 @@ public class WorkEntity {
   private Long           taskId;
 
   private Boolean        isDraft;
+
+  private List<Attachment> attachments;
 
   public WorkEntity(long id,
                     String title,
