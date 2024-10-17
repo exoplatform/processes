@@ -104,6 +104,7 @@
     <process-mobile-action-drawer
       @editWorkflow="editWorkflow"
       @deleteWorkflow="deleteWorkflow"
+      @copyLink="copyLink"
       ref="mobileActionDrawer" />
   </div> 
 </template>
