@@ -335,6 +335,7 @@ export default {
     close() {
       this.updateDraft();
       this.$refs.work.close();
+      this.$root.$emit('add-work-drawer-closed');
       this.$root.$emit('reset-list-attachments');
       if (document.location.pathname.includes('myRequests')) {
         this.$root.$emit('update-url-path', 'myRequest', '/myRequests');
