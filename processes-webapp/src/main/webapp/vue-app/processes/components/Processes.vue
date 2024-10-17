@@ -160,6 +160,9 @@ export default {
     this.$root.$on('refresh-works', () => {
       this.getWorks();
     });
+    this.$root.$on('add-work-drawer-closed', () => {
+      this.updateState(this.tab);
+    });
     this.$root.$on('workflow-filter-changed', event => {
       this.workflows = [];
       this.query = event.query;
