@@ -22,6 +22,15 @@
     <template #content>
       <v-list dense>
         <v-list-item
+          @click="copyLink">
+          <v-list-item-title>
+            <v-icon dense class="processes-work-menu-icon">
+              mdi-link-variant
+            </v-icon>
+            <span>{{ $t('processes.workflow.copy.link.label') }}</span>
+          </v-list-item-title>
+        </v-list-item>
+        <v-list-item
           @click="editWorkflow">
           <v-list-item-title>
             <v-icon dense class="processes-work-menu-icon">
@@ -57,6 +66,10 @@ export default {
     },
     deleteWorkflow(){
       this.$emit('deleteWorkflow');
+      this.close();
+    },
+    copyLink() {
+      this.$emit('copyLink');
       this.close();
     },
     close() {
