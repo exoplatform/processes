@@ -27,6 +27,15 @@
         </template>
         <v-list>
           <v-list-item
+            @click="copyLink">
+            <v-list-item-title small>
+              <v-icon size="13" class="processes-work-menu-icon mt-1">
+                mdi-link-variant
+              </v-icon>
+              <span class="card-edit-text-size">{{ $t('processes.workflow.copy.link.label') }}</span>
+            </v-list-item-title>
+          </v-list-item>
+          <v-list-item
             @click="editWorkflow">
             <v-list-item-title small>
               <v-icon size="13" class="processes-work-menu-icon mt-1">
@@ -101,6 +110,7 @@
     <process-mobile-action-drawer
       @editWorkflow="editWorkflow"
       @deleteWorkflow="deleteWorkflow"
+      @copyLink="copyLink"
       ref="mobileActionDrawer" />
   </div> 
 </template>
@@ -164,6 +174,17 @@ export default {
     },
     deleteWorkflow() {
       this.$root.$emit('show-confirm-action', {model: this.workflow, reason: 'delete_workflow'});
+    },
+    copyLink() {
+      const inputTemp = $('<input>');
+      $('body').append(inputTemp);
+      inputTemp.val(`${window.location.href}/${this.workflow.id}/createRequest`).select();
+      document.execCommand('copy');
+      inputTemp.remove();
+      this.$root.$emit('show-alert', {
+        type: 'success',
+        message: this.$t('processes.workflow.copy.link.success.message')
+      });
     },
     open() {
       if (this.workflow.enabled && this.workflow.acl.canAddRequest) {
