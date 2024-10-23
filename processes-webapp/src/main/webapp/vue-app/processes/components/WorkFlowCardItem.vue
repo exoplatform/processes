@@ -47,6 +47,7 @@
             </v-list-item-title>
           </v-list-item>
           <v-list-item
+            v-if="workflow.acl.canDelete"
             @click="deleteWorkflow">
             <v-list-item-title>
               <v-icon size="13" class="processes-work-menu-icon mt-1">
