@@ -8,7 +8,7 @@
       <v-menu
         v-model="showMenu"
         transition="slide-x-reverse-transition"
-        v-if="isProcessesManager"
+        v-if="isProcessesManager || workflow.acl.canEdit"
         :ref="'menu' + workflow.id"
         :close-on-content-click="false"
         bottom

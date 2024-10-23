@@ -26,6 +26,8 @@ import org.exoplatform.task.dto.TaskDto;
 public class EntityMapper {
   private static final Log LOG = ExoLogger.getLogger(EntityMapper.class);
 
+  private static final String PROCESSES_GROUP =  "/platform/processes";
+
   private EntityMapper() {
   }
 
@@ -97,6 +99,8 @@ public class EntityMapper {
       for (String manager : workFlowEntity.getManager()) {
         if (member.contains(manager)) {
           permission.setCanAddRequest(true);
+          permission.setCanDelete(true);
+          permission.setCanEdit(true);
           break;
         }
       }
@@ -106,7 +110,7 @@ public class EntityMapper {
           break;
         }
       }
-      if (member.contains("/platform/processes")) {
+      if (member.contains(PROCESSES_GROUP) && !permission.isCanEdit()) {
         permission.setCanDelete(true);
         permission.setCanEdit(true);
       }
