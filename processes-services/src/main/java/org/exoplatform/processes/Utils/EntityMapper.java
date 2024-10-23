@@ -99,8 +99,6 @@ public class EntityMapper {
       for (String manager : workFlowEntity.getManager()) {
         if (member.contains(manager)) {
           permission.setCanAddRequest(true);
-          permission.setCanDelete(true);
-          permission.setCanEdit(true);
           break;
         }
       }
