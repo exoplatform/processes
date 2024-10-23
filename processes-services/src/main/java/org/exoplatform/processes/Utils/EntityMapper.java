@@ -99,18 +99,17 @@ public class EntityMapper {
       for (String manager : workFlowEntity.getManager()) {
         if (member.contains(manager)) {
           permission.setCanAddRequest(true);
-          permission.setCanDelete(true);
-          permission.setCanEdit(true);
           break;
         }
       }
       for (String participator : workFlowEntity.getParticipator()) {
         if (member.equals(participator)) {
           permission.setCanAccess(true);
+          permission.setCanEdit(true);
           break;
         }
       }
-      if (member.contains(PROCESSES_GROUP) && !permission.isCanEdit()) {
+      if (member.contains(PROCESSES_GROUP)) {
         permission.setCanDelete(true);
         permission.setCanEdit(true);
       }
