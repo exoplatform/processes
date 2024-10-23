@@ -10,7 +10,7 @@
       <v-menu
         v-model="showMenu"
         transition="slide-x-reverse-transition"
-        v-if="isProcessesManager"
+        v-if="isProcessesManager || workflow.acl.canEdit"
         :ref="'menu' + workflow.id"
         :close-on-content-click="false"
         bottom
@@ -47,6 +47,7 @@
             </v-list-item-title>
           </v-list-item>
           <v-list-item
+            v-if="workflow.acl.canDelete"
             @click="deleteWorkflow">
             <v-list-item-title>
               <v-icon size="13" class="processes-work-menu-icon mt-1">
