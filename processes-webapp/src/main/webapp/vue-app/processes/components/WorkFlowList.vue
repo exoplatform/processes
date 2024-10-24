@@ -237,12 +237,31 @@ export default {
     this.$root.$on('workflow-updated', (workflow) => {
       workflow = JSON.parse(workflow);
       const index = this.workflowList.map(workflow => workflow.id).indexOf(workflow.id);
-      if (this.filter.value === 'activated' && workflow.enabled) {
+      switch (this.filter.value) {
+      case 'activated':
+        if (workflow.enabled) {
+          this.workflowList.splice(index, 1, workflow);
+        } else {
+          this.workflowList.splice(index, 1);
+        }
+        break;
+      case 'deactivated':
+        if (!workflow.enabled) {
+          this.workflowList.splice(index, 1, workflow);
+        } else {
+          this.workflowList.splice(index, 1);
+        }
+        break;
+      case 'manager':
+        if (workflow.acl.canEdit) {
+          this.workflowList.splice(index, 1, workflow);
+        } else {
+          this.workflowList.splice(index, 1);
+        }
+        break;
+      default:
         this.workflowList.splice(index, 1, workflow);
-      } else if (this.filter.value === 'deactivated' && !workflow.enabled) {
-        this.workflowList.splice(index, 1, workflow);
-      } else {
-        this.workflowList.splice(index, 1);
+        break;
       }
     });
     this.$root.$on('workflow-removed', (workflow) => {
