@@ -545,7 +545,6 @@ export default {
       this.workflow.requestsCreators = this.workflowRequest;
       this.workflow.illustrativeAttachment = this.illustrativeImage;
       this.$root.$emit('update-workflow',this.workflow);
-      this.$root.$emit('refresh-works');
     },
     deleteIllustrative(){
       this.illustrativeInput = null;
