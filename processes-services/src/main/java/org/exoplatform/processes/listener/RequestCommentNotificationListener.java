@@ -64,6 +64,6 @@ public class RequestCommentNotificationListener extends TaskCommentNotificationL
   }
 
   private String getPortalOwner() {
-    return CommonsUtils.getService(UserPortalConfigService.class).getDefaultPortal();
+    return CommonsUtils.getService(UserPortalConfigService.class).getMetaPortal();
   }
 }
