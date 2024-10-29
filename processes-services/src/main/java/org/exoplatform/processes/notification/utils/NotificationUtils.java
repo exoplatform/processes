@@ -154,7 +154,7 @@ public class NotificationUtils {
       portalOwner = Util.getPortalRequestContext().getPortalOwner();
     } catch (Exception e){
       //default value for testing and social
-      portalOwner = userPortalConfigService.getDefaultPortal();
+      portalOwner = userPortalConfigService.getMetaPortal();
     }
     return MentionUtils.substituteUsernames(portalOwner, comment);
   }
