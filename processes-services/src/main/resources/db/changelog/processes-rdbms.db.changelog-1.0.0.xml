@@ -28,22 +28,24 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.-->
 
 
     <changeSet author="processes" id="1.0.0-0">
+        <validCheckSum>9:e2ca7acb9dd40c4faf30d8ea19d5b594</validCheckSum>
+        <validCheckSum>9:12171396f34e8a0ec7b63446bb991211</validCheckSum>
         <createTable tableName="PROCESSES_WORK_FLOW">
             <column name="WORK_FLOW_ID" type="BIGINT" autoIncrement="${autoIncrement}" startWith="1">
                 <constraints nullable="false" primaryKey="true" primaryKeyName="PK_WORK_FLOW"/>
             </column>
-            <column name="TITLE" type="NVARCHAR(250)">
+            <column name="TITLE" type="VARCHAR(250)">
                 <constraints nullable="false"/>
             </column>
-            <column name="DESCRIPTION" type="NVARCHAR(2000)">
+            <column name="DESCRIPTION" type="VARCHAR(2000)">
                 <constraints nullable="false"/>
             </column>
-            <column name="SUMMARY" type="NVARCHAR(2000)">
+            <column name="SUMMARY" type="VARCHAR(2000)">
                 <constraints nullable="false"/>
             </column>
             <column name="ENABLED" type="BOOLEAN"/>
-            <column name="HELP_LINK" type="NVARCHAR(250)"/>
-            <column name="IMAGE" type="NVARCHAR(250)"/>
+            <column name="HELP_LINK" type="VARCHAR(250)"/>
+            <column name="IMAGE" type="VARCHAR(250)"/>
             <column name="CREATOR_ID" type="BIGINT"/>
             <column name="CREATED_DATE" type="DATE"/>
             <column name="MODIFIER_ID" type="BIGINT"/>
@@ -53,7 +55,7 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.-->
             </column>
         </createTable>
         <modifySql dbms="mysql">
-            <append value=" ENGINE=INNODB CHARSET=UTF8 COLLATE utf8_general_ci"/>
+            <append value=" ENGINE=INNODB CHARSET=UTF8MB4 COLLATE utf8mb4_0900_ai_ci"/>
         </modifySql>
     </changeSet>
 
@@ -67,8 +69,8 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.-->
             <column name="WORK_ID" type="BIGINT" autoIncrement="${autoIncrement}" startWith="1">
                 <constraints nullable="false" primaryKey="true" primaryKeyName="PK_WORK"/>
             </column>
-            <column name="TITLE" type="NVARCHAR(250)" />
-            <column name="DESCRIPTION" type="NVARCHAR(2000)">
+            <column name="TITLE" type="VARCHAR(250)" />
+            <column name="DESCRIPTION" type="VARCHAR(2000)">
                 <constraints nullable="false"/>
             </column>
             <column name="CREATOR_ID" type="BIGINT"/>
@@ -84,7 +86,7 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.-->
             <column name="MODIFIED_DATE" type="DATE"/>
         </createTable>
         <modifySql dbms="mysql">
-            <append value=" ENGINE=INNODB CHARSET=UTF8 COLLATE utf8_general_ci"/>
+            <append value=" ENGINE=INNODB CHARSET=UTF8MB4 COLLATE utf8mb4_0900_ai_ci"/>
         </modifySql>
     </changeSet>
 
@@ -103,36 +105,48 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.-->
 
 
     <changeSet author="processes" id="1.0.0-6">
+        <validCheckSum>9:ed7e08aaec8d0ddf8144ba6515bbfb94</validCheckSum>
+        <validCheckSum>9:f1e21560eca595b329f18a89364f449d</validCheckSum>
         <createTable tableName="WORK_FLOW_MANAGERS">
             <column name="WORK_FLOW_ID" type="BIGINT">
                 <constraints foreignKeyName="FK_WORK_FLOW_MGR_01" references="PROCESSES_WORK_FLOW(WORK_FLOW_ID)" nullable="false"/>
             </column>
-            <column name="MANAGER" type="NVARCHAR(50)">
+            <column name="MANAGER" type="VARCHAR(50)">
                 <constraints nullable="false"/>
             </column>
         </createTable>
         <modifySql dbms="mysql">
-            <append value=" ENGINE=INNODB CHARSET=UTF8 COLLATE utf8_general_ci"/>
+            <append value=" ENGINE=INNODB CHARSET=UTF8MB4 COLLATE utf8mb4_0900_ai_ci"/>
         </modifySql>
     </changeSet>
 
     <changeSet author="processes" id="1.0.0-7">
+        <validCheckSum>9:af301316182c3f82dbe9cdd5aa413a4e</validCheckSum>
+        <validCheckSum>9:6525b3c8cfe2474a43fd3c746a708494</validCheckSum>
         <createTable tableName="WORK_FLOW_PARTICIPATOR">
             <column name="WORK_FLOW_ID" type="BIGINT">
                 <constraints foreignKeyName="FK_WORK_FLOW_PART_01" references="PROCESSES_WORK_FLOW(WORK_FLOW_ID)" nullable="false"/>
             </column>
-            <column name="PARTICIPATOR" type="NVARCHAR(50)">
+            <column name="PARTICIPATOR" type="VARCHAR(50)">
                 <constraints nullable="false"/>
             </column>
         </createTable>
         <modifySql dbms="mysql">
-            <append value=" ENGINE=INNODB CHARSET=UTF8 COLLATE utf8_general_ci"/>
+            <append value=" ENGINE=INNODB CHARSET=UTF8MB4 COLLATE utf8mb4_0900_ai_ci"/>
         </modifySql>
     </changeSet>
 
     <changeSet author="processes" id="1.0.0-8">
-        <modifyDataType tableName="WORK_FLOW_MANAGERS" columnName="MANAGER" newDataType="NVARCHAR(300)"/>
-        <modifyDataType tableName="WORK_FLOW_PARTICIPATOR" columnName="PARTICIPATOR" newDataType="NVARCHAR(300)"/>
+        <validCheckSum>9:4b1f189059e7aef7678839cb965a1818</validCheckSum>
+        <modifyDataType tableName="WORK_FLOW_MANAGERS" columnName="MANAGER" newDataType="VARCHAR(300)"/>
+        <modifyDataType tableName="WORK_FLOW_PARTICIPATOR" columnName="PARTICIPATOR" newDataType="VARCHAR(300)"/>
     </changeSet>
-
+    <changeSet author="processes" id="1.0.0-9">
+        <sql dbms="mysql">
+            ALTER TABLE PROCESSES_WORK_FLOW CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+            ALTER TABLE PROCESSES_WORK CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+            ALTER TABLE WORK_FLOW_MANAGERS CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+            ALTER TABLE WORK_FLOW_PARTICIPATOR CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+        </sql>
+    </changeSet>
 </databaseChangeLog>
