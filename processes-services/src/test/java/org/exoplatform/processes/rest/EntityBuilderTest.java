@@ -82,7 +82,7 @@ public class EntityBuilderTest {
     StatusService statusService = mock(StatusService.class);
     List<WorkFlow> workFlows = new ArrayList<>();
     Space space = new Space();
-    space.setId("test");
+    space.setId("12");
     space.setPrettyName("test");
     space.setDisplayName("test");
     WorkFlow workFlow = new WorkFlow();
