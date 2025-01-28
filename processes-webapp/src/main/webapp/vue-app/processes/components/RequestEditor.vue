@@ -138,6 +138,12 @@ export default {
           blur: function (event) {
             self.$emit('blur', event);
           },
+          paste: function (event) {
+            const pastedData = (event.data && event.data.dataValue) || '';
+            const cleanedData = pastedData.replace(/<img[^>]*>|<video[^>]*>|<audio[^>]*>/g, '');
+            event.editor.insertHtml(cleanedData);
+            event.cancel();
+          },
           destroy: function () {
             self.inputVal = '';
             self.editor = null;
