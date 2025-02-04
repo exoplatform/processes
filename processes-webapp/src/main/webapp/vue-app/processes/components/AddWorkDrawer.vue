@@ -2,7 +2,6 @@
   <exo-drawer
     @closed="close"
     ref="work"
-    attached
     right>
     <template slot="title">
       <v-container
