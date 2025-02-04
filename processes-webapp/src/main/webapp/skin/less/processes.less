@@ -1,9 +1,10 @@
 @import "variables.less";
 @import "mixins.less";
 
-#ProcessesApplication {
+.ProcessesApplication {
 
   overflow-x: hidden;
+  box-sizing: border-box;
   
   .application-body {
     min-height: auto !important;
@@ -345,7 +346,7 @@
       padding: 0;
     }
   }
-  #addWorkFlowDrawer {
+  &#addWorkFlowDrawer {
 
     .v-menu__content {
       max-height: 90px!important;
@@ -384,7 +385,7 @@
     }
   }
 
-  #addWorkDrawer {
+  &#addWorkDrawer {
 
     .work-detail {
       min-height: 140px;

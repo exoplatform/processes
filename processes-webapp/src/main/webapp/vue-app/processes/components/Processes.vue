@@ -1,5 +1,5 @@
 <template>
-  <v-app>
+  <v-app class="ProcessesApplication">
     <div>
       <v-toolbar
         flat
