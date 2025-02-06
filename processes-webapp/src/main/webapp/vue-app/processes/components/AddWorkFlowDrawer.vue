@@ -4,8 +4,8 @@
     :confirm-close-labels="confirmCloseLabels"
     @closed="close()"
     ref="workFlow"
-    attached
     id="addWorkFlowDrawer"
+    class="ProcessesApplication"
     right>
     <template #title>
       <span v-if="!editMode">

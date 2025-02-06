@@ -2,7 +2,7 @@
   <exo-drawer
     @closed="close"
     ref="work"
-    attached
+    class="ProcessesApplication"
     right>
     <template slot="title">
       <v-container
