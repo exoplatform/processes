@@ -19,7 +19,6 @@
         <template #activator="{ on, attrs }">
           <v-btn
             :class="isMobile ? 'three-dots mr-n2 mt-3' : 'three-dots mt-1'"
-            dark
             icon
             v-bind="attrs"
             v-on="!isMobileMenu && on"
