@@ -12,6 +12,7 @@ import org.exoplatform.commons.api.notification.model.PluginKey;
 import org.exoplatform.commons.api.notification.service.template.TemplateContext;
 import org.exoplatform.commons.notification.template.TemplateUtils;
 import org.exoplatform.commons.utils.HTMLEntityEncoder;
+import org.exoplatform.commons.utils.TimeConvertUtils;
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.processes.notification.plugin.CancelRequestPlugin;
 import org.exoplatform.processes.notification.plugin.CreateRequestPlugin;
@@ -23,7 +24,6 @@ import org.exoplatform.social.core.identity.model.Profile;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.notification.LinkProviderUtils;
-import org.exoplatform.webui.utils.TimeConvertUtils;
 
 import java.io.Writer;
 import java.util.Calendar;
