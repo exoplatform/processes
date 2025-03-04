@@ -9,6 +9,7 @@
         <portlet-name>Processes</portlet-name>
         <skin-name>Enterprise</skin-name>
         <css-path>/skin/css/processes.css</css-path>
+        <additional-module>taskCommentsDrawer</additional-module>
     </portlet-skin>
 
     <portlet>
