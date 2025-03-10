@@ -23,6 +23,10 @@
                 <module>taskCommentsDrawer</module>
             </depends>
             <depends>
+                <module>commons-editor</module>
+                <as>editor</as>
+            </depends>
+            <depends>
                 <module>commonVueComponents</module>
             </depends>
             <depends>
