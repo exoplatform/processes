@@ -54,6 +54,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
             v-for="attachment in attachments.slice(0, 2)"
             :key="attachment.id"
             :attachment="attachment"
+            :attachments="attachments"
             :can-access="attachment.acl && attachment.acl.canAccess"
             :allow-to-detach="false"
             :open-in-editor="true"
