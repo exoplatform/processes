@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
 <!--
- * Copyright (C) 2021 eXo Platform SAS.
+ * Copyright (C) 2025 eXo Platform SAS.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -29,18 +29,6 @@
       <label>#{portal.global.processes}</label>
       <visibility>SYSTEM</visibility>
       <page-reference>portal::global::processes</page-reference>
-    </node>
-    <node>
-      <name>analytics</name>
-      <label>#{analytics.navigation.Analytics}</label>
-      <visibility>SYSTEM</visibility>
-      <page-reference>portal::global::analytics</page-reference>
-      <node>
-        <name>analyticsProcesses</name>
-        <label>#{analytics.navigation.AnalyticsProcesses}</label>
-        <visibility>DISPLAYED</visibility>
-        <page-reference>portal::global::analytics-processes</page-reference>
-      </node>
     </node>
   </page-nodes>
 </node-navigation>
