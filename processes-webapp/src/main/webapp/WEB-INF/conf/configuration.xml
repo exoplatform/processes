@@ -2,9 +2,9 @@
 <configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.exoplatform.org/xml/ns/kernel_1_3.xsd http://www.exoplatform.org/xml/ns/kernel_1_3.xsd"
                xmlns="http://www.exoplatform.org/xml/ns/kernel_1_3.xsd">
 
-    <import>war:/conf/processes/portal-configuration.xml</import>
-    <import>war:/conf/processes/organization-configuration.xml</import>
-    <import>war:/conf/processes/dynamic-container-configuration.xml</import>
-    <import>war:/conf/processes/notification-configuration.xml</import>
-    <import profiles="analytics">war:/conf/processes/analytics-configuration.xml</import>
+  <import>war:/conf/processes/portal-configuration.xml</import>
+  <import>war:/conf/processes/organization-configuration.xml</import>
+  <import>war:/conf/processes/dynamic-container-configuration.xml</import>
+  <import>war:/conf/processes/notification-configuration.xml</import>
+  <import profiles="analytics">war:/conf/processes/analytics-configuration.xml</import>
 </configuration>
