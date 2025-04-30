@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
 <!--
- * Copyright (C) 2021 eXo Platform SAS.
+ * Copyright (C) 2025 eXo Platform SAS.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -20,287 +20,28 @@
 <page-set xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
           xsi:schemaLocation="http://www.exoplatform.org/xml/ns/gatein_objects_1_8 http://www.exoplatform.org/xml/ns/gatein_objects_1_8"
           xmlns="http://www.exoplatform.org/xml/ns/gatein_objects_1_8">
-    <page>
-        <name>processes</name>
-        <title>processes</title>
-        <access-permissions>*:/platform/users;*:/platform/externals</access-permissions>
-        <edit-permission>*:/platform/administrators</edit-permission>
-        <container cssClass="singlePageApplication" id="processesParentContainer" template="system:/groovy/portal/webui/container/UIContainer.gtmpl">
-            <access-permissions>Everyone</access-permissions>
-            <container id="top-processes-container" template="system:/groovy/portal/webui/container/UIAddOnContainer.gtmpl">
-                <name>top-processes-container</name>
-                <access-permissions>Everyone</access-permissions>
-                <factory-id>addonContainer</factory-id>
-            </container>
-            <container id="processes-container" template="system:/groovy/portal/webui/container/UIAddOnContainer.gtmpl">
-                <name>processes-container</name>
-                <access-permissions>Everyone</access-permissions>
-                <factory-id>addonContainer</factory-id>
-            </container>
-            <container id="bottom-processes-container" template="system:/groovy/portal/webui/container/UIAddOnContainer.gtmpl">
-                <name>bottom-processes-container</name>
-                <access-permissions>Everyone</access-permissions>
-                <factory-id>addonContainer</factory-id>
-            </container>
-        </container>
-    </page>
-    <page>
-    <name>analytics-processes</name>
-    <title>Analytics</title>
-    <access-permissions>*:/platform/processes;*:/platform/administrators;</access-permissions>
-    <edit-permission>*:/platform/administrators;*:/platform/processes;</edit-permission>
-        <container
-                id="topAnalyticsPage"
-                template="system:/groovy/portal/webui/container/UIContainer.gtmpl"
-                cssClass="singlePageApplication border-box-sizing">
-            <access-permissions>Everyone</access-permissions>
-            <container id="breadcrumbAnalytics" template="system:/groovy/portal/webui/container/UIContainer.gtmpl">
-                <access-permissions>Everyone</access-permissions>
-                <portlet-application>
-                    <portlet>
-                        <application-ref>analytics</application-ref>
-                        <portlet-ref>AnalyticsDashboardBreadcrumb</portlet-ref>
-                    </portlet>
-                    <title>Breadcrumb Analytics</title>
-                    <access-permissions>Everyone</access-permissions>
-                    <show-info-bar>false</show-info-bar>
-                </portlet-application>
-            </container>
-            <container cssClass="analyticsPageRow" template="system:/groovy/portal/webui/container/UIContainer.gtmpl">
-                <access-permissions>Everyone</access-permissions>
-                <portlet-application>
-                    <portlet>
-                        <application-ref>analytics</application-ref>
-                        <portlet-ref>AnalyticsPortlet</portlet-ref>
-                        <preferences>
-                            <preference>
-                                <name>settings</name>
-                                <value>
-                                    {
-                                    "offset": 0,
-                                    "filters": [
-                                    {
-                                    "field": "operation",
-                                    "type": "EQUAL",
-                                    "valueString": "requestCreated",
-                                    "range": null
-                                    }
-                                    ],
-                                    "lang": null,
-                                    "aggregations": [
-                                    {
-                                    "field": "processName.keyword",
-                                    "type": "TERMS",
-                                    "offset": null,
-                                    "interval": null,
-                                    "useBounds": false,
-                                    "minBound": 0,
-                                    "maxBound": 0,
-                                    "sortDirection": "desc",
-                                    "limit": 0
-                                    },
-                                    {
-                                    "field": "requestID",
-                                    "type": "CARDINALITY",
-                                    "offset": null,
-                                    "interval": null,
-                                    "useBounds": false,
-                                    "minBound": 0,
-                                    "maxBound": 0,
-                                    "sortDirection": "desc",
-                                    "limit": 0
-                                    }
-                                    ],
-                                    "yAxisAggregation": {
-                                    "field": "requestID",
-                                    "type": "CARDINALITY",
-                                    "offset": null,
-                                    "interval": null,
-                                    "useBounds": false,
-                                    "minBound": 0,
-                                    "maxBound": 0,
-                                    "sortDirection": "desc",
-                                    "limit": 0
-                                    },
-                                    "multipleChartsAggregation": null,
-                                    "xAxisAggregations": [
-                                    {
-                                    "field": "processName.keyword",
-                                    "type": "TERMS",
-                                    "offset": null,
-                                    "interval": null,
-                                    "useBounds": false,
-                                    "minBound": 0,
-                                    "maxBound": 0,
-                                    "sortDirection": "desc",
-                                    "limit": 0
-                                    }
-                                    ],
-                                    "multipleCharts": false,
-                                    "chartType": "bar",
-                                    "colors": null,
-                                    "multipleChartsField": null,
-                                    "limit": 0,
-                                    "timeZone": null,
-                                    "title": "analytics.created.requests.perProcess"
-                                    }
-                                </value>
-                            </preference>
-                        </preferences>
-                    </portlet>
-                    <title>Created requests per process</title>
-                    <access-permissions>Everyone</access-permissions>
-                    <show-info-bar>false</show-info-bar>
-                </portlet-application>
-                <portlet-application>
-                    <portlet>
-                        <application-ref>analytics</application-ref>
-                        <portlet-ref>AnalyticsPortlet</portlet-ref>
-                        <preferences>
-                            <preference>
-                                <name>settings</name>
-                                <value>
-                                    {
-                                    "offset": 0,
-                                    "filters": [
-                                    {
-                                    "field": "operation",
-                                    "type": "IN_SET",
-                                    "valueString": "processCreated,requestCreated,accessProcessesApp",
-                                    "range": null
-                                    }
-                                    ],
-                                    "lang": null,
-                                    "aggregations": [
-                                    {
-                                    "field": "subModule",
-                                    "type": "TERMS",
-                                    "offset": null,
-                                    "interval": null,
-                                    "useBounds": false,
-                                    "minBound": 0,
-                                    "maxBound": 0,
-                                    "sortDirection": "asc",
-                                    "limit": 0
-                                    },
-                                    {
-                                    "field": "module",
-                                    "type": "COUNT",
-                                    "offset": null,
-                                    "interval": null,
-                                    "useBounds": false,
-                                    "minBound": 0,
-                                    "maxBound": 0,
-                                    "sortDirection": "desc",
-                                    "limit": 0
-                                    }
-                                    ],
-                                    "yAxisAggregation": {
-                                    "field": "module",
-                                    "type": "COUNT",
-                                    "offset": null,
-                                    "interval": null,
-                                    "useBounds": false,
-                                    "minBound": 0,
-                                    "maxBound": 0,
-                                    "sortDirection": "desc",
-                                    "limit": 0
-                                    },
-                                    "multipleChartsAggregation": null,
-                                    "xAxisAggregations": [
-                                    {
-                                    "field": "subModule",
-                                    "type": "TERMS",
-                                    "offset": null,
-                                    "interval": null,
-                                    "useBounds": false,
-                                    "minBound": 0,
-                                    "maxBound": 0,
-                                    "sortDirection": "asc",
-                                    "limit": 0
-                                    }
-                                    ],
-                                    "multipleCharts": false,
-                                    "chartType": "pie",
-                                    "colors": null,
-                                    "multipleChartsField": null,
-                                    "limit": 0,
-                                    "timeZone": null,
-                                    "title": "analytics.processes.actions"
-                                    }
-                                </value>
-                            </preference>
-                        </preferences>
-                    </portlet>
-                    <title>Processes</title>
-                    <access-permissions>Everyone</access-permissions>
-                    <show-info-bar>false</show-info-bar>
-                </portlet-application>
-            </container>
-        <container cssClass="analyticsPageRow" template="system:/groovy/portal/webui/container/UIContainer.gtmpl">
-            <access-permissions>Everyone</access-permissions>
-            <portlet-application>
-                <portlet>
-                    <application-ref>analytics</application-ref>
-                    <portlet-ref>AnalyticsRatePortlet</portlet-ref>
-                    <preferences>
-                        <preference>
-                            <name>settings</name>
-                            <value>
-                                {
-                                "value": {
-                                "filters": [
-                                {
-                                "range": null,
-                                "valueString": "accessProcessesApp",
-                                "field": "operation",
-                                "type": "EQUAL"
-                                }
-                                ],
-                                "yAxisAggregation": {
-                                "interval": null,
-                                "sortDirection": null,
-                                "field": "userId",
-                                "type": "CARDINALITY"
-                                }
-                                },
-                                "periodType":null,
-                                "lang":null,
-                                "threshold": {
-                                "filters": [
-                                {
-                                "range": null,
-                                "valueString": "usersCount",
-                                "field": "operation",
-                                "type": "EQUAL"
-                                },
-                                {
-                                "range": null,
-                                "valueString": "enabledUsers",
-                                "field": "countType",
-                                "type": "EQUAL"
-                                }
-                                ],
-                                "yAxisAggregation": {
-                                "interval": null,
-                                "sortDirection": null,
-                                "field": "count",
-                                "type": "MAX"
-                                }
-                                },
-                                "chartType":"percentageBar",
-                                "colors": ["#4273C8"],
-                                "title":"analytics.accessProcessesApp"
-                                }
-                            </value>
-                        </preference>
-                    </preferences>
-                </portlet>
-                <title>Access to processes app</title>
-                <access-permissions>Everyone</access-permissions>
-                <show-info-bar>false</show-info-bar>
-            </portlet-application>
-        </container>
-        </container>
-    </page>
+  <page>
+    <name>processes</name>
+    <title>processes</title>
+    <access-permissions>*:/platform/users;*:/platform/externals</access-permissions>
+    <edit-permission>*:/platform/administrators</edit-permission>
+    <container cssClass="singlePageApplication" id="processesParentContainer" template="system:/groovy/portal/webui/container/UIContainer.gtmpl">
+      <access-permissions>Everyone</access-permissions>
+      <container id="top-processes-container" template="system:/groovy/portal/webui/container/UIAddOnContainer.gtmpl">
+        <name>top-processes-container</name>
+        <access-permissions>Everyone</access-permissions>
+        <factory-id>addonContainer</factory-id>
+      </container>
+      <container id="processes-container" template="system:/groovy/portal/webui/container/UIAddOnContainer.gtmpl">
+        <name>processes-container</name>
+        <access-permissions>Everyone</access-permissions>
+        <factory-id>addonContainer</factory-id>
+      </container>
+      <container id="bottom-processes-container" template="system:/groovy/portal/webui/container/UIAddOnContainer.gtmpl">
+        <name>bottom-processes-container</name>
+        <access-permissions>Everyone</access-permissions>
+        <factory-id>addonContainer</factory-id>
+      </container>
+    </container>
+  </page>
 </page-set>
