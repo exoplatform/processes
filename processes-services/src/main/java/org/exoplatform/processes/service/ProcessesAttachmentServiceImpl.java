@@ -185,6 +185,7 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
         Node destEntityNode;
         if (!rootNode.hasNode(destEntityType)) {
           destEntityNode = rootNode.addNode(destEntityType, NodetypeConstant.NT_FOLDER);
+          destEntityNode.addMixin(NodetypeConstant.EXO_HIDDENABLE);
         } else {
           destEntityNode = rootNode.getNode(destEntityType);
         }
@@ -202,12 +203,15 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
         if (destNode.canAddMixin(NodetypeConstant.EXO_PRIVILEGEABLE)) {
           destNode.addMixin(NodetypeConstant.EXO_PRIVILEGEABLE);
         }
+        destNode.addMixin(NodetypeConstant.EXO_HIDDENABLE);
         Map<String, String[]> unmodifiablePermissions = Collections.unmodifiableMap(permissions);
         ((ExtendedNode) destNode).setPermissions(unmodifiablePermissions);
         String destPath = destNode.getPath().concat("/").concat(attachmentNode.getName());
         if (!copy && !attachment.isEXoDrive()) {
           Node sourceEntityIdNode = attachmentNode.getParent();
           session.move(attachmentNode.getPath(), destPath);
+          attachmentNode = (Node) session.getItem(destPath);
+          attachmentNode.addMixin(NodetypeConstant.EXO_HIDDENABLE);
           if (attachments.size() - 1 == index && sourceEntityIdNode != null
                   && sourceEntityIdNode.getPrimaryNodeType().isNodeType(NodetypeConstant.NT_FOLDER)) {
             sourceEntityIdNode.remove();
@@ -218,6 +222,7 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
           Workspace workspace = session.getWorkspace();
           workspace.copy(attachmentNode.getPath(), destPath);
           Node copyNode = (Node) session.getItem(destPath);
+          copyNode.addMixin(NodetypeConstant.EXO_HIDDENABLE);
           processDocument(copyNode, currentUser);
           Attachment copyAttachment = attachmentService.getAttachmentById(copyNode.getUUID());
           updatedAttachments.put(index, copyAttachment);
@@ -393,11 +398,13 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
       Node destEntityNode;
       if (!rootNode.hasNode(entityType)) {
         destEntityNode = rootNode.addNode(entityType, NodetypeConstant.NT_FOLDER);
+        destEntityNode.addMixin(NodetypeConstant.EXO_HIDDENABLE);
       } else {
         destEntityNode = rootNode.getNode(entityType);
       }
       if (!destEntityNode.hasNode(String.valueOf(entityId))) {
         destEntityNode = destEntityNode.addNode(String.valueOf(entityId), NodetypeConstant.NT_FOLDER);
+        destEntityNode.addMixin(NodetypeConstant.EXO_HIDDENABLE);
       } else {
         destEntityNode = destEntityNode.getNode(String.valueOf(entityId));
       }
