@@ -1,9 +1,7 @@
 package org.exoplatform.processes.rest;
 
 import static org.junit.Assert.assertNotNull;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -142,7 +140,7 @@ public class EntityBuilderTest {
     org.exoplatform.services.security.Identity userID = new org.exoplatform.services.security.Identity(username);
 
     when(identityRegistry.getIdentity(username)).thenReturn(userID);
-    when(identityManager.getIdentity((String.valueOf(currentOwnerId)))).thenReturn(currentIdentity);
+    when(identityManager.getIdentity((currentOwnerId))).thenReturn(currentIdentity);
     when(identityManager.getOrCreateUserIdentity(username)).thenReturn(currentIdentity);
 
     WorkEntity workEntity = new WorkEntity();

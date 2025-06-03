@@ -14,6 +14,7 @@ import org.exoplatform.commons.file.model.FileInfo;
 import org.exoplatform.commons.file.model.FileItem;
 import org.exoplatform.commons.file.services.FileService;
 import org.exoplatform.commons.file.services.FileStorageException;
+import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.processes.Utils.EntityMapper;
 import org.exoplatform.processes.Utils.ProcessesUtils;
 import org.exoplatform.processes.dao.WorkDraftDAO;
@@ -65,6 +66,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   private final ProcessesAttachmentService processesAttachmentService;
   private final FileService                fileService;
   private final OrganizationService        organizationService;
+  private final UserACL                    userACL;
   private final String                     DATE_FORMAT              = "yyyy/MM/dd";
   private final SimpleDateFormat           formatter                = new SimpleDateFormat(DATE_FORMAT);
 
@@ -78,7 +80,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
                               ListenerService listenerService,
                               ProcessesAttachmentService processesAttachmentService,
                               FileService fileService,
-                              OrganizationService organizationService) {
+                              OrganizationService organizationService,
+                              UserACL userACL) {
     this.workFlowDAO = workFlowDAO;
     this.workDraftDAO = workDraftDAO;
     this.identityManager = identityManager;
@@ -90,6 +93,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     this.processesAttachmentService = processesAttachmentService;
     this.fileService = fileService;
     this.organizationService = organizationService;
+    this.userACL = userACL;
   }
 
   @Override
@@ -130,14 +134,14 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   }
 
   @Override
-  public WorkFlow saveWorkFlow(WorkFlow workFlow, long userId) throws IllegalArgumentException {
+  public WorkFlow saveWorkFlow(WorkFlow workFlow, Identity identity) throws IllegalArgumentException {
     if (workFlow == null) {
       throw new IllegalArgumentException("workflow argument is null");
     }
-    Identity identity = identityManager.getIdentity(String.valueOf(userId));
     if (identity == null) {
-      throw new IllegalArgumentException("identity is not exist");
+      throw new IllegalArgumentException("identity does not exist");
     }
+    long userId = Long.parseLong(identity.getId());
     WorkFlowEntity workFlowEntity = EntityMapper.toEntity(workFlow);
     IllustrativeAttachment illustrativeAttachment = createIllustrativeImage(workFlow.getIllustrativeAttachment());
     if (illustrativeAttachment != null && !illustrativeAttachment.isToDelete()) {
@@ -299,9 +303,9 @@ public class ProcessesStorageImpl implements ProcessesStorage {
 
   @Override
   public Work getWorkById(long userIdentityId, long workId) {
-    Identity identity = identityManager.getIdentity(String.valueOf(userIdentityId));
+    Identity identity = identityManager.getIdentity(userIdentityId);
     if (identity == null) {
-      throw new IllegalArgumentException("identity is not exist");
+      throw new IllegalArgumentException("identity does not exist");
     }
     TaskDto taskDto = null;
     TaskQuery taskQuery = new TaskQuery();
@@ -385,20 +389,19 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   }
 
   @Override
-  public Work saveWork(Work work, long userId) throws IllegalArgumentException {
+  public Work saveWork(Work work, Identity identity) throws IllegalArgumentException {
     if (work == null) {
       throw new IllegalArgumentException("work argument is null");
     }
-    Identity identity = identityManager.getIdentity(String.valueOf(userId));
     if (identity == null) {
-      throw new IllegalArgumentException("identity is not exist");
+      throw new IllegalArgumentException("identity does not exist");
     }
     if (work.getId() == 0) {
       TaskDto taskDto = createWorkTask(work, identity);
       ProjectDto projectDto = taskDto.getStatus().getProject();
       if (work.getDraftId() != null) {
         processesAttachmentService.moveAttachmentsToEntity(work.getAttachments(),
-                                                           userId,
+                Long.valueOf(identity.getId()),
                                                            work.getDraftId(),
                                                            WORK_DRAFT_ENTITY_TYPE,
                                                            taskDto.getId(),
@@ -407,7 +410,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
         deleteWorkDraftById(work.getDraftId());
       }
       Work newWork = EntityMapper.taskToWork(taskDto);
-      newWork.setCreatorId(userId);
+      newWork.setCreatorId(Long.valueOf(identity.getId()));
       ProcessesUtils.broadcast(listenerService, "exo.process.request.created", newWork, projectDto);
       return newWork;
     } else {
@@ -511,9 +514,9 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    */
   @Override
   public Work saveWorkDraft(Work work, long userId) {
-    Identity identity = identityManager.getIdentity(String.valueOf(userId));
+    Identity identity = identityManager.getIdentity(userId);
     if (identity == null) {
-      throw new IllegalArgumentException("identity is not exist");
+      throw new IllegalArgumentException("identity does not exist");
     }
     WorkEntity workEntity = EntityMapper.toEntity(work);
     workEntity.setModifiedDate(new Date());
@@ -573,11 +576,11 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    */
   @Override
   public List<WorkFlow> findWorkFlows(ProcessesFilter processesFilter, long userIdentityId, int offset, int limit) {
-    String userName = "";
+    String userName;
     List<String> memberships = new ArrayList<>();
     boolean isMemberProcessesGroup = false;
     if (userIdentityId > 0) {
-      Identity identity = identityManager.getIdentity(String.valueOf(userIdentityId));
+      Identity identity = identityManager.getIdentity(userIdentityId);
       if (identity != null) {
         userName = identity.getRemoteId();
         memberships.add(userName);
@@ -596,7 +599,11 @@ public class ProcessesStorageImpl implements ProcessesStorage {
         } catch (Exception e) {
           LOG.error("Error while getting the user memberships", e);
         }
+      } else {
+        userName = "";
       }
+    } else {
+      userName = "";
     }
     List<WorkFlowEntity> workFlowEntities;
     if (isMemberProcessesGroup) {
@@ -616,7 +623,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       } catch (Exception e) {
         LOG.error("Error while getting workflow illustration image", e);
       }
-      workFlows.add(EntityMapper.fromEntity(workflowEntity, illustrativeAttachment, finalMemberships));
+      workFlows.add(EntityMapper.fromEntity(workflowEntity, illustrativeAttachment, userACL.getUserIdentity(userName)));
     });
     String finalUserName = userName;
     workFlows.forEach(workflow -> {
@@ -648,5 +655,4 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     } else
       return false;
   }
-
 }

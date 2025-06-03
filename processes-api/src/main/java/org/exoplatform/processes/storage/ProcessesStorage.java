@@ -64,7 +64,7 @@ public interface ProcessesStorage {
 
   WorkFlow getWorkFlowByProjectId(long projectId);
 
-  WorkFlow saveWorkFlow(WorkFlow workFlow, long userId) throws IllegalArgumentException;
+  WorkFlow saveWorkFlow(WorkFlow workFlow, Identity identity) throws IllegalArgumentException;
 
   /**
    * Retrieves list of filtered works
@@ -84,11 +84,11 @@ public interface ProcessesStorage {
    * Saving a work and deletes its related draft if it was created from draft
    *
    * @param work Work Object
-   * @param userId user Id
+   * @param identity user social identity
    * @return {@link Work}
    * @throws IllegalArgumentException
    */
-  Work saveWork(Work work, long userId) throws IllegalArgumentException;
+  Work saveWork(Work work, Identity identity) throws IllegalArgumentException;
 
   /**
    * Delete a workflow by its given Id.

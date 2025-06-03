@@ -1,27 +1,10 @@
 package org.exoplatform.processes.storage;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import javax.ws.rs.ext.RuntimeDelegate;
 
@@ -42,21 +25,14 @@ import org.exoplatform.commons.file.model.FileItem;
 import org.exoplatform.commons.file.services.FileService;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.ExoContainerContext;
+import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.processes.Utils.EntityMapper;
 import org.exoplatform.processes.Utils.ProcessesUtils;
 import org.exoplatform.processes.dao.WorkDraftDAO;
 import org.exoplatform.processes.dao.WorkFlowDAO;
 import org.exoplatform.processes.entity.WorkEntity;
 import org.exoplatform.processes.entity.WorkFlowEntity;
-import org.exoplatform.processes.model.CreatorIdentityEntity;
-import org.exoplatform.processes.model.IdentityEntity;
-import org.exoplatform.processes.model.IllustrativeAttachment;
-import org.exoplatform.processes.model.ProcessesFilter;
-import org.exoplatform.processes.model.ProfileEntity;
-import org.exoplatform.processes.model.Work;
-import org.exoplatform.processes.model.WorkFilter;
-import org.exoplatform.processes.model.WorkFlow;
-import org.exoplatform.processes.model.WorkStatus;
+import org.exoplatform.processes.model.*;
 import org.exoplatform.processes.rest.util.EntityBuilder;
 import org.exoplatform.processes.service.ProcessesAttachmentService;
 import org.exoplatform.services.attachments.model.Attachment;
@@ -134,6 +110,9 @@ public class ProcessesStorageImplTest {
 
   private ProcessesStorage           processesStorage;
 
+  @Mock
+  private UserACL                    userAcl;
+
   @AfterClass
   public static void afterRunBare() throws Exception { // NOSONAR
     COMMONS_UTILS.close();
@@ -158,7 +137,8 @@ public class ProcessesStorageImplTest {
                                                      listenerService,
                                                      processesAttachmentService,
                                                      fileService,
-                                                     organizationService);
+            organizationService,
+            userAcl);
 
   }
 
@@ -200,6 +180,7 @@ public class ProcessesStorageImplTest {
     Attachment attachment = new Attachment();
     attachment.setId("1");
     attachments.add(attachment);
+    org.exoplatform.services.security.Identity userIdentity = mock(org.exoplatform.services.security.Identity.class);
     Identity identity = mock(Identity.class);
     WorkFlow workFlow = mock(WorkFlow.class);
     List<String> memberships = new ArrayList<>();
@@ -210,19 +191,18 @@ public class ProcessesStorageImplTest {
     ProjectDto projectDto = new ProjectDto();
     Space space = mock(Space.class);
     WorkFlowEntity workFlowEntity = new WorkFlowEntity();
-    Throwable exception1 = assertThrows(IllegalArgumentException.class, () -> this.processesStorage.saveWorkFlow(null, 1l));
+    Throwable exception1 = assertThrows(IllegalArgumentException.class, () -> this.processesStorage.saveWorkFlow(null, identity));
     assertEquals("workflow argument is null", exception1.getMessage());
 
-    when(identityManager.getIdentity("1")).thenReturn(null);
-    Throwable exception2 = assertThrows(IllegalArgumentException.class, () -> this.processesStorage.saveWorkFlow(workFlow, 1l));
-    assertEquals("identity is not exist", exception2.getMessage());
+    Throwable exception2 = assertThrows(IllegalArgumentException.class, () -> this.processesStorage.saveWorkFlow(workFlow, null));
+    assertEquals("identity does not exist", exception2.getMessage());
 
     ENTITY_MAPPER.when(() -> EntityMapper.toEntity(workFlow)).thenReturn(workFlowEntity);
     when(workFlow.getId()).thenReturn(0L);
     when(workFlow.getProjectId()).thenReturn(0L);
     when(workFlow.getSpaceId()).thenReturn("1");
     when(projectService.getProject(workFlow.getProjectId())).thenReturn(projectDto);
-    when(identityManager.getIdentity("1")).thenReturn(identity);
+    when(identityManager.getIdentity(1)).thenReturn(identity);
     when(space.getGroupId()).thenReturn("/spaces/processes_space");
     when(space.getId()).thenReturn("2");
     when(spaceService.getSpaceByGroupId("/spaces/processes_space")).thenReturn(space);
@@ -263,16 +243,17 @@ public class ProcessesStorageImplTest {
     when(workFlowDAO.create(workFlowEntity)).thenReturn(newWorkFlowEntity);
     when(workFlowDAO.update(workFlowEntity)).thenReturn(newWorkFlowEntity);
     when(workFlow.getIllustrativeAttachment()).thenReturn(illustrativeAttachment);
-    this.processesStorage.saveWorkFlow(workFlow, 1L);
+    when(identity.getId()).thenReturn("1");
+    this.processesStorage.saveWorkFlow(workFlow, identity);
     verify(workFlowDAO, times(1)).create(workFlowEntity);
     PROCESSES_UTILS.verify(() -> ProcessesUtils.broadcast(listenerService,
                                                           "exo.process.created",
                                                           1L,
-                                                          EntityMapper.fromEntity(workFlowEntity, illustrativeAttachment, memberships)), times(1));
+            EntityMapper.fromEntity(workFlowEntity, illustrativeAttachment, userIdentity)), times(1));
     verify(processesAttachmentService,
            times(1)).linkAttachmentsToEntity(attachments.toArray(new Attachment[0]), 1L, 1L, "workflow", 1L);
     when(workFlow.getId()).thenReturn(1L);
-    this.processesStorage.saveWorkFlow(workFlow, 1L);
+    this.processesStorage.saveWorkFlow(workFlow, identity);
     verify(workFlowDAO, times(1)).update(workFlowEntity);
   }
 
@@ -315,22 +296,20 @@ public class ProcessesStorageImplTest {
     profile.setProperty("fullName", "Root root");
     org.exoplatform.processes.entity.WorkEntity WorkEntity = mock(org.exoplatform.processes.entity.WorkEntity.class);
     when(identity.getProfile()).thenReturn(profile);
+    when(identity.getId()).thenReturn("1");
     when(taskDto.getStatus()).thenReturn(statusDto);
     when(statusDto.getProject()).thenReturn(projectDto);
-    Throwable exception1 = assertThrows(IllegalArgumentException.class, () -> this.processesStorage.saveWork(null, 1l));
+    Throwable exception1 = assertThrows(IllegalArgumentException.class, () -> this.processesStorage.saveWork(null, identity));
     assertEquals("work argument is null", exception1.getMessage());
-    when(identityManager.getIdentity("1")).thenReturn(null);
-    Throwable exception2 = assertThrows(IllegalArgumentException.class, () -> this.processesStorage.saveWork(work, 1l));
-    assertEquals("identity is not exist", exception2.getMessage());
     work.setId(0L);
     work.setProjectId(1L);
-    when(identityManager.getIdentity("1")).thenReturn(identity);
+    when(identityManager.getIdentity(1)).thenReturn(identity);
     when(projectService.getProject(work.getProjectId())).thenReturn(projectDto);
     ENTITY_MAPPER.when(() -> EntityMapper.workToTask(work)).thenReturn(taskDto);
     ENTITY_MAPPER.when(() -> EntityMapper.taskToWork(taskDto)).thenReturn(work);
     when(taskDto.getTitle()).thenReturn("");
     when(taskService.createTask(taskDto)).thenReturn(taskDto);
-    processesStorage.saveWork(work, 1L);
+    processesStorage.saveWork(work, identity);
     PROCESSES_UTILS.verify(() -> ProcessesUtils.broadcast(listenerService, "exo.process.request.created", work, projectDto), times(1));
 
     work.setIsDraft(true);
@@ -341,7 +320,7 @@ public class ProcessesStorageImplTest {
     workFlow.setProjectId(1L);
     when(taskDto.getId()).thenReturn(1L);
     when(workDraftDAO.find(1L)).thenReturn(WorkEntity);
-    processesStorage.saveWork(work, 1L);
+    processesStorage.saveWork(work, identity);
     verify(processesAttachmentService, times(1)).moveAttachmentsToEntity(new ArrayList<Attachment>(), 1L, 1L, "workdraft", 1L, "task", 1L);
     verify(workDraftDAO, times(1)).delete(WorkEntity);
     when(projectService.getProject(work.getProjectId())).thenThrow(EntityNotFoundException.class);
@@ -359,16 +338,16 @@ public class ProcessesStorageImplTest {
     statuses.add(statusDto1);
     when(statusService.getStatuses(1L)).thenReturn(statuses);
     work.setStatus("Canceled");
-    processesStorage.saveWork(work, 1L);
+    processesStorage.saveWork(work, identity);
     PROCESSES_UTILS.verify(() -> ProcessesUtils.broadcast(listenerService, "exo.process.request.canceled", updatedTask, updatedTask.getStatus().getProject()), times(1));
     verify(taskService, times(1)).updateTask(taskDto);
 
     when(taskService.getTask(work.getId())).thenThrow(EntityNotFoundException.class);
-    Throwable exception3 = assertThrows(IllegalArgumentException.class, () -> this.processesStorage.saveWork(work, 1l));
+    Throwable exception3 = assertThrows(IllegalArgumentException.class, () -> this.processesStorage.saveWork(work, identity));
     assertEquals("Task not found", exception3.getMessage());
 
     work.setId(0L);
-    Throwable exception4 = assertThrows(IllegalArgumentException.class, () -> this.processesStorage.saveWork(work, 1l));
+    Throwable exception4 = assertThrows(IllegalArgumentException.class, () -> this.processesStorage.saveWork(work, identity));
     assertEquals("Task's project not found", exception4.getMessage());
   }
 
@@ -385,13 +364,15 @@ public class ProcessesStorageImplTest {
     workEntity.equals(workEntity);
     workEntity.toString();
     Identity identity = mock(Identity.class);
-    when(identityManager.getIdentity("1")).thenReturn(null);
-    Throwable exception1 = assertThrows(IllegalArgumentException.class, () -> this.processesStorage.saveWorkDraft(work, 1l));
-    assertEquals("identity is not exist", exception1.getMessage());
     ENTITY_MAPPER.when(() -> EntityMapper.toEntity(work)).thenReturn(workEntity);
-    when(identityManager.getIdentity("1")).thenReturn(identity);
+    when(identityManager.getIdentity(1)).thenReturn(identity);
     work.setWorkFlow(workFlow);
     when(workDraftDAO.create(workEntity)).thenReturn(workEntity);
+    when(identityManager.getIdentity(1)).thenReturn(null);
+    Throwable exception1 = assertThrows(IllegalArgumentException.class, () -> this.processesStorage.saveWorkDraft(work, 1L));
+    assertEquals("identity does not exist", exception1.getMessage());
+    verify(workDraftDAO, times(0)).create(workEntity);
+    when(identityManager.getIdentity(1)).thenReturn(identity);
     processesStorage.saveWorkDraft(work, 1L);
     verify(processesAttachmentService,
            times(1)).copyAttachmentsToEntity(1L, work.getWorkFlow().getId(), "workflow", workEntity.getId(), "workdraft", 1L);
@@ -420,10 +401,10 @@ public class ProcessesStorageImplTest {
     List<TaskDto> list = new ArrayList<>();
     list.add(taskDto);
     when(identity.getRemoteId()).thenReturn("root");
-    when(identityManager.getIdentity("1")).thenReturn(null);
+    when(identityManager.getIdentity(1)).thenReturn(null);
     Throwable exception1 = assertThrows(IllegalArgumentException.class, () -> this.processesStorage.getWorkById(1L, 1L));
-    assertEquals("identity is not exist", exception1.getMessage());
-    when(identityManager.getIdentity("1")).thenReturn(identity);
+    assertEquals("identity does not exist", exception1.getMessage());
+    when(identityManager.getIdentity(1)).thenReturn(identity);
     when(taskService.findTasks(any(), ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt())).thenReturn(list);
     processesStorage.getWorkById(1L, 1L);
     EntityMapper.taskToWork(taskDto);
@@ -533,7 +514,7 @@ public class ProcessesStorageImplTest {
     currentProfile.setProperty(Profile.FULL_NAME, username);
     currentIdentity.setProfile(currentProfile);
 
-    when(identityManager.getIdentity((String.valueOf(currentOwnerId)))).thenReturn(currentIdentity);
+    when(identityManager.getIdentity((currentOwnerId))).thenReturn(currentIdentity);
 
     PROCESSES_UTILS.when(() -> ProcessesUtils.getUserNameByIdentityId(any(), anyLong())).thenCallRealMethod();
     String user = ProcessesUtils.getUserNameByIdentityId(identityManager, 1l);
@@ -608,6 +589,7 @@ public class ProcessesStorageImplTest {
     Attachment attachment = new Attachment();
     attachment.setId("1");
     attachments.add(attachment);
+    org.exoplatform.services.security.Identity userIdentity = mock(org.exoplatform.services.security.Identity.class);
     Identity identity = mock(Identity.class);
     WorkFlow workFlow = mock(WorkFlow.class);
     List<String> memberships = new ArrayList<>();
@@ -623,7 +605,7 @@ public class ProcessesStorageImplTest {
     when(workFlow.getProjectId()).thenReturn(0L);
     when(workFlow.getSpaceId()).thenReturn("1");
 
-    when(identityManager.getIdentity("1")).thenReturn(identity);
+    when(identityManager.getIdentity(1)).thenReturn(identity);
     when(identity.getRemoteId()).thenReturn("user");
     when(identity.getId()).thenReturn("1");
     when(space.getGroupId()).thenReturn("/spaces/processes_space");
@@ -663,7 +645,7 @@ public class ProcessesStorageImplTest {
     memberships.add("*:/platform/users");
     when(workFlowDAO.findWorkFlows(filter, memberships, 0, 0)).thenReturn(workFlowEntities);
     when(workFlow.getIllustrativeAttachment()).thenReturn(illustrativeAttachment);
-    this.processesStorage.saveWorkFlow(workFlow, 1L);
+    this.processesStorage.saveWorkFlow(workFlow, identity);
     when(organizationService.getMembershipHandler()).thenReturn(membershipHandler);
     assertEquals(null, this.processesStorage.getWorkFlowById(1));
 
@@ -685,7 +667,7 @@ public class ProcessesStorageImplTest {
     membership.setUserName("user");
     membership.setGroupId("/platform/users");
     memberships_.add(membership);
-
+    when(userAcl.getUserIdentity(identity.getRemoteId())).thenReturn(userIdentity);
     PROCESSES_UTILS.when(() -> ProcessesUtils.getProjectParentSpace(workFlow.getProjectId())).thenReturn(space);
     ENTITY_MAPPER.when(() -> EntityMapper.fromEntity(newWorkFlowEntity1, null)).thenReturn(workFlow);
 
@@ -731,7 +713,7 @@ public class ProcessesStorageImplTest {
     when(workFlow.getProjectId()).thenReturn(0L);
     when(workFlow.getSpaceId()).thenReturn("1");
 
-    when(identityManager.getIdentity("1")).thenReturn(identity);
+    when(identityManager.getIdentity(1)).thenReturn(identity);
     when(space.getGroupId()).thenReturn("/spaces/processes_space");
     when(spaceService.getSpaceByGroupId("/spaces/processes_space")).thenReturn(space);
     when(spaceService.getSpaceById("1")).thenReturn(space);
@@ -771,7 +753,8 @@ public class ProcessesStorageImplTest {
     identityEntity = new IdentityEntity("group:users", "platform/users", "group", profile);
     identityEntities.add(new CreatorIdentityEntity(identityEntity));
     workFlow.setRequestsCreators(identityEntities);
-    this.processesStorage.saveWorkFlow(workFlow, 1L);
+    when(identity.getId()).thenReturn("1");
+    this.processesStorage.saveWorkFlow(workFlow, identity);
     assertEquals(1, this.processesStorage.countWorkFlows(filter));
   }
 }

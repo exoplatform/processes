@@ -13,11 +13,13 @@ import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.processes.entity.WorkEntity;
 import org.exoplatform.processes.entity.WorkFlowEntity;
 import org.exoplatform.processes.model.*;
+import org.exoplatform.processes.service.ProcessesService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.organization.Group;
 import org.exoplatform.services.organization.GroupHandler;
 import org.exoplatform.services.organization.OrganizationService;
+import org.exoplatform.services.security.Identity;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dto.StatusDto;
@@ -26,16 +28,14 @@ import org.exoplatform.task.dto.TaskDto;
 public class EntityMapper {
   private static final Log LOG = ExoLogger.getLogger(EntityMapper.class);
 
-  private static final String PROCESSES_GROUP =  "/platform/processes";
-
   private EntityMapper() {
   }
 
-  public static WorkFlow fromEntity(WorkFlowEntity workFlowEntity, List<String> memberships) {
+  public static WorkFlow fromEntity(WorkFlowEntity workFlowEntity, Identity identity) {
     if (workFlowEntity == null) {
       return null;
     }
-    return new WorkFlow(workFlowEntity.getId(),
+    WorkFlow workFlow = new WorkFlow(workFlowEntity.getId(),
                         workFlowEntity.getTitle(),
                         workFlowEntity.getDescription(),
                         workFlowEntity.getSummary(),
@@ -48,13 +48,15 @@ public class EntityMapper {
                         workFlowEntity.getModifiedDate(),
                         workFlowEntity.getProjectId(),
                         "",
-                        getACL(workFlowEntity, memberships),
+            null,
                         null,
                         new IllustrativeAttachment(workFlowEntity.getIllustrationImageId()),
                         workFlowEntity.getManager(),
                         workFlowEntity.getParticipator(),
                         false,
                         fromGroupToIdentity(workFlowEntity.getManager()));
+    workFlow.setAcl(getACL(workFlow, identity));
+    return workFlow;
   }
 
   static List<CreatorIdentityEntity> fromGroupToIdentity(Set<String> managers) {
@@ -90,43 +92,22 @@ public class EntityMapper {
     return identityEntities;
   }
 
-  public static ProcessPermission getACL(WorkFlowEntity workFlowEntity, List<String> memberships) {
+  public static ProcessPermission getACL(WorkFlow workFlow, Identity identity) {
 
-    if (memberships == null)
+    if (identity == null) {
       return new ProcessPermission(true, true, true, true);
-    ProcessPermission permission = new ProcessPermission(false, false, false, false);
-    for (String member : memberships) {
-      for (String manager : workFlowEntity.getManager()) {
-        if (member.contains(manager)) {
-          permission.setCanAddRequest(true);
-          break;
-        }
-      }
-      for (String participator : workFlowEntity.getParticipator()) {
-        if (member.equals(participator)) {
-          permission.setCanAccess(true);
-          permission.setCanEdit(true);
-          break;
-        }
-      }
-      if (member.contains(PROCESSES_GROUP)) {
-        permission.setCanDelete(true);
-        permission.setCanEdit(true);
-      }
-      if (permission.isCanAddRequest() && permission.isCanAccess() && permission.isCanDelete() && permission.isCanEdit()) {
-        break;
-      }
     }
-    return permission;
+    ProcessesService processesService = CommonsUtils.getService(ProcessesService.class);
+    return new ProcessPermission(processesService.canAccess(workFlow, identity), processesService.canEdit(workFlow, identity), processesService.canDelete(workFlow, identity), processesService.canAddRequest(workFlow, identity));
   }
 
   public static WorkFlow fromEntity(WorkFlowEntity workFlowEntity,
                                     IllustrativeAttachment illustrativeAttachment,
-                                    List<String> memberships) {
+                                    Identity identity) {
     if (workFlowEntity == null) {
       return null;
     }
-    WorkFlow workFlow = fromEntity(workFlowEntity, memberships);
+    WorkFlow workFlow = fromEntity(workFlowEntity, identity);
     if (illustrativeAttachment != null) {
       workFlow.setIllustrativeAttachment(illustrativeAttachment);
     }
