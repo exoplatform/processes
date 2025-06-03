@@ -21,19 +21,11 @@ import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 
 public class RestUtils {
-
-  private static final String PROCESSES_GROUP =  "/platform/processes";
-
   private RestUtils() {
   }
 
   public static final String getCurrentUser() {
     return ConversationState.getCurrent().getIdentity().getUserId();
-  }
-
-  public static final Identity getCurrentUserIdentity(IdentityManager identityManager) {
-    String currentUser = getCurrentUser();
-    return identityManager.getOrCreateUserIdentity(currentUser);
   }
 
   public static final long getCurrentUserIdentityId(IdentityManager identityManager) {
@@ -42,7 +34,4 @@ public class RestUtils {
     return identity == null ? 0 : Long.parseLong(identity.getId());
   }
 
-  public static boolean isProcessesGroupMember(org.exoplatform.services.security.Identity identity) {
-    return identity != null && identity.isMemberOf(PROCESSES_GROUP);
-  }
 }

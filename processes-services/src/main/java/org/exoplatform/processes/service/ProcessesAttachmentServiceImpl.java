@@ -1,5 +1,15 @@
 package org.exoplatform.processes.service;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.stream.IntStream;
+
+import javax.jcr.Node;
+import javax.jcr.RepositoryException;
+import javax.jcr.Session;
+import javax.jcr.Workspace;
+
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.processes.Utils.ProcessesUtils;
 import org.exoplatform.processes.model.WorkFlow;
@@ -26,12 +36,6 @@ import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.service.ProjectService;
-
-import javax.jcr.*;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.*;
-import java.util.stream.IntStream;
 
 public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentService {
   private static final Log             LOG                  = ExoLogger.getLogger(ProcessesAttachmentServiceImpl.class);
@@ -349,7 +353,7 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
   }
 
   private void createWorkflowTaskFolder(long userId, long projectId, String entityType, long entityId) {
-    org.exoplatform.social.core.identity.model.Identity userIdentity = identityManager.getIdentity(String.valueOf(userId));
+    org.exoplatform.social.core.identity.model.Identity userIdentity = identityManager.getIdentity(userId);
     Map<String, String[]> permissions = new HashMap<>();
     permissions.put(GROUP_ADMINISTRATORS, PermissionType.ALL);
     permissions.put(GROUP_PROCESSES, PermissionType.ALL);

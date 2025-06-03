@@ -50,6 +50,9 @@ public interface ProcessesService {
   int countWorkFlows(ProcessesFilter filter,
                      long userIdentityId) throws IllegalAccessException;
 
+  WorkFlow getWorkFlow(long id,
+                       long userIdentityId) throws IllegalAccessException;
+
   WorkFlow getWorkFlow(long id) throws IllegalAccessException;
 
   WorkFlow createWorkFlow(WorkFlow workFlow, long userId) throws IllegalAccessException;
@@ -68,6 +71,8 @@ public interface ProcessesService {
    * @throws Exception
    */
   List<Work> getWorks(long userIdentityId, WorkFilter workFilter, int offset, int limit) throws Exception;
+
+  WorkFlow getWorkFlowByProjectId(long projectId, long userId) throws IllegalAccessException;
 
   WorkFlow getWorkFlowByProjectId(long projectId);
 
@@ -88,32 +93,38 @@ public interface ProcessesService {
    * Delete a workflow by its given Id.
    *
    * @param workflowId : workflow id
+   * @param userId user id
    */
-  void deleteWorkflowById(Long workflowId);
+  void deleteWorkflowById(Long workflowId, long userId) throws IllegalAccessException, ObjectNotFoundException;
 
   /**
    * @param projectId: Tasks project id
    * @param isCompleted: filter by completed and uncompleted tasks
+   * @param userId user id
    * @return Filtered tasks count
    * @throws Exception
    */
-  int countWorksByWorkflow(Long projectId, Boolean isCompleted) throws Exception;
+  int countWorksByWorkflow(Long projectId, long userId, Boolean isCompleted) throws Exception;
 
   /**
    * Delete a work by its given id.
    *
    * @param workId: Work id
+   * @param userId user identity ID
    */
-  void deleteWorkById(Long workId);
+  void deleteWorkById(Long workId, long userId) throws ObjectNotFoundException, IllegalAccessException;
 
   /**
    * update the completed property of the task of a work to completed or uncompleted
    *
    * @param workId work id
+   * @param userId user identity ID
    * @param completed work completed property, can be true or false
+   * @throws ObjectNotFoundException
+   * @throws IllegalAccessException
    * @return {@link Work}
    */
-  Work updateWorkCompleted(Long workId, boolean completed);
+  Work updateWorkCompleted(Long workId, long userId, boolean completed) throws ObjectNotFoundException, IllegalAccessException;
 
   /**
    * Creates a work draft
@@ -122,8 +133,9 @@ public interface ProcessesService {
    * @param userId user identity
    * @return {@link Work}
    * @throws IllegalArgumentException
+
    */
-  Work createWorkDraft(Work work, long userId) throws IllegalArgumentException;
+  Work createWorkDraft(Work work, long userId) throws IllegalArgumentException, IllegalAccessException;
 
   /**
    * Updates a work draft
@@ -134,7 +146,7 @@ public interface ProcessesService {
    * @throws IllegalArgumentException
    * @throws ObjectNotFoundException
    */
-  Work updateWorkDraft(Work work, long userId) throws IllegalArgumentException, ObjectNotFoundException;
+  Work updateWorkDraft(Work work, long userId) throws IllegalArgumentException, ObjectNotFoundException, IllegalAccessException;
 
   /**
    * Retrieves a list of accessible WorkDraft, for a selected user
@@ -150,9 +162,10 @@ public interface ProcessesService {
   /**
    * Deletes a work draft by its given id
    *
-   * @param id Work draft id
+   * @param userId user identity Id
+   * @param draftId Work draft id
    */
-  void deleteWorkDraftById(Long id);
+  void deleteWorkDraftById(Long draftId, long userId) throws IllegalAccessException, ObjectNotFoundException;
 
   /**
    * Retrieves the list of available statuses in all workflows
@@ -164,21 +177,37 @@ public interface ProcessesService {
   /**
    * Retrieves a Work by its given id
    *
-   * @param userIdentityId user identity id
+   * @param userId user identity id
    * @param workId Work id
    * @return {@link Work}
    */
-  Work getWorkById(long userIdentityId, Long workId);
+  Work getWorkById(long userId, Long workId) throws IllegalAccessException;
 
   /**
    * Retrieves an illustration image by its given id
    *
    * @param illustrationId illustration file id
+   * @param userId user id
    * @return {@link IllustrativeAttachment}
    * @throws FileStorageException
    * @throws ObjectNotFoundException
    */
-  IllustrativeAttachment getIllustrationImageById(Long illustrationId) throws FileStorageException,
+  IllustrativeAttachment getIllustrationImageById(Long illustrationId,
+                                                  long userId) throws FileStorageException,
                                                                        ObjectNotFoundException,
                                                                        IOException;
+
+  boolean canAccess(WorkFlow workFlow, org.exoplatform.services.security.Identity identity);
+
+  boolean canAdd(org.exoplatform.services.security.Identity identity);
+
+  boolean canEdit(WorkFlow workFlow, org.exoplatform.services.security.Identity identity);
+
+  boolean canDelete(WorkFlow workFlow, org.exoplatform.services.security.Identity identity);
+
+  boolean canAddRequest(WorkFlow workFlow, org.exoplatform.services.security.Identity identity);
+
+  boolean canEditRequest(WorkFlow workFlow, org.exoplatform.services.security.Identity identity);
+
+  boolean canDeleteRequest(WorkFlow workFlow, org.exoplatform.services.security.Identity identity);
 }

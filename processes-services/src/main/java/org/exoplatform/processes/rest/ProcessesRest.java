@@ -52,6 +52,8 @@ import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 
+import static org.exoplatform.processes.Utils.ProcessesUtils.isProcessAdmin;
+
 
 @Path("/v1/processes")
 @Tag(name = "/v1/processes", description = "Manages processes")
@@ -118,28 +120,31 @@ public class ProcessesRest implements ResourceContainer {
                                   @Schema(defaultValue = "10")
                                   @QueryParam("limit")
                                   int limit) {
+    long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    if (currentIdentityId == 0) {
+      return Response.status(Response.Status.UNAUTHORIZED).build();
+    }
+    ProcessesFilter filter = new ProcessesFilter();
+    if (enabled != null) {
+      filter.setEnabled(enabled);
+    }
+    if (manager != null) {
+      filter.setManager(manager);
+    }
+    if (query != null) {
+      filter.setQuery(query);
+    }
+    long userIdentityId = currentIdentityId;
+    if (userId != null) {
+      userIdentityId = userId;
+    }
     try {
-      long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
-      if (currentIdentityId == 0) {
-        return Response.status(Response.Status.UNAUTHORIZED).build();
-      }
-      ProcessesFilter filter = new ProcessesFilter();
-      if (enabled != null) {
-        filter.setEnabled(enabled);
-      }
-      if (manager != null) {
-        filter.setManager(manager);
-      }
-      if (query != null) {
-        filter.setQuery(query);
-      }
-      long userIdentityId = currentIdentityId;
-      if (userId != null) {
-        userIdentityId = userId;
-      }
       List<WorkFlow> workFlows = processesService.getWorkFlows(filter, offset, limit, userIdentityId);
       return Response.ok(EntityBuilder.toRestEntities(workFlows, expand)).build();
-    } catch (Exception e) {
+    } catch (IllegalAccessException e) {
+      LOG.warn("User {} is not allowed to access process",userIdentityId, e);
+      return Response.status(Response.Status.UNAUTHORIZED).entity(e.getMessage()).build();
+    }catch (Exception e) {
       LOG.warn("Error retrieving list of workFlows", e);
       return Response.serverError().entity(e.getMessage()).build();
     }
@@ -172,10 +177,10 @@ public class ProcessesRest implements ResourceContainer {
                                                                       currentIdentityId);
       return Response.ok(EntityBuilder.toEntity(newWorkFlow, "")).build();
     } catch (IllegalAccessException e) {
-      LOG.warn("User '{}' attempts to create a Work WorkFlow", e);
+      LOG.warn("User {} is not allowed to create the process",currentIdentityId, e);
       return Response.status(Response.Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
-      LOG.warn("Error creating a WorkFlow", e);
+      LOG.warn("Error creating a process", e);
       return Response.serverError().entity(e.getMessage()).build();
     }
   }
@@ -211,7 +216,7 @@ public class ProcessesRest implements ResourceContainer {
       LOG.debug("User '{}' attempts to update a not existing work workFlow '{}'", currentIdentityId, e);
       return Response.status(Response.Status.NOT_FOUND).entity("Work workFlow not found").build();
     } catch (IllegalAccessException e) {
-      LOG.error("User '{}' attempts to update a work workFlow for owner '{}'", currentIdentityId, e);
+      LOG.error("User '{}' is not allowed to update the process with id '{}'", currentIdentityId, workFlowEntity.getId(), e);
       return Response.status(Response.Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error updating a work workFlow", e);
@@ -309,7 +314,7 @@ public class ProcessesRest implements ResourceContainer {
       Work newWork = processesService.createWork(EntityBuilder.toWork(processesService,workEntity),currentIdentityId);
       return Response.ok(EntityBuilder.toWorkEntity(processesService, newWork, "workFlow")).build();
     } catch (IllegalAccessException e) {
-      LOG.warn("User '{}' attempts to create a Work Work", e);
+      LOG.error("User '{}' is not allowed to create a request on the process with id '{}'", currentIdentityId, workEntity.getWorkFlow().getId(), e);
       return Response.status(Response.Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error creating a Work", e);
@@ -346,7 +351,7 @@ public class ProcessesRest implements ResourceContainer {
       LOG.debug("User '{}' attempts to update a not existing work workFlow '{}'", currentIdentityId, e);
       return Response.status(Response.Status.NOT_FOUND).entity("Work workFlow not found").build();
     } catch (IllegalAccessException e) {
-      LOG.error("User '{}' attempts to update a work workFlow for owner '{}'", currentIdentityId, e);
+      LOG.error("User '{}' is not allowed to update the process with id '{}'", currentIdentityId, workEntity.getId(), e);
       return Response.status(Response.Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error updating a work workFlow", e);
@@ -374,8 +379,7 @@ public class ProcessesRest implements ResourceContainer {
     }
     try {
       Identity identity = ConversationState.getCurrent().getIdentity();
-      boolean isProcessesGroupMember = RestUtils.isProcessesGroupMember(identity);
-      return Response.ok(String.valueOf(isProcessesGroupMember)).type(MediaType.TEXT_PLAIN).build();
+      return Response.ok(String.valueOf(isProcessAdmin(identity))).type(MediaType.TEXT_PLAIN).build();
     } catch (Exception e) {
       LOG.warn("Error while checking user permissions", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -401,15 +405,17 @@ public class ProcessesRest implements ResourceContainer {
       return Response.status(Response.Status.BAD_REQUEST).entity("Workflow id is mandatory").build();
     }
     long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
-    Identity identity = ConversationState.getCurrent().getIdentity();
-    if (currentIdentityId == 0 || !RestUtils.isProcessesGroupMember(identity)) {
+    if (currentIdentityId == 0) {
       return Response.status(Response.Status.UNAUTHORIZED).build();
     }
     try {
-      this.processesService.deleteWorkflowById(workflowId);
+      this.processesService.deleteWorkflowById(workflowId,currentIdentityId);
       return Response.ok("ok").type(MediaType.TEXT_PLAIN).build();
     } catch (EntityNotFoundException e) {
       return Response.status(Response.Status.NOT_FOUND).build();
+    } catch (IllegalAccessException e) {
+      LOG.error("User '{}' is not allowed to delete the process with id '{}'", currentIdentityId, workflowId, e);
+      return Response.status(Response.Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error while deleting a workflow", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -441,12 +447,15 @@ public class ProcessesRest implements ResourceContainer {
       return Response.status(Response.Status.BAD_REQUEST).entity("Project id is mandatory").build();
     }
     try {
-      WorkFlow workFlow = processesService.getWorkFlowByProjectId(projectId);
+      WorkFlow workFlow = processesService.getWorkFlowByProjectId(projectId,currentIdentityId);
       if (workFlow == null) {
         return Response.status(Response.Status.NOT_FOUND).entity("workflow not found").build();
       }
-      int worksCount = processesService.countWorksByWorkflow(projectId, isCompleted);
+      int worksCount = processesService.countWorksByWorkflow(projectId,currentIdentityId, isCompleted);
       return Response.ok(String.valueOf(worksCount)).type(MediaType.TEXT_PLAIN).build();
+    } catch (IllegalAccessException e) {
+      LOG.error("User '{}' is not allowed to get requests count for the project with id '{}'", currentIdentityId, projectId, e);
+      return Response.status(Response.Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.error("Error while getting works count", e);
       return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
@@ -475,8 +484,11 @@ public class ProcessesRest implements ResourceContainer {
       return Response.status(Response.Status.UNAUTHORIZED).build();
     }
     try {
-      processesService.deleteWorkById(workId);
+      processesService.deleteWorkById(workId,currentIdentityId);
       return Response.ok("ok").type(MediaType.TEXT_PLAIN).build();
+    } catch (IllegalAccessException e) {
+      LOG.error("User '{}' is not allowed to delete the request with id '{}'", currentIdentityId, workId, e);
+      return Response.status(Response.Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.error("Error while deleting a work", e);
       return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
@@ -514,10 +526,13 @@ public class ProcessesRest implements ResourceContainer {
       return Response.status(Response.Status.BAD_REQUEST).entity("completed property value should not be null").build();
     }
     try {
-      Work newWork = processesService.updateWorkCompleted(workId, completedValue);
+      Work newWork = processesService.updateWorkCompleted(workId,currentIdentityId, completedValue);
       return Response.ok(EntityBuilder.toWorkEntity(processesService, newWork, "workFlow")).build();
     } catch (EntityNotFoundException e) {
       return Response.status(Response.Status.NOT_FOUND).build();
+    } catch (IllegalAccessException e) {
+      LOG.error("User '{}' is not allowed to complete the request with id '{}'", currentIdentityId, workId, e);
+      return Response.status(Response.Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.error("Error while canceling a work", e);
       return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
@@ -549,6 +564,9 @@ public class ProcessesRest implements ResourceContainer {
     try {
       Work newWork = processesService.createWorkDraft(EntityBuilder.fromEntity(workEntity), currentIdentityId);
       return Response.ok(EntityBuilder.toEntity(newWork)).build();
+    } catch (IllegalAccessException e) {
+      LOG.error("User '{}' is not allowed to create a draft on the process with id '{}'", currentIdentityId, workEntity.getWorkFlow().getId(), e);
+      return Response.status(Response.Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error creating a work draft", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -583,6 +601,9 @@ public class ProcessesRest implements ResourceContainer {
     } catch (ObjectNotFoundException e) {
       LOG.debug("User '{}' attempts to update a not existing Work draft '{}'", currentIdentityId, e);
       return Response.status(Response.Status.NOT_FOUND).entity("Work draft not found").build();
+    } catch (IllegalAccessException e) {
+      LOG.error("User '{}' is not allowed to update the draft with id '{}'", currentIdentityId, workEntity.getDraftId(), e);
+      return Response.status(Response.Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error updating a Work draft", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -658,10 +679,13 @@ public class ProcessesRest implements ResourceContainer {
       return Response.status(Response.Status.UNAUTHORIZED).build();
     }
     try {
-      this.processesService.deleteWorkDraftById(workflowId);
+      this.processesService.deleteWorkDraftById(workflowId,currentIdentityId);
       return Response.ok("ok").type(MediaType.TEXT_PLAIN).build();
     } catch (EntityNotFoundException e) {
       return Response.status(Response.Status.NOT_FOUND).entity("Work draft not found").build();
+    } catch (IllegalAccessException e) {
+      LOG.error("User '{}' is not allowed to delete the draft with id '{}'", currentIdentityId, workflowId, e);
+      return Response.status(Response.Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error while deleting a work draft", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -710,18 +734,21 @@ public class ProcessesRest implements ResourceContainer {
                               @PathParam("workId") Long workId,
                               @Parameter(description = "Processes properties to expand.")
                               @QueryParam("expand") String expand) {
+    long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    if (currentIdentityId == 0) {
+      return Response.status(Response.Status.UNAUTHORIZED).build();
+    }
+    if (workId == null) {
+      return Response.status(Response.Status.BAD_REQUEST).build();
+    }
     try {
-      long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
-      if (currentIdentityId == 0) {
-        return Response.status(Response.Status.UNAUTHORIZED).build();
-      }
-      if (workId == null) {
-        return Response.status(Response.Status.BAD_REQUEST).build();
-      }
       Work work = processesService.getWorkById(currentIdentityId, workId);
       return Response.ok(EntityBuilder.toWorkEntity(processesService, work, expand)).build();
     } catch (EntityNotFoundException e) {
       return Response.status(Response.Status.NOT_FOUND).build();
+    } catch (IllegalAccessException e) {
+      LOG.error("User '{}' is not allowed to access to the request with id '{}'", currentIdentityId, workId, e);
+      return Response.status(Response.Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error while getting work", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -745,19 +772,22 @@ public class ProcessesRest implements ResourceContainer {
                                @PathParam("workflowId") Long workflowId,
                                @Parameter(description = "Processes properties to expand")
                                @QueryParam("expand") String expand) {
+    long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    if (currentIdentityId == 0) {
+      return Response.status(Response.Status.UNAUTHORIZED).build();
+    }
+    if (workflowId == null) {
+      return Response.status(Response.Status.BAD_REQUEST).build();
+    }
     try {
-      long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
-      if (currentIdentityId == 0) {
-        return Response.status(Response.Status.UNAUTHORIZED).build();
-      }
-      if (workflowId == null) {
-        return Response.status(Response.Status.BAD_REQUEST).build();
-      }
-      WorkFlow workFlow = processesService.getWorkFlow(workflowId);
+      WorkFlow workFlow = processesService.getWorkFlow(workflowId,currentIdentityId);
       if (workFlow == null) {
         return Response.status(Response.Status.NOT_FOUND).build();
       }
       return Response.ok(EntityBuilder.toEntity(workFlow, expand)).build();
+    } catch (IllegalAccessException e) {
+      LOG.error("User '{}' is not allowed to access to the process with id '{}'", currentIdentityId, workflowId, e);
+      return Response.status(Response.Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error while getting workflow", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -836,16 +866,21 @@ public class ProcessesRest implements ResourceContainer {
                                              @Parameter(description = "workflow id", required = true) @PathParam("workflowId") Long workflowId,
                                              @Parameter(description = "Optional last modified parameter") @QueryParam("v") long lastModified) {
 
+    long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    if (currentIdentityId == 0) {
+      return Response.status(Response.Status.UNAUTHORIZED).build();
+    }
+
     if (workflowId == null) {
       return Response.status(Response.Status.BAD_REQUEST).entity("workflow id is mandatory").build();
     }
     try {
-      WorkFlow workFlow = processesService.getWorkFlow(workflowId);
+      WorkFlow workFlow = processesService.getWorkFlow(workflowId,currentIdentityId);
       if (workFlow == null) {
         return Response.status(Response.Status.NOT_FOUND).entity("workflow not found").build();
       }
       Long illustrationId = workFlow.getIllustrativeAttachment().getId();
-      IllustrativeAttachment illustrativeAttachment = processesService.getIllustrationImageById(illustrationId);
+      IllustrativeAttachment illustrativeAttachment = processesService.getIllustrationImageById(illustrationId,currentIdentityId);
       Long lastUpdated = illustrativeAttachment.getLastUpdated();
       EntityTag eTag = new EntityTag(String.valueOf(lastUpdated), true);
       Response.ResponseBuilder builder = request.evaluatePreconditions(eTag);
@@ -860,6 +895,9 @@ public class ProcessesRest implements ResourceContainer {
         }
       }
       return builder.build();
+    }  catch (IllegalAccessException e) {
+      LOG.error("User '{}' is not allowed to illustration of the request", currentIdentityId, e);
+      return Response.status(Response.Status.UNAUTHORIZED).entity(e.getMessage()).build();
     } catch (ObjectNotFoundException e) {
       LOG.error("Illustrative image not found", e);
       return Response.status(Response.Status.NOT_FOUND).build();

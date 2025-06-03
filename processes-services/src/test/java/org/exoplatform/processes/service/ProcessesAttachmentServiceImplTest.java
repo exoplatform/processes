@@ -139,6 +139,8 @@ public class ProcessesAttachmentServiceImplTest {
 
   @Test
   public void moveAttachmentsToEntity() throws Exception {
+    org.exoplatform.social.core.identity.model.Identity identity = mock(org.exoplatform.social.core.identity.model.Identity.class);
+    when(identityManager.getIdentity(1)).thenReturn(null);
     List<Attachment> attachmentList = new ArrayList<>();
     Attachment attachment = new Attachment();
     attachment.setId("1");
@@ -159,6 +161,7 @@ public class ProcessesAttachmentServiceImplTest {
     PROCESSES_UTILS.when(() -> ProcessesUtils.getProjectParentSpace(1L)).thenReturn(space);
     ProcessesAttachmentService processesAttachmentService1 = mock(ProcessesAttachmentService.class);
     when(attachmentService.getAttachmentsByEntity(1L, 1L, "workflow")).thenReturn(attachmentList);
+    when(identityManager.getIdentity(1)).thenReturn(identity);
     processesAttachmentService.moveAttachmentsToEntity(1L, 1L, "workflow", 1L, "workdraft", 1L);
     verify(processesAttachmentService1, times(0)).linkAttachmentsToEntity(attachmentList.toArray(new Attachment[0]),
                                                                          1L,
