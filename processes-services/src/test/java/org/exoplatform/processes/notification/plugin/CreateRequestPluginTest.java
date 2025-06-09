@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mockStatic;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.exoplatform.processes.service.ProcessService;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
@@ -22,7 +23,6 @@ import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.processes.notification.utils.NotificationArguments;
 import org.exoplatform.processes.notification.utils.NotificationUtils;
-import org.exoplatform.processes.service.ProcessesService;
 import org.exoplatform.services.idgenerator.IDGeneratorService;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -45,7 +45,7 @@ public class CreateRequestPluginTest {
   private InitParams          initParams;
 
   @Mock
-  private ProcessesService processesService;
+  private ProcessService processService;
 
   private CreateRequestPlugin createRequestPlugin;
 
@@ -53,7 +53,7 @@ public class CreateRequestPluginTest {
   public void setUp() throws Exception {
     this.createRequestPlugin = new CreateRequestPlugin(initParams);
     EXO_CONTAINER_CONTEXT.when(() -> ExoContainerContext.getService(IDGeneratorService.class)).thenReturn(null);
-    COMMONS_UTILS.when(() -> CommonsUtils.getService(ProcessesService.class)).thenReturn(processesService);
+    COMMONS_UTILS.when(() -> CommonsUtils.getService(ProcessService.class)).thenReturn(processService);
   }
 
   @Test

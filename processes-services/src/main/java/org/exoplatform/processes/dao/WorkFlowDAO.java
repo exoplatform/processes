@@ -5,16 +5,22 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import jakarta.persistence.NoResultException;
-import jakarta.persistence.Query;
-import jakarta.persistence.TypedQuery;
-import jakarta.persistence.criteria.*;
-
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.stereotype.Repository;
+
 import org.exoplatform.commons.persistence.impl.GenericDAOJPAImpl;
 import org.exoplatform.processes.entity.WorkFlowEntity;
 import org.exoplatform.processes.model.ProcessesFilter;
 
+import jakarta.persistence.NoResultException;
+import jakarta.persistence.Query;
+import jakarta.persistence.TypedQuery;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+
+@Repository
 public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
 
   public List<WorkFlowEntity> findAllWorkFlowsByUser(long userId, int offset, int limit) {
@@ -55,7 +61,7 @@ public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
     String q = processesFilter.getQuery();
     Boolean enabled = processesFilter.getEnabled();
     Boolean manager = processesFilter.getManager();
-    boolean managerProcess = memberships.stream().anyMatch(m -> m.endsWith("platform/processes"));
+    boolean managerProcess = memberships == null || memberships.stream().anyMatch(m -> m.endsWith("platform/processes"));
     String query = " ( workFlow.title like '%" + q + "%' OR workFlow.description like '%" + q + "%' OR workFlow.summary like '%" + q + "%' )";
     String queryString = "SELECT DISTINCT workFlow FROM WorkFlow workFlow";
     if (enabled != null || manager == true || managerProcess == false) {

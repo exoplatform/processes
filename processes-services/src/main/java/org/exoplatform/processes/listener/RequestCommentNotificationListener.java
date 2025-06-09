@@ -25,7 +25,7 @@ import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.notification.plugin.RequestCommentPlugin;
 import org.exoplatform.processes.notification.utils.NotificationArguments;
 import org.exoplatform.processes.notification.utils.NotificationUtils;
-import org.exoplatform.processes.service.ProcessesService;
+import org.exoplatform.processes.service.ProcessService;
 import org.exoplatform.services.listener.Event;
 import org.exoplatform.services.organization.OrganizationService;
 import org.exoplatform.social.core.utils.MentionUtils;
@@ -35,11 +35,11 @@ import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.integration.TaskCommentNotificationListener;
 
 public class RequestCommentNotificationListener extends TaskCommentNotificationListener {
-  private ProcessesService processesService;
+  private ProcessService processService;
 
-  public RequestCommentNotificationListener(OrganizationService organizationService, ProcessesService processesService) {
+  public RequestCommentNotificationListener(OrganizationService organizationService, ProcessService processService) {
     super(organizationService);
-    this.processesService = processesService;
+    this.processService = processService;
   }
 
   @Override
@@ -47,7 +47,7 @@ public class RequestCommentNotificationListener extends TaskCommentNotificationL
     CommentDto comment = event.getData();
     TaskDto task = event.getSource();
     ProjectDto project = task.getStatus().getProject();
-    WorkFlow workFlow = processesService.getWorkFlowByProjectId(project.getId());
+    WorkFlow workFlow = processService.getWorkFlowByProjectId(project.getId());
     if (workFlow == null) {
       return;
     }

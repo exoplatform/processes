@@ -21,19 +21,19 @@ import io.meeds.analytics.utils.AnalyticsUtils;
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFlow;
-import org.exoplatform.processes.service.ProcessesService;
+import org.exoplatform.processes.service.ProcessService;
 import org.exoplatform.services.listener.Event;
 import org.exoplatform.services.listener.Listener;
 import org.exoplatform.task.dto.ProjectDto;
 
 public class RequestAnalyticsListener extends Listener<Work, ProjectDto> {
 
-  private ProcessesService processesService;
+  private ProcessService processService;
   private final String operation;
 
-  public RequestAnalyticsListener(InitParams initParams, ProcessesService processesService) {
+  public RequestAnalyticsListener(InitParams initParams, ProcessService processService) {
     this.operation = initParams.getValueParam("operation").getValue();
-    this.processesService = processesService;
+    this.processService = processService;
   }
 
   @Override
@@ -41,7 +41,7 @@ public class RequestAnalyticsListener extends Listener<Work, ProjectDto> {
     StatisticData statisticData = new StatisticData();
     Work work = event.getSource();
     ProjectDto project = event.getData();
-    WorkFlow workFlow = processesService.getWorkFlowByProjectId(project.getId());
+    WorkFlow workFlow = processService.getWorkFlowByProjectId(project.getId());
     long userId = work.getCreatorId();
     statisticData.setModule("processes");
     statisticData.setSubModule("request");

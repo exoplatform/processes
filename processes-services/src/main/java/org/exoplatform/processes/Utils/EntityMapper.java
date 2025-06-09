@@ -13,7 +13,8 @@ import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.processes.entity.WorkEntity;
 import org.exoplatform.processes.entity.WorkFlowEntity;
 import org.exoplatform.processes.model.*;
-import org.exoplatform.processes.service.ProcessesService;
+import org.exoplatform.processes.service.ProcessService;
+import org.exoplatform.processes.service.RequestService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.organization.Group;
@@ -97,8 +98,9 @@ public class EntityMapper {
     if (identity == null) {
       return new ProcessPermission(true, true, true, true);
     }
-    ProcessesService processesService = CommonsUtils.getService(ProcessesService.class);
-    return new ProcessPermission(processesService.canAccess(workFlow, identity), processesService.canEdit(workFlow, identity), processesService.canDelete(workFlow, identity), processesService.canAddRequest(workFlow, identity));
+    ProcessService processService = CommonsUtils.getService(ProcessService.class);
+    RequestService requestService = CommonsUtils.getService(RequestService.class);
+    return new ProcessPermission(processService.canAccessProcess(workFlow, identity), processService.canEditProcess(workFlow, identity), processService.canDeleteProcess(workFlow, identity), requestService.canAddRequest(workFlow, identity));
   }
 
   public static WorkFlow fromEntity(WorkFlowEntity workFlowEntity,

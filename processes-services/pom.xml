@@ -72,18 +72,15 @@
         <groupId>io.openapitools.swagger</groupId>
         <artifactId>swagger-maven-plugin</artifactId>
         <configuration>
-          <useResourcePackagesChildren>true</useResourcePackagesChildren>
-          <resourcePackages>
-            <locations>org.exoplatform.processes.rest</locations>
-          </resourcePackages>
+          <applicationClass>org.exoplatform.processes.rest.ProcessRest</applicationClass>
           <swaggerConfig>
             <info>
               <title>${rest.api.doc.title}</title>
               <version>${rest.api.doc.version}</version>
               <description>${rest.api.doc.description}</description>
               <license>
-                <url>https://www.gnu.org/licenses/agpl-3.0.en.html</url>
-                <name>AGPL</name>
+                <url>https://www.gnu.org/licenses/lgpl-3.0.en.html</url>
+                <name>LGPL</name>
               </license>
             </info>
           </swaggerConfig>

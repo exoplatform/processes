@@ -36,7 +36,7 @@ export function createNewFormDoc(title, templateName, pathDrive, path, entityTyp
     formData.append('entityId', entityId);
   }
 
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/attachment/newDoc`, {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/process/attachment`, {
     credentials: 'include',
     method: 'POST',
     headers: {

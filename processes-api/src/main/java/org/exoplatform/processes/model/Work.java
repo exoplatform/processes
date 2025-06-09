@@ -66,21 +66,21 @@ public class Work {
   private List<Attachment> attachments;
 
   /**
-   * constructor for Work task object
+   * constructor for request task object
    *
-   * @param id Work id
-   * @param title Work title
-   * @param description Work description
-   * @param status Work task status
-   * @param completed Work task completed property
-   * @param createdBy Work task creator
-   * @param createdDate Work task creation date
-   * @param startDate Work task start date
-   * @param endDate Work task end date
-   * @param dueDate Work task due date
-   * @param isDraft When the object is a draft object, which will be used to create the work
-   * @param draftId The already saved draft id, which will be deleted once the work created from the draft
-   * @param projectId Work task project
+   * @param id request id
+   * @param title request title
+   * @param description request description
+   * @param status request task status
+   * @param completed request task completed property
+   * @param createdBy request task creator
+   * @param createdDate request task creation date
+   * @param startDate request task start date
+   * @param endDate request task end date
+   * @param dueDate request task due date
+   * @param isDraft When the object is a draft object, which will be used to create the request
+   * @param draftId The already saved draft id, which will be deleted once the request created from the draft
+   * @param projectId request task project
    */
   public Work(long id,
                   String title,

@@ -23,7 +23,6 @@ import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.processes.notification.utils.NotificationArguments;
 import org.exoplatform.services.resources.LocaleConfig;
 import org.exoplatform.services.resources.ResourceBundleService;
-import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 
 public class CancelRequestPwaPlugin implements PwaNotificationPlugin {
