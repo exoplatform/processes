@@ -25,10 +25,9 @@ import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.rest.model.WorkEntity;
 import org.exoplatform.processes.rest.model.WorkFlowEntity;
-import org.exoplatform.processes.rest.util.EntityBuilder;
 import org.exoplatform.processes.rest.util.RestUtils;
-import org.exoplatform.processes.service.ProcessesAttachmentService;
-import org.exoplatform.processes.service.ProcessesService;
+import org.exoplatform.processes.service.ProcessService;
+import org.exoplatform.processes.service.RequestService;
 import org.exoplatform.services.rest.impl.RuntimeDelegateImpl;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.IdentityRegistry;
@@ -52,17 +51,16 @@ public class EntityBuilderTest {
   private IdentityManager                           identityManager;
 
   @Mock
-  private ProcessesService                          processesService;
-
+  private ProcessService processService;
   @Mock
-  private ProcessesAttachmentService                processesAttachmentService;
-
-  private ProcessesRest                             processesRest;
+  private RequestService requestService;
+  private ProcessRest processRest;
+  private RequestRest requestRest;
 
   private IdentityRegistry                          identityRegistry;
 
   @AfterClass
-  public static void afterRunBare() throws Exception { // NOSONAR
+  public static void afterRunBare() { // NOSONAR
     COMMONS_UTILS.close();
     REST_UTILS.close();
     PROCESSES_UTILS.close();
@@ -72,12 +70,14 @@ public class EntityBuilderTest {
   public void setUp() {
     RuntimeDelegate.setInstance(new RuntimeDelegateImpl());
     identityRegistry = mock(IdentityRegistry.class);
-    this.processesRest = new ProcessesRest(processesService, identityManager, processesAttachmentService);
+    this.processRest = new ProcessRest(processService);
+    this.requestRest = new RequestRest(processService, requestService);
   }
 
   @Test
-  public void toRestEntities() throws Exception {
+  public void toRestEntities() {
     StatusService statusService = mock(StatusService.class);
+    String userName = "testuser";
     List<WorkFlow> workFlows = new ArrayList<>();
     Space space = new Space();
     space.setId("12");
@@ -110,7 +110,7 @@ public class EntityBuilderTest {
     COMMONS_UTILS.when(() -> CommonsUtils.getService(IdentityManager.class)).thenReturn(identityManager);
     PROCESSES_UTILS.when(() -> ProcessesUtils.getProjectParentSpace(workFlow.getProjectId())).thenReturn(space);
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
-    when(processesService.getWorkFlows(processesFilter, 0, 10, 1L)).thenReturn(workFlows);
+    when(processService.getWorkFlows(processesFilter, 0, 10, userName)).thenReturn(workFlows);
     when(identityManager.getOrCreateSpaceIdentity("test")).thenReturn(spaceIdentity);
     EntityBuilder.toEntity(workFlow);
     EntityBuilder.fromEntity(workFlowEntity);
@@ -119,29 +119,29 @@ public class EntityBuilderTest {
     List<WorkFlow> fromRestEntities = EntityBuilder.fromRestEntities(workFlowEntities);
     assertNotNull(fromRestEntities);
     List<WorkFlowEntity> toRestEntities = EntityBuilder.toRestEntities(workFlows, "test");
-    processesRest.getWorkFlows(1L, true, null, "test", "test", 0, 10);
+    processRest.getWorkFlows("testuser", true, null, "test", "test", 0, 10);
     assertNotNull(toRestEntities);
   }
 
   @Test
   public void toWorkEntity() throws ObjectNotFoundException, IllegalAccessException {
 
-    String username = "testuser";
-    org.exoplatform.services.security.Identity root = new org.exoplatform.services.security.Identity(username);
+    String userName = "testuser";
+    org.exoplatform.services.security.Identity root = new org.exoplatform.services.security.Identity(userName);
     ConversationState.setCurrent(new ConversationState(root));
     long currentOwnerId = 2;
     org.exoplatform.social.core.identity.model.Identity currentIdentity =
                                                                         new org.exoplatform.social.core.identity.model.Identity(OrganizationIdentityProvider.NAME,
-                                                                                                                                username);
+                                                                                userName);
     currentIdentity.setId(String.valueOf(currentOwnerId));
     Profile currentProfile = new Profile();
-    currentProfile.setProperty(Profile.FULL_NAME, username);
+    currentProfile.setProperty(Profile.FULL_NAME, userName);
     currentIdentity.setProfile(currentProfile);
-    org.exoplatform.services.security.Identity userID = new org.exoplatform.services.security.Identity(username);
+    org.exoplatform.services.security.Identity userID = new org.exoplatform.services.security.Identity(userName);
 
-    when(identityRegistry.getIdentity(username)).thenReturn(userID);
+    when(identityRegistry.getIdentity(userName)).thenReturn(userID);
     when(identityManager.getIdentity((currentOwnerId))).thenReturn(currentIdentity);
-    when(identityManager.getOrCreateUserIdentity(username)).thenReturn(currentIdentity);
+    when(identityManager.getOrCreateUserIdentity(userName)).thenReturn(currentIdentity);
 
     WorkEntity workEntity = new WorkEntity();
     Work work = new Work();
@@ -162,12 +162,12 @@ public class EntityBuilderTest {
     work.setDraftId(1L);
     work.setTaskId(1L);
     work.setIsDraft(false);
-    Work work1 = EntityBuilder.toWork(processesService, workEntity);
+    Work work1 = EntityBuilder.toWork(processService, workEntity);
     EntityBuilder.fromEntity(workEntity);
     EntityBuilder.toEntity(work);
-    WorkEntity toWorkEntity = EntityBuilder.toWorkEntity(processesService, work, "test");
-    when(processesService.updateWork(work1, 1L)).thenReturn(work);
-    processesRest.updateWork(workEntity);
+    WorkEntity toWorkEntity = EntityBuilder.toWorkEntity(processService, work, "test");
+    when(requestService.updateWork(work1, userName)).thenReturn(work);
+    requestRest.updateWork(workEntity);
     assertNotNull(toWorkEntity);
   }
 }

@@ -88,7 +88,7 @@ export default {
     workflowAvatarUrl() {
       return this.workObject.workFlow && this.workObject.workFlow.illustrativeAttachment
                                       && this.workObject.workFlow.illustrativeAttachment.id
-                                      && `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/illustration/${this.workObject.workFlow.id}`;
+                                      && `${eXo.env.portal.context}/${eXo.env.portal.rest}/process/attachment/${this.workObject.workFlow.id}`;
     }
   },
   created() {

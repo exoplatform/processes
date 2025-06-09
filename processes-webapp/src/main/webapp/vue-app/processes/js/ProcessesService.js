@@ -29,7 +29,7 @@ export function getWorkFlows(itemsFilter, offset, limit, expand) {
     formData.append('limit', limit);
   }
   const params = new URLSearchParams(formData).toString();
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workflows?${params}`, {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/process?${params}`, {
     method: 'GET',
     credentials: 'include',
   }).then(resp => {
@@ -61,7 +61,7 @@ export function getWorks(itemsFilter, offset, limit, expand) {
     formData.append('limit', limit);
   }
   const params = new URLSearchParams(formData).toString();
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/works?${params}`, {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/request?${params}`, {
     method: 'GET',
     credentials: 'include',
   }).then(resp => {
@@ -74,7 +74,7 @@ export function getWorks(itemsFilter, offset, limit, expand) {
 }
 
 export function addNewWorkFlow(workflow) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workflows`, {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/process`, {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -93,7 +93,7 @@ export function addNewWorkFlow(workflow) {
 }
 
 export function addWork(work) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/works`, {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/request`, {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -112,7 +112,7 @@ export function addWork(work) {
 }
 
 export function updateWork(work) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/works`, {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/request`, {
     method: 'PUT',
     credentials: 'include',
     headers: {
@@ -123,7 +123,7 @@ export function updateWork(work) {
     }),
   }).then(resp => {
     if (!resp || !resp.ok) {
-      throw new Error('Error while updating a work');
+      throw new Error('Error while updating a request');
     } else {
       return resp.json();
     }
@@ -131,7 +131,7 @@ export function updateWork(work) {
 }
 
 export function isProcessesManager() {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/permissions`, {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/process/permissions`, {
     method: 'GET',
     credentials: 'include',
   }).then(resp => {
@@ -144,7 +144,7 @@ export function isProcessesManager() {
 }
 
 export function deleteWorkflowById(workflowId) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workflow/${workflowId}`, {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/process/${workflowId}`, {
     method: 'DELETE',
     credentials: 'include',
   }).then(resp => {
@@ -157,7 +157,7 @@ export function deleteWorkflowById(workflowId) {
 }
 
 export function updateWorkflow(workflow) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workflows`, {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/process`, {
     method: 'PUT',
     credentials: 'include',
     headers: {
@@ -178,7 +178,7 @@ export function updateWorkflow(workflow) {
 }
 
 export function countWorksByWorkflow(workflowId, isCompleted) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/countWorks/${workflowId}?isCompleted=${isCompleted}`, {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/process/count/${workflowId}?isCompleted=${isCompleted}`, {
     method: 'GET',
     credentials: 'include',
   }).then(resp => {
@@ -204,7 +204,7 @@ export function getWorkComments(workId) {
 }
 
 export function deleteWorkById(workId) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/work/${workId}`, {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/request/${workId}`, {
     method: 'DELETE',
     credentials: 'include',
   }).then(resp => {
@@ -217,7 +217,7 @@ export function deleteWorkById(workId) {
 }
 
 export function updateWorkCompleted(workId, completed) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/work/${workId}`, {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/request/${workId}`, {
     method: 'PATCH',
     credentials: 'include',
     headers: {
@@ -255,7 +255,7 @@ export function getWorkDrafts(itemsFilter, offset, limit, expand) {
     formData.append('limit', limit);
   }
   const params = new URLSearchParams(formData).toString();
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workDrafts?${params}`, {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/draft?${params}`, {
     method: 'GET',
     credentials: 'include',
   }).then(resp => {
@@ -268,7 +268,7 @@ export function getWorkDrafts(itemsFilter, offset, limit, expand) {
 }
 
 export function createWorkDraft(workDraft) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workDraft`, {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/draft`, {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -287,7 +287,7 @@ export function createWorkDraft(workDraft) {
 }
 
 export function updateWorkDraft(workDraft) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workDraft`, {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/draft`, {
     method: 'PUT',
     credentials: 'include',
     headers: {
@@ -308,7 +308,7 @@ export function updateWorkDraft(workDraft) {
 }
 
 export function deleteWorkDraftById(draftId) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workDraft/${draftId}`, {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/draft/${draftId}`, {
     method: 'DELETE',
     credentials: 'include',
   }).then(resp => {
@@ -321,7 +321,7 @@ export function deleteWorkDraftById(draftId) {
 }
 
 export function getAvailableWorkStatuses() {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/works/statuses`, {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/process/statuses`, {
     credentials: 'include',
     method: 'GET',
   }).then((resp) => {
@@ -339,7 +339,7 @@ export function getWorkById(workId, expand) {
     formData.append('expand', expand);
   }
   const params = new URLSearchParams(formData).toString();
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/works/${workId}?${params}`, {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/request/${workId}?${params}`, {
     method: 'GET',
     credentials: 'include',
   }).then(resp => {
@@ -357,7 +357,7 @@ export function getWorkflowById(workflowId, expand) {
     formData.append('expand', expand);
   }
   const params = new URLSearchParams(formData).toString();
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workflows/${workflowId}?${params}`, {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/process/${workflowId}?${params}`, {
     method: 'GET',
     credentials: 'include',
   }).then(resp => {

@@ -22,7 +22,7 @@ import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.processes.notification.utils.NotificationArguments;
 import org.exoplatform.processes.notification.utils.NotificationUtils;
-import org.exoplatform.processes.service.ProcessesService;
+import org.exoplatform.processes.service.ProcessService;
 import org.exoplatform.services.idgenerator.IDGeneratorService;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -38,7 +38,7 @@ public class CancelRequestPluginTest {
   private InitParams                                     initParams;
 
   @Mock
-  private ProcessesService                               processesService;
+  private ProcessService processService;
 
   private CancelRequestPlugin                            cancelRequestPlugin;
 
@@ -53,7 +53,7 @@ public class CancelRequestPluginTest {
   public void setUp() throws Exception {
     this.cancelRequestPlugin = new CancelRequestPlugin(initParams);
     EXO_CONTAINER_CONTEXT.when(() -> ExoContainerContext.getService(IDGeneratorService.class)).thenReturn(null);
-    COMMONS_UTILS.when(() -> CommonsUtils.getService(ProcessesService.class)).thenReturn(processesService);
+    COMMONS_UTILS.when(() -> CommonsUtils.getService(ProcessService.class)).thenReturn(processService);
   }
 
   @Test
@@ -67,7 +67,7 @@ public class CancelRequestPluginTest {
     receivers.add("user1");
     receivers.add("user2");
     ctx.append(NotificationArguments.PROCESS_URL, "http://exoplatfrom.com/dw/tasks/projectDetail/1");
-    NOTIFICATION_UTILS.when(() -> NotificationUtils.getReceivers(1l, "root", true)).thenReturn(receivers);
+    NOTIFICATION_UTILS.when(() -> NotificationUtils.getReceivers(1L, "root", true)).thenReturn(receivers);
     NotificationInfo notificationInfo = cancelRequestPlugin.makeNotification(ctx);
     assertEquals("root", notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_CREATOR.getKey()));
     assertEquals("http://exoplatfrom.com/dw/tasks/projectDetail/1",

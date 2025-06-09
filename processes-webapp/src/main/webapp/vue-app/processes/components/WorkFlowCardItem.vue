@@ -145,7 +145,7 @@ export default {
     avatarUrl() {
       return this.workflow && this.workflow.illustrativeAttachment
                            && this.workflow.illustrativeAttachment.id
-                           && `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/illustration/${this.workflow.id}?v=${this.workflow.illustrativeAttachment.lastUpdated}`;
+                           && `${eXo.env.portal.context}/${eXo.env.portal.rest}/process/attachment/${this.workflow.id}?v=${this.workflow.illustrativeAttachment.lastUpdated}`;
     },
     isMobile() {
       return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';

@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <gnu.org/licenses>.
  */
-package org.exoplatform.processes.rest.util;
+package org.exoplatform.processes.rest;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.commons.utils.HTMLSanitizer;
 import org.exoplatform.processes.Utils.ProcessesUtils;
@@ -32,7 +33,7 @@ import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.rest.model.WorkEntity;
 import org.exoplatform.processes.rest.model.WorkFlowEntity;
-import org.exoplatform.processes.service.ProcessesService;
+import org.exoplatform.processes.service.ProcessService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.task.service.StatusService;
@@ -90,9 +91,8 @@ public class EntityBuilder {
       return null;
     }
     StatusService statusService = CommonsUtils.getService(StatusService.class);
-    List<String> expandProperties =
-                                  StringUtils.isBlank(expand) ? Collections.emptyList()
-                                                              : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""), ","));
+    List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
+                                                                : Arrays.asList(StringUtils.split(expand.replace(" ", ""), ","));
     // TODO: add expand properties
     return new WorkFlowEntity(workFlow.getId(),
                               workFlow.getTitle(),
@@ -142,8 +142,7 @@ public class EntityBuilder {
     if (CollectionUtils.isEmpty(workFlowEntities)) {
       return new ArrayList<>(Collections.emptyList());
     } else {
-      List<WorkFlow> workFlows = workFlowEntities.stream().map(workEntity -> fromEntity(workEntity)).collect(Collectors.toList());
-      return workFlows;
+        return workFlowEntities.stream().map(EntityBuilder::fromEntity).collect(Collectors.toList());
     }
   }
 
@@ -151,14 +150,13 @@ public class EntityBuilder {
     if (CollectionUtils.isEmpty(workFlowList)) {
       return new ArrayList<>(Collections.emptyList());
     } else {
-      List<WorkFlowEntity> workFlowEntities = workFlowList.stream()
+        return workFlowList.stream()
                                                           .map(workFlow -> toEntity(workFlow, expand))
                                                           .collect(Collectors.toList());
-      return workFlowEntities;
     }
   }
 
-  public static Work toWork(ProcessesService processesService, WorkEntity workEntity) {
+  public static Work toWork(ProcessService processService, WorkEntity workEntity) {
     if (workEntity == null) {
       return null;
     }
@@ -179,24 +177,23 @@ public class EntityBuilder {
     work.setAttachments(workEntity.getAttachments());
     if (workEntity.getWorkFlow() != null) {
       try {
-        WorkFlow workFlow = processesService.getWorkFlow(workEntity.getWorkFlow().getId());
+        WorkFlow workFlow = processService.getWorkFlow(workEntity.getWorkFlow().getId());
         if (workFlow != null) {
           work.setProjectId(workFlow.getProjectId());
         }
-      } catch (IllegalAccessException e) {
-        LOG.warn("cannot get workFlow of work {}", work.getId());
+      } catch (ObjectNotFoundException e) {
+        LOG.warn("Process of request {} not found", work.getId());
       }
     }
     return work;
   }
 
-  public static WorkEntity toWorkEntity(ProcessesService processesService, Work work, String expand) {
+  public static WorkEntity toWorkEntity(ProcessService processService, Work work, String expand) {
     if (work == null) {
       return null;
     }
-    List<String> expandProperties =
-                                  StringUtils.isBlank(expand) ? Collections.emptyList()
-                                                              : Arrays.asList(StringUtils.split(expand.replaceAll(" ", ""), ","));
+    List<String> expandProperties = StringUtils.isBlank(expand) ? Collections.emptyList()
+                                                                : Arrays.asList(StringUtils.split(expand.replace(" ", ""), ","));
 
     WorkEntity workEntity = new WorkEntity(work.getId(),
                                            work.getTitle(),
@@ -214,10 +211,14 @@ public class EntityBuilder {
     try {
       workEntity.setDescription(HTMLSanitizer.sanitize(work.getDescription()));
     } catch (Exception e) {
-      LOG.warn("Work description cannot be sanitized", e);
+      LOG.warn("Process description cannot be sanitized", e);
     }
     if (expandProperties.contains("workFlow")) {
-      workEntity.setWorkFlow(toEntity(processesService.getWorkFlowByProjectId(work.getProjectId()), ""));
+      try {
+        workEntity.setWorkFlow(toEntity(processService.getWorkFlowByProjectId(work.getProjectId()), ""));
+      } catch (ObjectNotFoundException e) {
+        LOG.warn("Process not found");
+      }
     }
     return workEntity;
   }
@@ -238,11 +239,11 @@ public class EntityBuilder {
                           toEntity(work.getWorkFlow()));
   }
 
-  public static List<WorkEntity> toWorkEntityList(ProcessesService processesService, List<Work> works, String expand) {
+  public static List<WorkEntity> toWorkEntityList(ProcessService processService, List<Work> works, String expand) {
     if (CollectionUtils.isEmpty(works)) {
       return new ArrayList<>(Collections.emptyList());
     } else {
-      return works.stream().map(work -> toWorkEntity(processesService, work, expand)).collect(Collectors.toList());
+      return works.stream().map(work -> toWorkEntity(processService, work, expand)).collect(Collectors.toList());
     }
   }
 

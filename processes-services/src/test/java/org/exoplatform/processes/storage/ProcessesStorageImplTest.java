@@ -1,7 +1,6 @@
 package org.exoplatform.processes.storage;
 
 import static org.junit.Assert.*;
-import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import java.util.*;
@@ -14,12 +13,10 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.file.model.FileInfo;
 import org.exoplatform.commons.file.model.FileItem;
 import org.exoplatform.commons.file.services.FileService;
@@ -33,8 +30,8 @@ import org.exoplatform.processes.dao.WorkFlowDAO;
 import org.exoplatform.processes.entity.WorkEntity;
 import org.exoplatform.processes.entity.WorkFlowEntity;
 import org.exoplatform.processes.model.*;
-import org.exoplatform.processes.rest.util.EntityBuilder;
-import org.exoplatform.processes.service.ProcessesAttachmentService;
+import org.exoplatform.processes.rest.EntityBuilder;
+import org.exoplatform.processes.service.ProcessAttachmentService;
 import org.exoplatform.services.attachments.model.Attachment;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.organization.Membership;
@@ -72,49 +69,37 @@ public class ProcessesStorageImplTest {
   private static final MockedStatic<ProcessesUtils> PROCESSES_UTILS = mockStatic(ProcessesUtils.class);
 
   private static final MockedStatic<ProjectUtil>    PROJECT_UTIL    = mockStatic(ProjectUtil.class);
-
+  private final String                              userName        = "testuser";
   @Mock
-  private WorkFlowDAO                workFlowDAO;
-
+  private WorkFlowDAO                               workFlowDAO;
   @Mock
-  private WorkDraftDAO               workDraftDAO;
-
+  private WorkDraftDAO                              workDraftDAO;
   @Mock
-  private IdentityManager            identityManager;
-
+  private IdentityManager                           identityManager;
   @Mock
-  private TaskService                taskService;
-
+  private TaskService                               taskService;
   @Mock
-  private ProjectService             projectService;
-
+  private ProjectService                            projectService;
   @Mock
-  private StatusService              statusService;
-
+  private StatusService                             statusService;
   @Mock
-  private SpaceService               spaceService;
-
+  private SpaceService                              spaceService;
   @Mock
-  private MembershipHandler          membershipHandler;
-
-  private ListenerService            listenerService;
-
+  private MembershipHandler                         membershipHandler;
+  private ListenerService                           listenerService;
   @Mock
-  private ProcessesAttachmentService processesAttachmentService;
-
+  private ProcessAttachmentService                  processAttachmentService;
   @Mock
-  private FileService                fileService;
-
+  private FileService                               fileService;
   @Mock
-  private OrganizationService        organizationService;
-
-  private ProcessesStorage           processesStorage;
-
+  private OrganizationService                       organizationService;
+  private ProcessStorage                            processStorage;
+  private RequestStorage                            requestStorage;
   @Mock
-  private UserACL                    userAcl;
+  private UserACL                                   userAcl;
 
   @AfterClass
-  public static void afterRunBare() throws Exception { // NOSONAR
+  public static void afterRunBare() { // NOSONAR
     COMMONS_UTILS.close();
     ENTITY_MAPPER.close();
     USER_UTIL.close();
@@ -123,23 +108,30 @@ public class ProcessesStorageImplTest {
   }
 
   @Before
-  public void setUp() throws Exception {
+  public void setUp() {
     RuntimeDelegate.setInstance(new RuntimeDelegateImpl());
     listenerService = new ListenerService(new ExoContainerContext(null));
     listenerService = spy(listenerService);
-    this.processesStorage = new ProcessesStorageImpl(workFlowDAO,
-                                                     workDraftDAO,
-                                                     taskService,
-                                                     projectService,
-                                                     statusService,
-                                                     identityManager,
-                                                     spaceService,
-                                                     listenerService,
-                                                     processesAttachmentService,
-                                                     fileService,
-            organizationService,
-            userAcl);
-
+    this.processStorage = new ProcessStorage(workFlowDAO,
+                                             workDraftDAO,
+                                             taskService,
+                                             projectService,
+                                             statusService,
+                                             identityManager,
+                                             spaceService,
+                                             listenerService,
+                                             processAttachmentService,
+                                             fileService,
+                                             organizationService,
+                                             userAcl);
+    this.requestStorage = new RequestStorage(workFlowDAO,
+                                             workDraftDAO,
+                                             taskService,
+                                             projectService,
+                                             statusService,
+                                             identityManager,
+                                             listenerService,
+                                             processAttachmentService);
   }
 
   @Test
@@ -148,23 +140,22 @@ public class ProcessesStorageImplTest {
     ProjectDto projectDto = mock(ProjectDto.class);
     List<WorkEntity> drafts = new ArrayList<>();
     drafts.add(new WorkEntity());
-    when(workFlowDAO.find(1l)).thenReturn(null);
-    Throwable exception = assertThrows(jakarta.persistence.EntityNotFoundException.class,
-                                       () -> this.processesStorage.deleteWorkflowById(1l));
-    assertEquals("Workflow not found", exception.getMessage());
-    verify(projectService, times(0)).getProject(0l);
+    when(workFlowDAO.find(1L)).thenReturn(null);
+    Throwable exception = assertThrows(IllegalArgumentException.class, () -> this.processStorage.deleteWorkflowById(1L));
+    assertEquals("Process not found", exception.getMessage());
+    verify(projectService, times(0)).getProject(0L);
     verify(workFlowDAO, times(0)).delete(workFlowEntity);
-    when(workFlowDAO.find(1l)).thenReturn(workFlowEntity);
+    when(workFlowDAO.find(1L)).thenReturn(workFlowEntity);
     when(projectService.getProject(1L)).thenReturn(projectDto);
     when(projectDto.getId()).thenReturn(1L);
     when(workFlowEntity.getProjectId()).thenReturn(1L);
     when(workDraftDAO.getDraftsByWorkflowId(1L)).thenReturn(drafts);
-    this.processesStorage.deleteWorkflowById(1L);
+    this.processStorage.deleteWorkflowById(1L);
     verify(workDraftDAO, times(1)).deleteAll(drafts);
     verify(projectService, times(1)).getProject(1L);
     verify(workFlowDAO, times(1)).delete(workFlowEntity);
     when(projectService.getProject(1L)).thenThrow(new EntityNotFoundException(1L, Object.class));
-    this.processesStorage.deleteWorkflowById(1L);
+    this.processStorage.deleteWorkflowById(1L);
     Throwable exception2 = assertThrows(EntityNotFoundException.class, () -> this.projectService.getProject(1L));
     assertEquals("Object does not exist with ID: 1", exception2.getMessage());
   }
@@ -186,17 +177,11 @@ public class ProcessesStorageImplTest {
     List<String> memberships = new ArrayList<>();
     memberships.add("manager");
     memberships.add("participator");
-    Set<String> managers = new HashSet<>(Arrays.asList(memberships.get(0)));
-    Set<String> participators = new HashSet<>(Arrays.asList(memberships.get(1)));
+    Set<String> managers = new HashSet<>(Collections.singletonList(memberships.get(0)));
+    Set<String> participators = new HashSet<>(Collections.singletonList(memberships.get(1)));
     ProjectDto projectDto = new ProjectDto();
     Space space = mock(Space.class);
     WorkFlowEntity workFlowEntity = new WorkFlowEntity();
-    Throwable exception1 = assertThrows(IllegalArgumentException.class, () -> this.processesStorage.saveWorkFlow(null, identity));
-    assertEquals("workflow argument is null", exception1.getMessage());
-
-    Throwable exception2 = assertThrows(IllegalArgumentException.class, () -> this.processesStorage.saveWorkFlow(workFlow, null));
-    assertEquals("identity does not exist", exception2.getMessage());
-
     ENTITY_MAPPER.when(() -> EntityMapper.toEntity(workFlow)).thenReturn(workFlowEntity);
     when(workFlow.getId()).thenReturn(0L);
     when(workFlow.getProjectId()).thenReturn(0L);
@@ -224,45 +209,76 @@ public class ProcessesStorageImplTest {
     identityEntity = new IdentityEntity("group:users", "platform/users", "group", profile);
     identityEntities.add(new CreatorIdentityEntity(identityEntity));
     workFlow.setRequestsCreators(identityEntities);
+
     PROJECT_UTIL.when(() -> ProjectUtil.newProjectInstanceDto(workFlow.getTitle(),
-                                           workFlow.getDescription(),
-                                           managers,
-                                           participators)).thenReturn(projectDto);
+                                                              workFlow.getDescription(),
+                                                              managers,
+                                                              participators))
+                .thenReturn(projectDto);
     PROCESSES_UTILS.when(() -> ProcessesUtils.getProjectParentSpace(workFlow.getProjectId())).thenReturn(space);
     projectDto.setId(1L);
     when(projectService.createProject(projectDto)).thenReturn(projectDto);
     doNothing().when(statusService).createInitialStatuses(projectDto);
-    when(workFlow.getAttachments()).thenReturn(attachments.toArray(new Attachment[attachments.size()]));
+    when(workFlow.getAttachments()).thenReturn(attachments.toArray(new Attachment[0]));
     ENTITY_MAPPER.when(() -> EntityMapper.toEntity(workFlow)).thenReturn(workFlowEntity);
     WorkFlowEntity newWorkFlowEntity = new WorkFlowEntity();
     newWorkFlowEntity.setId(1L);
     newWorkFlowEntity.setProjectId(1L);
-    newWorkFlowEntity.hashCode();
-    newWorkFlowEntity.toString();
-    newWorkFlowEntity.equals(workFlow);
     when(workFlowDAO.create(workFlowEntity)).thenReturn(newWorkFlowEntity);
     when(workFlowDAO.update(workFlowEntity)).thenReturn(newWorkFlowEntity);
     when(workFlow.getIllustrativeAttachment()).thenReturn(illustrativeAttachment);
     when(identity.getId()).thenReturn("1");
-    this.processesStorage.saveWorkFlow(workFlow, identity);
+    when(identityManager.getOrCreateUserIdentity(userName)).thenReturn(identity);
+    this.processStorage.saveWorkFlow(workFlow, userName);
     verify(workFlowDAO, times(1)).create(workFlowEntity);
     PROCESSES_UTILS.verify(() -> ProcessesUtils.broadcast(listenerService,
                                                           "exo.process.created",
                                                           1L,
-            EntityMapper.fromEntity(workFlowEntity, illustrativeAttachment, userIdentity)), times(1));
-    verify(processesAttachmentService,
-           times(1)).linkAttachmentsToEntity(attachments.toArray(new Attachment[0]), 1L, 1L, "workflow", 1L);
+                                                          EntityMapper.fromEntity(workFlowEntity,
+                                                                                  illustrativeAttachment,
+                                                                                  userIdentity)),
+                           times(1));
     when(workFlow.getId()).thenReturn(1L);
-    this.processesStorage.saveWorkFlow(workFlow, identity);
+    this.processStorage.saveWorkFlow(workFlow, userName);
     verify(workFlowDAO, times(1)).update(workFlowEntity);
   }
 
   @Test
   public void countWorksByWorkflow() throws Exception {
-    processesStorage.countWorksByWorkflow(1L, false);
+    processStorage.countWorksByWorkflow(1L, false);
     verify(taskService, times(1)).countTasks(any());
-    processesStorage.countWorksByWorkflow(1L, true);
+    processStorage.countWorksByWorkflow(1L, true);
     verify(taskService, times(2)).countTasks(any());
+  }
+
+  @Test
+  public void findAllWorkFlowsByUser() {
+    processStorage.findAllWorkFlowsByUser(null, 0, 10, 1L);
+    verify(workFlowDAO, times(1)).findAllWorkFlowsByUser(1L, 0, 10);
+  }
+
+  @Test
+  public void findEnabledWorkFlowsByUser() {
+    processStorage.findEnabledWorkFlowsByUser(null, 0, 10, 1L);
+    verify(workFlowDAO, times(1)).findEnabledWorkFlowsByUser(1L, 0, 10);
+  }
+
+  @Test
+  public void findEnabledWorkFlows() {
+    processStorage.findEnabledWorkFlows(0, 10);
+    verify(workFlowDAO, times(1)).findEnabledWorkFlows(0, 10);
+  }
+
+  @Test
+  public void findDisabledWorkFlows() {
+    processStorage.findDisabledWorkFlows(0, 10);
+    verify(workFlowDAO, times(1)).findDisabledWorkFlows(0, 10);
+  }
+
+  @Test
+  public void getWorkFlowByProjectId() {
+    processStorage.getWorkFlowByProjectId(1L);
+    verify(workFlowDAO, times(1)).getWorkFlowByProjectId(1L);
   }
 
   @Test
@@ -273,19 +289,17 @@ public class ProcessesStorageImplTest {
     when(taskService.getTask(1L)).thenReturn(taskDto);
     when(taskDto.getStatus()).thenReturn(statusDto);
     when(statusDto.getProject()).thenReturn(projectDto);
-    processesStorage.deleteWorkById(1L);
+    requestStorage.deleteWorkById(1L);
     verify(taskService, times(1)).removeTask(1L);
     when(taskService.getTask(1L)).thenThrow(EntityNotFoundException.class);
-    processesStorage.deleteWorkById(1L);
+    requestStorage.deleteWorkById(1L);
     verify(taskService, times(1)).removeTask(1L);
   }
 
   @Test
-  public void saveWork() throws EntityNotFoundException, IllegalAccessException, ObjectNotFoundException {
-    List<Attachment> attachments = new ArrayList<>();
+  public void saveWork() throws EntityNotFoundException {
     Attachment attachment = new Attachment();
     attachment.setId("1");
-    attachments.add(attachment);
     Work work = new Work();
     ProjectDto projectDto = new ProjectDto();
     projectDto.setId(1L);
@@ -299,8 +313,6 @@ public class ProcessesStorageImplTest {
     when(identity.getId()).thenReturn("1");
     when(taskDto.getStatus()).thenReturn(statusDto);
     when(statusDto.getProject()).thenReturn(projectDto);
-    Throwable exception1 = assertThrows(IllegalArgumentException.class, () -> this.processesStorage.saveWork(null, identity));
-    assertEquals("work argument is null", exception1.getMessage());
     work.setId(0L);
     work.setProjectId(1L);
     when(identityManager.getIdentity(1)).thenReturn(identity);
@@ -309,22 +321,24 @@ public class ProcessesStorageImplTest {
     ENTITY_MAPPER.when(() -> EntityMapper.taskToWork(taskDto)).thenReturn(work);
     when(taskDto.getTitle()).thenReturn("");
     when(taskService.createTask(taskDto)).thenReturn(taskDto);
-    processesStorage.saveWork(work, identity);
-    PROCESSES_UTILS.verify(() -> ProcessesUtils.broadcast(listenerService, "exo.process.request.created", work, projectDto), times(1));
+    when(identityManager.getOrCreateUserIdentity(userName)).thenReturn(identity);
+    requestStorage.saveWork(work, userName);
+    PROCESSES_UTILS.verify(() -> ProcessesUtils.broadcast(listenerService, "exo.process.request.created", work, projectDto),
+                           times(1));
 
     work.setIsDraft(true);
     work.setId(0);
     work.setDraftId(1L);
-    work.setAttachments(new ArrayList<Attachment>());
+    work.setAttachments(new ArrayList<>());
     WorkFlow workFlow = new WorkFlow();
     workFlow.setProjectId(1L);
     when(taskDto.getId()).thenReturn(1L);
     when(workDraftDAO.find(1L)).thenReturn(WorkEntity);
-    processesStorage.saveWork(work, identity);
-    verify(processesAttachmentService, times(1)).moveAttachmentsToEntity(new ArrayList<Attachment>(), 1L, 1L, "workdraft", 1L, "task", 1L);
+    requestStorage.saveWork(work, userName);
+    verify(processAttachmentService,
+           times(1)).moveAttachmentsToEntity(new ArrayList<>(), userName, 1L, "workdraft", 1L, "task", 1L);
     verify(workDraftDAO, times(1)).delete(WorkEntity);
     when(projectService.getProject(work.getProjectId())).thenThrow(EntityNotFoundException.class);
-
     work.setId(1L);
     when(taskService.getTask(work.getId())).thenReturn(taskDto);
     TaskDto updatedTask = new TaskDto();
@@ -338,16 +352,20 @@ public class ProcessesStorageImplTest {
     statuses.add(statusDto1);
     when(statusService.getStatuses(1L)).thenReturn(statuses);
     work.setStatus("Canceled");
-    processesStorage.saveWork(work, identity);
-    PROCESSES_UTILS.verify(() -> ProcessesUtils.broadcast(listenerService, "exo.process.request.canceled", updatedTask, updatedTask.getStatus().getProject()), times(1));
+    requestStorage.saveWork(work, userName);
+    PROCESSES_UTILS.verify(() -> ProcessesUtils.broadcast(listenerService,
+                                                          "exo.process.request.canceled",
+                                                          updatedTask,
+                                                          updatedTask.getStatus().getProject()),
+                           times(1));
     verify(taskService, times(1)).updateTask(taskDto);
 
     when(taskService.getTask(work.getId())).thenThrow(EntityNotFoundException.class);
-    Throwable exception3 = assertThrows(IllegalArgumentException.class, () -> this.processesStorage.saveWork(work, identity));
+    Throwable exception3 = assertThrows(IllegalArgumentException.class, () -> this.requestStorage.saveWork(work, userName));
     assertEquals("Task not found", exception3.getMessage());
 
     work.setId(0L);
-    Throwable exception4 = assertThrows(IllegalArgumentException.class, () -> this.processesStorage.saveWork(work, identity));
+    Throwable exception4 = assertThrows(IllegalArgumentException.class, () -> this.requestStorage.saveWork(work, userName));
     assertEquals("Task's project not found", exception4.getMessage());
   }
 
@@ -360,25 +378,27 @@ public class ProcessesStorageImplTest {
     workFlow.setProjectId(1L);
     org.exoplatform.processes.entity.WorkEntity workEntity = new org.exoplatform.processes.entity.WorkEntity();
     workEntity.setId(1L);
-    workEntity.hashCode();
-    workEntity.equals(workEntity);
-    workEntity.toString();
     Identity identity = mock(Identity.class);
     ENTITY_MAPPER.when(() -> EntityMapper.toEntity(work)).thenReturn(workEntity);
     when(identityManager.getIdentity(1)).thenReturn(identity);
     work.setWorkFlow(workFlow);
     when(workDraftDAO.create(workEntity)).thenReturn(workEntity);
     when(identityManager.getIdentity(1)).thenReturn(null);
-    Throwable exception1 = assertThrows(IllegalArgumentException.class, () -> this.processesStorage.saveWorkDraft(work, 1L));
+    Throwable exception1 = assertThrows(IllegalArgumentException.class, () -> this.requestStorage.saveWorkDraft(work, userName));
     assertEquals("identity does not exist", exception1.getMessage());
     verify(workDraftDAO, times(0)).create(workEntity);
-    when(identityManager.getIdentity(1)).thenReturn(identity);
-    processesStorage.saveWorkDraft(work, 1L);
-    verify(processesAttachmentService,
-           times(1)).copyAttachmentsToEntity(1L, work.getWorkFlow().getId(), "workflow", workEntity.getId(), "workdraft", 1L);
+    when(identityManager.getOrCreateUserIdentity(userName)).thenReturn(identity);
+    when(identity.getId()).thenReturn("1");
+    requestStorage.saveWorkDraft(work, userName);
+    verify(processAttachmentService, times(1)).copyAttachmentsToEntity(userName,
+                                                                       work.getWorkFlow().getId(),
+                                                                       "workflow",
+                                                                       workEntity.getId(),
+                                                                       "workdraft",
+                                                                       1L);
     verify(workDraftDAO, times(1)).create(workEntity);
     work.setId(1L);
-    processesStorage.saveWorkDraft(work, 1L);
+    requestStorage.saveWorkDraft(work, userName);
     verify(workDraftDAO, times(1)).update(workEntity);
   }
 
@@ -386,32 +406,26 @@ public class ProcessesStorageImplTest {
   public void deleteWorkDraftById() {
     org.exoplatform.processes.entity.WorkEntity WorkEntity = new org.exoplatform.processes.entity.WorkEntity();
     when(workDraftDAO.find(1L)).thenReturn(null);
-    Throwable exception1 = assertThrows(jakarta.persistence.EntityNotFoundException.class,
-                                        () -> this.processesStorage.deleteWorkDraftById(1l));
-    assertEquals("Work Draft not found", exception1.getMessage());
+    requestStorage.deleteWorkDraftById(1L);
+    verify(workDraftDAO, times(0)).delete(WorkEntity);
     when(workDraftDAO.find(1L)).thenReturn(WorkEntity);
-    processesStorage.deleteWorkDraftById(1L);
+    requestStorage.deleteWorkDraftById(1L);
     verify(workDraftDAO, times(1)).delete(WorkEntity);
   }
 
   @Test
-  public void getWorkById() throws Exception {
-    TaskDto taskDto = mock(TaskDto.class);
-    Identity identity = mock(Identity.class);
-    List<TaskDto> list = new ArrayList<>();
-    list.add(taskDto);
-    when(identity.getRemoteId()).thenReturn("root");
-    when(identityManager.getIdentity(1)).thenReturn(null);
-    Throwable exception1 = assertThrows(IllegalArgumentException.class, () -> this.processesStorage.getWorkById(1L, 1L));
-    assertEquals("identity does not exist", exception1.getMessage());
-    when(identityManager.getIdentity(1)).thenReturn(identity);
-    when(taskService.findTasks(any(), ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt())).thenReturn(list);
-    processesStorage.getWorkById(1L, 1L);
-    EntityMapper.taskToWork(taskDto);
-    when(taskService.findTasks(any(), anyInt(), anyInt())).thenThrow(new EntityNotFoundException(1L, Object.class));
-    Throwable exception2 = assertThrows(jakarta.persistence.EntityNotFoundException.class,
-                                        () -> this.processesStorage.getWorkById(1L, 1L));
-    assertEquals("work not found", exception2.getMessage());
+  public void getWorkDraftyId() {
+    org.exoplatform.processes.entity.WorkEntity WorkEntity = new org.exoplatform.processes.entity.WorkEntity();
+    when(workDraftDAO.find(1L)).thenReturn(WorkEntity);
+    requestStorage.getWorkDraftyId(1L);
+    verify(workDraftDAO, times(1)).find(1L);
+  }
+
+  @Test
+  public void getWorkById() throws EntityNotFoundException {
+    doThrow(new EntityNotFoundException(1L, Object.class)).when(taskService).getTask(1L);
+    Work work = requestStorage.getWorkById(1L);
+    assertNull(work);
   }
 
   @Test
@@ -432,8 +446,6 @@ public class ProcessesStorageImplTest {
     EntityMapper.tasksToWorkList(taskDtos);
     Work work = new Work();
     work.setId(1);
-    List<Work> works = new ArrayList<>();
-    works.add(work);
     WorkFlowEntity workFlowEntity = new WorkFlowEntity();
     workFlowEntity.setId(1L);
     workFlowEntity.setCreatorId(1L);
@@ -466,11 +478,10 @@ public class ProcessesStorageImplTest {
     assertNotNull(works1);
 
     when(taskService.getTask(1L)).thenReturn(taskDto);
-    processesStorage.updateWorkCompleted(1L, true);
+    requestStorage.updateWorkCompleted(1L, true);
     verify(taskService, times(1)).updateTask(taskDto);
     when(taskService.getTask(1L)).thenThrow(new EntityNotFoundException(1L, Object.class));
-    Throwable exception2 = assertThrows(jakarta.persistence.EntityNotFoundException.class,
-                                        () -> this.processesStorage.updateWorkCompleted(1L, true));
+    Throwable exception2 = assertThrows(IllegalArgumentException.class, () -> this.requestStorage.updateWorkCompleted(1L, true));
     assertEquals("work not found", exception2.getMessage());
   }
 
@@ -502,31 +513,28 @@ public class ProcessesStorageImplTest {
     workFlows.add(workFlow2);
     ProjectDto projectDto = mock(ProjectDto.class);
     projectDto.setId(1L);
-    String username = "testuser";
-    org.exoplatform.services.security.Identity root = new org.exoplatform.services.security.Identity(username);
+    String userName = "testuser";
+    org.exoplatform.services.security.Identity root = new org.exoplatform.services.security.Identity(userName);
     ConversationState.setCurrent(new ConversationState(root));
     long currentOwnerId = 2;
     org.exoplatform.social.core.identity.model.Identity currentIdentity =
                                                                         new org.exoplatform.social.core.identity.model.Identity(OrganizationIdentityProvider.NAME,
-                                                                                                                                username);
+                                                                                                                                userName);
     currentIdentity.setId(String.valueOf(currentOwnerId));
     Profile currentProfile = new Profile();
-    currentProfile.setProperty(Profile.FULL_NAME, username);
+    currentProfile.setProperty(Profile.FULL_NAME, userName);
     currentIdentity.setProfile(currentProfile);
 
     when(identityManager.getIdentity((currentOwnerId))).thenReturn(currentIdentity);
 
-    PROCESSES_UTILS.when(() -> ProcessesUtils.getUserNameByIdentityId(any(), anyLong())).thenCallRealMethod();
-    String user = ProcessesUtils.getUserNameByIdentityId(identityManager, 1l);
-    assertNotNull(user);
     COMMONS_UTILS.when(() -> CommonsUtils.getService(ProjectService.class)).thenReturn(projectService);
-    when(projectService.getProject(1l)).thenReturn(projectDto);
-    Space space = ProcessesUtils.getProjectParentSpace(1l);
+    when(projectService.getProject(1L)).thenReturn(projectDto);
+    Space space = ProcessesUtils.getProjectParentSpace(1L);
     assertNull(space);
-    when(processesStorage.findWorkFlows(any(), anyLong(), anyInt(), anyInt())).thenReturn(workFlows);
+    when(processStorage.findWorkFlows(any(), anyString(), anyInt(), anyInt())).thenReturn(workFlows);
     when(taskService.findTasks(taskQuery, 0, 0)).thenReturn(tasks);
     ENTITY_MAPPER.when(() -> EntityMapper.tasksToWorkList(tasks)).thenReturn(works);
-    processesStorage.getWorks(1L, workFilter, 0, 0);
+    requestStorage.getWorks(userName, workFilter, 0, 0);
     verify(taskService, times(1)).findTasks(any(), anyInt(), anyInt());
   }
 
@@ -549,10 +557,10 @@ public class ProcessesStorageImplTest {
     List<WorkStatus> workStatuses = new ArrayList<>();
     workStatuses.add(workStatus);
     when(statusService.getStatuses(1L)).thenReturn(statuses);
-    when(processesStorage.findAllWorkFlows(anyInt(), anyInt())).thenReturn(workFlows);
+    when(processStorage.findAllWorkFlows(anyInt(), anyInt())).thenReturn(workFlows);
     ENTITY_MAPPER.when(() -> EntityMapper.toWorkStatuses(statuses)).thenReturn(workStatuses);
 
-    List<WorkStatus> workStatusList = processesStorage.getAvailableWorkStatuses();
+    List<WorkStatus> workStatusList = processStorage.getAvailableWorkStatuses();
     assertEquals(1, workStatusList.size());
   }
 
@@ -568,13 +576,10 @@ public class ProcessesStorageImplTest {
                                      fileInfo.getUpdater(),
                                      fileInfo.isDeleted(),
                                      null);
-    IllustrativeAttachment illustrativeAttachment = processesStorage.getIllustrationImageById(null);
+    IllustrativeAttachment illustrativeAttachment = processStorage.getIllustrationImageById(null);
     assertNull(illustrativeAttachment);
-    when(fileService.getFile(1L)).thenReturn(null);
-    Throwable exception = assertThrows(ObjectNotFoundException.class, () -> this.processesStorage.getIllustrationImageById(1L));
-    assertEquals("Illustration image not found", exception.getMessage());
     when(fileService.getFile(1L)).thenReturn(fileItem);
-    IllustrativeAttachment illustrativeAttachment1 = processesStorage.getIllustrationImageById(1L);
+    IllustrativeAttachment illustrativeAttachment1 = processStorage.getIllustrationImageById(1L);
     assertNotNull(illustrativeAttachment1);
   }
 
@@ -595,8 +600,8 @@ public class ProcessesStorageImplTest {
     List<String> memberships = new ArrayList<>();
     memberships.add("manager");
     memberships.add("participator");
-    Set<String> managers = new HashSet<>(Arrays.asList(memberships.get(0)));
-    Set<String> participators = new HashSet<>(Arrays.asList(memberships.get(1)));
+    Set<String> managers = new HashSet<>(Collections.singletonList(memberships.get(0)));
+    Set<String> participators = new HashSet<>(Collections.singletonList(memberships.get(1)));
     ProjectDto projectDto = new ProjectDto();
     Space space = mock(Space.class);
     WorkFlowEntity workFlowEntity = new WorkFlowEntity();
@@ -606,7 +611,7 @@ public class ProcessesStorageImplTest {
     when(workFlow.getSpaceId()).thenReturn("1");
 
     when(identityManager.getIdentity(1)).thenReturn(identity);
-    when(identity.getRemoteId()).thenReturn("user");
+    when(identity.getRemoteId()).thenReturn(userName);
     when(identity.getId()).thenReturn("1");
     when(space.getGroupId()).thenReturn("/spaces/processes_space");
     when(spaceService.getSpaceByGroupId("/spaces/processes_space")).thenReturn(space);
@@ -617,20 +622,18 @@ public class ProcessesStorageImplTest {
     workFlow.setProjectId(1L);
     workFlow.setSpaceId("1");
     PROJECT_UTIL.when(() -> ProjectUtil.newProjectInstanceDto(workFlow.getTitle(),
-                                           workFlow.getDescription(),
-                                           managers,
-                                           participators)).thenReturn(projectDto);
+                                                              workFlow.getDescription(),
+                                                              managers,
+                                                              participators))
+                .thenReturn(projectDto);
     projectDto.setId(1L);
     when(projectService.createProject(projectDto)).thenReturn(projectDto);
     doNothing().when(statusService).createInitialStatuses(projectDto);
-    when(workFlow.getAttachments()).thenReturn(attachments.toArray(new Attachment[attachments.size()]));
+    when(workFlow.getAttachments()).thenReturn(attachments.toArray(new Attachment[0]));
     ENTITY_MAPPER.when(() -> EntityMapper.toEntity(workFlow)).thenReturn(workFlowEntity);
     WorkFlowEntity newWorkFlowEntity = new WorkFlowEntity();
     newWorkFlowEntity.setId(1L);
     newWorkFlowEntity.setProjectId(1L);
-    newWorkFlowEntity.hashCode();
-    newWorkFlowEntity.toString();
-    newWorkFlowEntity.equals(workFlow);
     WorkFlowEntity newWorkFlowEntity1 = new WorkFlowEntity();
     newWorkFlowEntity1.setId(1L);
     newWorkFlowEntity1.setProjectId(1L);
@@ -645,11 +648,11 @@ public class ProcessesStorageImplTest {
     memberships.add("*:/platform/users");
     when(workFlowDAO.findWorkFlows(filter, memberships, 0, 0)).thenReturn(workFlowEntities);
     when(workFlow.getIllustrativeAttachment()).thenReturn(illustrativeAttachment);
-    this.processesStorage.saveWorkFlow(workFlow, identity);
+    when(identityManager.getOrCreateUserIdentity(userName)).thenReturn(identity);
+    this.processStorage.saveWorkFlow(workFlow, userName);
     when(organizationService.getMembershipHandler()).thenReturn(membershipHandler);
-    assertEquals(null, this.processesStorage.getWorkFlowById(1));
-
-    Collection<Membership> memberships_ = new ArrayList();
+    assertNull(this.processStorage.getWorkFlowById(1));
+    Collection<Membership> memberships_ = new ArrayList<>();
     MembershipImpl membership;
     membership = new MembershipImpl();
     membership.setMembershipType("member");
@@ -672,8 +675,7 @@ public class ProcessesStorageImplTest {
     ENTITY_MAPPER.when(() -> EntityMapper.fromEntity(newWorkFlowEntity1, null)).thenReturn(workFlow);
 
     when(organizationService.getMembershipHandler().findMembershipsByUser(identity.getRemoteId())).thenReturn(memberships_);
-    assertEquals(1, this.processesStorage.findWorkFlows(filter, Long.parseLong(identity.getId()), 0, 0).size());
-
+    assertEquals(1, this.processStorage.findWorkFlows(filter, userName, 0, 0).size());
     MembershipImpl adminProcesses = new MembershipImpl();
     adminProcesses.setMembershipType("*");
     adminProcesses.setUserName("user");
@@ -684,7 +686,7 @@ public class ProcessesStorageImplTest {
     ENTITY_MAPPER.when(() -> EntityMapper.fromEntity(newWorkFlowEntity1, null)).thenReturn(workFlow);
 
     when(organizationService.getMembershipHandler().findMembershipsByUser(identity.getRemoteId())).thenReturn(memberships_);
-    assertEquals(0, this.processesStorage.findWorkFlows(filter, Long.parseLong(identity.getId()), 0, 0).size());
+    assertEquals(0, this.processStorage.findWorkFlows(filter, userName, 0, 0).size());
   }
 
   @Test
@@ -703,8 +705,8 @@ public class ProcessesStorageImplTest {
     List<String> memberships = new ArrayList<>();
     memberships.add("manager");
     memberships.add("participator");
-    Set<String> managers = new HashSet<>(Arrays.asList(memberships.get(0)));
-    Set<String> participators = new HashSet<>(Arrays.asList(memberships.get(1)));
+    Set<String> managers = new HashSet<>(Collections.singletonList(memberships.get(0)));
+    Set<String> participators = new HashSet<>(Collections.singletonList(memberships.get(1)));
     ProjectDto projectDto = new ProjectDto();
     Space space = mock(Space.class);
     WorkFlowEntity workFlowEntity = new WorkFlowEntity();
@@ -723,20 +725,18 @@ public class ProcessesStorageImplTest {
     workFlow.setProjectId(1L);
     workFlow.setSpaceId("1");
     PROJECT_UTIL.when(() -> ProjectUtil.newProjectInstanceDto(workFlow.getTitle(),
-                                           workFlow.getDescription(),
-                                           managers,
-                                           participators)).thenReturn(projectDto);
+                                                              workFlow.getDescription(),
+                                                              managers,
+                                                              participators))
+                .thenReturn(projectDto);
     projectDto.setId(1L);
     when(projectService.createProject(projectDto)).thenReturn(projectDto);
     doNothing().when(statusService).createInitialStatuses(projectDto);
-    when(workFlow.getAttachments()).thenReturn(attachments.toArray(new Attachment[attachments.size()]));
+    when(workFlow.getAttachments()).thenReturn(attachments.toArray(new Attachment[0]));
     ENTITY_MAPPER.when(() -> EntityMapper.toEntity(workFlow)).thenReturn(workFlowEntity);
     WorkFlowEntity newWorkFlowEntity = new WorkFlowEntity();
     newWorkFlowEntity.setId(1L);
     newWorkFlowEntity.setProjectId(1L);
-    newWorkFlowEntity.hashCode();
-    newWorkFlowEntity.toString();
-    newWorkFlowEntity.equals(workFlow);
     when(workFlowDAO.create(workFlowEntity)).thenReturn(newWorkFlowEntity);
     ProcessesFilter filter = new ProcessesFilter("", null, true);
     when(workFlowDAO.countWorkFlows(filter)).thenReturn(1);
@@ -754,7 +754,8 @@ public class ProcessesStorageImplTest {
     identityEntities.add(new CreatorIdentityEntity(identityEntity));
     workFlow.setRequestsCreators(identityEntities);
     when(identity.getId()).thenReturn("1");
-    this.processesStorage.saveWorkFlow(workFlow, identity);
-    assertEquals(1, this.processesStorage.countWorkFlows(filter));
+    when(identityManager.getOrCreateUserIdentity(userName)).thenReturn(identity);
+    this.processStorage.saveWorkFlow(workFlow, userName);
+    assertEquals(1, this.processStorage.countWorkFlows(filter));
   }
 }

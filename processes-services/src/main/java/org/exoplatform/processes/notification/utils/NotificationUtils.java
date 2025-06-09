@@ -16,12 +16,13 @@
  */
 package org.exoplatform.processes.notification.utils;
 
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.portal.webui.util.Util;
 import org.exoplatform.processes.model.WorkFlow;
-import org.exoplatform.processes.service.ProcessesService;
+import org.exoplatform.processes.service.ProcessService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.organization.OrganizationService;
@@ -128,8 +129,13 @@ public class NotificationUtils {
   }
 
   public static WorkFlow getWorkFlowByProjectId(long workflowProjectId) {
-    ProcessesService processesService = CommonsUtils.getService(ProcessesService.class);
-    return processesService != null ? processesService.getWorkFlowByProjectId(workflowProjectId) : null;
+    ProcessService processService = CommonsUtils.getService(ProcessService.class);
+    try {
+      return processService != null ? processService.getWorkFlowByProjectId(workflowProjectId) : null;
+    } catch (ObjectNotFoundException e) {
+      LOG.error("Process does not exist for project Id {}", workflowProjectId);
+      return null;
+    }
   }
 
   public static List<String> getReceivers(long workflowProjectId, String requester, boolean withAdministrators) {

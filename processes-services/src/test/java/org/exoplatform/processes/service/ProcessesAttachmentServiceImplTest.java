@@ -1,11 +1,8 @@
 package org.exoplatform.processes.service;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
+import static org.mockito.Mockito.*;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -83,10 +80,12 @@ public class ProcessesAttachmentServiceImplTest {
   @Mock
   private IdentityManager            identityManager;
 
-  private ProcessesAttachmentService processesAttachmentService;
+  private ProcessAttachmentService processAttachmentService;
+
+  private final String  userName = "testuser";
 
   @AfterClass
-  public static void afterRunBare() throws Exception { // NOSONAR
+  public static void afterRunBare() { // NOSONAR
     COMMONS_UTILS.close();
     UTILS.close();
     CONVERSATION_STATE.close();
@@ -94,8 +93,8 @@ public class ProcessesAttachmentServiceImplTest {
   }
 
   @Before
-  public void setUp() throws Exception {
-    this.processesAttachmentService = new ProcessesAttachmentServiceImpl(attachmentService,
+  public void setUp() {
+    this.processAttachmentService = new ProcessAttachmentServiceImpl(attachmentService,
                                                                          repositoryService,
                                                                          sessionProviderService,
                                                                          manageDriveService,
@@ -104,17 +103,18 @@ public class ProcessesAttachmentServiceImplTest {
                                                                          projectService,
                                                                          identityManager);
     ConversationState conversationState = mock(ConversationState.class);
-    CONVERSATION_STATE.when(() -> ConversationState.getCurrent()).thenReturn(conversationState);
+    CONVERSATION_STATE.when(ConversationState::getCurrent).thenReturn(conversationState);
     Identity identity = mock(Identity.class);
     org.exoplatform.social.core.identity.model.Identity userIdentity = mock(org.exoplatform.social.core.identity.model.Identity.class);
     when(conversationState.getIdentity()).thenReturn(identity);
-    when(identityManager.getIdentity(any())).thenReturn(userIdentity);
+    when(identityManager.getIdentity(anyLong())).thenReturn(userIdentity);
     when(identity.getUserId()).thenReturn("test");
     when(userIdentity.getRemoteId()).thenReturn("test");
   }
 
   @Test
   public void linkAttachmentsToEntity() throws Exception {
+    org.exoplatform.social.core.identity.model.Identity socIdentity = mock(org.exoplatform.social.core.identity.model.Identity.class);
     List<Attachment> attachmentList = new ArrayList<>();
     Attachment attachment = new Attachment();
     attachment.setId("1");
@@ -129,17 +129,23 @@ public class ProcessesAttachmentServiceImplTest {
     Space space = new Space();
     space.setGroupId("/spaces/processes_space");
     PROCESSES_UTILS.when(() -> ProcessesUtils.getProjectParentSpace(1L)).thenReturn(space);
-    processesAttachmentService.linkAttachmentsToEntity(attachmentList.toArray(new Attachment[0]), 1L, 1L, "workflow", 1L);
+    processAttachmentService.linkAttachmentsToEntity(attachmentList.toArray(new Attachment[0]), userName, 1L, "workflow", 1L);
     verify(attachmentService, times(0)).linkAttachmentToEntity(1L, 1L, "workflow", "1");
     attachmentList.add(attachment);
     when(projectService.getProject(1L)).thenReturn(projectDto);
-    processesAttachmentService.linkAttachmentsToEntity(attachmentList.toArray(new Attachment[0]), 1L, 1L, "workflow", 1L);
+    when(identityManager.getOrCreateUserIdentity(userName)).thenReturn(null);
+    Throwable exception = assertThrows(IllegalArgumentException.class, () -> processAttachmentService.linkAttachmentsToEntity(attachmentList.toArray(new Attachment[0]), userName, 1L, "workflow", 1L));
+    assertEquals("identity does not exist", exception.getMessage());
+    verify(attachmentService, times(0)).linkAttachmentToEntity(1L, 1L, "workflow", "1");
+    when(identityManager.getOrCreateUserIdentity(userName)).thenReturn(socIdentity);
+    when(socIdentity.getId()).thenReturn("1");
+    processAttachmentService.linkAttachmentsToEntity(attachmentList.toArray(new Attachment[0]), userName, 1L, "workflow", 1L);
     verify(attachmentService, times(1)).linkAttachmentToEntity(1L, 1L, "workflow", "1");
   }
 
   @Test
   public void moveAttachmentsToEntity() throws Exception {
-    org.exoplatform.social.core.identity.model.Identity identity = mock(org.exoplatform.social.core.identity.model.Identity.class);
+    org.exoplatform.social.core.identity.model.Identity socIdentity = mock(org.exoplatform.social.core.identity.model.Identity.class);
     when(identityManager.getIdentity(1)).thenReturn(null);
     List<Attachment> attachmentList = new ArrayList<>();
     Attachment attachment = new Attachment();
@@ -159,12 +165,17 @@ public class ProcessesAttachmentServiceImplTest {
     space.setGroupId("/spaces/processes_space");
     when(projectService.getProject(1L)).thenReturn(projectDto);
     PROCESSES_UTILS.when(() -> ProcessesUtils.getProjectParentSpace(1L)).thenReturn(space);
-    ProcessesAttachmentService processesAttachmentService1 = mock(ProcessesAttachmentService.class);
+    ProcessAttachmentService processAttachmentService1 = mock(ProcessAttachmentService.class);
     when(attachmentService.getAttachmentsByEntity(1L, 1L, "workflow")).thenReturn(attachmentList);
-    when(identityManager.getIdentity(1)).thenReturn(identity);
-    processesAttachmentService.moveAttachmentsToEntity(1L, 1L, "workflow", 1L, "workdraft", 1L);
-    verify(processesAttachmentService1, times(0)).linkAttachmentsToEntity(attachmentList.toArray(new Attachment[0]),
-                                                                         1L,
+    when(identityManager.getOrCreateUserIdentity(userName)).thenReturn(null);
+    Throwable exception = assertThrows(IllegalArgumentException.class, () -> processAttachmentService.moveAttachmentsToEntity(userName, 1L, "workflow", 1L, "workdraft", 1L));
+    assertEquals("identity does not exist", exception.getMessage());
+    when(identityManager.getOrCreateUserIdentity(userName)).thenReturn(socIdentity);
+    when(identityManager.getIdentity(1L)).thenReturn(socIdentity);
+    when(socIdentity.getId()).thenReturn("1");
+    processAttachmentService.moveAttachmentsToEntity(userName, 1L, "workflow", 1L, "workdraft", 1L);
+    verify(processAttachmentService1, times(0)).linkAttachmentsToEntity(attachmentList.toArray(new Attachment[0]),
+            userName,
                                                                          1L,
                                                                          "workdraft", 1L);
     attachmentList.add(attachment);
@@ -191,13 +202,14 @@ public class ProcessesAttachmentServiceImplTest {
     when(node.getPath()).thenReturn("srcPath");
     when(extendedNode.getPath()).thenReturn("destPath");
     when(node.getParent()).thenReturn(node);
-    processesAttachmentService.moveAttachmentsToEntity(1L, 1L, "workflow", 1L, "workdraft", 1L);
+    processAttachmentService.moveAttachmentsToEntity(userName, 1L, "workflow", 1L, "workdraft", 1L);
     verify(session, times(1)).move("srcPath", "destPath/test");
 
   }
 
   @Test
   public void copyAttachmentsToEntity() throws Exception {
+    org.exoplatform.social.core.identity.model.Identity socIdentity = mock(org.exoplatform.social.core.identity.model.Identity.class);
     List<Attachment> attachmentList = new ArrayList<>();
     Attachment attachment = new Attachment();
     attachment.setId("1");
@@ -218,11 +230,15 @@ public class ProcessesAttachmentServiceImplTest {
     space.setGroupId("/spaces/processes_space");
     PROCESSES_UTILS.when(() -> ProcessesUtils.getProjectParentSpace(1L)).thenReturn(space);
     when(projectService.getProject(1L)).thenReturn(projectDto);
-    ProcessesAttachmentService processesAttachmentService1 = mock(ProcessesAttachmentService.class);
+    ProcessAttachmentService processAttachmentService1 = mock(ProcessAttachmentService.class);
     when(attachmentService.getAttachmentsByEntity(1L, 1L, "workdraft")).thenReturn(attachmentList);
-    processesAttachmentService.copyAttachmentsToEntity(1L, 1L, "workdraft", 1L, "work", 1L);
-    verify(processesAttachmentService1,
-           times(0)).linkAttachmentsToEntity(attachmentList.toArray(new Attachment[0]), 1L, 1L, "work", 1L);
+    when(identityManager.getOrCreateUserIdentity(userName)).thenReturn(null);
+    Throwable exception = assertThrows(IllegalArgumentException.class, () -> processAttachmentService.copyAttachmentsToEntity(userName, 1L, "workdraft", 1L, "work", 1L));
+    assertEquals("identity does not exist", exception.getMessage());
+    when(identityManager.getOrCreateUserIdentity(userName)).thenReturn(socIdentity);
+    processAttachmentService.copyAttachmentsToEntity(userName, 1L, "workdraft", 1L, "work", 1L);
+    verify(processAttachmentService1,
+           times(0)).linkAttachmentsToEntity(attachmentList.toArray(new Attachment[0]), userName, 1L, "work", 1L);
     attachmentList.add(attachment);
 
     DriveData driveData = new DriveData();
@@ -253,7 +269,9 @@ public class ProcessesAttachmentServiceImplTest {
     Attachment attachment1 = new Attachment();
     attachment1.setId("2");
     when(attachmentService.getAttachmentById("2")).thenReturn(attachment1);
-    processesAttachmentService.copyAttachmentsToEntity(1L, 1L, "workdraft", 1L, "work", 1L);
+    when(identityManager.getIdentity(1L)).thenReturn(socIdentity);
+    when(socIdentity.getId()).thenReturn("1");
+    processAttachmentService.copyAttachmentsToEntity(userName, 1L, "workdraft", 1L, "work", 1L);
     verify(workspace, times(1)).copy("srcPath", "destPath/test");
 
     DriveData userDriveData = new DriveData();
@@ -275,7 +293,7 @@ public class ProcessesAttachmentServiceImplTest {
     when(node.getNode(NodetypeConstant.JCR_CONTENT)).thenReturn(content);
     when(node.hasProperty(NodetypeConstant.EXO_TITLE)).thenReturn(true);
     when(node.hasProperty(NodetypeConstant.EXO_NAME)).thenReturn(true);
-    processesAttachmentService.copyAttachmentsToEntity(1L, 1L, "workdraft", 1L, "work", 1L);
+    processAttachmentService.copyAttachmentsToEntity(userName, 1L, "workdraft", 1L, "work", 1L);
     verify(workspace, times(1)).copy("srcPath", "destPath/test.docxf");
   }
   
@@ -283,12 +301,12 @@ public class ProcessesAttachmentServiceImplTest {
   public void createNewFormDocument() throws Exception {
     WorkFlow workFlow = new WorkFlow();
     workFlow.setProjectId(1L);
-    ProcessesService processesService = mock(ProcessesService.class);
-    COMMONS_UTILS.when(() -> CommonsUtils.getService(ProcessesService.class)).thenReturn(processesService);
-    when(processesService.getWorkFlow(1L)).thenReturn(workFlow);
+    ProcessService processService = mock(ProcessService.class);
+    COMMONS_UTILS.when(() -> CommonsUtils.getService(ProcessService.class)).thenReturn(processService);
+    when(processService.getWorkFlow(1L)).thenReturn(workFlow);
     Attachment attachment = mock(Attachment.class);
     when(attachmentService.createNewDocument(any(), any(), any(), any(), any())).thenReturn(attachment);
     copyAttachmentsToEntity();
-    processesAttachmentService.createNewFormDocument(1L, "doc", "path", "spaces.processes_space", "template", "workflow", 1L);
+    processAttachmentService.createNewFormDocument(userName, "doc", "path", "spaces.processes_space", "template", "workflow", 1L);
   }
 }

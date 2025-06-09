@@ -9,8 +9,6 @@ import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
-import org.exoplatform.social.core.identity.model.Identity;
-import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dto.ProjectDto;
@@ -22,11 +20,6 @@ public class ProcessesUtils {
   private static final Log LOG = ExoLogger.getLogger(ProcessesUtils.class);
 
   public static final String PROCESSES_GROUP = "/platform/processes";
-
-  public static String getUserNameByIdentityId(IdentityManager identityManager, long identityId) {
-    Identity identity = identityManager.getIdentity(identityId);
-    return identity != null ? identity.getRemoteId() : "";
-  }
 
   public static Space getProjectParentSpace(Long projectId) {
     ProjectService projectService = CommonsUtils.getService(ProjectService.class);

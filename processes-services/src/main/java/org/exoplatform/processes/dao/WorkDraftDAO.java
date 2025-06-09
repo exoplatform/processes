@@ -16,6 +16,12 @@
  */
 package org.exoplatform.processes.dao;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+import org.springframework.stereotype.Repository;
+
 import org.exoplatform.commons.persistence.impl.GenericDAOJPAImpl;
 import org.exoplatform.processes.entity.WorkEntity;
 import org.exoplatform.processes.entity.WorkFlowEntity;
@@ -24,10 +30,8 @@ import org.exoplatform.processes.model.WorkFilter;
 import jakarta.persistence.Query;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 
+@Repository
 public class WorkDraftDAO extends GenericDAOJPAImpl<WorkEntity, Long> {
 
   private Query buildWorkQueryCriteria(WorkFilter workFilter, Long userId) {
@@ -53,8 +57,7 @@ public class WorkDraftDAO extends GenericDAOJPAImpl<WorkEntity, Long> {
     }
     criteriaQuery.select(root).where(predicates.toArray(new Predicate[0]));
     criteriaQuery.orderBy(criteriaBuilder.desc(root.get("id")));
-    Query query = getEntityManager().createQuery(criteriaQuery);
-    return query;
+    return getEntityManager().createQuery(criteriaQuery);
   }
 
 
