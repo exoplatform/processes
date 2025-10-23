@@ -30,7 +30,7 @@ export default {
       return this.toPlainText(this.value).length <= this.maxLength;
     },
     textColor() {
-      return this.validLength ? 'grey--text custom-counter': 'red--text custom-counter';
+      return this.validLength ? 'text-sub-title custom-counter': 'red--text custom-counter';
     },
     iconColor() {
       return this.validLength ? 'green': 'red';
