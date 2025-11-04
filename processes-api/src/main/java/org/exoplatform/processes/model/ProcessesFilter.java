@@ -28,5 +28,5 @@ public class ProcessesFilter {
   private String query;
   private Boolean enabled;
   private Boolean manager;
-
+  private Boolean isProcessManager;
 }
