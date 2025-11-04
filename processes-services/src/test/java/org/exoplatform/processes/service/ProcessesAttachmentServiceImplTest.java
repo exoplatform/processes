@@ -142,8 +142,10 @@ public class ProcessesAttachmentServiceImplTest {
     List<Attachment> attachmentList = new ArrayList<>();
     Attachment attachment = new Attachment();
     attachment.setId("1");
+    Workspace workspace = mock(Workspace.class);
     Session session = mock(Session.class);
     Node node = mock(Node.class);
+    when(session.getWorkspace()).thenReturn(workspace);
     ExtendedNode extendedNode = mock(ExtendedNode.class);
     ProjectDto projectDto = new ProjectDto();
     projectDto.setId(1L);
@@ -189,7 +191,7 @@ public class ProcessesAttachmentServiceImplTest {
     when(extendedNode.getPath()).thenReturn("destPath");
     when(node.getParent()).thenReturn(node);
     processesAttachmentService.moveAttachmentsToEntity(1L, 1L, "workflow", 1L, "workdraft", 1L);
-    verify(session, times(1)).move("srcPath", "destPath/test");
+    verify(workspace, times(1)).move("srcPath", "destPath/test");
 
   }
 

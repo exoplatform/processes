@@ -209,14 +209,16 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
         String destPath = destNode.getPath().concat("/").concat(attachmentNode.getName());
         if (!copy && !attachment.isEXoDrive()) {
           Node sourceEntityIdNode = attachmentNode.getParent();
-          session.move(attachmentNode.getPath(), destPath);
-          attachmentNode = (Node) session.getItem(destPath);
-          attachmentNode.addMixin(NodetypeConstant.EXO_HIDDENABLE);
+          session.save();
+          Workspace workspace = session.getWorkspace();
+          workspace.move(attachmentNode.getPath(), destPath);
+          Node copyNode = (Node) session.getItem(destPath);
+          copyNode.addMixin(NodetypeConstant.EXO_HIDDENABLE);
           if (attachments.size() - 1 == index && sourceEntityIdNode != null
                   && sourceEntityIdNode.getPrimaryNodeType().isNodeType(NodetypeConstant.NT_FOLDER)) {
             sourceEntityIdNode.remove();
           }
-          session.save();
+          copyNode.save();
         } else {
           session.save();
           Workspace workspace = session.getWorkspace();
