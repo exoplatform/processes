@@ -74,7 +74,7 @@ public class EntityBuilderTest {
   public void setUp() {
     RuntimeDelegate.setInstance(new RuntimeDelegateImpl());
     identityRegistry = mock(IdentityRegistry.class);
-    this.processesRest = new ProcessesRest(processesService, identityManager, processesAttachmentService);
+    this.processesRest = new ProcessesRest(processesService, identityManager, identityRegistry, processesAttachmentService);
   }
 
   @Test
