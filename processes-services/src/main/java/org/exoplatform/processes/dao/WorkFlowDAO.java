@@ -55,17 +55,17 @@ public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
     String q = processesFilter.getQuery();
     Boolean enabled = processesFilter.getEnabled();
     Boolean manager = processesFilter.getManager();
-    boolean managerProcess = memberships.stream().anyMatch(m -> m.endsWith("platform/processes"));
+    boolean isProcessManager = processesFilter.getIsProcessManager();
     String query = " ( workFlow.title like '%" + q + "%' OR workFlow.description like '%" + q + "%' OR workFlow.summary like '%" + q + "%' )";
     String queryString = "SELECT DISTINCT workFlow FROM WorkFlow workFlow";
-    if (enabled != null || manager == true || managerProcess == false) {
-      if(memberships != null) {
+    if (enabled != null || Boolean.TRUE.equals(manager) || !isProcessManager) {
+      if (memberships != null) {
         if ( Boolean.FALSE.equals(manager)) {
           queryString = queryString + " LEFT JOIN workFlow.manager manager";
         }
         queryString = queryString + " LEFT JOIN workFlow.participator participator";
       }
-      if(StringUtils.isNotEmpty(q) || memberships != null || enabled != null){
+      if (StringUtils.isNotEmpty(q) || memberships != null || enabled != null){
         queryString = queryString + " WHERE";
         if (StringUtils.isNotEmpty(q)){
           queryString = queryString + query;

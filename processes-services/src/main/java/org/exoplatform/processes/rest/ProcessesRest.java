@@ -50,6 +50,7 @@ import org.exoplatform.services.log.Log;
 import org.exoplatform.services.rest.resource.ResourceContainer;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
+import org.exoplatform.services.security.IdentityRegistry;
 import org.exoplatform.social.core.manager.IdentityManager;
 
 
@@ -63,6 +64,8 @@ public class ProcessesRest implements ResourceContainer {
 
   private IdentityManager  identityManager;
 
+  private IdentityRegistry identityRegistry;
+
   private ProcessesAttachmentService processesAttachmentService;
 
   private static final int           CACHE_DURATION_SECONDS      = 31536000;
@@ -71,15 +74,19 @@ public class ProcessesRest implements ResourceContainer {
 
   private static final CacheControl  ILLUSTRATION_CACHE_CONTROL  = new CacheControl();
 
+  private static final String              PROCESSES_GROUP          = "/platform/processes";
+
   static {
     ILLUSTRATION_CACHE_CONTROL.setMaxAge(CACHE_DURATION_SECONDS);
   }
 
   public ProcessesRest(ProcessesService processesService,
                        IdentityManager identityManager,
+                       IdentityRegistry identityRegistry,
                        ProcessesAttachmentService processesAttachmentService) {
     this.processesService = processesService;
     this.identityManager = identityManager;
+    this.identityRegistry = identityRegistry;
     this.processesAttachmentService = processesAttachmentService;
   }
 
@@ -133,10 +140,12 @@ public class ProcessesRest implements ResourceContainer {
       if (query != null) {
         filter.setQuery(query);
       }
+
       long userIdentityId = currentIdentityId;
       if (userId != null) {
         userIdentityId = userId;
       }
+      filter.setIsProcessManager(RestUtils.isProcessesGroupMember(identityManager, identityRegistry, userIdentityId));
       List<WorkFlow> workFlows = processesService.getWorkFlows(filter, offset, limit, userIdentityId);
       return Response.ok(EntityBuilder.toRestEntities(workFlows, expand)).build();
     } catch (Exception e) {
