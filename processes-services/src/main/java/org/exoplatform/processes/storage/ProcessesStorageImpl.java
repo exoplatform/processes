@@ -585,7 +585,6 @@ public class ProcessesStorageImpl implements ProcessesStorage {
           Collection<Membership> ms = organizationService.getMembershipHandler().findMembershipsByUser(userName);
           if (ms != null) {
             for (Membership membership : ms) {
-              isMemberProcessesGroup = false;
               if (membership.getGroupId().equals(PROCESSES_GROUP)) {
                 isMemberProcessesGroup = true;
               }

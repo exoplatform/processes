@@ -653,7 +653,7 @@ public class ProcessesStorageImplTest {
     newWorkFlowEntity1.setId(1L);
     newWorkFlowEntity1.setProjectId(1L);
     when(workFlowDAO.create(workFlowEntity)).thenReturn(newWorkFlowEntity);
-    ProcessesFilter filter = new ProcessesFilter("", null, null);
+    ProcessesFilter filter = new ProcessesFilter("", null, null, true);
     List<WorkFlowEntity> workFlowEntities = new ArrayList<>();
     workFlowEntities.add(newWorkFlowEntity);
     memberships = new ArrayList<>();
@@ -756,7 +756,7 @@ public class ProcessesStorageImplTest {
     newWorkFlowEntity.toString();
     newWorkFlowEntity.equals(workFlow);
     when(workFlowDAO.create(workFlowEntity)).thenReturn(newWorkFlowEntity);
-    ProcessesFilter filter = new ProcessesFilter("", null, true);
+    ProcessesFilter filter = new ProcessesFilter("", null, true, true);
     when(workFlowDAO.countWorkFlows(filter)).thenReturn(1);
     when(workFlow.getIllustrativeAttachment()).thenReturn(illustrativeAttachment);
     List<CreatorIdentityEntity> identityEntities = new ArrayList<>();

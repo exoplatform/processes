@@ -1,9 +1,7 @@
 package org.exoplatform.processes.rest;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -25,6 +23,7 @@ import javax.ws.rs.core.Request;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.RuntimeDelegate;
 
+import org.exoplatform.services.security.IdentityRegistry;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
@@ -81,6 +80,9 @@ public class ProcessesRestTest {
   @Mock
   private ProcessesAttachmentService                                                          processesAttachmentService;
 
+  @Mock
+  private IdentityRegistry identityRegistry;
+
   private ProcessesRest                                                                       processesRest;
 
   @Mock
@@ -98,7 +100,7 @@ public class ProcessesRestTest {
   @Before
   public void setUp() {
     RuntimeDelegate.setInstance(new RuntimeDelegateImpl());
-    this.processesRest = new ProcessesRest(processesService, identityManager, processesAttachmentService);
+    this.processesRest = new ProcessesRest(processesService, identityManager, identityRegistry, processesAttachmentService);
 
     ConversationState conversationState = mock(ConversationState.class);
     CONVERSATION_STATE.when(() -> ConversationState.getCurrent()).thenReturn(conversationState);
@@ -123,7 +125,7 @@ public class ProcessesRestTest {
     ENTITY_BUILDER.when(() -> EntityBuilder.toRestEntities(workFlows, null)).thenReturn(workFlowEntities);
     Response response2 = processesRest.getWorkFlows(1L, true, null, "test", null, 0, 10);
     assertEquals(response2.getStatus(), Response.Status.OK.getStatusCode());
-    when(processesService.getWorkFlows(processesFilter, 0, 10, 1L)).thenThrow(RuntimeException.class);
+    when(processesService.getWorkFlows(any(ProcessesFilter.class), anyInt(), anyInt(), anyLong())).thenThrow(RuntimeException.class);
     Response response3 = processesRest.getWorkFlows(1L, null, null, null, null, 0, 10);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response3.getStatus());
 
