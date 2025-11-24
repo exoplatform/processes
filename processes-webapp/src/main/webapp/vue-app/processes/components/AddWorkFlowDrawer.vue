@@ -286,6 +286,7 @@
             :workflow-parent-space="workflowParentSpace"
             :allow-doc-form-creation="true"
             :edit-mode="editMode"
+            :edit-workflow="true"
             :entity-id="workflow.id"
             entity-type="workflow" />
           <v-btn
