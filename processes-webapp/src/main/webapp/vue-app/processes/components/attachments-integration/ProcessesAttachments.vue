@@ -85,6 +85,10 @@ export default {
       type: Boolean,
       default: false,
     },
+    editWorkflow: {
+      type: Boolean,
+      default: false,
+    },
     entityType: {
       type: String,
       default: null
@@ -189,7 +193,7 @@ export default {
     },
     isFileFillable(attachment) {
       const type = attachment && attachment.mimetype || '';
-      return type === 'application/pdf';
+      return !this.editWorkflow && type === 'application/pdf';
     },
     refreshSupportedDocumentExtensions () {
       this.supportedDocuments = extensionRegistry.loadExtensions('documents', 'supported-document-types');
