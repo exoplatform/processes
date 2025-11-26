@@ -131,7 +131,8 @@ export default {
         attachments: JSON.parse(JSON.stringify(this.attachments)),
         spaceId: this.workflowParentSpace && this.workflowParentSpace.id,
         attachToEntity: this.editMode,
-        openAttachmentsInEditor: true
+        openAttachmentsInEditor: true,
+        canFillAttachments: !this.editWorkflow
       };
     },
     attachmentsLength() {
@@ -157,6 +158,8 @@ export default {
       this.$root.$emit('attachments-updated',this.attachments);
     });
     this.$root.$on('add-new-created-form-document', (doc) => {
+      doc.acl.canEdit = true;
+      doc.acl.canView = true;
       this.attachments.push(doc);
       this.subscribeDocument(doc.id);
       this.$root.$emit('attachments-updated', this.attachments);
