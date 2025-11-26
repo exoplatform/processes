@@ -85,6 +85,10 @@ export default {
       type: Boolean,
       default: false,
     },
+    editWorkflow: {
+      type: Boolean,
+      default: false,
+    },
     entityType: {
       type: String,
       default: null
@@ -127,7 +131,8 @@ export default {
         attachments: JSON.parse(JSON.stringify(this.attachments)),
         spaceId: this.workflowParentSpace && this.workflowParentSpace.id,
         attachToEntity: this.editMode,
-        openAttachmentsInEditor: true
+        openAttachmentsInEditor: true,
+        canFillAttachments: !this.editWorkflow
       };
     },
     attachmentsLength() {
@@ -153,6 +158,8 @@ export default {
       this.$root.$emit('attachments-updated',this.attachments);
     });
     this.$root.$on('add-new-created-form-document', (doc) => {
+      doc.acl.canEdit = true;
+      doc.acl.canView = true;
       this.attachments.push(doc);
       this.subscribeDocument(doc.id);
       this.$root.$emit('attachments-updated', this.attachments);
@@ -189,7 +196,7 @@ export default {
     },
     isFileFillable(attachment) {
       const type = attachment && attachment.mimetype || '';
-      return type === 'application/pdf';
+      return !this.editWorkflow && type === 'application/pdf';
     },
     refreshSupportedDocumentExtensions () {
       this.supportedDocuments = extensionRegistry.loadExtensions('documents', 'supported-document-types');
