@@ -20,6 +20,7 @@ import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.model.PluginKey;
 import org.exoplatform.commons.notification.impl.NotificationContextImpl;
 import org.exoplatform.commons.utils.CommonsUtils;
+import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.notification.plugin.RequestCommentPlugin;
@@ -37,8 +38,8 @@ import org.exoplatform.task.integration.TaskCommentNotificationListener;
 public class RequestCommentNotificationListener extends TaskCommentNotificationListener {
   private ProcessesService processesService;
 
-  public RequestCommentNotificationListener(OrganizationService organizationService, ProcessesService processesService) {
-    super(organizationService);
+  public RequestCommentNotificationListener(UserACL userACL, ProcessesService processesService) {
+    super(userACL);
     this.processesService = processesService;
   }
 
