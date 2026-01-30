@@ -8,7 +8,7 @@
     </parent>
     <groupId>org.exoplatform.processes</groupId>
     <artifactId>processes-parent</artifactId>
-    <version>7.1.1</version>
+    <version>7.1.1-patched</version>
     <packaging>pom</packaging>
     <name>eXo Processes - Parent POM</name>
     <modules>
