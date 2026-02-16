@@ -7,6 +7,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
@@ -14,6 +15,7 @@ import org.exoplatform.commons.file.model.FileInfo;
 import org.exoplatform.commons.file.model.FileItem;
 import org.exoplatform.commons.file.services.FileService;
 import org.exoplatform.commons.file.services.FileStorageException;
+import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.processes.Utils.EntityMapper;
 import org.exoplatform.processes.Utils.ProcessesUtils;
 import org.exoplatform.processes.dao.WorkDraftDAO;
@@ -64,7 +66,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   private final ListenerService            listenerService;
   private final ProcessesAttachmentService processesAttachmentService;
   private final FileService                fileService;
-  private final OrganizationService        organizationService;
+  private final UserACL                    userACL;
   private final String                     DATE_FORMAT              = "yyyy/MM/dd";
   private final SimpleDateFormat           formatter                = new SimpleDateFormat(DATE_FORMAT);
 
@@ -78,7 +80,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
                               ListenerService listenerService,
                               ProcessesAttachmentService processesAttachmentService,
                               FileService fileService,
-                              OrganizationService organizationService) {
+                              UserACL userACL) {
     this.workFlowDAO = workFlowDAO;
     this.workDraftDAO = workDraftDAO;
     this.identityManager = identityManager;
@@ -89,7 +91,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     this.listenerService = listenerService;
     this.processesAttachmentService = processesAttachmentService;
     this.fileService = fileService;
-    this.organizationService = organizationService;
+    this.userACL = userACL;
   }
 
   @Override
@@ -134,7 +136,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     if (workFlow == null) {
       throw new IllegalArgumentException("workflow argument is null");
     }
-    Identity identity = identityManager.getIdentity(String.valueOf(userId));
+    Identity identity = identityManager.getIdentity(userId);
     if (identity == null) {
       throw new IllegalArgumentException("identity is not exist");
     }
@@ -299,7 +301,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
 
   @Override
   public Work getWorkById(long userIdentityId, long workId) {
-    Identity identity = identityManager.getIdentity(String.valueOf(userIdentityId));
+    Identity identity = identityManager.getIdentity(userIdentityId);
     if (identity == null) {
       throw new IllegalArgumentException("identity is not exist");
     }
@@ -389,7 +391,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     if (work == null) {
       throw new IllegalArgumentException("work argument is null");
     }
-    Identity identity = identityManager.getIdentity(String.valueOf(userId));
+    Identity identity = identityManager.getIdentity(userId);
     if (identity == null) {
       throw new IllegalArgumentException("identity is not exist");
     }
@@ -511,7 +513,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    */
   @Override
   public Work saveWorkDraft(Work work, long userId) {
-    Identity identity = identityManager.getIdentity(String.valueOf(userId));
+    Identity identity = identityManager.getIdentity(userId);
     if (identity == null) {
       throw new IllegalArgumentException("identity is not exist");
     }
@@ -577,20 +579,18 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     List<String> memberships = new ArrayList<>();
     boolean isMemberProcessesGroup = false;
     if (userIdentityId > 0) {
-      Identity identity = identityManager.getIdentity(String.valueOf(userIdentityId));
+      Identity identity = identityManager.getIdentity(userIdentityId);
       if (identity != null) {
         userName = identity.getRemoteId();
         memberships.add(userName);
         try {
-          Collection<Membership> ms = organizationService.getMembershipHandler().findMembershipsByUser(userName);
-          if (ms != null) {
-            for (Membership membership : ms) {
-              if (membership.getGroupId().equals(PROCESSES_GROUP)) {
-                isMemberProcessesGroup = true;
-              }
-              String membership_ = membership.getMembershipType() + ":" + membership.getGroupId();
-              memberships.add(membership_);
-            }
+          org.exoplatform.services.security.Identity aclIdentity = userACL.getUserIdentity(userName);
+          isMemberProcessesGroup = aclIdentity.isMemberOf(PROCESSES_GROUP);
+          if (CollectionUtils.isNotEmpty(aclIdentity.getMemberships())) {
+            memberships.addAll(aclIdentity.getMemberships()
+                                          .stream()
+                                          .map(m -> m.getMembershipType() + ":" + m.getGroup())
+                                          .toList());
           }
         } catch (Exception e) {
           LOG.error("Error while getting the user memberships", e);
