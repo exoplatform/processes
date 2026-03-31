@@ -355,8 +355,11 @@ export default {
       }
       if (path.endsWith('/createRequest')) {
         this.tab = 0;
-        const workflowId = path.split('processes/')[1].split(/\D/)[0];
-        this.openCreateWork(workflowId);
+        const match = path.match(/\/(\d+)\/createRequest$/);
+        const workflowId = match ? match[1] : null;
+        if (workflowId) {
+          this.openCreateWork(workflowId);
+        }
       }
       if (path.includes('/myRequests/requestDetails') && path.endsWith('/comments')) {
         this.tab = 1;
