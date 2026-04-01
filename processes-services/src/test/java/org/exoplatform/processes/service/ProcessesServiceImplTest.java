@@ -99,8 +99,8 @@ public class ProcessesServiceImplTest {
   @Test
   public void getWorkFlow() throws IllegalAccessException {
 
-    when(processesStorage.getWorkFlowById(1L)).thenReturn(enabledWorkFlow);
-    assertEquals(processesService.getWorkFlow(1L).getId(), 1L);
+    when(processesStorage.getWorkFlowById(1L, null)).thenReturn(enabledWorkFlow);
+    assertEquals(processesService.getWorkFlow(1L, null).getId(), 1L);
   }
 
   @Test
@@ -129,15 +129,15 @@ public class ProcessesServiceImplTest {
     verify(processesStorage, times(0)).getWorkById(1L);
 
     workFlow.setId(1L);
-    when(processesStorage.getWorkFlowById(workFlow.getId())).thenReturn(null);
+    when(processesStorage.getWorkFlowById(workFlow.getId(), null)).thenReturn(null);
     Throwable exception3 = assertThrows(ObjectNotFoundException.class, () -> this.processesService.updateWorkFlow(workFlow, 1l));
     assertEquals("oldWorkFlow is not exist", exception3.getMessage());
 
-    when(processesStorage.getWorkFlowById(workFlow.getId())).thenReturn(workFlow);
+    when(processesStorage.getWorkFlowById(workFlow.getId(), null)).thenReturn(workFlow);
     Throwable exception4 = assertThrows(IllegalArgumentException.class, () -> this.processesService.updateWorkFlow(workFlow, 1l));
     assertEquals("there are no changes to save", exception4.getMessage());
 
-    when(processesStorage.getWorkFlowById(workFlow.getId())).thenReturn(updatedWorkflow);
+    when(processesStorage.getWorkFlowById(workFlow.getId(), null)).thenReturn(updatedWorkflow);
     this.processesService.updateWorkFlow(workFlow, 1l);
     verify(processesStorage, times(1)).saveWorkFlow(workFlow, 1L);
   }

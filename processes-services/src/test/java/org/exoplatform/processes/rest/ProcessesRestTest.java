@@ -546,14 +546,14 @@ public class ProcessesRestTest {
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
     Response response1 = processesRest.getWorkFlowById(null, "");
     assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response1.getStatus());
-    when(processesService.getWorkFlow(1L)).thenReturn(null);
+    when(processesService.getWorkFlow(anyLong(), anyLong())).thenReturn(null);
     Response response2 = processesRest.getWorkFlowById(1L, "");
     assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response2.getStatus());
-    when(processesService.getWorkFlow(1L)).thenReturn(workFlow);
+    when(processesService.getWorkFlow(anyLong(), anyLong())).thenReturn(workFlow);
     ENTITY_BUILDER.when(() -> EntityBuilder.toEntity(workFlow, "")).thenReturn(workFlowEntity);
     Response response3 = processesRest.getWorkFlowById(1L, "");
     assertEquals(Response.Status.OK.getStatusCode(), response3.getStatus());
-    doThrow(new RuntimeException()).when(processesService).getWorkFlow(1L);
+    doThrow(new RuntimeException()).when(processesService).getWorkFlow(anyLong(), anyLong());
     Response response4 = processesRest.getWorkFlowById(1L, "");
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response4.getStatus());
   }
@@ -654,10 +654,10 @@ public class ProcessesRestTest {
     workFlow.setIllustrativeAttachment(illustrativeAttachment);
     Response response = processesRest.getImageIllustration(request, null, 0);
     assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-    when(processesService.getWorkFlow(1L)).thenReturn(null);
+    when(processesService.getWorkFlow(1L, null)).thenReturn(null);
     Response response1 = processesRest.getImageIllustration(request, 1L, 0);
     assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response1.getStatus());
-    when(processesService.getWorkFlow(1L)).thenReturn(workFlow);
+    when(processesService.getWorkFlow(1L, null)).thenReturn(workFlow);
     when(processesService.getIllustrationImageById(1L)).thenReturn(illustrativeAttachment);
     when(request.evaluatePreconditions(any(EntityTag.class))).thenReturn(null);
     Response response2 = processesRest.getImageIllustration(request, 1L, 0);

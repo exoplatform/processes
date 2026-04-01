@@ -179,7 +179,7 @@ public class EntityBuilder {
     work.setAttachments(workEntity.getAttachments());
     if (workEntity.getWorkFlow() != null) {
       try {
-        WorkFlow workFlow = processesService.getWorkFlow(workEntity.getWorkFlow().getId());
+        WorkFlow workFlow = processesService.getWorkFlow(workEntity.getWorkFlow().getId(), null);
         if (workFlow != null) {
           work.setProjectId(workFlow.getProjectId());
         }
