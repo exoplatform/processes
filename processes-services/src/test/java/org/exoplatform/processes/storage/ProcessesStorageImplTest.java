@@ -665,7 +665,7 @@ public class ProcessesStorageImplTest {
     when(workFlow.getIllustrativeAttachment()).thenReturn(illustrativeAttachment);
     this.processesStorage.saveWorkFlow(workFlow, 1L);
     when(organizationService.getMembershipHandler()).thenReturn(membershipHandler);
-    assertEquals(null, this.processesStorage.getWorkFlowById(1));
+    assertEquals(null, this.processesStorage.getWorkFlowById(1, null));
 
     Collection<Membership> memberships_ = new ArrayList();
     MembershipImpl membership;

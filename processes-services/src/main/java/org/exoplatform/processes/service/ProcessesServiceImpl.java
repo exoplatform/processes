@@ -23,12 +23,8 @@ import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.file.services.FileStorageException;
 import org.exoplatform.processes.model.*;
 import org.exoplatform.processes.storage.ProcessesStorage;
-import org.exoplatform.services.log.ExoLogger;
-import org.exoplatform.services.log.Log;
 
 public class ProcessesServiceImpl implements ProcessesService {
-
-  private static final Log       LOG = ExoLogger.getLogger(ProcessesServiceImpl.class);
 
   private final ProcessesStorage processesStorage;
 
@@ -50,8 +46,8 @@ public class ProcessesServiceImpl implements ProcessesService {
   }
 
   @Override
-  public WorkFlow getWorkFlow(long id) throws IllegalAccessException {
-    return processesStorage.getWorkFlowById(id);
+  public WorkFlow getWorkFlow(long id, Long userIdentityId) throws IllegalAccessException {
+    return processesStorage.getWorkFlowById(id, userIdentityId);
   }
 
   @Override
@@ -79,7 +75,7 @@ public class ProcessesServiceImpl implements ProcessesService {
     }
     // TODO check permissions to update types
 
-    WorkFlow oldWorkFlow = processesStorage.getWorkFlowById(workFlow.getId());
+    WorkFlow oldWorkFlow = processesStorage.getWorkFlowById(workFlow.getId(), null);
     if (oldWorkFlow == null) {
       throw new ObjectNotFoundException("oldWorkFlow is not exist");
     }

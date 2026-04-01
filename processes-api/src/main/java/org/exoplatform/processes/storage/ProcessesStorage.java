@@ -60,7 +60,7 @@ public interface ProcessesStorage {
    */
   List<WorkFlow> findDisabledWorkFlows(int offset, int limit);
 
-  WorkFlow getWorkFlowById(long id);
+  WorkFlow getWorkFlowById(long id, Long userIdentityId);
 
   WorkFlow getWorkFlowByProjectId(long projectId);
 
@@ -174,9 +174,10 @@ public interface ProcessesStorage {
   List<WorkStatus> getAvailableWorkStatuses();
 
   /**
-   * Retrieves list fo filtered workflows
+   * Retrieves list of filtered workflows
    * 
    * @param processesFilter processes filter
+   * @param userIdentityId {@link Identity} technical identifier of the user
    * @param offset Offset of result list
    * @param limit limit of result list
    * @return {@link List} of {@link WorkFlow}
