@@ -373,7 +373,9 @@ export default {
     },
     openCreateWork(workflowId) {
       this.$processesService.getWorkflowById(workflowId, '').then(workflow => {
-        this.$root.$emit('open-add-work-drawer', {object: workflow, mode: 'create_work'});
+        if (workflow.acl.canAddRequest) {
+          this.$root.$emit('open-add-work-drawer', {object: workflow, mode: 'create_work'});
+        }
       });
     },
     updateState(value) {

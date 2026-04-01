@@ -306,7 +306,7 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
     Attachment attachment = attachmentService.createNewDocument(identity, title, path, pathDrive, templateName);
     if (entityId != null && entityType != null && Objects.equals(entityType, WORKFLOW_ENTITY_TYPE)) {
       ProcessesService processesService = CommonsUtils.getService(ProcessesService.class);
-      WorkFlow workFlow = processesService.getWorkFlow(entityId);
+      WorkFlow workFlow = processesService.getWorkFlow(entityId, null);
       linkAttachmentsToEntity(new Attachment[] { attachment },
                               userIdentityId,
                               entityId,
