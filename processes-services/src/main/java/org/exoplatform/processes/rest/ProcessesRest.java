@@ -762,7 +762,7 @@ public class ProcessesRest implements ResourceContainer {
       if (workflowId == null) {
         return Response.status(Response.Status.BAD_REQUEST).build();
       }
-      WorkFlow workFlow = processesService.getWorkFlow(workflowId);
+      WorkFlow workFlow = processesService.getWorkFlow(workflowId, currentIdentityId);
       if (workFlow == null) {
         return Response.status(Response.Status.NOT_FOUND).build();
       }
@@ -849,7 +849,7 @@ public class ProcessesRest implements ResourceContainer {
       return Response.status(Response.Status.BAD_REQUEST).entity("workflow id is mandatory").build();
     }
     try {
-      WorkFlow workFlow = processesService.getWorkFlow(workflowId);
+      WorkFlow workFlow = processesService.getWorkFlow(workflowId, null);
       if (workFlow == null) {
         return Response.status(Response.Status.NOT_FOUND).entity("workflow not found").build();
       }
