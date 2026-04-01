@@ -4,7 +4,16 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.commons.collections.CollectionUtils;
@@ -22,13 +31,18 @@ import org.exoplatform.processes.dao.WorkDraftDAO;
 import org.exoplatform.processes.dao.WorkFlowDAO;
 import org.exoplatform.processes.entity.WorkEntity;
 import org.exoplatform.processes.entity.WorkFlowEntity;
-import org.exoplatform.processes.model.*;
+import org.exoplatform.processes.model.CreatorIdentityEntity;
+import org.exoplatform.processes.model.IdentityEntity;
+import org.exoplatform.processes.model.IllustrativeAttachment;
+import org.exoplatform.processes.model.ProcessesFilter;
+import org.exoplatform.processes.model.Work;
+import org.exoplatform.processes.model.WorkFilter;
+import org.exoplatform.processes.model.WorkFlow;
+import org.exoplatform.processes.model.WorkStatus;
 import org.exoplatform.processes.service.ProcessesAttachmentService;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
-import org.exoplatform.services.organization.Membership;
-import org.exoplatform.services.organization.OrganizationService;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
@@ -122,8 +136,10 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   }
 
   @Override
-  public WorkFlow getWorkFlowById(long id) {
-    return EntityMapper.fromEntity(workFlowDAO.find(id), null);
+  public WorkFlow getWorkFlowById(long id, Long userIdentityId) {
+    Map.Entry<String, List<String>> userMemberships = getUserMemberships(userIdentityId);
+    List<String> memberships = userMemberships.getValue();
+    return EntityMapper.fromEntity(workFlowDAO.find(id), memberships);
   }
 
   @Override
@@ -193,21 +209,6 @@ public class ProcessesStorageImpl implements ProcessesStorage {
                                                        WORKFLOW_ENTITY_TYPE,
                                                        workFlowEntity.getProjectId());
     return EntityMapper.fromEntity(workFlowEntity, illustrativeAttachment, null);
-  }
-
-  Set<String> getManagers(List<CreatorIdentityEntity> requestsCreators) {
-    List<String> managers = new ArrayList();
-    for (CreatorIdentityEntity id : requestsCreators) {
-      if (id.getIdentity().getProviderId().equals("space")) {
-        Space space = spaceService.getSpaceByPrettyName(id.getIdentity().getRemoteId());
-        if (space != null) {
-          managers.add(space.getGroupId());
-        }
-      } else {
-        managers.add(id.getIdentity().getRemoteId());
-      }
-    }
-    return new HashSet<>(managers);
   }
 
   /**
@@ -575,34 +576,10 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    */
   @Override
   public List<WorkFlow> findWorkFlows(ProcessesFilter processesFilter, long userIdentityId, int offset, int limit) {
-    String userName = "";
-    List<String> memberships = new ArrayList<>();
-    boolean isMemberProcessesGroup = false;
-    if (userIdentityId > 0) {
-      Identity identity = identityManager.getIdentity(userIdentityId);
-      if (identity != null) {
-        userName = identity.getRemoteId();
-        memberships.add(userName);
-        try {
-          org.exoplatform.services.security.Identity aclIdentity = userACL.getUserIdentity(userName);
-          isMemberProcessesGroup = aclIdentity.isMemberOf(PROCESSES_GROUP);
-          if (CollectionUtils.isNotEmpty(aclIdentity.getMemberships())) {
-            memberships.addAll(aclIdentity.getMemberships()
-                                          .stream()
-                                          .map(m -> m.getMembershipType() + ":" + m.getGroup())
-                                          .toList());
-          }
-        } catch (Exception e) {
-          LOG.error("Error while getting the user memberships", e);
-        }
-      }
-    }
-    List<WorkFlowEntity> workFlowEntities;
-    if (isMemberProcessesGroup) {
-      workFlowEntities = workFlowDAO.findWorkFlows(processesFilter, null, offset, limit);
-    } else {
-      workFlowEntities = workFlowDAO.findWorkFlows(processesFilter, memberships, offset, limit);
-    }
+    Map.Entry<String, List<String>> userMemberships = getUserMemberships(userIdentityId);
+    String userName = userMemberships.getKey();
+    List<String> memberships = userMemberships.getValue();
+    List<WorkFlowEntity> workFlowEntities = workFlowDAO.findWorkFlows(processesFilter, memberships, offset, limit);
     List<WorkFlow> workFlows = new ArrayList<>();
     List<String> finalMemberships = memberships;
     workFlowEntities.forEach(workflowEntity -> {
@@ -620,14 +597,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     String finalUserName = userName;
     workFlows.forEach(workflow -> {
       if (workflow != null) {
-        boolean canShowPending = false;
-        try {
-          Space space = ProcessesUtils.getProjectParentSpace(workflow.getProjectId());
-          canShowPending = canShowPending(finalUserName, space);
-        } catch (Exception e) {
-          LOG.error("Error while getting workflow can Show Pending", e);
-        }
-        workflow.setCanShowPending(canShowPending);
+        Space space = ProcessesUtils.getProjectParentSpace(workflow.getProjectId());
+        workflow.setCanShowPending(space != null && (spaceService.isSuperManager(finalUserName) || spaceService.isMember(space, finalUserName)));
       }
     });
     return workFlows;
@@ -641,11 +612,40 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     return workFlowDAO.countWorkFlows(processesFilter);
   }
 
-  private boolean canShowPending(String authenticatedUser, Space space) {
-    if (space != null) {
-      return (spaceService.isSuperManager(authenticatedUser) || spaceService.isMember(space, authenticatedUser));
-    } else
-      return false;
+  private Map.Entry<String, List<String>> getUserMemberships(Long userIdentityId) {
+    if (userIdentityId == null || userIdentityId <= 0) {
+      return Map.entry("", new ArrayList<>());
+    }
+    Identity identity = identityManager.getIdentity(userIdentityId);
+    if (identity == null) {
+      return Map.entry("", new ArrayList<>());
+    }
+    String userName = identity.getRemoteId();
+    org.exoplatform.services.security.Identity aclIdentity = userACL.getUserIdentity(userName);
+    if (aclIdentity.isMemberOf(PROCESSES_GROUP)) {
+      return new AbstractMap.SimpleEntry<>(userName, null);
+    }
+    List<String> memberships = new ArrayList<>();
+    memberships.add(userName);
+    if (CollectionUtils.isNotEmpty(aclIdentity.getMemberships())) {
+      memberships.addAll(aclIdentity.getMemberships().stream().map(m -> m.getMembershipType() + ":" + m.getGroup()).toList());
+    }
+    return Map.entry(userName, memberships);
   }
-
+  
+  private Set<String> getManagers(List<CreatorIdentityEntity> requestsCreators) {
+    Set<String> managers = new HashSet<>();
+    for (CreatorIdentityEntity creatorIdentityEntity : requestsCreators) {
+      IdentityEntity creatorIdentity = creatorIdentityEntity.getIdentity();
+      if ("space".equals(creatorIdentity.getProviderId())) {
+        Space space = spaceService.getSpaceByPrettyName(creatorIdentity.getRemoteId());
+        if (space != null) {
+          managers.add(space.getGroupId());
+        }
+      } else {
+        managers.add(creatorIdentity.getRemoteId());
+      }
+    }
+    return managers;
+  }
 }

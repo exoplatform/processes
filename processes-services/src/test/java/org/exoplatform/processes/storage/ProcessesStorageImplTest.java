@@ -667,7 +667,7 @@ public class ProcessesStorageImplTest {
     when(workFlowDAO.findWorkFlows(filter, memberships, 0, 0)).thenReturn(workFlowEntities);
     when(workFlow.getIllustrativeAttachment()).thenReturn(illustrativeAttachment);
     this.processesStorage.saveWorkFlow(workFlow, 1L);
-    assertEquals(null, this.processesStorage.getWorkFlowById(1));
+    assertEquals(null, this.processesStorage.getWorkFlowById(1, null));
 
     Collection<Membership> memberships_ = new ArrayList();
     MembershipImpl membership;

@@ -284,7 +284,7 @@ public class ProcessesAttachmentServiceImplTest {
     workFlow.setProjectId(1L);
     ProcessesService processesService = mock(ProcessesService.class);
     COMMONS_UTILS.when(() -> CommonsUtils.getService(ProcessesService.class)).thenReturn(processesService);
-    when(processesService.getWorkFlow(1L)).thenReturn(workFlow);
+    when(processesService.getWorkFlow(1L, null)).thenReturn(workFlow);
     Attachment attachment = mock(Attachment.class);
     when(attachmentService.createNewDocument(any(), any(), any(), any(), any())).thenReturn(attachment);
     copyAttachmentsToEntity();
