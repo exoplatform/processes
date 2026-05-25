@@ -472,6 +472,9 @@ export default {
       const filter = {
         completed: true
       };
+      if (this.query) {
+        filter.query = this.query;
+      }      
       this.$processesService.getWorks(filter, 0, 0, expand).then(works => {
         works.forEach(work => {
           work.status = 'completed';
