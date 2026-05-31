@@ -16,26 +16,33 @@
  */
 package org.exoplatform.processes.entity;
 
-import lombok.Data;
-import org.exoplatform.commons.api.persistence.ExoEntity;
-
-import jakarta.persistence.*;
 import java.io.Serializable;
 import java.util.Date;
 
+import io.meeds.common.persistence.PortableSequence;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.NamedQuery;
+import jakarta.persistence.Table;
+import lombok.Data;
+
 @Entity(name = "Work")
-@ExoEntity
 @Table(name = "PROCESSES_WORK")
 @Data
-@NamedQueries({
-    @NamedQuery(name = "Work.findAllWorkDraftsByUser", query = "SELECT DISTINCT w FROM Work w where w.creatorId = :userId and w.isDraft = true order by w.id desc"),
-    @NamedQuery(name = "Work.getWorkDraftByTaskId", query = "SELECT DISTINCT w FROM Work w where w.taskId = :taskId and w.isDraft = true"),
-    @NamedQuery(name = "Work.findAllWorkDraftsByWorkflowId", query = "SELECT DISTINCT w FROM Work w where w.workFlow.id = :workflowId and w.isDraft = true"),})
+@NamedQuery(name = "Work.findAllWorkDraftsByUser", query = "SELECT DISTINCT w FROM Work w where w.creatorId = :userId and w.isDraft = true order by w.id desc")
+@NamedQuery(name = "Work.getWorkDraftByTaskId", query = "SELECT DISTINCT w FROM Work w where w.taskId = :taskId and w.isDraft = true")
+@NamedQuery(name = "Work.findAllWorkDraftsByWorkflowId", query = "SELECT DISTINCT w FROM Work w where w.workFlow.id = :workflowId and w.isDraft = true")
 public class WorkEntity implements Serializable {
 
+    private static final long serialVersionUID = -8490912256477367410L;
+
     @Id
-    @SequenceGenerator(name = "SEQ_WORK_ID", sequenceName = "SEQ_WORK_ID", allocationSize = 1)
-    @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_WORK_ID")
+    @PortableSequence(name = "SEQ_WORK_ID")
     @Column(name = "WORK_ID", nullable = false)
     private Long   id;
 
