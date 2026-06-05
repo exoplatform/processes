@@ -51,49 +51,74 @@ public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
     return resultList == null ? Collections.emptyList() : resultList;
   }
 
-  private String  buildWorkflowQuery(ProcessesFilter processesFilter, List<String> memberships) {
+  private String buildWorkflowQuery(ProcessesFilter processesFilter, List<String> memberships) {
+
     String q = processesFilter.getQuery();
     Boolean enabled = processesFilter.getEnabled();
     Boolean manager = processesFilter.getManager();
     boolean isProcessManager = processesFilter.getIsProcessManager();
-    String query = " ( workFlow.title like '%" + q + "%' OR workFlow.description like '%" + q + "%' OR workFlow.summary like '%" + q + "%' )";
-    String queryString = "SELECT DISTINCT workFlow FROM WorkFlow workFlow";
+
+    StringBuilder queryString =
+      new StringBuilder("SELECT DISTINCT workFlow FROM WorkFlow workFlow");
+
     if (enabled != null || Boolean.TRUE.equals(manager) || !isProcessManager) {
+
       if (memberships != null) {
-        if ( Boolean.FALSE.equals(manager)) {
-          queryString = queryString + " LEFT JOIN workFlow.manager manager";
+        if (Boolean.FALSE.equals(manager)) {
+          queryString.append(" LEFT JOIN workFlow.manager manager");
         }
-        queryString = queryString + " LEFT JOIN workFlow.participator participator";
+        queryString.append(" LEFT JOIN workFlow.participator participator");
       }
-      if (StringUtils.isNotEmpty(q) || memberships != null || enabled != null){
-        queryString = queryString + " WHERE";
-        if (StringUtils.isNotEmpty(q)){
-          queryString = queryString + query;
-          queryString = queryString + " AND";
+
+      if (StringUtils.isNotEmpty(q) || memberships != null || enabled != null) {
+        queryString.append(" WHERE 1=1 ");
+
+        if (StringUtils.isNotEmpty(q)) {
+          queryString.append(" AND (workFlow.title LIKE :query")
+            .append(" OR workFlow.description LIKE :query")
+            .append(" OR workFlow.summary LIKE :query)");
         }
-        if ( enabled != null){
-          queryString = queryString + " workFlow.enabled = " + enabled;
-          queryString = queryString + " AND";
+
+        if (enabled != null) {
+          queryString.append(" AND workFlow.enabled = :enabled");
         }
-        if ( memberships != null){
-          if ( Boolean.FALSE.equals(manager)){
-            queryString = queryString + " ( manager IN ('"+String.join("','", getMembersShipGroup(memberships))+"') ";
-            queryString = queryString + " OR participator IN ('"+String.join("','", memberships)+"')) ";
+
+        if (memberships != null) {
+          if (Boolean.FALSE.equals(manager)) {
+            queryString.append(" AND (manager IN :managers OR participator IN :memberships)");
           } else {
-            queryString = queryString + " participator IN ('"+String.join("','", memberships)+"') ";
+            queryString.append(" AND participator IN :memberships");
           }
         }
-        if (queryString.endsWith(" AND")) {
-          queryString = queryString.substring(0, queryString.length() - 4);
-        }
       }
+
     } else {
       if (StringUtils.isNotEmpty(q)) {
-        queryString = queryString + " WHERE" + query;
+        queryString.append(" WHERE (workFlow.title LIKE :query")
+          .append(" OR workFlow.description LIKE :query")
+          .append(" OR workFlow.summary LIKE :query)");
       }
     }
 
-    return queryString;
+    return queryString.toString();
+  }
+
+  private Query createQuery(String queryString, ProcessesFilter processesFilter, List<String> memberships) {
+    Query query = getEntityManager().createQuery(queryString);
+
+    if (StringUtils.isNotEmpty(processesFilter.getQuery())) {
+      query.setParameter("query", "%" + processesFilter.getQuery() + "%");
+    }
+
+    if (processesFilter.getEnabled() != null) {
+      query.setParameter("enabled", processesFilter.getEnabled());
+    }
+
+    if (memberships != null) {
+      query.setParameter("memberships", memberships);
+      query.setParameter("managers", getMembersShipGroup(memberships));
+    }
+    return query;
   }
 
   private List<String> getMembersShipGroup(List<String> memberships) {
@@ -144,7 +169,7 @@ public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
   public List<WorkFlowEntity> findWorkFlows(ProcessesFilter processesFilter, List<String> memberships, int offset, int limit) {
 
     String queryString = buildWorkflowQuery(processesFilter, memberships);
-    Query query = getEntityManager().createQuery(queryString);
+    Query query = createQuery(queryString, processesFilter, memberships);
     query.setFirstResult(offset);
     if (limit > 0) {
       query.setMaxResults(limit);
@@ -155,7 +180,7 @@ public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
 
   public int countWorkFlows(ProcessesFilter processesFilter, List<String> memberships) {
     String queryString = buildWorkflowQuery(processesFilter, memberships);
-    Query query = getEntityManager().createQuery(queryString, Long.class);
+    Query query = createQuery(queryString, processesFilter, memberships);
     return query.getMaxResults();
   }
 
