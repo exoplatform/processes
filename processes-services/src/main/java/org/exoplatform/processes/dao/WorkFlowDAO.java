@@ -69,29 +69,30 @@ public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
         }
         queryString.append(" LEFT JOIN workFlow.participator participator");
       }
-
       if (StringUtils.isNotEmpty(q) || memberships != null || enabled != null) {
-        queryString.append(" WHERE 1=1 ");
-
+        List<String> predicates = new ArrayList<>();
         if (StringUtils.isNotEmpty(q)) {
-          queryString.append(" AND (workFlow.title LIKE :query")
-            .append(" OR workFlow.description LIKE :query")
-            .append(" OR workFlow.summary LIKE :query)");
+          predicates.add("""
+              (workFlow.title LIKE :query
+              OR workFlow.description LIKE :query
+              OR workFlow.summary LIKE :query)
+              """);
         }
-
         if (enabled != null) {
-          queryString.append(" AND workFlow.enabled = :enabled");
+          predicates.add("workFlow.enabled = :enabled");
         }
-
         if (memberships != null) {
           if (Boolean.FALSE.equals(manager)) {
-            queryString.append(" AND (manager IN :managers OR participator IN :memberships)");
+            predicates.add("(manager IN :managers OR participator IN :memberships)");
           } else {
-            queryString.append(" AND participator IN :memberships");
+            predicates.add("participator IN :memberships");
           }
         }
+        if (!predicates.isEmpty()) {
+          queryString.append(" WHERE ")
+            .append(StringUtils.join(predicates, " AND "));
+        }
       }
-
     } else {
       if (StringUtils.isNotEmpty(q)) {
         queryString.append(" WHERE (workFlow.title LIKE :query")
