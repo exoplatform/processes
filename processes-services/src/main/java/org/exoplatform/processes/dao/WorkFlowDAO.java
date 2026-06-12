@@ -117,12 +117,14 @@ public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
 
     if (memberships != null) {
       query.setParameter("memberships", memberships);
-      query.setParameter("managers", getMembersShipGroup(memberships));
+      if (Boolean.FALSE.equals(processesFilter.getManager())) {
+        query.setParameter("managers", getMembershipGroups(memberships));
+      }
     }
     return query;
   }
 
-  private List<String> getMembersShipGroup(List<String> memberships) {
+  private List<String> getMembershipGroups(List<String> memberships) {
     return memberships.stream()
                              .map(s -> (!s.startsWith("manager:/") && !s.startsWith("member:/") && !s.startsWith("*:/"))
                                      ? s : s.replace("manager:","").replace("member:","").replace("*:",""))
