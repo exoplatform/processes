@@ -40,8 +40,8 @@ public class ProcessAnalyticsListener extends Listener<Long, WorkFlow> {
     statisticData.setSubModule("process");
     statisticData.setOperation(operation);
     statisticData.setUserId(userId);
-    statisticData.addParameter("processID", workFlow.getId());
-    statisticData.addParameter("processName", workFlow.getTitle());
+    statisticData.addKeyword("processID", workFlow.getId());
+    statisticData.addKeyword("processName", workFlow.getTitle());
     AnalyticsUtils.addStatisticData(statisticData);
   }
 }
