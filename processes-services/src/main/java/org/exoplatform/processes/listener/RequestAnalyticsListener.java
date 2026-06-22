@@ -47,10 +47,10 @@ public class RequestAnalyticsListener extends Listener<Work, ProjectDto> {
     statisticData.setSubModule("request");
     statisticData.setOperation(operation);
     statisticData.setUserId(userId);
-    statisticData.addParameter("processID", workFlow.getId());
-    statisticData.addParameter("processName", workFlow.getTitle());
-    statisticData.addParameter("requestID", work.getId());
-    statisticData.addParameter("requestName", work.getTitle());
+    statisticData.addKeyword("processID", workFlow.getId());
+    statisticData.addKeyword("processName", workFlow.getTitle());
+    statisticData.addKeyword("requestID", work.getId());
+    statisticData.addKeyword("requestName", work.getTitle());
     AnalyticsUtils.addStatisticData(statisticData);
   }
 }
