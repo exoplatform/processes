@@ -41,6 +41,15 @@
       <artifactId>task-management-services</artifactId>
       <scope>provided</scope>
     </dependency>
+    <!-- MCP Server API: used by the Processes MCP tools exposed to the AI agent (EVA).
+         Pinned to the ai-contribution build that ships io.meeds.mcp.server.plugin.McpToolPlugin;
+         the platform-managed version does not have it yet. -->
+    <dependency>
+      <groupId>io.meeds.mcp-server</groupId>
+      <artifactId>mcp-server-tools</artifactId>
+      <version>7.3.x-ai-contribution-SNAPSHOT</version>
+      <scope>provided</scope>
+    </dependency>
     <dependency>
       <groupId>org.exoplatform.ecms</groupId>
       <artifactId>ecms-core-services</artifactId>
@@ -68,6 +77,16 @@
   <build>
     <finalName>processes-services</finalName>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <compilerArgs>
+            <!-- Required so MCP tool method parameter names are retained and bound by name -->
+            <arg>-parameters</arg>
+          </compilerArgs>
+        </configuration>
+      </plugin>
       <plugin>
         <groupId>io.openapitools.swagger</groupId>
         <artifactId>swagger-maven-plugin</artifactId>

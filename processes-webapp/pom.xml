@@ -19,6 +19,14 @@
             <classifier>sources</classifier>
             <scope>provided</scope>
         </dependency>
+        <!-- Brings io.meeds.spring.* (PortalApplicationContextInitializer, AvailableIntegration)
+             and spring-boot-autoconfigure transitively, so the ProcessesApplication Spring bridge
+             (which makes the Processes MCP @Service beans discoverable) compiles. -->
+        <dependency>
+            <groupId>io.meeds.social</groupId>
+            <artifactId>social-component-service</artifactId>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
     <build>
         <finalName>processes</finalName>
