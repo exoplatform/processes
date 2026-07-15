@@ -1,0 +1,134 @@
+{
+  "tools": [
+    {
+      "name": "list_processes",
+      "title": "List process types (request types)",
+      "description": "Lists the enabled eXo Processes types (a.k.a. request types) the current user can see, e.g. 'Leave request', 'Expense report', 'IT support'. Use this to discover what the user can request and to get the process id ('id' in the result) to pass to submit_work_request. Each result also exposes 'projectId' (the underlying Task/Kanban project) and 'canManageRequests' (true when the user may see/approve that process's requests, i.e. is a manager of it).",
+      "input_schema": {
+        "type": "object",
+        "properties": {}
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "get_my_requests",
+      "title": "List my work requests",
+      "description": "Lists the current user's OWN work requests (the requests they submitted through a process), most recent first. Optionally filter by status. The 'id' of each result is the request id to pass to get_request_details or cancel_work_request.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "Optional status filter. One of: Request, RequestInProgress, Validated, Refused, Canceled. Omit to list requests in every status."
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "get_request_details",
+      "title": "Get a work request's details",
+      "description": "Retrieves the full details (title, description, status, completion, dates) of one of the current user's own work requests by its id. Call get_my_requests first to get the request_id.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "integer",
+            "description": "The id of one of the current user's requests (the 'id' from get_my_requests)."
+          }
+        },
+        "required": [
+          "request_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "submit_work_request",
+      "title": "Submit a new work request",
+      "description": "Submits a new work request under a process type, on behalf of the current user. The request is created in the initial 'Request' status. Get 'process_id' from list_processes. There is NO structured field map: put any details the approver needs into the 'description' (structured data belongs to the process's own document form / UI, not this tool).",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "process_id": {
+            "type": "integer",
+            "description": "The id of the process type to request (the 'id' from list_processes). The process must be enabled."
+          },
+          "title": {
+            "type": "string",
+            "description": "A short title for the request, e.g. 'Annual leave 12-16 Aug'."
+          },
+          "description": {
+            "type": "string",
+            "description": "Optional free-text description / details of the request for the approver."
+          }
+        },
+        "required": [
+          "process_id",
+          "title"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "cancel_work_request",
+      "title": "Cancel a work request",
+      "description": "Cancels one of the current user's own requests: sets its status to 'Canceled' and closes it. Only the request's creator can cancel it. Call get_my_requests first to get the request_id.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "integer",
+            "description": "The id of the current user's request to cancel (the 'id' from get_my_requests)."
+          }
+        },
+        "required": [
+          "request_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "get_pending_approvals",
+      "title": "List requests awaiting my approval",
+      "description": "Lists the work requests awaiting the current user's approval: requests still in 'Request' or 'RequestInProgress' status (not yet decided) that belong to the process projects the current user manages. To respond to one, use the eXo Task tools on the returned 'taskId': call update_task_status to move it to 'Validated' or 'Refused', and add_task_comment to leave a note. Returns an empty list when the user manages no process or has nothing pending.",
+      "input_schema": {
+        "type": "object",
+        "properties": {}
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    }
+  ]
+}
