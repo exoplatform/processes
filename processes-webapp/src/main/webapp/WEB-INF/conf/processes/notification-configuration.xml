@@ -207,4 +207,34 @@
         </component-plugin>
     </external-component-plugins>
 
+  <!-- Digest mail notifications: the category this addon owns -->
+  <external-component-plugins>
+    <target-component>io.meeds.commons.digest.DigestCategoryRegistry</target-component>
+    <component-plugin>
+      <name>process</name>
+      <set-method>addCategoryProvider</set-method>
+      <type>io.meeds.commons.digest.plugin.DigestCategoryPlugin</type>
+      <description>The process notifications: requests and their follow up</description>
+      <init-params>
+        <value-param>
+          <name>id</name>
+          <value>process</value>
+        </value-param>
+        <value-param>
+          <name>labelKey</name>
+          <value>digest.category.process</value>
+        </value-param>
+        <value-param>
+          <name>order</name>
+          <value>60</value>
+        </value-param>
+        <values-param>
+          <name>pluginIds</name>
+          <value>CreateRequestPlugin</value>
+          <value>CancelRequestPlugin</value>
+          <value>RequestCommentPlugin</value>
+        </values-param>
+      </init-params>
+    </component-plugin>
+  </external-component-plugins>
 </configuration>
