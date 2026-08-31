@@ -231,7 +231,6 @@
         <values-param>
           <name>pluginIds</name>
           <value>CreateRequestPlugin</value>
-          <value>CancelRequestPlugin</value>
           <value>RequestCommentPlugin</value>
         </values-param>
       </init-params>
