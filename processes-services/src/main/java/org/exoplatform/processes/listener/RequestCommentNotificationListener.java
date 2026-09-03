@@ -60,6 +60,7 @@ public class RequestCommentNotificationListener extends TaskCommentNotificationL
     ctx.append(NotificationArguments.REQUEST_COMMENT, MentionUtils.substituteUsernames(getPortalOwner(), comment.getComment()));
     ctx.append(NotificationArguments.PROCESS_URL, NotificationUtils.getProcessLink(project.getId()));
     ctx.append(NotificationArguments.REQUEST_COMMENT_URL, NotificationUtils.getRequestCommentsLink(task.getId()));
+    ctx.append(NotificationArguments.REQUEST_ID, String.valueOf(task.getId()));
     ctx.getNotificationExecutor()
             .with(ctx.makeCommand(PluginKey.key(RequestCommentPlugin.ID))).execute(ctx);
   }
