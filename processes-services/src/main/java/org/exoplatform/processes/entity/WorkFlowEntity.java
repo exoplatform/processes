@@ -5,31 +5,33 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
-import jakarta.persistence.*;
+import io.meeds.common.persistence.PortableSequence;
 
-import org.exoplatform.commons.api.persistence.ExoEntity;
-
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.NamedQuery;
+import jakarta.persistence.Table;
 import lombok.Data;
 
 @Entity(name = "WorkFlow")
-@ExoEntity
 @Table(name = "PROCESSES_WORK_FLOW")
 @Data
-@NamedQueries({
-        @NamedQuery(name = "WorkFlow.getWorkFlowByProjectId", query = "SELECT DISTINCT c FROM WorkFlow c where c.projectId = :projectId"),
-        @NamedQuery(name = "WorkFlow.findAllWorkFlowsByUser", query = "SELECT DISTINCT c FROM WorkFlow c where c.creatorId = :userId order by c.id desc"),
-        @NamedQuery(name = "WorkFlow.findEnabledWorkFlowsByUser", query = "SELECT DISTINCT c FROM WorkFlow c where c.creatorId = :userId and  c.enabled = true order by c.id desc"),
-        @NamedQuery(name = "WorkFlow.findAllWorkFlows", query = "SELECT DISTINCT c FROM WorkFlow c order by c.id desc"),
-        @NamedQuery(name = "WorkFlow.findEnabledWorkFlows", query = "SELECT DISTINCT c FROM WorkFlow c where c.enabled = true order by c.id desc"),
-        @NamedQuery(name = "WorkFlow.findDisabledWorkFlows", query = "SELECT DISTINCT c FROM WorkFlow c where c.enabled = false order by c.id desc"),
-
-})
-
+@NamedQuery(name = "WorkFlow.getWorkFlowByProjectId", query = "SELECT DISTINCT c FROM WorkFlow c where c.projectId = :projectId")
+@NamedQuery(name = "WorkFlow.findAllWorkFlowsByUser", query = "SELECT DISTINCT c FROM WorkFlow c where c.creatorId = :userId order by c.id desc")
+@NamedQuery(name = "WorkFlow.findEnabledWorkFlowsByUser", query = "SELECT DISTINCT c FROM WorkFlow c where c.creatorId = :userId and  c.enabled = true order by c.id desc")
+@NamedQuery(name = "WorkFlow.findAllWorkFlows", query = "SELECT DISTINCT c FROM WorkFlow c order by c.id desc")
+@NamedQuery(name = "WorkFlow.findEnabledWorkFlows", query = "SELECT DISTINCT c FROM WorkFlow c where c.enabled = true order by c.id desc")
+@NamedQuery(name = "WorkFlow.findDisabledWorkFlows", query = "SELECT DISTINCT c FROM WorkFlow c where c.enabled = false order by c.id desc")
 public class WorkFlowEntity implements Serializable {
 
+  private static final long serialVersionUID = 6804751507896811367L;
+
   @Id
-  @SequenceGenerator(name = "SEQ_WORK_FLOW_ID", sequenceName = "SEQ_WORK_FLOW_ID", allocationSize = 1)
-  @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_WORK_FLOW_ID")
+  @PortableSequence(name = "SEQ_WORK_FLOW_ID")
   @Column(name = "WORK_FLOW_ID", nullable = false)
   private Long   id;
 
