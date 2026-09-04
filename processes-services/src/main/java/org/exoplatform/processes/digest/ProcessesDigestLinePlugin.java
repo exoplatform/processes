@@ -63,7 +63,7 @@ public class ProcessesDigestLinePlugin extends DigestLinePlugin {
 
   @Override
   public DigestLine buildLine(DigestItem item, DigestLineContext context) {
-    Work work = findWork(item.getParam(NotificationArguments.REQUEST_ID.getKey()), context.getUsername());
+    Work work = findWork(item.getParam(NotificationArguments.REQUEST_ID.getKey()));
     if (work == null) {
       return null;
     }
@@ -78,16 +78,16 @@ public class ProcessesDigestLinePlugin extends DigestLinePlugin {
     };
   }
 
-  private Work findWork(String requestId, String username) {
+  /**
+   * The id-only read: the per-user read of the service only returns the
+   * requests the user created, and a new request is announced to the managers
+   */
+  private Work findWork(String requestId) {
     if (StringUtils.isBlank(requestId)) {
       return null;
     }
-    Identity recipient = getIdentityManager().getOrCreateUserIdentity(username);
-    if (recipient == null) {
-      return null;
-    }
     try {
-      return getProcessesService().getWorkById(Long.parseLong(recipient.getId()), Long.parseLong(requestId));
+      return getProcessesService().getWorkById(Long.parseLong(requestId));
     } catch (NumberFormatException e) {
       return null;
     }
@@ -102,7 +102,7 @@ public class ProcessesDigestLinePlugin extends DigestLinePlugin {
   }
 
   protected String commentsUrl(Work work) {
-    return String.valueOf(NotificationUtils.getRequestCommentsLink(work.getId()));
+    return NotificationUtils.getRequestCommentsLink(work.getId());
   }
 
   private String fullName(String username) {

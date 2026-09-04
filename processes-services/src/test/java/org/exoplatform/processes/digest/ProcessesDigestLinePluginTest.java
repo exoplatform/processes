@@ -85,7 +85,6 @@ public class ProcessesDigestLinePluginTest {
         return "comments:" + work.getId();
       }
     };
-    lenient().when(identityManager.getOrCreateUserIdentity("ayoub")).thenReturn(identity("ayoub", "3", "Ayoub Z"));
     lenient().when(identityManager.getOrCreateUserIdentity("john")).thenReturn(identity("john", "15", "John Smith"));
 
     WorkFlow workFlow = new WorkFlow();
@@ -93,8 +92,10 @@ public class ProcessesDigestLinePluginTest {
     Work work = new Work();
     work.setId(7);
     work.setTitle("Two weeks in October");
+    work.setCreatedBy("john");
     work.setWorkFlow(workFlow);
-    lenient().when(processesService.getWorkById(3, 7L)).thenReturn(work);
+    // The recipient (ayoub, a manager) is not the creator: the id-only read
+    lenient().when(processesService.getWorkById(7L)).thenReturn(work);
   }
 
   @Test

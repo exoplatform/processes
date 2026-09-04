@@ -98,7 +98,7 @@ public class NotificationUtils {
     return stringBuilder.toString();
   }
 
-  public static Object getRequestCommentsLink(Long taskId) {
+  public static String getRequestCommentsLink(Long taskId) {
     StringBuilder stringBuilder = new StringBuilder();
     String portalOwner = CommonsUtils.getCurrentPortalOwner();
     String domain = CommonsUtils.getCurrentDomain();
