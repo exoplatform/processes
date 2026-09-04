@@ -24,4 +24,7 @@ public class NotificationArguments {
 
   public static final ArgumentLiteral<String> WORKFLOW_PROJECT_ID    = new ArgumentLiteral<>(String.class, "WORKFLOW_PROJECT_ID");
 
+  /** The request (work) id, the same as its task id: stored for the digest */
+  public static final ArgumentLiteral<String> REQUEST_ID             = new ArgumentLiteral<>(String.class, "REQUEST_ID");
+
 }

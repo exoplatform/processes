@@ -50,6 +50,7 @@ public class RequestCommentPlugin extends BaseNotificationPlugin {
     String commentAuthor = notificationContext.value(NotificationArguments.REQUEST_COMMENT_AUTHOR);
     String comment = notificationContext.value(NotificationArguments.REQUEST_COMMENT);
     String requestCommentUrl = notificationContext.value(NotificationArguments.REQUEST_COMMENT_URL);
+    String requestId = notificationContext.value(NotificationArguments.REQUEST_ID);
     return NotificationInfo.instance()
                            .setFrom(commentAuthor)
                            .to(requester)
@@ -60,6 +61,7 @@ public class RequestCommentPlugin extends BaseNotificationPlugin {
                            .with(NotificationArguments.PROCESS_URL.getKey(), processUrl)
                            .with(NotificationArguments.REQUEST_COMMENT.getKey(), comment)
                            .with(NotificationArguments.REQUEST_COMMENT_URL.getKey(), requestCommentUrl)
+                           .with(NotificationArguments.REQUEST_ID.getKey(), requestId)
                            .key(getKey())
                            .end();
   }
