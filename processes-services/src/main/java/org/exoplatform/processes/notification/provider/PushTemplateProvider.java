@@ -18,8 +18,6 @@ import org.exoplatform.processes.notification.utils.NotificationArguments;
 import org.exoplatform.processes.notification.utils.NotificationUtils;
 import org.exoplatform.social.core.identity.model.Profile;
 
-import java.io.Writer;
-
 @TemplateConfigs(templates = {
     @TemplateConfig(pluginId = CreateRequestPlugin.ID, template = "war:/notification/templates/push/CreateRequestPlugin.gtmpl"),
     @TemplateConfig(pluginId = CancelRequestPlugin.ID, template = "war:/notification/templates/push/CancelRequestPlugin.gtmpl"),
@@ -59,11 +57,6 @@ public class PushTemplateProvider extends TemplateProvider {
       notificationContext.setException(templateContext.getException());
       MessageInfo messageInfo = new MessageInfo();
       return messageInfo.body(body).end();
-    }
-
-    @Override
-    protected boolean makeDigest(NotificationContext notificationContext, Writer writer) {
-      return false;
     }
   }
 }
