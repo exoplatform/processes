@@ -25,7 +25,6 @@ import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvide
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.notification.LinkProviderUtils;
 
-import java.io.Writer;
 import java.util.Calendar;
 import java.util.Locale;
 
@@ -77,11 +76,6 @@ public class MailTemplateProvider extends TemplateProvider {
       MessageInfo messageInfo = new MessageInfo();
       return messageInfo.subject(subject).body(body).end();
     }
-
-    @Override
-    protected boolean makeDigest(NotificationContext notificationContext, Writer writer) {
-      return false;
-    }
   }
 
   private class RequestCommentTemplateBuilder extends AbstractTemplateBuilder {
@@ -112,11 +106,6 @@ public class MailTemplateProvider extends TemplateProvider {
       notificationContext.setException(templateContext.getException());
       MessageInfo messageInfo = new MessageInfo();
       return messageInfo.subject(subject).body(body).end();
-    }
-
-    @Override
-    protected boolean makeDigest(NotificationContext notificationContext, Writer writer) {
-      return false;
     }
   }
   

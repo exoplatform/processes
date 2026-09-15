@@ -251,6 +251,11 @@ public class ProcessesServiceImpl implements ProcessesService {
     return processesStorage.getWorkById(userIdentityId, workId);
   }
 
+  @Override
+  public Work getWorkById(long workId) {
+    return processesStorage.getWorkById(workId);
+  }
+
   /**
    * {@inheritDoc}
    */

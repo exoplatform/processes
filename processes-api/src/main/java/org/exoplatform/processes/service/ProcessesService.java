@@ -171,6 +171,15 @@ public interface ProcessesService {
   Work getWorkById(long userIdentityId, Long workId);
 
   /**
+   * Retrieves a request by its id, whoever asks: for the platform itself, for
+   * example the digest emails, never for a user request
+   *
+   * @param workId the request (work) id, the same as its task id
+   * @return the request, or null when it doesn't exist any more
+   */
+  Work getWorkById(long workId);
+
+  /**
    * Retrieves an illustration image by its given id
    *
    * @param illustrationId illustration file id
