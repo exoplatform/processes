@@ -47,7 +47,6 @@
     <dependency>
       <groupId>io.meeds.mcp-server</groupId>
       <artifactId>mcp-server-tools</artifactId>
-      <version>7.3.x-ai-contribution-SNAPSHOT</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
