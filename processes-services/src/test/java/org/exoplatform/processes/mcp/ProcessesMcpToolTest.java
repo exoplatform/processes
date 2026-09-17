@@ -302,6 +302,28 @@ public class ProcessesMcpToolTest {
     assertTrue(captor.getValue().isCompleted());
   }
 
+  @Test(expected = IllegalArgumentException.class)
+  public void cancelWorkRequestRejectsAnAlreadyValidatedRequest() throws Exception {
+    Work work = new Work();
+    work.setId(3L);
+    work.setStatus("Validated");
+    work.setCompleted(true);
+    when(processesService.getWorkById(1L, 3L)).thenReturn(work);
+
+    tool.cancelWorkRequest(3L);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void cancelWorkRequestRejectsAnAlreadyRefusedRequest() throws Exception {
+    Work work = new Work();
+    work.setId(3L);
+    work.setStatus("Refused");
+    work.setCompleted(true);
+    when(processesService.getWorkById(1L, 3L)).thenReturn(work);
+
+    tool.cancelWorkRequest(3L);
+  }
+
   @Test
   public void getPendingApprovalsReturnsEmptyWhenNoManagedProcess() throws Exception {
     WorkFlow workFlow = new WorkFlow();
