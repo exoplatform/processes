@@ -117,8 +117,8 @@
     },
     {
       "name": "get_pending_approvals",
-      "title": "List requests awaiting my approval",
-      "description": "Lists the work requests awaiting the current user's approval: requests still in 'Request' or 'RequestInProgress' status (not yet decided) that belong to the process projects whose space the current user is a member of. To respond to one, use the eXo Task tools on the returned 'taskId': call update_task_status to move it to 'Validated' or 'Refused', and add_task_comment to leave a note. Returns an empty list when the user belongs to no process space or has nothing pending.",
+      "title": "List pending requests I can see",
+      "description": "Lists the requests still pending a decision in the processes whose space the current user is a member of; deciding them needs project-manager rights (update_task_status may be refused). To respond to one, use the eXo Task tools on the returned 'taskId': call update_task_status to move it to 'Validated' or 'Refused', and add_task_comment to leave a note. Returns an empty list when the user belongs to no process space or has nothing pending.",
       "input_schema": {
         "type": "object",
         "properties": {}
