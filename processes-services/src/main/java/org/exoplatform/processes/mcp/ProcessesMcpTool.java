@@ -198,17 +198,19 @@ public class ProcessesMcpTool implements McpToolPlugin {
     return toRequestModel(updated);
   }
 
-  // Lists the requests awaiting the current user's approval: tasks still in the
-  // 'Request' / 'RequestInProgress' status (not completed) that belong to the
-  // process projects the current user manages (is a space manager/member of). Use
-  // the returned task_id with the Task MCP tools (update_task_status to
-  // Validated/Refused, add_task_comment) to respond. READ.
+  // Lists the requests awaiting a decision: tasks still in the 'Request' /
+  // 'RequestInProgress' status (not completed) that belong to the process
+  // projects whose space the current user is a member of -- membership does not
+  // by itself mean the user can decide them (update_task_status may still be
+  // refused for a plain member). Use the returned task_id with the Task MCP
+  // tools (update_task_status to Validated/Refused, add_task_comment) to
+  // respond. READ.
   public List<PendingApprovalModel> getPendingApprovals() throws Exception {
     long userIdentityId = getCurrentUserIdentityId();
     ProcessesFilter filter = buildEnabledProcessesFilter();
     List<WorkFlow> workFlows = processesService.getWorkFlows(filter, 0, MAX_WORKFLOWS, userIdentityId);
-    // Keep only the processes for which the current user may see/approve requests
-    // (space member/manager), and index their project id -> process title.
+    // Keep only the processes whose pending requests the current user may see
+    // (member of the process's space), and index their project id -> process title.
     Map<Long, String> managedProjects = new LinkedHashMap<>();
     for (WorkFlow workFlow : workFlows) {
       if (workFlow != null && workFlow.isCanShowPending() && workFlow.getProjectId() > 0) {

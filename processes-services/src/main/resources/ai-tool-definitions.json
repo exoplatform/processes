@@ -3,7 +3,7 @@
     {
       "name": "list_processes",
       "title": "List process types (request types)",
-      "description": "Lists the enabled eXo Processes types (a.k.a. request types) the current user can see, e.g. 'Leave request', 'Expense report', 'IT support'. Use this to discover what the user can request and to get the process id ('id' in the result) to pass to submit_work_request. Each result also exposes 'projectId' (the underlying Task/Kanban project) and 'canManageRequests' (true when the user may see/approve that process's requests, i.e. is a manager of it).",
+      "description": "Lists the enabled eXo Processes types (a.k.a. request types) the current user can see, e.g. 'Leave request', 'Expense report', 'IT support'. Use this to discover what the user can request and to get the process id ('id' in the result) to pass to submit_work_request. Each result also exposes 'projectId' (the underlying Task/Kanban project) and 'canManageRequests' (true when the user can see that process's pending requests, i.e. is a member of its space -- not necessarily able to decide them).",
       "input_schema": {
         "type": "object",
         "properties": {}
@@ -118,7 +118,7 @@
     {
       "name": "get_pending_approvals",
       "title": "List requests awaiting my approval",
-      "description": "Lists the work requests awaiting the current user's approval: requests still in 'Request' or 'RequestInProgress' status (not yet decided) that belong to the process projects the current user manages. To respond to one, use the eXo Task tools on the returned 'taskId': call update_task_status to move it to 'Validated' or 'Refused', and add_task_comment to leave a note. Returns an empty list when the user manages no process or has nothing pending.",
+      "description": "Lists the work requests awaiting the current user's approval: requests still in 'Request' or 'RequestInProgress' status (not yet decided) that belong to the process projects whose space the current user is a member of. To respond to one, use the eXo Task tools on the returned 'taskId': call update_task_status to move it to 'Validated' or 'Refused', and add_task_comment to leave a note. Returns an empty list when the user belongs to no process space or has nothing pending.",
       "input_schema": {
         "type": "object",
         "properties": {}
