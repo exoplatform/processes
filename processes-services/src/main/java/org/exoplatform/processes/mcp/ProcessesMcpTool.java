@@ -69,6 +69,10 @@ public class ProcessesMcpTool implements McpToolPlugin {
 
   private static final String    STATUS_CANCELED        = "Canceled";
 
+  private static final String    STATUS_VALIDATED       = "Validated";
+
+  private static final String    STATUS_REFUSED         = "Refused";
+
   // The two open (not-yet-decided) statuses a request goes through before an
   // approver validates/refuses it; these are what get_pending_approvals surfaces.
   private static final String[]  PENDING_STATUSES       = { "Request", "RequestInProgress" };
@@ -183,6 +187,10 @@ public class ProcessesMcpTool implements McpToolPlugin {
     if (STATUS_CANCELED.equals(work.getStatus()) && work.isCompleted()) {
       // Already canceled: return as-is (updateWork would reject a no-op change).
       return toRequestModel(work);
+    }
+    if (work.isCompleted() || STATUS_VALIDATED.equals(work.getStatus()) || STATUS_REFUSED.equals(work.getStatus())) {
+      throw new IllegalArgumentException(("Request %d is already decided (status '%s') and can no longer be canceled.")
+          .formatted(requestId, work.getStatus()));
     }
     work.setStatus(STATUS_CANCELED);
     work.setCompleted(true);
