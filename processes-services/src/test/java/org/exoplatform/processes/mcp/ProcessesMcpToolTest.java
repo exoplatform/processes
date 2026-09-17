@@ -44,6 +44,7 @@ import org.exoplatform.processes.mcp.model.RequestModel;
 import org.exoplatform.processes.model.ProcessesFilter;
 import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFilter;
+import org.exoplatform.processes.model.ProcessPermission;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.service.ProcessesService;
 import org.exoplatform.services.security.ConversationState;
@@ -214,6 +215,7 @@ public class ProcessesMcpToolTest {
     workFlow.setId(5L);
     workFlow.setEnabled(true);
     workFlow.setProjectId(42L);
+    workFlow.setAcl(new ProcessPermission(false, false, false, true));
     when(processesService.getWorkFlow(5L, 1L)).thenReturn(workFlow);
 
     Work created = new Work();
@@ -229,6 +231,31 @@ public class ProcessesMcpToolTest {
     assertEquals("New request", captor.getValue().getTitle());
     assertEquals(42L, captor.getValue().getProjectId());
     assertEquals("", captor.getValue().getDescription());
+  }
+
+  @Test(expected = IllegalAccessException.class)
+  public void submitWorkRequestRejectsProcessWithoutAddRequestAcl() throws Exception {
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setId(5L);
+    workFlow.setTitle("Restricted process");
+    workFlow.setEnabled(true);
+    workFlow.setProjectId(42L);
+    workFlow.setAcl(new ProcessPermission(true, false, false, false));
+    when(processesService.getWorkFlow(5L, 1L)).thenReturn(workFlow);
+
+    tool.submitWorkRequest(5L, "title", "description");
+  }
+
+  @Test(expected = IllegalAccessException.class)
+  public void submitWorkRequestRejectsProcessWithNoAcl() throws Exception {
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setId(5L);
+    workFlow.setTitle("No-acl process");
+    workFlow.setEnabled(true);
+    workFlow.setProjectId(42L);
+    when(processesService.getWorkFlow(5L, 1L)).thenReturn(workFlow);
+
+    tool.submitWorkRequest(5L, "title", "description");
   }
 
   @Test(expected = IllegalArgumentException.class)
