@@ -154,6 +154,10 @@ public class ProcessesMcpTool implements McpToolPlugin {
       throw new IllegalArgumentException(("The process '%s' is disabled and does not accept new requests.")
           .formatted(workFlow.getTitle()));
     }
+    if (workFlow.getAcl() == null || !workFlow.getAcl().isCanAddRequest()) {
+      throw new IllegalAccessException(("You are not allowed to submit a request under '%s'. Call list_processes to see "
+          + "the process types available to you.").formatted(workFlow.getTitle()));
+    }
     Work work = new Work();
     work.setTitle(title);
     work.setDescription(StringUtils.trimToEmpty(description));
