@@ -17,6 +17,7 @@
 package org.exoplatform.processes.mcp;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -234,7 +235,7 @@ public class ProcessesMcpToolTest {
     assertEquals("", captor.getValue().getDescription());
   }
 
-  @Test(expected = IllegalAccessException.class)
+  @Test
   public void submitWorkRequestRejectsProcessWithoutAddRequestAcl() throws Exception {
     WorkFlow workFlow = new WorkFlow();
     workFlow.setId(5L);
@@ -244,10 +245,12 @@ public class ProcessesMcpToolTest {
     workFlow.setAcl(new ProcessPermission(true, false, false, false));
     when(processesService.getWorkFlow(5L, 1L)).thenReturn(workFlow);
 
-    tool.submitWorkRequest(5L, "title", "description");
+    assertThrows(IllegalAccessException.class, () -> tool.submitWorkRequest(5L, "title", "description"));
+
+    verify(processesService, never()).createWork(any(Work.class), anyLong());
   }
 
-  @Test(expected = IllegalAccessException.class)
+  @Test
   public void submitWorkRequestRejectsProcessWithNoAcl() throws Exception {
     WorkFlow workFlow = new WorkFlow();
     workFlow.setId(5L);
@@ -256,7 +259,9 @@ public class ProcessesMcpToolTest {
     workFlow.setProjectId(42L);
     when(processesService.getWorkFlow(5L, 1L)).thenReturn(workFlow);
 
-    tool.submitWorkRequest(5L, "title", "description");
+    assertThrows(IllegalAccessException.class, () -> tool.submitWorkRequest(5L, "title", "description"));
+
+    verify(processesService, never()).createWork(any(Work.class), anyLong());
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -303,7 +308,7 @@ public class ProcessesMcpToolTest {
     assertTrue(captor.getValue().isCompleted());
   }
 
-  @Test(expected = IllegalArgumentException.class)
+  @Test
   public void cancelWorkRequestRejectsAnAlreadyValidatedRequest() throws Exception {
     Work work = new Work();
     work.setId(3L);
@@ -311,10 +316,12 @@ public class ProcessesMcpToolTest {
     work.setCompleted(true);
     when(processesService.getWorkById(1L, 3L)).thenReturn(work);
 
-    tool.cancelWorkRequest(3L);
+    assertThrows(IllegalArgumentException.class, () -> tool.cancelWorkRequest(3L));
+
+    verify(processesService, never()).updateWork(any(Work.class), anyLong());
   }
 
-  @Test(expected = IllegalArgumentException.class)
+  @Test
   public void cancelWorkRequestRejectsAnAlreadyRefusedRequest() throws Exception {
     Work work = new Work();
     work.setId(3L);
@@ -322,7 +329,9 @@ public class ProcessesMcpToolTest {
     work.setCompleted(true);
     when(processesService.getWorkById(1L, 3L)).thenReturn(work);
 
-    tool.cancelWorkRequest(3L);
+    assertThrows(IllegalArgumentException.class, () -> tool.cancelWorkRequest(3L));
+
+    verify(processesService, never()).updateWork(any(Work.class), anyLong());
   }
 
   @Test
