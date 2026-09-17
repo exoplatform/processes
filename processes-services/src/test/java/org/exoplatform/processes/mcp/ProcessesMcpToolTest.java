@@ -1,16 +1,16 @@
 /*
  * Copyright (C) 2026 eXo Platform SAS
- *
+ *  
  *  This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <gnu.org/licenses>.
  */
@@ -57,12 +57,13 @@ import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.service.TaskService;
 
 /**
- * Guards the Processes MCP tools against the live NPE where a ProcessesFilter is
- * passed to {@code getWorkFlows} with a null {@code isProcessManager}, which the
- * service / WorkFlowDAO unboxes into a primitive {@code boolean}. These tests
- * exercise the real {@code ProcessesMcpTool} (only its collaborators are mocked)
- * and assert the filter it builds is fully populated, so the null-unbox trap
- * cannot regress.
+ * Exercises the real {@code ProcessesMcpTool} (only its collaborators are
+ * mocked): the live NPE where a {@code ProcessesFilter} passed to
+ * {@code getWorkFlows} with a null {@code isProcessManager} is unboxed into a
+ * primitive {@code boolean} by the service / {@code WorkFlowDAO}; the ACL gate
+ * on {@code submitWorkRequest} ({@code WorkFlow.acl.canAddRequest}); the
+ * refusal to cancel an already-decided request; and the read/cancel/pending
+ * paths' mapping and self-scoping.
  */
 public class ProcessesMcpToolTest {
 
