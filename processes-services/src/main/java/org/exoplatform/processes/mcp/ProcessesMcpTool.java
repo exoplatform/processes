@@ -1,16 +1,16 @@
 /*
  * Copyright (C) 2026 eXo Platform SAS
- *
+ *  
  *  This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <gnu.org/licenses>.
  */
@@ -18,9 +18,9 @@ package org.exoplatform.processes.mcp;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.Objects;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.annotation.Profile;
@@ -102,7 +102,7 @@ public class ProcessesMcpTool implements McpToolPlugin {
     long userIdentityId = getCurrentUserIdentityId();
     ProcessesFilter filter = buildEnabledProcessesFilter();
     List<WorkFlow> workFlows = processesService.getWorkFlows(filter, 0, MAX_WORKFLOWS, userIdentityId);
-    return workFlows.stream().filter(wf -> wf != null).map(this::toProcessModel).collect(Collectors.toList());
+    return workFlows.stream().filter(Objects::nonNull).map(this::toProcessModel).toList();
   }
 
   // Lists the current user's OWN work requests (the requests they submitted),
@@ -115,7 +115,7 @@ public class ProcessesMcpTool implements McpToolPlugin {
       workFilter.setStatus(status);
     }
     List<Work> works = processesService.getWorks(userIdentityId, workFilter, 0, MAX_REQUESTS);
-    return works.stream().filter(w -> w != null).map(this::toRequestModel).collect(Collectors.toList());
+    return works.stream().filter(Objects::nonNull).map(this::toRequestModel).toList();
   }
 
   // Retrieves one of the current user's own work requests by its id (the request /
@@ -174,7 +174,7 @@ public class ProcessesMcpTool implements McpToolPlugin {
   // 'Canceled' and marks it completed (the combination that fires the
   // 'exo.process.request.canceled' event and closes the request). WRITE
   // (approval-gated).
-  public RequestModel cancelWorkRequest(long requestId) throws Exception {
+  public RequestModel cancelWorkRequest(long requestId) throws IllegalArgumentException, ObjectNotFoundException, IllegalAccessException {
     if (requestId <= 0) {
       throw new IllegalArgumentException("The 'request_id' parameter is mandatory (the id of one of your requests to cancel).");
     }

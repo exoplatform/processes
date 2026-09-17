@@ -41,9 +41,7 @@
       <artifactId>task-management-services</artifactId>
       <scope>provided</scope>
     </dependency>
-    <!-- MCP Server API: used by the Processes MCP tools exposed to the AI agent (EVA).
-         Pinned to the ai-contribution build that ships io.meeds.mcp.server.plugin.McpToolPlugin;
-         the platform-managed version does not have it yet. -->
+    <!-- MCP Server API: used by the Processes MCP tools exposed to the AI agent (EVA). -->
     <dependency>
       <groupId>io.meeds.mcp-server</groupId>
       <artifactId>mcp-server-tools</artifactId>
