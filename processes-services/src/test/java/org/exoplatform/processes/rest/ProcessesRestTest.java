@@ -1,11 +1,13 @@
 package org.exoplatform.processes.rest;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockingDetails;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -218,7 +220,7 @@ public class ProcessesRestTest {
     doThrow(new RuntimeException()).when(processesService).deleteWorkflowById(1l, 1L);
     Response response5 = processesRest.deleteWorkflow(1l);
     assertEquals(response5.getStatus(), Response.Status.INTERNAL_SERVER_ERROR.getStatusCode());
-    verify(processesService, times(0)).deleteWorkflowById(anyLong());
+    assertNeverCalled("deleteWorkflowById", 1);
   }
 
   @Test
@@ -484,7 +486,7 @@ public class ProcessesRestTest {
     assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response1.getStatus());
     Response response2 = processesRest.deleteWork(1L);
     verify(processesService, times(1)).deleteWorkById(1L, 1L);
-    verify(processesService, times(0)).deleteWorkById(anyLong());
+    assertNeverCalled("deleteWorkById", 1);
     assertEquals(Response.Status.OK.getStatusCode(), response2.getStatus());
     doThrow(new ObjectNotFoundException("")).when(processesService).deleteWorkById(1l, 1L);
     assertEquals(Response.Status.NOT_FOUND.getStatusCode(), processesRest.deleteWork(1L).getStatus());
@@ -576,7 +578,7 @@ public class ProcessesRestTest {
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
     Response response2 = processesRest.deleteWorkDraft(1L);
     verify(processesService, times(1)).deleteWorkDraftById(1L, 1L);
-    verify(processesService, times(0)).deleteWorkDraftById(anyLong());
+    assertNeverCalled("deleteWorkDraftById", 1);
     assertEquals(Response.Status.OK.getStatusCode(), response2.getStatus());
     doThrow(new ObjectNotFoundException("")).when(processesService).deleteWorkDraftById(1L, 1L);
     Response response3 = processesRest.deleteWorkDraft(1L);
@@ -695,7 +697,7 @@ public class ProcessesRestTest {
     Response response5 = processesRest.updateWorkCompleted(completed, 1L);
     assertEquals(Response.Status.OK.getStatusCode(), response5.getStatus());
     verify(processesService, times(1)).updateWorkCompleted(1L, true, 1L);
-    verify(processesService, times(0)).updateWorkCompleted(anyLong(), anyBoolean());
+    assertNeverCalled("updateWorkCompleted", 2);
     doThrow(new ObjectNotFoundException("")).when(processesService).updateWorkCompleted(1L, true, 1L);
     Response response4 = processesRest.updateWorkCompleted(completed, 1L);
     assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response4.getStatus());
@@ -747,5 +749,18 @@ public class ProcessesRestTest {
     Response response5 = processesRest.getImageIllustration(request, 1L, 133584);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response5.getStatus());
     verify(processesService, times(0)).getWorkFlow(anyLong(), any());
+  }
+
+  /**
+   * Asserts the REST layer never called the ACL-free signature of a service
+   * method, recognised by its name and its argument count: the checked
+   * signature takes the user identity id as one more argument.
+   */
+  private void assertNeverCalled(String methodName, int argumentCount) {
+    assertTrue(methodName + " without the user identity must never be called",
+               mockingDetails(processesService).getInvocations()
+                                               .stream()
+                                               .noneMatch(invocation -> invocation.getMethod().getName().equals(methodName)
+                                                   && invocation.getArguments().length == argumentCount));
   }
 }

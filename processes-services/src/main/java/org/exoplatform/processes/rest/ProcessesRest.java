@@ -76,6 +76,8 @@ public class ProcessesRest implements ResourceContainer {
 
   private static final String              PROCESSES_GROUP          = "/platform/processes";
 
+  private static final String              ONLY_CURRENT_USER_MESSAGE = "Only the current user can be queried";
+
   static {
     ILLUSTRATION_CACHE_CONTROL.setMaxAge(CACHE_DURATION_SECONDS);
   }
@@ -143,7 +145,7 @@ public class ProcessesRest implements ResourceContainer {
       }
 
       if (userId != null && userId != currentIdentityId) {
-        return Response.status(Response.Status.FORBIDDEN).entity("Only the current user can be queried").build();
+        return Response.status(Response.Status.FORBIDDEN).entity(ONLY_CURRENT_USER_MESSAGE).build();
       }
       long userIdentityId = currentIdentityId;
       filter.setIsProcessManager(RestUtils.isProcessesGroupMember(identityManager, identityRegistry, userIdentityId));
@@ -272,7 +274,7 @@ public class ProcessesRest implements ResourceContainer {
       }
 
       if (userId != null && userId != currentIdentityId) {
-        return Response.status(Response.Status.FORBIDDEN).entity("Only the current user can be queried").build();
+        return Response.status(Response.Status.FORBIDDEN).entity(ONLY_CURRENT_USER_MESSAGE).build();
       }
       long userIdentityId = currentIdentityId;
       WorkFilter workFilter = new WorkFilter();
@@ -676,7 +678,7 @@ public class ProcessesRest implements ResourceContainer {
       }
 
       if (userId != null && userId != currentIdentityId) {
-        return Response.status(Response.Status.FORBIDDEN).entity("Only the current user can be queried").build();
+        return Response.status(Response.Status.FORBIDDEN).entity(ONLY_CURRENT_USER_MESSAGE).build();
       }
       long userIdentityId = currentIdentityId;
       WorkFilter workFilter = new WorkFilter();

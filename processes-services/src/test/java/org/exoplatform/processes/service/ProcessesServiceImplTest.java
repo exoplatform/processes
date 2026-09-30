@@ -555,7 +555,7 @@ public class ProcessesServiceImplTest {
   }
 
   @Test
-  public void updateWorkIsGuarded() throws Exception {
+  public void updateWorkIsGuarded() {
     assertWorkWriteIsGuarded((workId, userId) -> {
       Work work = storedWork(workId, PROCESS_PROJECT_ID);
       work.setDescription("changed");
@@ -597,7 +597,7 @@ public class ProcessesServiceImplTest {
    * the never-deleted verification.
    */
   @Test
-  public void deleteWorkByIdWithUserIsGuarded() throws Exception {
+  public void deleteWorkByIdWithUserIsGuarded() {
     assertThrows(IllegalArgumentException.class, () -> processesService.deleteWorkById(null, CREATOR_ID));
     assertWorkWriteIsGuarded((workId, userId) -> processesService.deleteWorkById(workId, userId),
                              () -> verify(processesStorage, never()).deleteWorkById(anyLong()),
@@ -605,7 +605,7 @@ public class ProcessesServiceImplTest {
   }
 
   @Test
-  public void updateWorkCompletedWithUserIsGuarded() throws Exception {
+  public void updateWorkCompletedWithUserIsGuarded() {
     assertThrows(IllegalArgumentException.class, () -> processesService.updateWorkCompleted(null, true, CREATOR_ID));
     assertWorkWriteIsGuarded((workId, userId) -> processesService.updateWorkCompleted(workId, true, userId),
                              () -> verify(processesStorage, never()).updateWorkCompleted(anyLong(), anyBoolean()),
@@ -669,8 +669,9 @@ public class ProcessesServiceImplTest {
     assertEquals("oldWorkDraft is not exist", exception3.getMessage());
 
     when(processesStorage.getWorkDraftyId(DRAFT_ID)).thenReturn(storedDraft(CREATOR_ID));
+    Work unchangedDraft = storedDraft(CREATOR_ID);
     Throwable exception4 = assertThrows(IllegalArgumentException.class,
-                                        () -> this.processesService.updateWorkDraft(storedDraft(CREATOR_ID), CREATOR_ID));
+                                        () -> this.processesService.updateWorkDraft(unchangedDraft, CREATOR_ID));
     assertEquals("there are no changes to save", exception4.getMessage());
 
     Work newWork = storedDraft(NON_MEMBER_ID);
