@@ -103,6 +103,7 @@ public class ProcessesRest implements ResourceContainer {
       @ApiResponse(responseCode = "400", description = "Invalid query input"),
       @ApiResponse(responseCode = "404", description = "Not found"),
       @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+      @ApiResponse(responseCode = "403", description = "Forbidden operation"),
       @ApiResponse(responseCode = "500", description = "Internal server error"), })
   public Response getWorkFlows(@Parameter(name = "Identity technical identifier", required = false)
   @QueryParam("userId")
@@ -141,10 +142,10 @@ public class ProcessesRest implements ResourceContainer {
         filter.setQuery(query);
       }
 
-      long userIdentityId = currentIdentityId;
-      if (userId != null) {
-        userIdentityId = userId;
+      if (userId != null && userId != currentIdentityId) {
+        return Response.status(Response.Status.FORBIDDEN).entity("Only the current user can be queried").build();
       }
+      long userIdentityId = currentIdentityId;
       filter.setIsProcessManager(RestUtils.isProcessesGroupMember(identityManager, identityRegistry, userIdentityId));
       List<WorkFlow> workFlows = processesService.getWorkFlows(filter, offset, limit, userIdentityId);
       return Response.ok(EntityBuilder.toRestEntities(workFlows, expand)).build();
@@ -166,6 +167,7 @@ public class ProcessesRest implements ResourceContainer {
   @ApiResponses(value = { @ApiResponse(responseCode = "204", description = "Request fulfilled"),
       @ApiResponse(responseCode = "400", description = "Invalid query input"),
       @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+      @ApiResponse(responseCode = "403", description = "Forbidden operation"),
       @ApiResponse(responseCode = "500", description = "Internal server error"), })
   public Response createWorkFlow(@RequestBody(description = "WorkFlow object to create", required = true)
   WorkFlowEntity workFlowEntity) {
@@ -181,8 +183,10 @@ public class ProcessesRest implements ResourceContainer {
                                                                       currentIdentityId);
       return Response.ok(EntityBuilder.toEntity(newWorkFlow, "")).build();
     } catch (IllegalAccessException e) {
-      LOG.warn("User '{}' attempts to create a Work WorkFlow", e);
-      return Response.status(Response.Status.UNAUTHORIZED).entity(e.getMessage()).build();
+      LOG.debug("User '{}' isn't allowed to create a workflow", currentIdentityId, e);
+      return Response.status(Response.Status.FORBIDDEN).entity("Not allowed to create a workflow").build();
+    } catch (IllegalArgumentException e) {
+      return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error creating a WorkFlow", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -201,6 +205,7 @@ public class ProcessesRest implements ResourceContainer {
   @ApiResponses(value = { @ApiResponse(responseCode = "204", description = "Request fulfilled"),
       @ApiResponse(responseCode = "400", description = "Invalid query input"),
       @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+      @ApiResponse(responseCode = "403", description = "Forbidden operation"),
       @ApiResponse(responseCode = "404", description = "Object to update not found"),
       @ApiResponse(responseCode = "500", description = "Internal server error"), })
   public Response updateWorkFlow(@RequestBody(description = "WorkFlow object to update", required = true)
@@ -220,8 +225,10 @@ public class ProcessesRest implements ResourceContainer {
       LOG.debug("User '{}' attempts to update a not existing work workFlow '{}'", currentIdentityId, e);
       return Response.status(Response.Status.NOT_FOUND).entity("Work workFlow not found").build();
     } catch (IllegalAccessException e) {
-      LOG.error("User '{}' attempts to update a work workFlow for owner '{}'", currentIdentityId, e);
-      return Response.status(Response.Status.UNAUTHORIZED).entity(e.getMessage()).build();
+      LOG.debug("User '{}' isn't allowed to update the workflow", currentIdentityId, e);
+      return Response.status(Response.Status.FORBIDDEN).entity("Not allowed to update this workflow").build();
+    } catch (IllegalArgumentException e) {
+      return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error updating a work workFlow", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -239,6 +246,7 @@ public class ProcessesRest implements ResourceContainer {
   @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
           @ApiResponse(responseCode = "400", description = "Invalid query input"),
           @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "403", description = "Forbidden operation"),
           @ApiResponse(responseCode = "500", description = "Internal server error"), })
   public Response getWorks(@Parameter(description = "Identity technical identifier")
                                   @QueryParam("userId")
@@ -263,10 +271,10 @@ public class ProcessesRest implements ResourceContainer {
         return Response.status(Response.Status.UNAUTHORIZED).build();
       }
 
-      long userIdentityId = currentIdentityId;
-      if (userId != null) {
-        userIdentityId = userId;
+      if (userId != null && userId != currentIdentityId) {
+        return Response.status(Response.Status.FORBIDDEN).entity("Only the current user can be queried").build();
       }
+      long userIdentityId = currentIdentityId;
       WorkFilter workFilter = new WorkFilter();
       if (status != null) {
         workFilter.setStatus(status);
@@ -298,6 +306,8 @@ public class ProcessesRest implements ResourceContainer {
   @ApiResponses(value = { @ApiResponse(responseCode = "204", description = "Request fulfilled"),
           @ApiResponse(responseCode = "400", description = "Invalid query input"),
           @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "403", description = "Forbidden operation"),
+          @ApiResponse(responseCode = "404", description = "Object not found"),
           @ApiResponse(responseCode = "500", description = "Internal server error"), })
   public Response createWork(@RequestBody(description = "Work object to create", required = true)
                                      WorkEntity workEntity) {
@@ -307,9 +317,6 @@ public class ProcessesRest implements ResourceContainer {
     if (workEntity.getProjectId() == 0 && workEntity.getWorkFlow().getProjectId() == 0 ) {
       return Response.status(Response.Status.BAD_REQUEST).entity("Work projectId object is mandatory").build();
     }
-    if (!workEntity.getWorkFlow().isEnabled()) {
-      return Response.status(Response.Status.BAD_REQUEST).entity("Workflow is disabled").build();
-    }
     long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
     if (currentIdentityId == 0) {
       return Response.status(Response.Status.UNAUTHORIZED).build();
@@ -317,9 +324,14 @@ public class ProcessesRest implements ResourceContainer {
     try {
       Work newWork = processesService.createWork(EntityBuilder.toWork(processesService,workEntity),currentIdentityId);
       return Response.ok(EntityBuilder.toWorkEntity(processesService, newWork, "workFlow")).build();
+    } catch (ObjectNotFoundException e) {
+      LOG.debug("User '{}' attempts to create a request on a not existing workflow", currentIdentityId, e);
+      return Response.status(Response.Status.NOT_FOUND).entity("Workflow not found").build();
     } catch (IllegalAccessException e) {
-      LOG.warn("User '{}' attempts to create a Work Work", e);
-      return Response.status(Response.Status.UNAUTHORIZED).entity(e.getMessage()).build();
+      LOG.debug("User '{}' isn't allowed to create a request", currentIdentityId, e);
+      return Response.status(Response.Status.FORBIDDEN).entity("Not allowed to add a request to this workflow").build();
+    } catch (IllegalArgumentException e) {
+      return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error creating a Work", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -338,6 +350,8 @@ public class ProcessesRest implements ResourceContainer {
   @ApiResponses(value = { @ApiResponse(responseCode = "204", description = "Request fulfilled"),
           @ApiResponse(responseCode = "400", description = "Invalid query input"),
           @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "403", description = "Forbidden operation"),
+          @ApiResponse(responseCode = "404", description = "Object not found"),
           @ApiResponse(responseCode = "500", description = "Internal server error"), })
   public Response updateWork(@RequestBody(description = "Work object to update", required = true)
                                          WorkEntity workEntity) {
@@ -355,8 +369,10 @@ public class ProcessesRest implements ResourceContainer {
       LOG.debug("User '{}' attempts to update a not existing work workFlow '{}'", currentIdentityId, e);
       return Response.status(Response.Status.NOT_FOUND).entity("Work workFlow not found").build();
     } catch (IllegalAccessException e) {
-      LOG.error("User '{}' attempts to update a work workFlow for owner '{}'", currentIdentityId, e);
-      return Response.status(Response.Status.UNAUTHORIZED).entity(e.getMessage()).build();
+      LOG.debug("User '{}' isn't allowed to update the request", currentIdentityId, e);
+      return Response.status(Response.Status.FORBIDDEN).entity("Not allowed to update this request").build();
+    } catch (IllegalArgumentException e) {
+      return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error updating a work workFlow", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -402,6 +418,7 @@ public class ProcessesRest implements ResourceContainer {
   @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
           @ApiResponse(responseCode = "400", description = "Invalid query input"),
           @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "403", description = "Forbidden operation"),
           @ApiResponse(responseCode = "404", description = "Object not found"),
           @ApiResponse(responseCode = "500", description = "Internal server error"), })
   public Response deleteWorkflow(@Parameter(description = "Workflow id to delete", required = true)
@@ -410,15 +427,17 @@ public class ProcessesRest implements ResourceContainer {
       return Response.status(Response.Status.BAD_REQUEST).entity("Workflow id is mandatory").build();
     }
     long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
-    Identity identity = ConversationState.getCurrent().getIdentity();
-    if (currentIdentityId == 0 || !RestUtils.isProcessesGroupMember(identity)) {
+    if (currentIdentityId == 0) {
       return Response.status(Response.Status.UNAUTHORIZED).build();
     }
     try {
-      this.processesService.deleteWorkflowById(workflowId);
+      this.processesService.deleteWorkflowById(workflowId, currentIdentityId);
       return Response.ok("ok").type(MediaType.TEXT_PLAIN).build();
-    } catch (EntityNotFoundException e) {
+    } catch (ObjectNotFoundException | EntityNotFoundException e) {
       return Response.status(Response.Status.NOT_FOUND).build();
+    } catch (IllegalAccessException e) {
+      LOG.debug("User '{}' isn't allowed to delete the workflow '{}'", currentIdentityId, workflowId, e);
+      return Response.status(Response.Status.FORBIDDEN).entity("Not allowed to delete this workflow").build();
     } catch (Exception e) {
       LOG.warn("Error while deleting a workflow", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -472,6 +491,8 @@ public class ProcessesRest implements ResourceContainer {
   @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
           @ApiResponse(responseCode = "400", description = "Invalid query input"),
           @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "403", description = "Forbidden operation"),
+          @ApiResponse(responseCode = "404", description = "Object not found"),
           @ApiResponse(responseCode = "500", description = "Internal server error"), })
   public Response deleteWork(@Parameter(description = "work id to delete", required = true)
                              @PathParam("workId") Long workId) {
@@ -484,8 +505,13 @@ public class ProcessesRest implements ResourceContainer {
       return Response.status(Response.Status.UNAUTHORIZED).build();
     }
     try {
-      processesService.deleteWorkById(workId);
+      processesService.deleteWorkById(workId, currentIdentityId);
       return Response.ok("ok").type(MediaType.TEXT_PLAIN).build();
+    } catch (ObjectNotFoundException e) {
+      return Response.status(Response.Status.NOT_FOUND).entity("Request not found").build();
+    } catch (IllegalAccessException e) {
+      LOG.debug("User '{}' isn't allowed to delete the request '{}'", currentIdentityId, workId, e);
+      return Response.status(Response.Status.FORBIDDEN).entity("Not allowed to delete this request").build();
     } catch (Exception e) {
       LOG.error("Error while deleting a work", e);
       return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
@@ -503,6 +529,8 @@ public class ProcessesRest implements ResourceContainer {
   @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
           @ApiResponse(responseCode = "400", description = "Invalid query input"),
           @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "403", description = "Forbidden operation"),
+          @ApiResponse(responseCode = "404", description = "Object not found"),
           @ApiResponse(responseCode = "500", description = "Internal server error"), })
   public Response updateWorkCompleted(@Parameter(description = "completed object property", required = true) Map<String,Boolean> completed,
                                       @Parameter(description = "work id to be updated", required = true)
@@ -523,10 +551,13 @@ public class ProcessesRest implements ResourceContainer {
       return Response.status(Response.Status.BAD_REQUEST).entity("completed property value should not be null").build();
     }
     try {
-      Work newWork = processesService.updateWorkCompleted(workId, completedValue);
+      Work newWork = processesService.updateWorkCompleted(workId, completedValue, currentIdentityId);
       return Response.ok(EntityBuilder.toWorkEntity(processesService, newWork, "workFlow")).build();
-    } catch (EntityNotFoundException e) {
+    } catch (ObjectNotFoundException | EntityNotFoundException e) {
       return Response.status(Response.Status.NOT_FOUND).build();
+    } catch (IllegalAccessException e) {
+      LOG.debug("User '{}' isn't allowed to update the request '{}'", currentIdentityId, workId, e);
+      return Response.status(Response.Status.FORBIDDEN).entity("Not allowed to update this request").build();
     } catch (Exception e) {
       LOG.error("Error while canceling a work", e);
       return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
@@ -545,6 +576,8 @@ public class ProcessesRest implements ResourceContainer {
   @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
                           @ApiResponse(responseCode = "400", description = "Invalid query input"),
                           @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+                          @ApiResponse(responseCode = "403", description = "Forbidden operation"),
+                          @ApiResponse(responseCode = "404", description = "Object not found"),
                           @ApiResponse(responseCode = "500", description = "Internal server error"), })
   public Response createWorkDraft(@RequestBody(description = "WorkDaft object to create", required = true)
   WorkEntity workEntity) {
@@ -558,6 +591,13 @@ public class ProcessesRest implements ResourceContainer {
     try {
       Work newWork = processesService.createWorkDraft(EntityBuilder.fromEntity(workEntity), currentIdentityId);
       return Response.ok(EntityBuilder.toEntity(newWork)).build();
+    } catch (ObjectNotFoundException e) {
+      return Response.status(Response.Status.NOT_FOUND).entity("Workflow not found").build();
+    } catch (IllegalAccessException e) {
+      LOG.debug("User '{}' isn't allowed to create a request draft", currentIdentityId, e);
+      return Response.status(Response.Status.FORBIDDEN).entity("Not allowed to add a request to this workflow").build();
+    } catch (IllegalArgumentException e) {
+      return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error creating a work draft", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -576,6 +616,8 @@ public class ProcessesRest implements ResourceContainer {
   @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
                           @ApiResponse(responseCode = "400", description = "Invalid query input"),
                           @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+                          @ApiResponse(responseCode = "403", description = "Forbidden operation"),
+                          @ApiResponse(responseCode = "404", description = "Object not found"),
                           @ApiResponse(responseCode = "500", description = "Internal server error"), })
   public Response updateWorkDraft(@RequestBody(description = "Work object to update", required = true)
   WorkEntity workEntity) {
@@ -592,6 +634,11 @@ public class ProcessesRest implements ResourceContainer {
     } catch (ObjectNotFoundException e) {
       LOG.debug("User '{}' attempts to update a not existing Work draft '{}'", currentIdentityId, e);
       return Response.status(Response.Status.NOT_FOUND).entity("Work draft not found").build();
+    } catch (IllegalAccessException e) {
+      LOG.debug("User '{}' isn't allowed to update the request draft", currentIdentityId, e);
+      return Response.status(Response.Status.FORBIDDEN).entity("Not allowed to update this request draft").build();
+    } catch (IllegalArgumentException e) {
+      return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error updating a Work draft", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -608,6 +655,7 @@ public class ProcessesRest implements ResourceContainer {
           method = "GET")
   @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
           @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "403", description = "Forbidden operation"),
           @ApiResponse(responseCode = "500", description = "Internal server error"), })
   public Response getWorkDrafts(@Parameter(description = "Identity technical identifier", required = false)
                                 @QueryParam("userId") Long userId,
@@ -627,10 +675,10 @@ public class ProcessesRest implements ResourceContainer {
         return Response.status(Response.Status.UNAUTHORIZED).build();
       }
 
-      long userIdentityId = currentIdentityId;
-      if (userId != null) {
-        userIdentityId = userId;
+      if (userId != null && userId != currentIdentityId) {
+        return Response.status(Response.Status.FORBIDDEN).entity("Only the current user can be queried").build();
       }
+      long userIdentityId = currentIdentityId;
       WorkFilter workFilter = new WorkFilter();
       if (query != null) {
         workFilter.setQuery(query);
@@ -655,6 +703,7 @@ public class ProcessesRest implements ResourceContainer {
   @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
           @ApiResponse(responseCode = "400", description = "Invalid query input"),
           @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "403", description = "Forbidden operation"),
           @ApiResponse(responseCode = "404", description = "Object not found"),
           @ApiResponse(responseCode = "500", description = "Internal server error"), })
   public Response deleteWorkDraft(@Parameter(description = "Work draft id to delete", required = true)
@@ -667,10 +716,13 @@ public class ProcessesRest implements ResourceContainer {
       return Response.status(Response.Status.UNAUTHORIZED).build();
     }
     try {
-      this.processesService.deleteWorkDraftById(workflowId);
+      this.processesService.deleteWorkDraftById(workflowId, currentIdentityId);
       return Response.ok("ok").type(MediaType.TEXT_PLAIN).build();
-    } catch (EntityNotFoundException e) {
+    } catch (ObjectNotFoundException | EntityNotFoundException e) {
       return Response.status(Response.Status.NOT_FOUND).entity("Work draft not found").build();
+    } catch (IllegalAccessException e) {
+      LOG.debug("User '{}' isn't allowed to delete the request draft '{}'", currentIdentityId, workflowId, e);
+      return Response.status(Response.Status.FORBIDDEN).entity("Not allowed to delete this request draft").build();
     } catch (Exception e) {
       LOG.warn("Error while deleting a work draft", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -840,6 +892,8 @@ public class ProcessesRest implements ResourceContainer {
   @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
           @ApiResponse(responseCode = "500", description = "Internal server error"),
           @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "403", description = "Forbidden operation"),
           @ApiResponse(responseCode = "404", description = "Resource not found") })
   public Response getImageIllustration(@Context Request request,
                                              @Parameter(description = "workflow id", required = true) @PathParam("workflowId") Long workflowId,
@@ -848,13 +902,12 @@ public class ProcessesRest implements ResourceContainer {
     if (workflowId == null) {
       return Response.status(Response.Status.BAD_REQUEST).entity("workflow id is mandatory").build();
     }
+    long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    if (currentIdentityId == 0) {
+      return Response.status(Response.Status.UNAUTHORIZED).build();
+    }
     try {
-      WorkFlow workFlow = processesService.getWorkFlow(workflowId, null);
-      if (workFlow == null) {
-        return Response.status(Response.Status.NOT_FOUND).entity("workflow not found").build();
-      }
-      Long illustrationId = workFlow.getIllustrativeAttachment().getId();
-      IllustrativeAttachment illustrativeAttachment = processesService.getIllustrationImageById(illustrationId);
+      IllustrativeAttachment illustrativeAttachment = processesService.getWorkFlowIllustration(workflowId, currentIdentityId);
       Long lastUpdated = illustrativeAttachment.getLastUpdated();
       EntityTag eTag = new EntityTag(String.valueOf(lastUpdated), true);
       Response.ResponseBuilder builder = request.evaluatePreconditions(eTag);
@@ -870,8 +923,11 @@ public class ProcessesRest implements ResourceContainer {
       }
       return builder.build();
     } catch (ObjectNotFoundException e) {
-      LOG.error("Illustrative image not found", e);
+      LOG.debug("Illustrative image of workflow '{}' not found", workflowId, e);
       return Response.status(Response.Status.NOT_FOUND).build();
+    } catch (IllegalAccessException e) {
+      LOG.debug("User '{}' isn't allowed to see the workflow '{}'", currentIdentityId, workflowId, e);
+      return Response.status(Response.Status.FORBIDDEN).build();
     } catch (Exception e) {
       LOG.error("An error occurred while getting image illustration", e);
       return Response.serverError().build();

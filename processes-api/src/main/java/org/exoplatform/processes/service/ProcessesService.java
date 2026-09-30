@@ -77,19 +77,35 @@ public interface ProcessesService {
    * @param work Work Object
    * @param userId user id
    * @return {@link Work}
-   * @throws IllegalAccessException
+   * @throws IllegalAccessException when the user can't add a request to the
+   *           work's process
+   * @throws ObjectNotFoundException when the work's project isn't a process
+   *           project
    */
-  Work createWork(Work work, long userId) throws IllegalAccessException;
+  Work createWork(Work work, long userId) throws IllegalAccessException, ObjectNotFoundException;
 
   Work updateWork(Work work, long userId) throws IllegalArgumentException,
             ObjectNotFoundException,
             IllegalAccessException;
   /**
-   * Delete a workflow by its given Id.
+   * Delete a workflow by its given Id, without any permission check.
    *
    * @param workflowId : workflow id
+   * @deprecated use {@link #deleteWorkflowById(Long, long)} instead, which
+   *             checks the user's permission. Since 7.3.0, for removal.
    */
+  @Deprecated(forRemoval = true)
   void deleteWorkflowById(Long workflowId);
+
+  /**
+   * Delete a workflow by its given Id, when the user is allowed to delete it
+   *
+   * @param workflowId workflow id
+   * @param userIdentityId user identity id
+   * @throws ObjectNotFoundException when the workflow doesn't exist
+   * @throws IllegalAccessException when the user isn't allowed to delete it
+   */
+  void deleteWorkflowById(Long workflowId, long userIdentityId) throws ObjectNotFoundException, IllegalAccessException;
 
   /**
    * @param projectId: Tasks project id
@@ -100,20 +116,54 @@ public interface ProcessesService {
   int countWorksByWorkflow(Long projectId, Boolean isCompleted) throws Exception;
 
   /**
-   * Delete a work by its given id.
+   * Delete a work by its given id, without any permission check.
    *
    * @param workId: Work id
+   * @deprecated use {@link #deleteWorkById(Long, long)} instead, which checks
+   *             the user's permission. Since 7.3.0, for removal.
    */
+  @Deprecated(forRemoval = true)
   void deleteWorkById(Long workId);
 
   /**
-   * update the completed property of the task of a work to completed or uncompleted
+   * Delete a work by its given id, when the user is its creator or a manager
+   * of its process
+   *
+   * @param workId Work id
+   * @param userIdentityId user identity id
+   * @throws ObjectNotFoundException when the work doesn't exist
+   * @throws IllegalAccessException when the task isn't a request of a process,
+   *           or when the user isn't allowed to manage it
+   */
+  void deleteWorkById(Long workId, long userIdentityId) throws ObjectNotFoundException, IllegalAccessException;
+
+  /**
+   * update the completed property of the task of a work to completed or
+   * uncompleted, without any permission check.
    *
    * @param workId work id
    * @param completed work completed property, can be true or false
    * @return {@link Work}
+   * @deprecated use {@link #updateWorkCompleted(Long, boolean, long)} instead,
+   *             which checks the user's permission. Since 7.3.0, for removal.
    */
+  @Deprecated(forRemoval = true)
   Work updateWorkCompleted(Long workId, boolean completed);
+
+  /**
+   * update the completed property of the task of a work to completed or
+   * uncompleted, when the user is its creator or a manager of its process
+   *
+   * @param workId work id
+   * @param completed work completed property, can be true or false
+   * @param userIdentityId user identity id
+   * @return {@link Work}
+   * @throws ObjectNotFoundException when the work doesn't exist
+   * @throws IllegalAccessException when the task isn't a request of a process,
+   *           or when the user isn't allowed to manage it
+   */
+  Work updateWorkCompleted(Long workId, boolean completed, long userIdentityId) throws ObjectNotFoundException,
+                                                                                IllegalAccessException;
 
   /**
    * Creates a work draft
@@ -122,8 +172,11 @@ public interface ProcessesService {
    * @param userId user identity
    * @return {@link Work}
    * @throws IllegalArgumentException
+   * @throws ObjectNotFoundException when the draft's process doesn't exist
+   * @throws IllegalAccessException when the user can't add a request to the
+   *           draft's process
    */
-  Work createWorkDraft(Work work, long userId) throws IllegalArgumentException;
+  Work createWorkDraft(Work work, long userId) throws IllegalArgumentException, ObjectNotFoundException, IllegalAccessException;
 
   /**
    * Updates a work draft
@@ -133,8 +186,9 @@ public interface ProcessesService {
    * @return {@link Work}
    * @throws IllegalArgumentException
    * @throws ObjectNotFoundException
+   * @throws IllegalAccessException when the user isn't the draft's creator
    */
-  Work updateWorkDraft(Work work, long userId) throws IllegalArgumentException, ObjectNotFoundException;
+  Work updateWorkDraft(Work work, long userId) throws IllegalArgumentException, ObjectNotFoundException, IllegalAccessException;
 
   /**
    * Retrieves a list of accessible WorkDraft, for a selected user
@@ -148,11 +202,24 @@ public interface ProcessesService {
   List<Work> getWorkDrafts(long userIdentityId, WorkFilter workFilter, int offset, int limit);
 
   /**
-   * Deletes a work draft by its given id
+   * Deletes a work draft by its given id, without any permission check.
    *
    * @param id Work draft id
+   * @deprecated use {@link #deleteWorkDraftById(Long, long)} instead, which
+   *             checks the user's permission. Since 7.3.0, for removal.
    */
+  @Deprecated(forRemoval = true)
   void deleteWorkDraftById(Long id);
+
+  /**
+   * Deletes a work draft by its given id, when the user is its creator
+   *
+   * @param id Work draft id
+   * @param userIdentityId user identity id
+   * @throws ObjectNotFoundException when the draft doesn't exist
+   * @throws IllegalAccessException when the user isn't the draft's creator
+   */
+  void deleteWorkDraftById(Long id, long userIdentityId) throws ObjectNotFoundException, IllegalAccessException;
 
   /**
    * Retrieves the list of available statuses in all workflows
@@ -190,4 +257,23 @@ public interface ProcessesService {
   IllustrativeAttachment getIllustrationImageById(Long illustrationId) throws FileStorageException,
                                                                        ObjectNotFoundException,
                                                                        IOException;
+
+  /**
+   * Retrieves the illustration image of a workflow, when the user can see the
+   * workflow: a member of its participators or of its request creators, or a
+   * processes manager
+   *
+   * @param workflowId workflow id
+   * @param userIdentityId user identity id
+   * @return {@link IllustrativeAttachment}
+   * @throws ObjectNotFoundException when the workflow doesn't exist or has no
+   *           illustration
+   * @throws IllegalAccessException when the user can't see the workflow
+   * @throws FileStorageException
+   * @throws IOException
+   */
+  IllustrativeAttachment getWorkFlowIllustration(long workflowId, long userIdentityId) throws ObjectNotFoundException,
+                                                                                       IllegalAccessException,
+                                                                                       FileStorageException,
+                                                                                       IOException;
 }
