@@ -80,6 +80,8 @@ public class ProcessesRest implements ResourceContainer {
 
   static {
     ILLUSTRATION_CACHE_CONTROL.setMaxAge(CACHE_DURATION_SECONDS);
+    // The illustration is served only to the users who see the process
+    ILLUSTRATION_CACHE_CONTROL.setPrivate(true);
   }
 
   public ProcessesRest(ProcessesService processesService,
@@ -878,6 +880,11 @@ public class ProcessesRest implements ResourceContainer {
       return Response.status(Response.Status.CONFLICT)
                      .entity("Document with the same name already exist in this current path")
                      .build();
+    } catch (ObjectNotFoundException e) {
+      return Response.status(Response.Status.NOT_FOUND).entity("Workflow not found").build();
+    } catch (IllegalAccessException e) {
+      LOG.debug("User '{}' isn't allowed to add a document to the workflow '{}'", currentIdentityId, entityId, e);
+      return Response.status(Response.Status.FORBIDDEN).entity("Not allowed to edit this workflow").build();
     } catch (Exception e) {
       LOG.error("Error when trying to a new document with type ", templateName, e);
       return Response.serverError().entity("Error when trying to a new document with type " + templateName).build();

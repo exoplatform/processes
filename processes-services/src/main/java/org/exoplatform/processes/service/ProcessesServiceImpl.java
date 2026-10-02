@@ -18,6 +18,7 @@ package org.exoplatform.processes.service;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.file.services.FileStorageException;
@@ -33,7 +34,13 @@ import org.exoplatform.task.service.ProjectService;
 
 public class ProcessesServiceImpl implements ProcessesService {
 
-  private static final String    PROCESSES_GROUP = "/platform/processes";
+  private static final String      PROCESSES_GROUP     = "/platform/processes";
+
+  private static final String      STATUS_CANCELED     = "Canceled";
+
+  private static final Set<String> PENDING_STATUSES    = Set.of("Request", "RequestInProgress");
+
+  private static final Set<String> DECIDED_STATUSES    = Set.of("Validated", "Refused");
 
   private final ProcessesStorage processesStorage;
 
@@ -167,6 +174,11 @@ public class ProcessesServiceImpl implements ProcessesService {
     Work oldWork = getManageableWork(work.getId(), userId);
     // The request stays in its process project, whatever the client sent
     work.setProjectId(oldWork.getProjectId());
+    if (!checkRequesterChange(oldWork, work.getStatus(), work.isCompleted(), userId)) {
+      // A requester who doesn't manage the process only cancels: the content stays
+      work.setTitle(oldWork.getTitle());
+      work.setDescription(oldWork.getDescription());
+    }
     if (oldWork.equals(work)) {
       throw new IllegalArgumentException("there are no changes to save");
     }
@@ -259,7 +271,8 @@ public class ProcessesServiceImpl implements ProcessesService {
     if (workId == null) {
       throw new IllegalArgumentException("Work id is mandatory");
     }
-    getManageableWork(workId, userIdentityId);
+    Work work = getManageableWork(workId, userIdentityId);
+    checkRequesterChange(work, work.getStatus(), completed, userIdentityId);
     return processesStorage.updateWorkCompleted(workId, completed);
   }
 
@@ -444,6 +457,32 @@ public class ProcessesServiceImpl implements ProcessesService {
       throw new IllegalAccessException("User " + userIdentityId + " isn't the creator of the request draft " + draftId);
     }
     return draft;
+  }
+
+  /**
+   * Checks the change a user asks on a request they may manage: a manager of
+   * the process may set any status, the requester alone may only cancel a
+   * pending request, and never reopen a decided one
+   *
+   * @return true when the user manages the request's process, false when the
+   *         user is its requester only
+   */
+  private boolean checkRequesterChange(Work storedWork,
+                                       String status,
+                                       boolean completed,
+                                       long userIdentityId) throws IllegalAccessException {
+    if (isWorkFlowManager(getAclIdentity(userIdentityId), storedWork.getProjectId())) {
+      return true;
+    }
+    boolean statusChanged = status != null && !status.equals(storedWork.getStatus());
+    if (statusChanged
+        && !(STATUS_CANCELED.equals(status) && completed && PENDING_STATUSES.contains(storedWork.getStatus()))) {
+      throw new IllegalAccessException("User " + userIdentityId + " can only cancel the pending request " + storedWork.getId());
+    }
+    if (!completed && DECIDED_STATUSES.contains(storedWork.getStatus())) {
+      throw new IllegalAccessException("User " + userIdentityId + " can't reopen the decided request " + storedWork.getId());
+    }
+    return false;
   }
 
   private boolean isWorkFlowManager(org.exoplatform.services.security.Identity aclIdentity, long projectId) {

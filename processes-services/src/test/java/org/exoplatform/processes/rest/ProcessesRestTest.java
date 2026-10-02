@@ -675,6 +675,26 @@ public class ProcessesRestTest {
                                                           anyLong());
     Response response6 = processesRest.createNewFormDocument("any", "any", "any", "any", "workflow", 1L);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response6.getStatus());
+    doThrow(new IllegalAccessException()).when(processesAttachmentService)
+                                         .createNewFormDocument(anyLong(),
+                                                                anyString(),
+                                                                anyString(),
+                                                                anyString(),
+                                                                anyString(),
+                                                                anyString(),
+                                                                anyLong());
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(),
+                 processesRest.createNewFormDocument("any", "any", "any", "any", "workflow", 1L).getStatus());
+    doThrow(new ObjectNotFoundException("")).when(processesAttachmentService)
+                                            .createNewFormDocument(anyLong(),
+                                                                   anyString(),
+                                                                   anyString(),
+                                                                   anyString(),
+                                                                   anyString(),
+                                                                   anyString(),
+                                                                   anyLong());
+    assertEquals(Response.Status.NOT_FOUND.getStatusCode(),
+                 processesRest.createNewFormDocument("any", "any", "any", "any", "workflow", 1L).getStatus());
   }
 
   @Test
@@ -745,6 +765,8 @@ public class ProcessesRestTest {
     assertEquals(Response.Status.OK.getStatusCode(), response2.getStatus());
     Response response3 = processesRest.getImageIllustration(request, 1L, 133584);
     assertEquals(Response.Status.OK.getStatusCode(), response3.getStatus());
+    // An illustration served after an ACL check is never stored by a shared cache
+    assertTrue(((javax.ws.rs.core.CacheControl) response3.getMetadata().getFirst("Cache-Control")).isPrivate());
     doThrow(new RuntimeException()).when(processesService).getWorkFlowIllustration(1L, 1L);
     Response response5 = processesRest.getImageIllustration(request, 1L, 133584);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response5.getStatus());

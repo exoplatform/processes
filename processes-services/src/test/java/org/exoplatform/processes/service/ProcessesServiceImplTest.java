@@ -7,6 +7,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -57,6 +58,8 @@ public class ProcessesServiceImplTest {
   private static final long      WORK_ID             = 100L;
 
   private static final long      NON_PROCESS_TASK_ID = 200L;
+
+  private static final long      DECIDED_WORK_ID     = 101L;
 
   private static final long      UNKNOWN_ID          = 999L;
 
@@ -155,6 +158,10 @@ public class ProcessesServiceImplTest {
 
     when(processesStorage.getWorkById(WORK_ID)).thenReturn(storedWork(WORK_ID, PROCESS_PROJECT_ID));
     when(processesStorage.getWorkById(NON_PROCESS_TASK_ID)).thenReturn(storedWork(NON_PROCESS_TASK_ID, OTHER_PROJECT_ID));
+    Work decidedWork = storedWork(DECIDED_WORK_ID, PROCESS_PROJECT_ID);
+    decidedWork.setStatus("Validated");
+    decidedWork.setCompleted(true);
+    when(processesStorage.getWorkById(DECIDED_WORK_ID)).thenReturn(decidedWork);
     when(processesStorage.getWorkById(UNKNOWN_ID)).thenReturn(null);
   }
 
@@ -533,8 +540,8 @@ public class ProcessesServiceImplTest {
 
     Work newWork = storedWork(WORK_ID, PROCESS_PROJECT_ID);
     newWork.setDescription("anything");
-    processesService.updateWork(newWork, CREATOR_ID);
-    verify(processesStorage, times(1)).saveWork(newWork, CREATOR_ID);
+    processesService.updateWork(newWork, PROJECT_MANAGER_ID);
+    verify(processesStorage, times(1)).saveWork(newWork, PROJECT_MANAGER_ID);
   }
 
   /**
@@ -547,7 +554,7 @@ public class ProcessesServiceImplTest {
     Work work = storedWork(WORK_ID, OTHER_PROJECT_ID);
     work.setStatus("Validated");
 
-    processesService.updateWork(work, CREATOR_ID);
+    processesService.updateWork(work, PROJECT_MANAGER_ID);
 
     ArgumentCaptor<Work> saved = ArgumentCaptor.forClass(Work.class);
     verify(processesStorage).saveWork(saved.capture(), anyLong());
@@ -558,11 +565,62 @@ public class ProcessesServiceImplTest {
   public void updateWorkIsGuarded() {
     assertWorkWriteIsGuarded((workId, userId) -> {
       Work work = storedWork(workId, PROCESS_PROJECT_ID);
-      work.setDescription("changed");
+      work.setStatus("Canceled");
+      work.setCompleted(true);
       processesService.updateWork(work, userId);
     },
                              () -> verify(processesStorage, never()).saveWork(any(), anyLong()),
                              () -> verify(processesStorage, times(4)).saveWork(any(), anyLong()));
+  }
+
+  /**
+   * A requester who doesn't manage the process only cancels a pending request:
+   * setting any other status or cancelling a decided request is refused, and a
+   * content change is ignored, while a manager of the process may set any
+   * status. Mutation: drop the status guard, the content reset or the manager
+   * branch, and this test fails.
+   */
+  @Test
+  public void updateWorkLetsTheRequesterOnlyCancel() throws Exception {
+    Work validation = storedWork(WORK_ID, PROCESS_PROJECT_ID);
+    validation.setStatus("Validated");
+    validation.setCompleted(true);
+    assertThrows(IllegalAccessException.class, () -> processesService.updateWork(validation, CREATOR_ID));
+    Work decidedCancel = storedWork(DECIDED_WORK_ID, PROCESS_PROJECT_ID);
+    decidedCancel.setStatus("Canceled");
+    decidedCancel.setCompleted(true);
+    assertThrows(IllegalAccessException.class, () -> processesService.updateWork(decidedCancel, CREATOR_ID));
+    verify(processesStorage, never()).saveWork(any(), anyLong());
+
+    Work cancel = storedWork(WORK_ID, PROCESS_PROJECT_ID);
+    cancel.setStatus("Canceled");
+    cancel.setCompleted(true);
+    cancel.setDescription("rewritten");
+    processesService.updateWork(cancel, CREATOR_ID);
+    ArgumentCaptor<Work> saved = ArgumentCaptor.forClass(Work.class);
+    verify(processesStorage).saveWork(saved.capture(), eq(CREATOR_ID));
+    assertEquals("Canceled", saved.getValue().getStatus());
+    assertEquals("description", saved.getValue().getDescription());
+
+    processesService.updateWork(validation, PROJECT_MANAGER_ID);
+    verify(processesStorage).saveWork(validation, PROJECT_MANAGER_ID);
+  }
+
+  /**
+   * A requester who doesn't manage the process can't reopen a decided request,
+   * while a manager can, and the requester can still reopen a pending one.
+   * Mutation: drop the reopen guard, or the manager branch, and this test
+   * fails.
+   */
+  @Test
+  public void updateWorkCompletedNeverLetsTheRequesterReopenADecision() throws Exception {
+    assertThrows(IllegalAccessException.class, () -> processesService.updateWorkCompleted(DECIDED_WORK_ID, false, CREATOR_ID));
+    verify(processesStorage, never()).updateWorkCompleted(anyLong(), anyBoolean());
+
+    processesService.updateWorkCompleted(WORK_ID, false, CREATOR_ID);
+    processesService.updateWorkCompleted(DECIDED_WORK_ID, false, PROJECT_MANAGER_ID);
+    verify(processesStorage).updateWorkCompleted(WORK_ID, false);
+    verify(processesStorage).updateWorkCompleted(DECIDED_WORK_ID, false);
   }
 
   @Test
