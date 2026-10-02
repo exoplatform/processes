@@ -78,6 +78,8 @@ public class ProcessesRest implements ResourceContainer {
 
   private static final String              ONLY_CURRENT_USER_MESSAGE = "Only the current user can be queried";
 
+  private static final String              WORKFLOW_NOT_FOUND_MESSAGE = "Workflow not found";
+
   static {
     ILLUSTRATION_CACHE_CONTROL.setMaxAge(CACHE_DURATION_SECONDS);
     // The illustration is served only to the users who see the process
@@ -330,7 +332,7 @@ public class ProcessesRest implements ResourceContainer {
       return Response.ok(EntityBuilder.toWorkEntity(processesService, newWork, "workFlow")).build();
     } catch (ObjectNotFoundException e) {
       LOG.debug("User '{}' attempts to create a request on a not existing workflow", currentIdentityId, e);
-      return Response.status(Response.Status.NOT_FOUND).entity("Workflow not found").build();
+      return Response.status(Response.Status.NOT_FOUND).entity(WORKFLOW_NOT_FOUND_MESSAGE).build();
     } catch (IllegalAccessException e) {
       LOG.debug("User '{}' isn't allowed to create a request", currentIdentityId, e);
       return Response.status(Response.Status.FORBIDDEN).entity("Not allowed to add a request to this workflow").build();
@@ -596,7 +598,7 @@ public class ProcessesRest implements ResourceContainer {
       Work newWork = processesService.createWorkDraft(EntityBuilder.fromEntity(workEntity), currentIdentityId);
       return Response.ok(EntityBuilder.toEntity(newWork)).build();
     } catch (ObjectNotFoundException e) {
-      return Response.status(Response.Status.NOT_FOUND).entity("Workflow not found").build();
+      return Response.status(Response.Status.NOT_FOUND).entity(WORKFLOW_NOT_FOUND_MESSAGE).build();
     } catch (IllegalAccessException e) {
       LOG.debug("User '{}' isn't allowed to create a request draft", currentIdentityId, e);
       return Response.status(Response.Status.FORBIDDEN).entity("Not allowed to add a request to this workflow").build();
@@ -881,7 +883,7 @@ public class ProcessesRest implements ResourceContainer {
                      .entity("Document with the same name already exist in this current path")
                      .build();
     } catch (ObjectNotFoundException e) {
-      return Response.status(Response.Status.NOT_FOUND).entity("Workflow not found").build();
+      return Response.status(Response.Status.NOT_FOUND).entity(WORKFLOW_NOT_FOUND_MESSAGE).build();
     } catch (IllegalAccessException e) {
       LOG.debug("User '{}' isn't allowed to add a document to the workflow '{}'", currentIdentityId, entityId, e);
       return Response.status(Response.Status.FORBIDDEN).entity("Not allowed to edit this workflow").build();
