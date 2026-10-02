@@ -41,6 +41,8 @@ import org.exoplatform.services.security.MembershipEntry;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.core.space.model.Space;
+import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.service.ProjectService;
 
@@ -93,6 +95,9 @@ public class ProcessesServiceImplTest {
   @Mock
   private UserACL                userACL;
 
+  @Mock
+  private SpaceService           spaceService;
+
   private ProcessesService       processesService;
 
   private WorkFlow               disabledWorkFlow, enabledWorkFlow;
@@ -114,7 +119,7 @@ public class ProcessesServiceImplTest {
 
   @Before
   public void setUp() throws Exception {
-    this.processesService = new ProcessesServiceImpl(processesStorage, projectService, identityManager, userACL);
+    this.processesService = new ProcessesServiceImpl(processesStorage, projectService, identityManager, userACL, spaceService);
     disabledWorkFlow = new WorkFlow();
     disabledWorkFlow.setEnabled(false);
     enabledWorkFlow = new WorkFlow();
@@ -391,6 +396,45 @@ public class ProcessesServiceImplTest {
     processesService.getWorkFlowIllustration(WORKFLOW_ID, PARTICIPANT_ID);
     processesService.getWorkFlowIllustration(WORKFLOW_ID, CREATOR_ID);
     verify(processesStorage, times(2)).getIllustrationImageById(55L);
+  }
+
+  /**
+   * Moving a process to another space hands its project, and the management of
+   * its requests, to the target space's managers: an editor of the process who
+   * isn't a processes manager may move it only as a manager of both spaces.
+   * Mutation: drop the move guard, its current-space or target-space check, or
+   * the processes manager branch, and this test fails.
+   */
+  @Test
+  public void updateWorkflowSpaceMoveIsGuarded() throws Exception {
+    Space currentSpace = new Space();
+    currentSpace.setId("1");
+    currentSpace.setGroupId(PROCESS_SPACE_GROUP);
+    Space targetSpace = new Space();
+    targetSpace.setId("2");
+    targetSpace.setGroupId("/spaces/sales");
+    when(spaceService.getSpaceByGroupId(PROCESS_SPACE_GROUP)).thenReturn(currentSpace);
+    when(spaceService.getSpaceById("2")).thenReturn(targetSpace);
+    for (long userId : Arrays.asList(PARTICIPANT_ID, PROJECT_MANAGER_ID, OTHER_SPACE_ID, PROCESSES_ADMIN_ID)) {
+      WorkFlow storedWorkFlow = new WorkFlow();
+      storedWorkFlow.setId(WORKFLOW_ID);
+      storedWorkFlow.setProjectId(PROCESS_PROJECT_ID);
+      storedWorkFlow.setAcl(new ProcessPermission(true, true, false, false));
+      when(processesStorage.getWorkFlowById(WORKFLOW_ID, userId)).thenReturn(storedWorkFlow);
+    }
+    when(spaceService.isManager(currentSpace, "manager")).thenReturn(true);
+    when(spaceService.isManager(targetSpace, "otherspace")).thenReturn(true);
+
+    assertThrows(IllegalAccessException.class, () -> processesService.updateWorkFlow(movedWorkFlow("2"), PARTICIPANT_ID));
+    assertThrows(IllegalAccessException.class, () -> processesService.updateWorkFlow(movedWorkFlow("2"), PROJECT_MANAGER_ID));
+    assertThrows(IllegalAccessException.class, () -> processesService.updateWorkFlow(movedWorkFlow("2"), OTHER_SPACE_ID));
+    verify(processesStorage, never()).saveWorkFlow(any(), anyLong());
+
+    processesService.updateWorkFlow(movedWorkFlow("1"), PARTICIPANT_ID);
+    processesService.updateWorkFlow(movedWorkFlow("2"), PROCESSES_ADMIN_ID);
+    when(spaceService.isManager(targetSpace, "manager")).thenReturn(true);
+    processesService.updateWorkFlow(movedWorkFlow("2"), PROJECT_MANAGER_ID);
+    verify(processesStorage, times(3)).saveWorkFlow(any(), anyLong());
   }
 
   @Test
@@ -875,6 +919,14 @@ public class ProcessesServiceImplTest {
     WorkFlow workFlow = new WorkFlow();
     workFlow.setId(WORKFLOW_ID);
     return new Work(DRAFT_ID, "draft", "description", creatorId, null, null, null, true, workFlow);
+  }
+
+  private WorkFlow movedWorkFlow(String spaceId) {
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setId(WORKFLOW_ID);
+    workFlow.setDescription("moved");
+    workFlow.setSpaceId(spaceId);
+    return workFlow;
   }
 
   private WorkFlow requestableWorkFlow(boolean enabled, boolean canAddRequest) {

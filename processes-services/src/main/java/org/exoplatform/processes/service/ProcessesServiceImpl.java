@@ -24,10 +24,13 @@ import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.file.services.FileStorageException;
 import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.processes.model.*;
+import org.exoplatform.processes.Utils.ProcessesUtils;
 import org.exoplatform.processes.storage.ProcessesStorage;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.core.space.model.Space;
+import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.service.ProjectService;
@@ -50,14 +53,18 @@ public class ProcessesServiceImpl implements ProcessesService {
 
   private final UserACL          userACL;
 
+  private final SpaceService     spaceService;
+
   public ProcessesServiceImpl(ProcessesStorage processesStorage,
                               ProjectService projectService,
                               IdentityManager identityManager,
-                              UserACL userACL) {
+                              UserACL userACL,
+                              SpaceService spaceService) {
     this.processesStorage = processesStorage;
     this.projectService = projectService;
     this.identityManager = identityManager;
     this.userACL = userACL;
+    this.spaceService = spaceService;
   }
 
   @Override
@@ -114,6 +121,7 @@ public class ProcessesServiceImpl implements ProcessesService {
     if (oldWorkFlow.getAcl() == null || !oldWorkFlow.getAcl().isCanEdit()) {
       throw new IllegalAccessException("User " + userId + " isn't allowed to update the process " + workFlow.getId());
     }
+    checkSpaceMove(oldWorkFlow, workFlow.getSpaceId(), userId);
     // The process keeps its project and its creation data, whatever the client sent
     workFlow.setProjectId(oldWorkFlow.getProjectId());
     workFlow.setCreatorId(oldWorkFlow.getCreatorId());
@@ -483,6 +491,35 @@ public class ProcessesServiceImpl implements ProcessesService {
       throw new IllegalAccessException("User " + userIdentityId + " can't reopen the decided request " + storedWork.getId());
     }
     return false;
+  }
+
+  /**
+   * Checks a process update that moves the process to another space: the move
+   * hands the process project, and so the management of its requests, to the
+   * target space's managers, so it requires a processes manager, or a manager
+   * of both the current and the target space
+   */
+  private void checkSpaceMove(WorkFlow storedWorkFlow, String targetSpaceId, long userIdentityId) throws IllegalAccessException {
+    if (targetSpaceId == null) {
+      return;
+    }
+    Space currentSpace = ProcessesUtils.getProjectParentSpace(projectService, spaceService, storedWorkFlow.getProjectId());
+    if (currentSpace == null || currentSpace.getId().equals(targetSpaceId)) {
+      return;
+    }
+    org.exoplatform.services.security.Identity aclIdentity = getAclIdentity(userIdentityId);
+    if (isProcessesManager(aclIdentity)) {
+      return;
+    }
+    Space targetSpace = spaceService.getSpaceById(targetSpaceId);
+    if (targetSpace == null) {
+      throw new IllegalArgumentException("Space " + targetSpaceId + " not found");
+    }
+    if (!spaceService.isManager(currentSpace, aclIdentity.getUserId())
+        || !spaceService.isManager(targetSpace, aclIdentity.getUserId())) {
+      throw new IllegalAccessException("User " + userIdentityId + " isn't allowed to move the process "
+          + storedWorkFlow.getId() + " to the space " + targetSpaceId);
+    }
   }
 
   private boolean isWorkFlowManager(org.exoplatform.services.security.Identity aclIdentity, long projectId) {

@@ -1,5 +1,6 @@
 package org.exoplatform.processes.service;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -311,10 +312,26 @@ public class ProcessesAttachmentServiceImplTest {
     COMMONS_UTILS.when(() -> CommonsUtils.getService(ProcessesService.class)).thenReturn(processesService);
     when(processesService.getWorkFlow(1L, 2L)).thenReturn(workFlow);
 
-    assertThrows(IllegalAccessException.class,
-                 () -> processesAttachmentService.createNewFormDocument(2L, "doc", "path", "drive", "template", "workflow", 1L));
-    assertThrows(ObjectNotFoundException.class,
-                 () -> processesAttachmentService.createNewFormDocument(2L, "doc", "path", "drive", "template", "workflow", 3L));
+    // The pin is that no document is created; the exception types are asserted
+    // after it, so that a guard removed fails here and not on what follows it
+    Exception refusal = assertThrows(Exception.class,
+                                     () -> processesAttachmentService.createNewFormDocument(2L,
+                                                                                           "doc",
+                                                                                           "path",
+                                                                                           "drive",
+                                                                                           "template",
+                                                                                           "workflow",
+                                                                                           1L));
+    Exception notFound = assertThrows(Exception.class,
+                                      () -> processesAttachmentService.createNewFormDocument(2L,
+                                                                                            "doc",
+                                                                                            "path",
+                                                                                            "drive",
+                                                                                            "template",
+                                                                                            "workflow",
+                                                                                            3L));
     verify(attachmentService, never()).createNewDocument(any(), any(), any(), any(), any());
+    assertEquals(IllegalAccessException.class, refusal.getClass());
+    assertEquals(ObjectNotFoundException.class, notFound.getClass());
   }
 }
