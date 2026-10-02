@@ -1,8 +1,11 @@
 package org.exoplatform.processes.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -24,8 +27,10 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.MockitoJUnitRunner;
 
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.processes.Utils.ProcessesUtils;
+import org.exoplatform.processes.model.ProcessPermission;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.services.attachments.model.Attachment;
 import org.exoplatform.services.attachments.service.AttachmentService;
@@ -282,12 +287,51 @@ public class ProcessesAttachmentServiceImplTest {
   public void createNewFormDocument() throws Exception {
     WorkFlow workFlow = new WorkFlow();
     workFlow.setProjectId(1L);
+    workFlow.setAcl(new ProcessPermission(true, true, false, false));
     ProcessesService processesService = mock(ProcessesService.class);
     COMMONS_UTILS.when(() -> CommonsUtils.getService(ProcessesService.class)).thenReturn(processesService);
-    when(processesService.getWorkFlow(1L, null)).thenReturn(workFlow);
+    when(processesService.getWorkFlow(1L, 1L)).thenReturn(workFlow);
     Attachment attachment = mock(Attachment.class);
     when(attachmentService.createNewDocument(any(), any(), any(), any(), any())).thenReturn(attachment);
     copyAttachmentsToEntity();
     processesAttachmentService.createNewFormDocument(1L, "doc", "path", "spaces.processes_space", "template", "workflow", 1L);
+    verify(attachmentService).createNewDocument(any(), any(), any(), any(), any());
+  }
+
+  /**
+   * A document is created in a process only by a user who can edit it, and the
+   * refusal comes before the document exists. Mutation: drop the canEdit guard,
+   * or resolve the workflow with a null user, and this test fails.
+   */
+  @Test
+  public void createNewFormDocumentIsRefusedWhenUserCantEditTheWorkflow() throws Exception {
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setProjectId(1L);
+    workFlow.setAcl(new ProcessPermission(false, false, false, true));
+    ProcessesService processesService = mock(ProcessesService.class);
+    COMMONS_UTILS.when(() -> CommonsUtils.getService(ProcessesService.class)).thenReturn(processesService);
+    when(processesService.getWorkFlow(1L, 2L)).thenReturn(workFlow);
+
+    // The pin is that no document is created; the exception types are asserted
+    // after it, so that a guard removed fails here and not on what follows it
+    Exception refusal = assertThrows(Exception.class,
+                                     () -> processesAttachmentService.createNewFormDocument(2L,
+                                                                                           "doc",
+                                                                                           "path",
+                                                                                           "drive",
+                                                                                           "template",
+                                                                                           "workflow",
+                                                                                           1L));
+    Exception notFound = assertThrows(Exception.class,
+                                      () -> processesAttachmentService.createNewFormDocument(2L,
+                                                                                            "doc",
+                                                                                            "path",
+                                                                                            "drive",
+                                                                                            "template",
+                                                                                            "workflow",
+                                                                                            3L));
+    verify(attachmentService, never()).createNewDocument(any(), any(), any(), any(), any());
+    assertEquals(IllegalAccessException.class, refusal.getClass());
+    assertEquals(ObjectNotFoundException.class, notFound.getClass());
   }
 }

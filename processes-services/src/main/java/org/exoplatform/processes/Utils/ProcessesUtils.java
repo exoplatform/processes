@@ -22,8 +22,12 @@ public class ProcessesUtils {
   }
 
   public static Space getProjectParentSpace(Long projectId) {
-    ProjectService projectService = CommonsUtils.getService(ProjectService.class);
-    SpaceService spaceService = CommonsUtils.getService(SpaceService.class);
+    return getProjectParentSpace(CommonsUtils.getService(ProjectService.class),
+                                 CommonsUtils.getService(SpaceService.class),
+                                 projectId);
+  }
+
+  public static Space getProjectParentSpace(ProjectService projectService, SpaceService spaceService, Long projectId) {
     try {
       ProjectDto projectDto = projectService.getProject(projectId);
       boolean isProjectInSpace = projectDto.getManager().stream().anyMatch(manager -> manager.contains("/spaces/"));
