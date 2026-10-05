@@ -1,10 +1,13 @@
 package org.exoplatform.processes.rest;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockingDetails;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -131,6 +134,57 @@ public class ProcessesRestTest {
 
   }
 
+  /**
+   * The lists are the current user's own: a userId naming another user is
+   * refused, and the service is never asked for that user's data. Mutation:
+   * go back to using the userId parameter as the acting user and this test
+   * fails.
+   */
+  @Test
+  public void listsAreRefusedForAnotherUser() throws Exception {
+    REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(),
+                 processesRest.getWorkFlows(2L, null, null, null, null, 0, 10).getStatus());
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(),
+                 processesRest.getWorks(2L, null, null, null, null, 0, 10).getStatus());
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), processesRest.getWorkDrafts(2L, null, null, 0, 10).getStatus());
+    verify(processesService, times(0)).getWorkFlows(any(), anyInt(), anyInt(), anyLong());
+    verify(processesService, times(0)).getWorks(anyLong(), any(), anyInt(), anyInt());
+    verify(processesService, times(0)).getWorkDrafts(anyLong(), any(), anyInt(), anyInt());
+
+    assertEquals(Response.Status.OK.getStatusCode(), processesRest.getWorks(1L, null, null, null, null, 0, 10).getStatus());
+    verify(processesService, times(1)).getWorks(eq(1L), any(), anyInt(), anyInt());
+  }
+
+  /**
+   * A rejected parameter is a 400 carrying the service's message code, never a
+   * 500. Mutation: drop the IllegalArgumentException catch of any of these
+   * handlers and this test fails.
+   */
+  @Test
+  public void invalidWritesAreBadRequests() throws Exception {
+    REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    WorkFlow workFlow = new WorkFlow();
+    WorkFlowEntity workFlowEntity = new WorkFlowEntity();
+    ENTITY_BUILDER.when(() -> EntityBuilder.fromEntity(workFlowEntity)).thenReturn(workFlow);
+    when(processesService.createWorkFlow(workFlow, 1L)).thenThrow(new IllegalArgumentException("workFlow id must be equal to 0"));
+    when(processesService.updateWorkFlow(workFlow, 1L)).thenThrow(new IllegalArgumentException("there are no changes to save"));
+    WorkEntity workEntity = new WorkEntity();
+    Work work = new Work();
+    ENTITY_BUILDER.when(() -> EntityBuilder.toWork(processesService, workEntity)).thenReturn(work);
+    ENTITY_BUILDER.when(() -> EntityBuilder.fromEntity(workEntity)).thenReturn(work);
+    when(processesService.updateWork(work, 1L)).thenThrow(new IllegalArgumentException("there are no changes to save"));
+    when(processesService.updateWorkDraft(work, 1L)).thenThrow(new IllegalArgumentException("there are no changes to save"));
+
+    Response createWorkFlow = processesRest.createWorkFlow(workFlowEntity);
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), createWorkFlow.getStatus());
+    assertEquals("workFlow id must be equal to 0", createWorkFlow.getEntity());
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), processesRest.updateWorkFlow(workFlowEntity).getStatus());
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), processesRest.updateWork(workEntity).getStatus());
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), processesRest.updateWorkDraft(workEntity).getStatus());
+  }
+
   @Test
   public void isProcessesManager() {
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
@@ -147,26 +201,26 @@ public class ProcessesRestTest {
   }
 
   @Test
-  public void deleteWorkflow() {
+  public void deleteWorkflow() throws Exception {
     Response response = processesRest.deleteWorkflow(null);
     assertEquals(response.getStatus(), Response.Status.BAD_REQUEST.getStatusCode());
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
     Response response1 = processesRest.deleteWorkflow(1l);
     assertEquals(response1.getStatus(), Response.Status.UNAUTHORIZED.getStatusCode());
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
-    REST_UTILS.when(() -> RestUtils.isProcessesGroupMember(identity)).thenReturn(false);
+    doThrow(new IllegalAccessException()).when(processesService).deleteWorkflowById(1l, 1L);
     Response response2 = processesRest.deleteWorkflow(1l);
-    assertEquals(response2.getStatus(), Response.Status.UNAUTHORIZED.getStatusCode());
-    REST_UTILS.when(() -> RestUtils.isProcessesGroupMember(identity)).thenReturn(true);
-    doNothing().when(processesService).deleteWorkflowById(1l);
+    assertEquals(response2.getStatus(), Response.Status.FORBIDDEN.getStatusCode());
+    doNothing().when(processesService).deleteWorkflowById(1l, 1L);
     Response response3 = processesRest.deleteWorkflow(1l);
     assertEquals(response3.getStatus(), Response.Status.OK.getStatusCode());
-    doThrow(new EntityNotFoundException()).when(processesService).deleteWorkflowById(1l);
+    doThrow(new ObjectNotFoundException("")).when(processesService).deleteWorkflowById(1l, 1L);
     Response response4 = processesRest.deleteWorkflow(1l);
     assertEquals(response4.getStatus(), Response.Status.NOT_FOUND.getStatusCode());
-    doThrow(new RuntimeException()).when(processesService).deleteWorkflowById(1l);
+    doThrow(new RuntimeException()).when(processesService).deleteWorkflowById(1l, 1L);
     Response response5 = processesRest.deleteWorkflow(1l);
     assertEquals(response5.getStatus(), Response.Status.INTERNAL_SERVER_ERROR.getStatusCode());
+    assertNeverCalled("deleteWorkflowById", 1);
   }
 
   @Test
@@ -190,7 +244,7 @@ public class ProcessesRestTest {
   }
 
   @Test
-  public void shouldReturnUnauthorizedErrorWhenUpdateWorkflow() throws ObjectNotFoundException, IllegalAccessException {
+  public void shouldReturnForbiddenErrorWhenUpdateWorkflow() throws ObjectNotFoundException, IllegalAccessException {
     WorkFlow workFlow = new WorkFlow();
     WorkFlowEntity workFlowEntity = new WorkFlowEntity();
     Date createdDate = new Date();
@@ -199,7 +253,7 @@ public class ProcessesRestTest {
     ENTITY_BUILDER.when(() -> EntityBuilder.fromEntity(workFlowEntity)).thenReturn(workFlow);
     when(processesService.updateWorkFlow(workFlow, 1L)).thenThrow(IllegalAccessException.class);
     Response response = processesRest.updateWorkFlow(workFlowEntity);
-    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response.getStatus());
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), response.getStatus());
     WorkFlowEntity workFlowEntity1 = new WorkFlowEntity();
     workFlowEntity1.setId(1L);
     workFlowEntity1.setTitle("workFlow");
@@ -262,7 +316,7 @@ public class ProcessesRestTest {
     assertEquals(Response.Status.OK.getStatusCode(), response3.getStatus());
     when(processesService.createWorkFlow(workFlow, 1L)).thenThrow(IllegalAccessException.class);
     Response response4 = processesRest.createWorkFlow(workFlowEntity);
-    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response4.getStatus());
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), response4.getStatus());
   }
 
   @Test
@@ -296,7 +350,7 @@ public class ProcessesRestTest {
   }
 
   @Test
-  public void createWork() throws IllegalAccessException {
+  public void createWork() throws Exception {
     WorkEntity workEntity = new WorkEntity();
     Work work = mock(Work.class);
     WorkFlowEntity workFlowEntity = new WorkFlowEntity();
@@ -313,11 +367,7 @@ public class ProcessesRestTest {
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
     workEntity.setProjectId(1L);
     workEntity.getWorkFlow().setProjectId(1L);
-    workEntity.getWorkFlow().setEnabled(false);
     workEntity.setCompleted(true);
-    Response response6 = processesRest.createWork(workEntity);
-    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response6.getStatus());
-    workEntity.getWorkFlow().setEnabled(true);
     Response response3 = processesRest.createWork(workEntity);
     assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response3.getStatus());
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
@@ -326,9 +376,19 @@ public class ProcessesRestTest {
     ENTITY_BUILDER.when(() -> EntityBuilder.toWorkEntity(processesService, work, "")).thenReturn(workEntity);
     Response response4 = processesRest.createWork(workEntity);
     assertEquals(Response.Status.OK.getStatusCode(), response4.getStatus());
-    when(processesService.createWork(work, 1L)).thenThrow(IllegalAccessException.class);
+    // The enabled flag sent by the client is no longer trusted: the service reads the stored one
+    workEntity.getWorkFlow().setEnabled(false);
+    Response response7 = processesRest.createWork(workEntity);
+    assertEquals(Response.Status.OK.getStatusCode(), response7.getStatus());
+    doThrow(new IllegalArgumentException("Workflow is disabled")).when(processesService).createWork(work, 1L);
+    Response response6 = processesRest.createWork(workEntity);
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response6.getStatus());
+    doThrow(new ObjectNotFoundException("")).when(processesService).createWork(work, 1L);
+    Response response8 = processesRest.createWork(workEntity);
+    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response8.getStatus());
+    doThrow(new IllegalAccessException()).when(processesService).createWork(work, 1L);
     Response response5 = processesRest.createWork(workEntity);
-    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response5.getStatus());
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), response5.getStatus());
   }
 
   @Test
@@ -372,7 +432,7 @@ public class ProcessesRestTest {
   }
 
   @Test
-  public void shouldReturnUnauthorizedErrorWWhenUpdateWork() throws Exception {
+  public void shouldReturnForbiddenErrorWhenUpdateWork() throws Exception {
     WorkEntity workEntity = new WorkEntity();
     Work work = mock(Work.class);
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
@@ -380,7 +440,7 @@ public class ProcessesRestTest {
     ENTITY_BUILDER.when(() -> EntityBuilder.toWorkEntity(processesService, work, "")).thenReturn(workEntity);
     when(processesService.updateWork(work, 1L)).thenThrow(IllegalAccessException.class);
     Response response6 = processesRest.updateWork(workEntity);
-    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response6.getStatus());
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), response6.getStatus());
   }
 
   @Test
@@ -417,7 +477,7 @@ public class ProcessesRestTest {
   }
 
   @Test
-  public void deleteWorkById() {
+  public void deleteWorkById() throws Exception {
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
     Response response = processesRest.deleteWork(1L);
     assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response.getStatus());
@@ -425,15 +485,20 @@ public class ProcessesRestTest {
     Response response1 = processesRest.deleteWork(null);
     assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response1.getStatus());
     Response response2 = processesRest.deleteWork(1L);
-    verify(processesService, times(1)).deleteWorkById(1L);
+    verify(processesService, times(1)).deleteWorkById(1L, 1L);
+    assertNeverCalled("deleteWorkById", 1);
     assertEquals(Response.Status.OK.getStatusCode(), response2.getStatus());
-    doThrow(new RuntimeException()).when(processesService).deleteWorkById(1l);
+    doThrow(new ObjectNotFoundException("")).when(processesService).deleteWorkById(1l, 1L);
+    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), processesRest.deleteWork(1L).getStatus());
+    doThrow(new IllegalAccessException()).when(processesService).deleteWorkById(1l, 1L);
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), processesRest.deleteWork(1L).getStatus());
+    doThrow(new RuntimeException()).when(processesService).deleteWorkById(1l, 1L);
     Response response3 = processesRest.deleteWork(1L);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response3.getStatus());
   }
 
   @Test
-  public void createWorkDraft() {
+  public void createWorkDraft() throws Exception {
     WorkEntity WorkEntity = new WorkEntity();
     Work work = mock(Work.class);
     ENTITY_BUILDER.when(() -> EntityBuilder.fromEntity(WorkEntity)).thenReturn(work);
@@ -446,6 +511,12 @@ public class ProcessesRestTest {
     when(processesService.createWorkDraft(work, 1L)).thenReturn(work);
     Response response2 = processesRest.createWorkDraft(WorkEntity);
     assertEquals(Response.Status.OK.getStatusCode(), response2.getStatus());
+    doThrow(new ObjectNotFoundException("")).when(processesService).createWorkDraft(work, 1L);
+    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), processesRest.createWorkDraft(WorkEntity).getStatus());
+    doThrow(new IllegalAccessException()).when(processesService).createWorkDraft(work, 1L);
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), processesRest.createWorkDraft(WorkEntity).getStatus());
+    doThrow(new IllegalArgumentException("WorkDraft workflow is mandatory")).when(processesService).createWorkDraft(work, 1L);
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), processesRest.createWorkDraft(WorkEntity).getStatus());
     doThrow(new RuntimeException()).when(processesService).createWorkDraft(work, 1L);
     Response response3 = processesRest.createWorkDraft(WorkEntity);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response3.getStatus());
@@ -472,7 +543,7 @@ public class ProcessesRestTest {
   }
 
   @Test
-  public void updateWorkDraft() throws ObjectNotFoundException {
+  public void updateWorkDraft() throws Exception {
     WorkEntity WorkEntity = new WorkEntity();
     Work work = mock(Work.class);
     ENTITY_BUILDER.when(() -> EntityBuilder.fromEntity(WorkEntity)).thenReturn(work);
@@ -490,13 +561,15 @@ public class ProcessesRestTest {
     doThrow(new ObjectNotFoundException("oldWorkDraft is not exist")).when(processesService).updateWorkDraft(work, 1L);
     Response response4 = processesRest.updateWorkDraft(WorkEntity);
     assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response4.getStatus());
+    doThrow(new IllegalAccessException()).when(processesService).updateWorkDraft(work, 1L);
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), processesRest.updateWorkDraft(WorkEntity).getStatus());
     doThrow(new RuntimeException()).when(processesService).updateWorkDraft(work, 1L);
     Response response3 = processesRest.updateWorkDraft(WorkEntity);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response3.getStatus());
   }
 
   @Test
-  public void deleteWorkDraft() {
+  public void deleteWorkDraft() throws Exception {
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
     Response response = processesRest.deleteWorkDraft(null);
     assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -504,12 +577,15 @@ public class ProcessesRestTest {
     assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response1.getStatus());
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
     Response response2 = processesRest.deleteWorkDraft(1L);
-    verify(processesService, times(1)).deleteWorkDraftById(1L);
+    verify(processesService, times(1)).deleteWorkDraftById(1L, 1L);
+    assertNeverCalled("deleteWorkDraftById", 1);
     assertEquals(Response.Status.OK.getStatusCode(), response2.getStatus());
-    doThrow(new EntityNotFoundException()).when(processesService).deleteWorkDraftById(1L);
+    doThrow(new ObjectNotFoundException("")).when(processesService).deleteWorkDraftById(1L, 1L);
     Response response3 = processesRest.deleteWorkDraft(1L);
     assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response3.getStatus());
-    doThrow(new RuntimeException()).when(processesService).deleteWorkDraftById(1L);
+    doThrow(new IllegalAccessException()).when(processesService).deleteWorkDraftById(1L, 1L);
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), processesRest.deleteWorkDraft(1L).getStatus());
+    doThrow(new RuntimeException()).when(processesService).deleteWorkDraftById(1L, 1L);
     Response response4 = processesRest.deleteWorkDraft(1L);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response4.getStatus());
   }
@@ -599,10 +675,30 @@ public class ProcessesRestTest {
                                                           anyLong());
     Response response6 = processesRest.createNewFormDocument("any", "any", "any", "any", "workflow", 1L);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response6.getStatus());
+    doThrow(new IllegalAccessException()).when(processesAttachmentService)
+                                         .createNewFormDocument(anyLong(),
+                                                                anyString(),
+                                                                anyString(),
+                                                                anyString(),
+                                                                anyString(),
+                                                                anyString(),
+                                                                anyLong());
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(),
+                 processesRest.createNewFormDocument("any", "any", "any", "any", "workflow", 1L).getStatus());
+    doThrow(new ObjectNotFoundException("")).when(processesAttachmentService)
+                                            .createNewFormDocument(anyLong(),
+                                                                   anyString(),
+                                                                   anyString(),
+                                                                   anyString(),
+                                                                   anyString(),
+                                                                   anyString(),
+                                                                   anyLong());
+    assertEquals(Response.Status.NOT_FOUND.getStatusCode(),
+                 processesRest.createNewFormDocument("any", "any", "any", "any", "workflow", 1L).getStatus());
   }
 
   @Test
-  public void updateWorkCompleted() {
+  public void updateWorkCompleted() throws Exception {
     Map<String, Boolean> completed = new HashMap<>();
     completed.put("value", null);
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
@@ -620,10 +716,14 @@ public class ProcessesRestTest {
     completed.put("value", true);
     Response response5 = processesRest.updateWorkCompleted(completed, 1L);
     assertEquals(Response.Status.OK.getStatusCode(), response5.getStatus());
-    doThrow(new EntityNotFoundException()).when(processesService).updateWorkCompleted(1L, true);
+    verify(processesService, times(1)).updateWorkCompleted(1L, true, 1L);
+    assertNeverCalled("updateWorkCompleted", 2);
+    doThrow(new ObjectNotFoundException("")).when(processesService).updateWorkCompleted(1L, true, 1L);
     Response response4 = processesRest.updateWorkCompleted(completed, 1L);
     assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response4.getStatus());
-    doThrow(new RuntimeException()).when(processesService).updateWorkCompleted(1L, true);
+    doThrow(new IllegalAccessException()).when(processesService).updateWorkCompleted(1L, true, 1L);
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), processesRest.updateWorkCompleted(completed, 1L).getStatus());
+    doThrow(new RuntimeException()).when(processesService).updateWorkCompleted(1L, true, 1L);
     Response response6 = processesRest.updateWorkCompleted(completed, 1L);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response6.getStatus());
   }
@@ -649,26 +749,40 @@ public class ProcessesRestTest {
     Request request = mock(Request.class);
     IllustrativeAttachment illustrativeAttachment =
                                                   new IllustrativeAttachment(1L, "file.png", null, "image/png", 12654L, 1234577L);
-    WorkFlow workFlow = new WorkFlow();
-    workFlow.setId(1L);
-    workFlow.setIllustrativeAttachment(illustrativeAttachment);
     Response response = processesRest.getImageIllustration(request, null, 0);
     assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-    when(processesService.getWorkFlow(1L, null)).thenReturn(null);
+    REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
+    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), processesRest.getImageIllustration(request, 1L, 0).getStatus());
+    REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    doThrow(new ObjectNotFoundException("Workflow 1 not found")).when(processesService).getWorkFlowIllustration(1L, 1L);
     Response response1 = processesRest.getImageIllustration(request, 1L, 0);
     assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response1.getStatus());
-    when(processesService.getWorkFlow(1L, null)).thenReturn(workFlow);
-    when(processesService.getIllustrationImageById(1L)).thenReturn(illustrativeAttachment);
+    doThrow(new IllegalAccessException()).when(processesService).getWorkFlowIllustration(1L, 1L);
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), processesRest.getImageIllustration(request, 1L, 0).getStatus());
+    doReturn(illustrativeAttachment).when(processesService).getWorkFlowIllustration(1L, 1L);
     when(request.evaluatePreconditions(any(EntityTag.class))).thenReturn(null);
     Response response2 = processesRest.getImageIllustration(request, 1L, 0);
     assertEquals(Response.Status.OK.getStatusCode(), response2.getStatus());
     Response response3 = processesRest.getImageIllustration(request, 1L, 133584);
     assertEquals(Response.Status.OK.getStatusCode(), response3.getStatus());
-    doThrow(new ObjectNotFoundException("Illustration image not found")).when(processesService).getIllustrationImageById(1L);
-    Response response4 = processesRest.getImageIllustration(request, 1L, 133584);
-    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response4.getStatus());
-    doThrow(new RuntimeException()).when(processesService).getIllustrationImageById(1L);
+    // An illustration served after an ACL check is never stored by a shared cache
+    assertTrue(((javax.ws.rs.core.CacheControl) response3.getMetadata().getFirst("Cache-Control")).isPrivate());
+    doThrow(new RuntimeException()).when(processesService).getWorkFlowIllustration(1L, 1L);
     Response response5 = processesRest.getImageIllustration(request, 1L, 133584);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response5.getStatus());
+    verify(processesService, times(0)).getWorkFlow(anyLong(), any());
+  }
+
+  /**
+   * Asserts the REST layer never called the ACL-free signature of a service
+   * method, recognised by its name and its argument count: the checked
+   * signature takes the user identity id as one more argument.
+   */
+  private void assertNeverCalled(String methodName, int argumentCount) {
+    assertTrue(methodName + " without the user identity must never be called",
+               mockingDetails(processesService).getInvocations()
+                                               .stream()
+                                               .noneMatch(invocation -> invocation.getMethod().getName().equals(methodName)
+                                                   && invocation.getArguments().length == argumentCount));
   }
 }
