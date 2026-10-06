@@ -106,7 +106,6 @@
                 v-bind="attrs"
                 v-on="on"
                 @click="openCommentsDrawer"
-                color="grey"
                 icon>
                 <v-icon class="custom-icon-size custom-icon-color">
                   mdi-chat-outline

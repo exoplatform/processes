@@ -147,7 +147,6 @@
                 v-else
                 class="size-icon-btn ms-1"
                 @click="openCommentsDrawer"
-                color="grey"
                 icon>
                 <v-icon class="custom-icon-size custom-icon-color">
                   mdi-chat-outline
