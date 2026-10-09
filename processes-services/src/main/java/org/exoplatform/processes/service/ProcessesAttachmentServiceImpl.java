@@ -1,5 +1,6 @@
 package org.exoplatform.processes.service;
 
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.processes.Utils.ProcessesUtils;
 import org.exoplatform.processes.model.WorkFlow;
@@ -302,11 +303,21 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
                                           String templateName,
                                           String entityType,
                                           Long entityId) throws Exception {
+    WorkFlow workFlow = null;
+    if (entityId != null && entityType != null && Objects.equals(entityType, WORKFLOW_ENTITY_TYPE)) {
+      // Checked before the document exists, so that a refusal leaves nothing behind
+      ProcessesService processesService = CommonsUtils.getService(ProcessesService.class);
+      workFlow = processesService.getWorkFlow(entityId, userIdentityId);
+      if (workFlow == null) {
+        throw new ObjectNotFoundException("Workflow " + entityId + " not found");
+      }
+      if (workFlow.getAcl() == null || !workFlow.getAcl().isCanEdit()) {
+        throw new IllegalAccessException("User " + userIdentityId + " isn't allowed to edit the process " + entityId);
+      }
+    }
     Identity identity = ConversationState.getCurrent().getIdentity();
     Attachment attachment = attachmentService.createNewDocument(identity, title, path, pathDrive, templateName);
-    if (entityId != null && entityType != null && Objects.equals(entityType, WORKFLOW_ENTITY_TYPE)) {
-      ProcessesService processesService = CommonsUtils.getService(ProcessesService.class);
-      WorkFlow workFlow = processesService.getWorkFlow(entityId, null);
+    if (workFlow != null) {
       linkAttachmentsToEntity(new Attachment[] { attachment },
                               userIdentityId,
                               entityId,

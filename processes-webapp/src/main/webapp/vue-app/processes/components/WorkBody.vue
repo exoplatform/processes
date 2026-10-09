@@ -35,7 +35,7 @@
           xl="2"
           lg="2">
           <div
-            v-if="!isDraft"
+            v-if="!isDraft && !isDecided"
             class="complete-btn">
             <v-tooltip
               bottom>
@@ -245,6 +245,12 @@ export default {
       type: Boolean,
       default: false
     }
+  },
+  computed: {
+    isDecided() {
+      // A validated or refused request stays completed for its requester
+      return ['Validated', 'Refused'].includes(this.workObject && this.workObject.status);
+    },
   },
   methods: {
     updateCompleted() {
