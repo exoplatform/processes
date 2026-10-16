@@ -17,10 +17,12 @@
 package org.exoplatform.processes.mcp;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Objects;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.annotation.Profile;
@@ -37,6 +39,8 @@ import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.service.ProcessesService;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.core.space.model.Space;
+import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.dto.TaskDto;
@@ -89,20 +93,75 @@ public class ProcessesMcpTool implements McpToolPlugin {
 
   private final IdentityManager  identityManager;
 
-  public ProcessesMcpTool(ProcessesService processesService, TaskService taskService, IdentityManager identityManager) {
+  private final SpaceService     spaceService;
+
+  private final ProcessSpaceScopeResolver processSpaceScopeResolver;
+
+  /**
+   * @param processesService reads and writes the processes and requests
+   * @param taskService reads the pending requests' tasks
+   * @param identityManager resolves the current user's identity
+   * @param spaceService reads a listed space and its members
+   * @param processSpaceScopeResolver tells the space of a process, so that a
+   *          space's listing names only the processes its lookup accepts
+   */
+  public ProcessesMcpTool(ProcessesService processesService,
+                          TaskService taskService,
+                          IdentityManager identityManager,
+                          SpaceService spaceService,
+                          ProcessSpaceScopeResolver processSpaceScopeResolver) {
     this.processesService = processesService;
     this.taskService = taskService;
     this.identityManager = identityManager;
+    this.spaceService = spaceService;
+    this.processSpaceScopeResolver = processSpaceScopeResolver;
   }
 
-  // Lists the enabled process types (request types) the current user can see, so
-  // the agent can discover what a user may request and get the process id to pass
-  // to submit_work_request. READ.
-  public List<ProcessModel> listProcesses() throws IllegalAccessException {
+  /**
+   * Lists the enabled process types (request types) the current user can see,
+   * so the agent can discover what a user may request and get the process id
+   * to pass to submit_work_request. With a space, it lists only the processes
+   * of that space, by the rule of the {@value ProcessSpaceScopeResolver#NAME}
+   * resolver, so the listing never names a process the space scope refuses;
+   * an unknown space, or one the user isn't a member of, lists none. The
+   * space's processes are read page by page over the user's processes, a
+   * process met twice is listed once, and the reading stops once 200 are
+   * found. The process query has no order, so a page boundary may still skip
+   * a process. READ.
+   *
+   * @param spaceId the space whose processes to list, null or not positive
+   *          for every process the user can see
+   * @return at most 200 processes
+   * @throws IllegalAccessException when the processes can't be read
+   */
+  public List<ProcessModel> listProcesses(Long spaceId) throws IllegalAccessException {
     long userIdentityId = getCurrentUserIdentityId();
     ProcessesFilter filter = buildEnabledProcessesFilter();
-    List<WorkFlow> workFlows = processesService.getWorkFlows(filter, 0, MAX_WORKFLOWS, userIdentityId);
-    return workFlows.stream().filter(Objects::nonNull).map(this::toProcessModel).toList();
+    if (spaceId == null || spaceId <= 0) {
+      List<WorkFlow> workFlows = processesService.getWorkFlows(filter, 0, MAX_WORKFLOWS, userIdentityId);
+      return workFlows.stream().filter(Objects::nonNull).map(this::toProcessModel).toList();
+    }
+    Space space = spaceService.getSpaceById(spaceId);
+    if (space == null || !spaceService.isMember(space, getCurrentUserName())) {
+      return new ArrayList<>();
+    }
+    List<ProcessModel> processes = new ArrayList<>();
+    Set<Long> listed = new HashSet<>();
+    int offset = 0;
+    List<WorkFlow> page;
+    do {
+      page = processesService.getWorkFlows(filter, offset, MAX_WORKFLOWS, userIdentityId);
+      for (WorkFlow workFlow : page) {
+        if (workFlow != null
+            && spaceId.equals(processSpaceScopeResolver.spaceOfProject(workFlow.getProjectId()))
+            && processes.size() < MAX_WORKFLOWS
+            && listed.add(workFlow.getId())) {
+          processes.add(toProcessModel(workFlow));
+        }
+      }
+      offset += MAX_WORKFLOWS;
+    } while (page.size() == MAX_WORKFLOWS && processes.size() < MAX_WORKFLOWS);
+    return processes;
   }
 
   // Lists the current user's OWN work requests (the requests they submitted),
