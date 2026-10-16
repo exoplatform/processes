@@ -26,6 +26,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -34,6 +36,9 @@ import static org.mockito.Mockito.when;
 import java.util.Collections;
 import java.util.List;
 
+import org.exoplatform.social.core.space.model.Space;
+import org.exoplatform.social.core.space.spi.SpaceService;
+import org.exoplatform.processes.mcp.model.ProcessModel;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -74,6 +79,10 @@ public class ProcessesMcpToolTest {
 
   private IdentityManager  identityManager;
 
+  private SpaceService     spaceService;
+
+  private ProcessSpaceScopeResolver processSpaceScopeResolver;
+
   private ProcessesMcpTool tool;
 
   @Before
@@ -81,7 +90,9 @@ public class ProcessesMcpToolTest {
     processesService = mock(ProcessesService.class);
     taskService = mock(TaskService.class);
     identityManager = mock(IdentityManager.class);
-    tool = new ProcessesMcpTool(processesService, taskService, identityManager);
+    spaceService = mock(SpaceService.class);
+    processSpaceScopeResolver = mock(ProcessSpaceScopeResolver.class);
+    tool = new ProcessesMcpTool(processesService, taskService, identityManager, spaceService, processSpaceScopeResolver);
 
     Identity socialIdentity = mock(Identity.class);
     when(socialIdentity.getId()).thenReturn("1");
@@ -95,6 +106,103 @@ public class ProcessesMcpToolTest {
     ConversationState.setCurrent(null);
   }
 
+  /**
+   * With a space, the listing names only the processes whose project the
+   * process resolver puts in that space, across pages of the user's
+   * processes; a space the user isn't a member of, or an unknown one, lists
+   * none, and no space keeps every process the user sees.
+   * Mutants: the space filter, the membership or the unknown-space check
+   * removed, the paging stopped after the first page, or the unscoped path
+   * filtered too.
+   *
+   * @throws Exception never, the services are mocks
+   */
+  @Test
+  public void listProcessesOfASpaceNamesOnlyThatSpacesProcesses() throws Exception {
+    List<WorkFlow> firstPage = new java.util.ArrayList<>();
+    for (int i = 1; i <= 200; i++) {
+      firstPage.add(workFlow(i, 100 + i));
+    }
+    List<WorkFlow> secondPage = List.of(workFlow(201, 7));
+    when(processesService.getWorkFlows(any(ProcessesFilter.class), eq(0), eq(200), anyLong())).thenReturn(firstPage);
+    when(processesService.getWorkFlows(any(ProcessesFilter.class), eq(200), eq(200), anyLong())).thenReturn(secondPage);
+    when(processSpaceScopeResolver.spaceOfProject(101L)).thenReturn(12L);
+    when(processSpaceScopeResolver.spaceOfProject(102L)).thenReturn(13L);
+    when(processSpaceScopeResolver.spaceOfProject(7L)).thenReturn(12L);
+    when(processSpaceScopeResolver.spaceOfProject(103L)).thenReturn(14L);
+    // An unknown space is refused by its own check, whatever a membership
+    // lookup on a null space would answer.
+    when(spaceService.isMember(isNull(Space.class), eq("testuser"))).thenReturn(true);
+    Space space = mock(Space.class);
+    when(spaceService.getSpaceById(12L)).thenReturn(space);
+    when(spaceService.isMember(space, "testuser")).thenReturn(true);
+    Space other = mock(Space.class);
+    when(spaceService.getSpaceById(13L)).thenReturn(other);
+    when(spaceService.isMember(other, "testuser")).thenReturn(false);
+
+    assertEquals(List.of(1L, 201L), tool.listProcesses(12L).stream().map(ProcessModel::id).toList());
+    assertTrue(tool.listProcesses(13L).isEmpty());
+    assertTrue(tool.listProcesses(14L).isEmpty());
+    assertEquals(200, tool.listProcesses(null).size());
+    assertEquals(200, tool.listProcesses(0L).size());
+  }
+
+  /**
+   * A space's listing stops at 200 processes: it keeps the first 200 of the
+   * space across pages, even when a page holds more than the cap leaves room
+   * for, and never reads the page after the one that fills the cap. A process
+   * met again on a later page, as an unordered query may return it, is
+   * listed once.
+   * Mutants: either cap clause removed (the page loop's or the add's), or the
+   * repeat check removed.
+   *
+   * @throws Exception never, the services are mocks
+   */
+  @Test
+  public void listProcessesOfASpaceStopsAtTheCapAndListsAProcessOnce() throws Exception {
+    List<WorkFlow> firstPage = new java.util.ArrayList<>();
+    for (int i = 1; i <= 200; i++) {
+      firstPage.add(workFlow(i, i <= 150 ? i : 10000 + i));
+    }
+    List<WorkFlow> secondPage = new java.util.ArrayList<>();
+    secondPage.add(workFlow(1, 1));
+    for (int i = 201; i <= 399; i++) {
+      secondPage.add(workFlow(i, i));
+    }
+    when(processesService.getWorkFlows(any(ProcessesFilter.class), eq(0), eq(200), anyLong())).thenReturn(firstPage);
+    when(processesService.getWorkFlows(any(ProcessesFilter.class), eq(200), eq(200), anyLong())).thenReturn(secondPage);
+    lenient().when(processesService.getWorkFlows(any(ProcessesFilter.class), eq(400), eq(200), anyLong()))
+             .thenReturn(List.of(workFlow(401, 401)));
+    when(processSpaceScopeResolver.spaceOfProject(anyLong())).thenAnswer(invocation -> {
+      long projectId = invocation.getArgument(0);
+      return projectId < 10000 ? 12L : 13L;
+    });
+    Space space = mock(Space.class);
+    when(spaceService.getSpaceById(12L)).thenReturn(space);
+    when(spaceService.isMember(space, "testuser")).thenReturn(true);
+
+    List<Long> ids = tool.listProcesses(12L).stream().map(ProcessModel::id).toList();
+
+    assertEquals(200, ids.size());
+    assertEquals(200, new java.util.HashSet<>(ids).size());
+    assertEquals(Long.valueOf(150L), ids.get(149));
+    assertEquals(Long.valueOf(250L), ids.get(199));
+    verify(processesService, never()).getWorkFlows(any(ProcessesFilter.class), eq(400), eq(200), anyLong());
+  }
+
+  /**
+   * @param id a process id
+   * @param projectId its project id
+   * @return an enabled process of that project
+   */
+  private static WorkFlow workFlow(long id, long projectId) {
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setId(id);
+    workFlow.setProjectId(projectId);
+    workFlow.setEnabled(true);
+    return workFlow;
+  }
+
   @Test
   public void listProcessesSetsIsProcessManagerToAvoidNpe() throws Exception {
     when(processesService.getWorkFlows(any(ProcessesFilter.class),
@@ -102,7 +210,7 @@ public class ProcessesMcpToolTest {
                                        anyInt(),
                                        anyLong())).thenReturn(Collections.emptyList());
 
-    tool.listProcesses();
+    tool.listProcesses(null);
 
     ArgumentCaptor<ProcessesFilter> captor = ArgumentCaptor.forClass(ProcessesFilter.class);
     verify(processesService).getWorkFlows(captor.capture(), anyInt(), anyInt(), anyLong());
