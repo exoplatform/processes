@@ -782,26 +782,35 @@ public class ProcessesStorageImplTest {
 
   /**
    * The processes a user manages are those whose managing space the user
-   * administers: the manager filter queries the user's manager memberships
-   * only, while the other lists query all of them. Mutation: query every
-   * membership with the manager filter and this test fails.
+   * administers, as a manager or with a '*' membership: the manager filter
+   * queries those memberships only, as manager ones, while the other lists
+   * query all of them. Mutation: query every membership with the manager
+   * filter, or drop the '*' membership from it, and this test fails.
    */
   @Test
   public void findWorkFlowsManagedByTheUserQueriesTheManagerMembershipsOnly() {
     mockAclIdentity(5L,
                     "john",
                     new MembershipEntry("/spaces/hr", "member"),
-                    new MembershipEntry("/spaces/hr", "manager"));
+                    new MembershipEntry("/spaces/hr", "manager"),
+                    new MembershipEntry("/spaces/legal", "*"));
     ProcessesFilter managedFilter = new ProcessesFilter("managed", null, true, false);
     ProcessesFilter allFilter = new ProcessesFilter("all", null, null, false);
 
     this.processesStorage.findWorkFlows(managedFilter, 5L, 0, 10);
     this.processesStorage.findWorkFlows(allFilter, 5L, 0, 10);
 
-    verify(workFlowDAO).findWorkFlows(managedFilter, List.of("manager:/spaces/hr"), 0, 10);
+    verify(workFlowDAO).findWorkFlows(eq(managedFilter),
+                                      argThat(memberships -> memberships.size() == 2
+                                          && memberships.containsAll(List.of("manager:/spaces/hr", "manager:/spaces/legal"))),
+                                      eq(0),
+                                      eq(10));
     verify(workFlowDAO).findWorkFlows(eq(allFilter),
-                                      argThat(memberships -> memberships.size() == 3
-                                          && memberships.containsAll(List.of("john", "member:/spaces/hr", "manager:/spaces/hr"))),
+                                      argThat(memberships -> memberships.size() == 4
+                                          && memberships.containsAll(List.of("john",
+                                                                             "member:/spaces/hr",
+                                                                             "manager:/spaces/hr",
+                                                                             "*:/spaces/legal"))),
                                       eq(0),
                                       eq(10));
   }

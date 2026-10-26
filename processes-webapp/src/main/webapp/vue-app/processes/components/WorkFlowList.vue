@@ -343,7 +343,7 @@ export default {
         const filter = {};
         filter.enabled = true;
         filter.manager = true;
-        this.$processesService.getWorkFlows(filter).then(workflows =>{
+        this.$processesService.getWorkFlows(filter, 0, 1).then(workflows =>{
           this.isMemberSpaceManager = workflows.length > 0;
           if (this.isMemberSpaceManager) {
             this.filterItems.unshift(managerFilterItem);

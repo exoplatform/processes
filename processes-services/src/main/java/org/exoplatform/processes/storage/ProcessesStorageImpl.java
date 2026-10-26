@@ -43,6 +43,7 @@ import org.exoplatform.processes.service.ProcessesAttachmentService;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
+import org.exoplatform.services.security.MembershipEntry;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
@@ -581,9 +582,15 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     List<String> listedMemberships = memberships;
     if (memberships != null && processesFilter != null && Boolean.TRUE.equals(processesFilter.getManager())) {
       // The processes a user manages are those whose managing space the user
-      // administers, not every one whose space the user is a member of
+      // administers, not every one whose space the user is a member of; a '*'
+      // membership administers the space too
       listedMemberships = memberships.stream()
-                                     .filter(membership -> membership.startsWith(ProcessesUtils.MANAGER_MEMBERSHIP_TYPE + ":"))
+                                     .filter(membership -> membership.startsWith(ProcessesUtils.MANAGER_MEMBERSHIP_TYPE + ":")
+                                         || membership.startsWith(MembershipEntry.ANY_TYPE + ":"))
+                                     .map(membership -> membership.startsWith(MembershipEntry.ANY_TYPE + ":")
+                                         ? ProcessesUtils.MANAGER_MEMBERSHIP_TYPE + membership.substring(MembershipEntry.ANY_TYPE.length())
+                                         : membership)
+                                     .distinct()
                                      .toList();
       if (listedMemberships.isEmpty()) {
         return new ArrayList<>();

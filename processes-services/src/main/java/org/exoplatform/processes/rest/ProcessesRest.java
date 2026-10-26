@@ -69,8 +69,6 @@ public class ProcessesRest implements ResourceContainer {
 
   private static final CacheControl  ILLUSTRATION_CACHE_CONTROL  = new CacheControl();
 
-  private static final String              PROCESSES_GROUP          = "/platform/processes";
-
   private static final String              ONLY_CURRENT_USER_MESSAGE = "Only the current user can be queried";
 
   private static final String              WORKFLOW_NOT_FOUND_MESSAGE = "Workflow not found";
@@ -392,6 +390,7 @@ public class ProcessesRest implements ResourceContainer {
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Request fulfilled"),
           @ApiResponse(responseCode = "400", description = "Invalid query input"),
           @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "403", description = "The current user isn't an active user"),
           @ApiResponse(responseCode = "500", description = "Internal server error"),})
   public Response isProcessesManager() {
 
