@@ -4,12 +4,16 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -774,5 +778,75 @@ public class ProcessesStorageImplTest {
     workFlow.setRequestsCreators(identityEntities);
     this.processesStorage.saveWorkFlow(workFlow, 1L);
     assertEquals(1, this.processesStorage.countWorkFlows(filter));
+  }
+
+  /**
+   * The processes a user manages are those whose managing space the user
+   * administers: the manager filter queries the user's manager memberships
+   * only, while the other lists query all of them. Mutation: query every
+   * membership with the manager filter and this test fails.
+   */
+  @Test
+  public void findWorkFlowsManagedByTheUserQueriesTheManagerMembershipsOnly() {
+    mockAclIdentity(5L,
+                    "john",
+                    new MembershipEntry("/spaces/hr", "member"),
+                    new MembershipEntry("/spaces/hr", "manager"));
+    ProcessesFilter managedFilter = new ProcessesFilter("managed", null, true, false);
+    ProcessesFilter allFilter = new ProcessesFilter("all", null, null, false);
+
+    this.processesStorage.findWorkFlows(managedFilter, 5L, 0, 10);
+    this.processesStorage.findWorkFlows(allFilter, 5L, 0, 10);
+
+    verify(workFlowDAO).findWorkFlows(managedFilter, List.of("manager:/spaces/hr"), 0, 10);
+    verify(workFlowDAO).findWorkFlows(eq(allFilter),
+                                      argThat(memberships -> memberships.size() == 3
+                                          && memberships.containsAll(List.of("john", "member:/spaces/hr", "manager:/spaces/hr"))),
+                                      eq(0),
+                                      eq(10));
+  }
+
+  /**
+   * A user who administers no space manages no process: the manager filter
+   * lists nothing, without a query. Mutation: query with every membership and
+   * this test fails.
+   */
+  @Test
+  public void findWorkFlowsManagedByASpaceMemberListsNothing() {
+    mockAclIdentity(5L, "jane", new MembershipEntry("/spaces/hr", "member"));
+    ProcessesFilter managedFilter = new ProcessesFilter("managed", null, true, false);
+
+    assertTrue(this.processesStorage.findWorkFlows(managedFilter, 5L, 0, 10).isEmpty());
+    verify(workFlowDAO, never()).findWorkFlows(eq(managedFilter), any(), anyInt(), anyInt());
+  }
+
+  /**
+   * A processes administrator, platform administrators included, holds every
+   * permission on every process: the storage maps the process without
+   * membership restriction. Mutation: test the /platform/processes membership
+   * alone and this test fails.
+   */
+  @Test
+  public void getWorkFlowByIdGivesTheProcessesAdministratorsEveryPermission() {
+    org.exoplatform.services.security.Identity aclIdentity = mockAclIdentity(6L, "admin");
+    PROCESSES_UTILS.when(() -> ProcessesUtils.isProcessesAdministrator(userACL, aclIdentity)).thenReturn(true);
+    WorkFlowEntity workFlowEntity = new WorkFlowEntity();
+    when(workFlowDAO.find(1L)).thenReturn(workFlowEntity);
+
+    this.processesStorage.getWorkFlowById(1L, 6L);
+
+    ENTITY_MAPPER.verify(() -> EntityMapper.fromEntity(workFlowEntity, null));
+  }
+
+  private org.exoplatform.services.security.Identity mockAclIdentity(long identityId,
+                                                                    String username,
+                                                                    MembershipEntry... memberships) {
+    Identity identity = mock(Identity.class);
+    when(identity.getRemoteId()).thenReturn(username);
+    when(identityManager.getIdentity(identityId)).thenReturn(identity);
+    org.exoplatform.services.security.Identity aclIdentity = new org.exoplatform.services.security.Identity(username,
+                                                                                                             List.of(memberships));
+    when(userACL.getUserIdentity(username)).thenReturn(aclIdentity);
+    return aclIdentity;
   }
 }

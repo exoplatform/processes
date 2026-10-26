@@ -52,6 +52,17 @@ public interface ProcessesService {
 
   WorkFlow getWorkFlow(long id, Long userIdentityId) throws IllegalAccessException;
 
+  /**
+   * Checks whether a user administers every process: a member of
+   * /platform/processes or a platform administrator creates, edits and deletes
+   * any process, and manages any request
+   *
+   * @param userIdentityId {@link Identity} technical identifier of the user
+   * @return true when the user administers every process
+   * @throws IllegalAccessException when the identity isn't an active user
+   */
+  boolean isProcessesAdministrator(long userIdentityId) throws IllegalAccessException;
+
   WorkFlow createWorkFlow(WorkFlow workFlow, long userId) throws IllegalAccessException;
 
   WorkFlow updateWorkFlow(WorkFlow workFlow,

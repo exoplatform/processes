@@ -48,9 +48,6 @@ import org.exoplatform.services.attachments.model.Attachment;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.rest.resource.ResourceContainer;
-import org.exoplatform.services.security.ConversationState;
-import org.exoplatform.services.security.Identity;
-import org.exoplatform.services.security.IdentityRegistry;
 import org.exoplatform.social.core.manager.IdentityManager;
 
 
@@ -63,8 +60,6 @@ public class ProcessesRest implements ResourceContainer {
   private ProcessesService processesService;
 
   private IdentityManager  identityManager;
-
-  private IdentityRegistry identityRegistry;
 
   private ProcessesAttachmentService processesAttachmentService;
 
@@ -88,11 +83,9 @@ public class ProcessesRest implements ResourceContainer {
 
   public ProcessesRest(ProcessesService processesService,
                        IdentityManager identityManager,
-                       IdentityRegistry identityRegistry,
                        ProcessesAttachmentService processesAttachmentService) {
     this.processesService = processesService;
     this.identityManager = identityManager;
-    this.identityRegistry = identityRegistry;
     this.processesAttachmentService = processesAttachmentService;
   }
 
@@ -132,11 +125,11 @@ public class ProcessesRest implements ResourceContainer {
                                   @Schema(defaultValue = "10")
                                   @QueryParam("limit")
                                   int limit) {
+    long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    if (currentIdentityId == 0) {
+      return Response.status(Response.Status.UNAUTHORIZED).build();
+    }
     try {
-      long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
-      if (currentIdentityId == 0) {
-        return Response.status(Response.Status.UNAUTHORIZED).build();
-      }
       ProcessesFilter filter = new ProcessesFilter();
       if (enabled != null) {
         filter.setEnabled(enabled);
@@ -152,9 +145,12 @@ public class ProcessesRest implements ResourceContainer {
         return Response.status(Response.Status.FORBIDDEN).entity(ONLY_CURRENT_USER_MESSAGE).build();
       }
       long userIdentityId = currentIdentityId;
-      filter.setIsProcessManager(RestUtils.isProcessesGroupMember(identityManager, identityRegistry, userIdentityId));
+      filter.setIsProcessManager(processesService.isProcessesAdministrator(userIdentityId));
       List<WorkFlow> workFlows = processesService.getWorkFlows(filter, offset, limit, userIdentityId);
       return Response.ok(EntityBuilder.toRestEntities(workFlows, expand)).build();
+    } catch (IllegalAccessException e) {
+      LOG.debug("User '{}' isn't allowed to list the workflows", currentIdentityId, e);
+      return Response.status(Response.Status.FORBIDDEN).build();
     } catch (Exception e) {
       LOG.warn("Error retrieving list of workFlows", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -390,8 +386,8 @@ public class ProcessesRest implements ResourceContainer {
   @RolesAllowed("users")
   @Path("/permissions")
   @Operation(
-          summary = "checks is current user is a processes manager",
-          description = "checks is current user is a processes manager",
+          summary = "checks whether the current user administers every process",
+          description = "checks whether the current user administers every process: a member of /platform/processes or a platform administrator",
           method = "GET")
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Request fulfilled"),
           @ApiResponse(responseCode = "400", description = "Invalid query input"),
@@ -404,9 +400,11 @@ public class ProcessesRest implements ResourceContainer {
       return Response.status(Response.Status.UNAUTHORIZED).build();
     }
     try {
-      Identity identity = ConversationState.getCurrent().getIdentity();
-      boolean isProcessesGroupMember = RestUtils.isProcessesGroupMember(identity);
-      return Response.ok(String.valueOf(isProcessesGroupMember)).type(MediaType.TEXT_PLAIN).build();
+      boolean isProcessesAdministrator = processesService.isProcessesAdministrator(currentIdentityId);
+      return Response.ok(String.valueOf(isProcessesAdministrator)).type(MediaType.TEXT_PLAIN).build();
+    } catch (IllegalAccessException e) {
+      LOG.debug("User '{}' isn't an active user", currentIdentityId, e);
+      return Response.status(Response.Status.FORBIDDEN).build();
     } catch (Exception e) {
       LOG.warn("Error while checking user permissions", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -415,7 +413,7 @@ public class ProcessesRest implements ResourceContainer {
 
   @DELETE
   @Produces(MediaType.TEXT_PLAIN)
-  @RolesAllowed("processes")
+  @RolesAllowed("users")
   @Path("/workflow/{workflowId}")
   @Operation(
           summary = "delete a workflow by its id",

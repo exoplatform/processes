@@ -1,6 +1,7 @@
 package org.exoplatform.processes.service;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -401,9 +402,10 @@ public class ProcessesServiceImplTest {
   /**
    * Moving a process to another space hands its project, and the management of
    * its requests, to the target space's managers: an editor of the process who
-   * isn't a processes manager may move it only as a manager of both spaces.
+   * isn't a processes administrator may move it only as a manager of both
+   * spaces, while a platform administrator moves it as a processes one.
    * Mutation: drop the move guard, its current-space or target-space check, or
-   * the processes manager branch, and this test fails.
+   * the processes administrator branch, and this test fails.
    */
   @Test
   public void updateWorkflowSpaceMoveIsGuarded() throws Exception {
@@ -415,7 +417,7 @@ public class ProcessesServiceImplTest {
     targetSpace.setGroupId("/spaces/sales");
     when(spaceService.getSpaceByGroupId(PROCESS_SPACE_GROUP)).thenReturn(currentSpace);
     when(spaceService.getSpaceById("2")).thenReturn(targetSpace);
-    for (long userId : Arrays.asList(PARTICIPANT_ID, PROJECT_MANAGER_ID, OTHER_SPACE_ID, PROCESSES_ADMIN_ID)) {
+    for (long userId : Arrays.asList(PARTICIPANT_ID, PROJECT_MANAGER_ID, OTHER_SPACE_ID, PROCESSES_ADMIN_ID, PLATFORM_ADMIN_ID)) {
       WorkFlow storedWorkFlow = new WorkFlow();
       storedWorkFlow.setId(WORKFLOW_ID);
       storedWorkFlow.setProjectId(PROCESS_PROJECT_ID);
@@ -432,9 +434,10 @@ public class ProcessesServiceImplTest {
 
     processesService.updateWorkFlow(movedWorkFlow("1"), PARTICIPANT_ID);
     processesService.updateWorkFlow(movedWorkFlow("2"), PROCESSES_ADMIN_ID);
+    processesService.updateWorkFlow(movedWorkFlow("2"), PLATFORM_ADMIN_ID);
     when(spaceService.isManager(targetSpace, "manager")).thenReturn(true);
     processesService.updateWorkFlow(movedWorkFlow("2"), PROJECT_MANAGER_ID);
-    verify(processesStorage, times(3)).saveWorkFlow(any(), anyLong());
+    verify(processesStorage, times(4)).saveWorkFlow(any(), anyLong());
   }
 
   @Test
@@ -455,7 +458,7 @@ public class ProcessesServiceImplTest {
   }
 
   /**
-   * Only a member of /platform/processes creates a workflow, as the UI's
+   * Only a processes administrator creates a workflow, as the UI's
    * isProcessesManager gate. Mutation: drop the guard and this test fails.
    */
   @Test
@@ -464,6 +467,32 @@ public class ProcessesServiceImplTest {
     assertThrows(IllegalAccessException.class, () -> processesService.createWorkFlow(workFlow, PROJECT_MANAGER_ID));
     assertThrows(IllegalAccessException.class, () -> processesService.createWorkFlow(workFlow, UNKNOWN_ID));
     verify(processesStorage, never()).saveWorkFlow(any(), anyLong());
+  }
+
+  /**
+   * A processes administrator and a platform administrator both create a
+   * process. Mutation: accept the /platform/processes members only and the
+   * platform administrator's creation fails.
+   */
+  @Test
+  public void createWorkflowIsAllowedToProcessesAndPlatformAdministrators() throws Exception {
+    processesService.createWorkFlow(new WorkFlow(), PROCESSES_ADMIN_ID);
+    processesService.createWorkFlow(new WorkFlow(), PLATFORM_ADMIN_ID);
+    verify(processesStorage, times(2)).saveWorkFlow(any(), anyLong());
+  }
+
+  /**
+   * The processes administrators are the members of /platform/processes and the
+   * platform administrators, never a space manager or member. Mutation: drop
+   * either branch, or grant a space manager, and this test fails.
+   */
+  @Test
+  public void isProcessesAdministrator() throws Exception {
+    assertTrue(processesService.isProcessesAdministrator(PROCESSES_ADMIN_ID));
+    assertTrue(processesService.isProcessesAdministrator(PLATFORM_ADMIN_ID));
+    assertFalse(processesService.isProcessesAdministrator(PROJECT_MANAGER_ID));
+    assertFalse(processesService.isProcessesAdministrator(PARTICIPANT_ID));
+    assertThrows(IllegalAccessException.class, () -> processesService.isProcessesAdministrator(DISABLED_USER_ID));
   }
 
   @Test

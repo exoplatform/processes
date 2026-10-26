@@ -63,7 +63,6 @@ import org.exoplatform.task.util.UserUtil;
 public class ProcessesStorageImpl implements ProcessesStorage {
 
   private static final Log                 LOG                      = ExoLogger.getLogger(ProcessesStorageImpl.class);
-  private static final String              PROCESSES_GROUP          = "/platform/processes";
   private static final String              WORK_DRAFT_ENTITY_TYPE   = "workdraft";
   private static final String              TASK_ENTITY_TYPE         = "task";
   private static final String              WORKFLOW_ENTITY_TYPE     = "workflow";
@@ -579,7 +578,18 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     Map.Entry<String, List<String>> userMemberships = getUserMemberships(userIdentityId);
     String userName = userMemberships.getKey();
     List<String> memberships = userMemberships.getValue();
-    List<WorkFlowEntity> workFlowEntities = workFlowDAO.findWorkFlows(processesFilter, memberships, offset, limit);
+    List<String> listedMemberships = memberships;
+    if (memberships != null && processesFilter != null && Boolean.TRUE.equals(processesFilter.getManager())) {
+      // The processes a user manages are those whose managing space the user
+      // administers, not every one whose space the user is a member of
+      listedMemberships = memberships.stream()
+                                     .filter(membership -> membership.startsWith(ProcessesUtils.MANAGER_MEMBERSHIP_TYPE + ":"))
+                                     .toList();
+      if (listedMemberships.isEmpty()) {
+        return new ArrayList<>();
+      }
+    }
+    List<WorkFlowEntity> workFlowEntities = workFlowDAO.findWorkFlows(processesFilter, listedMemberships, offset, limit);
     List<WorkFlow> workFlows = new ArrayList<>();
     List<String> finalMemberships = memberships;
     workFlowEntities.forEach(workflowEntity -> {
@@ -622,7 +632,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     }
     String userName = identity.getRemoteId();
     org.exoplatform.services.security.Identity aclIdentity = userACL.getUserIdentity(userName);
-    if (aclIdentity.isMemberOf(PROCESSES_GROUP)) {
+    if (ProcessesUtils.isProcessesAdministrator(userACL, aclIdentity)) {
       return new AbstractMap.SimpleEntry<>(userName, null);
     }
     List<String> memberships = new ArrayList<>();

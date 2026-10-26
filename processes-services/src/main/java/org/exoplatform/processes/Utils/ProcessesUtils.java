@@ -1,6 +1,7 @@
 package org.exoplatform.processes.Utils;
 
 import org.exoplatform.commons.utils.CommonsUtils;
+import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -14,7 +15,28 @@ import org.exoplatform.task.service.ProjectService;
 
 public class ProcessesUtils {
 
-  private static final Log LOG = ExoLogger.getLogger(ProcessesUtils.class);
+  public static final String PROCESSES_GROUP         = "/platform/processes";
+
+  /**
+   * The membership type of a space's administrators: in a process's managing
+   * space, they are the process managers
+   */
+  public static final String MANAGER_MEMBERSHIP_TYPE = "manager";
+
+  private static final Log   LOG                     = ExoLogger.getLogger(ProcessesUtils.class);
+
+  /**
+   * Checks whether a user administers every process: a member of
+   * /platform/processes or a platform administrator creates, edits and deletes
+   * any process, and manages any request
+   *
+   * @param userACL the platform ACL service
+   * @param aclIdentity the user's security identity
+   * @return true when the user administers every process
+   */
+  public static boolean isProcessesAdministrator(UserACL userACL, org.exoplatform.services.security.Identity aclIdentity) {
+    return aclIdentity != null && (aclIdentity.isMemberOf(PROCESSES_GROUP) || userACL.isAdministrator(aclIdentity));
+  }
 
   public static String getUserNameByIdentityId(IdentityManager identityManager, long identityId) {
     Identity identity = identityManager.getIdentity(String.valueOf(identityId));

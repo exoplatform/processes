@@ -20,6 +20,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.processes.entity.WorkFlowEntity;
+import org.exoplatform.processes.model.ProcessPermission;
 import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.services.organization.Group;
@@ -109,12 +110,62 @@ public class EntityMapperTest {
     assertFalse(EntityMapper.getACL(workFlowEntity, java.util.List.of("member:/spaces/sales_team")).isCanAddRequest());
     assertFalse(EntityMapper.getACL(workFlowEntity, java.util.List.of("johnny")).isCanAddRequest());
 
-    assertTrue(EntityMapper.getACL(workFlowEntity, java.util.List.of("member:/spaces/sales")).isCanEdit());
+    assertTrue(EntityMapper.getACL(workFlowEntity, java.util.List.of("manager:/spaces/sales")).isCanEdit());
     assertTrue(EntityMapper.getACL(workFlowEntity, java.util.List.of("*:/spaces/sales")).isCanEdit());
-    assertFalse(EntityMapper.getACL(workFlowEntity, java.util.List.of("member:/spaces/sales_team")).isCanEdit());
+    assertFalse(EntityMapper.getACL(workFlowEntity, java.util.List.of("manager:/spaces/sales_team")).isCanEdit());
 
     assertTrue(EntityMapper.getACL(workFlowEntity, java.util.List.of("member:/platform/processes")).isCanDelete());
     assertFalse(EntityMapper.getACL(workFlowEntity, java.util.List.of("member:/platform/processes-x")).isCanDelete());
+  }
+
+  /**
+   * In the process's managing space, the administrators are the process
+   * managers: they edit and delete the process and add requests to it, while
+   * the space's other members only see it, and the requesters only add
+   * requests. Mutation: grant edit to every member of the managing space,
+   * or drop the managers' delete or add-request grant, and this test fails.
+   */
+  @Test
+  public void getACLLetsOnlyTheManagingSpaceAdministratorsManageTheProcess() {
+    WorkFlowEntity workFlowEntity = new WorkFlowEntity();
+    workFlowEntity.setManager(new HashSet<>(java.util.Arrays.asList("/spaces/sales")));
+    workFlowEntity.setParticipator(new HashSet<>(java.util.Arrays.asList("manager:/spaces/hr", "member:/spaces/hr")));
+
+    ProcessPermission spaceAdministrator = EntityMapper.getACL(workFlowEntity,
+                                                               java.util.List.of("admin",
+                                                                                 "member:/spaces/hr",
+                                                                                 "manager:/spaces/hr"));
+    assertTrue(spaceAdministrator.isCanAccess());
+    assertTrue(spaceAdministrator.isCanEdit());
+    assertTrue(spaceAdministrator.isCanDelete());
+    assertTrue(spaceAdministrator.isCanAddRequest());
+
+    ProcessPermission spaceMember = EntityMapper.getACL(workFlowEntity, java.util.List.of("member", "member:/spaces/hr"));
+    assertTrue(spaceMember.isCanAccess());
+    assertFalse(spaceMember.isCanEdit());
+    assertFalse(spaceMember.isCanDelete());
+    assertFalse(spaceMember.isCanAddRequest());
+
+    ProcessPermission requester = EntityMapper.getACL(workFlowEntity, java.util.List.of("requester", "member:/spaces/sales"));
+    assertFalse(requester.isCanAccess());
+    assertFalse(requester.isCanEdit());
+    assertFalse(requester.isCanDelete());
+    assertTrue(requester.isCanAddRequest());
+  }
+
+  /**
+   * Only an entry naming the manager membership type designates a group's
+   * administrators: a bare group, a '*' membership or a user name designates
+   * every member. Mutation: test the type loosely and this test fails.
+   */
+  @Test
+  public void isManagerMembership() {
+    assertTrue(EntityMapper.isManagerMembership("manager:/spaces/hr"));
+    assertFalse(EntityMapper.isManagerMembership("member:/spaces/hr"));
+    assertFalse(EntityMapper.isManagerMembership("*:/spaces/hr"));
+    assertFalse(EntityMapper.isManagerMembership("/spaces/hr"));
+    assertFalse(EntityMapper.isManagerMembership("manager"));
+    assertFalse(EntityMapper.isManagerMembership(""));
   }
 
   /**

@@ -1,5 +1,6 @@
 package org.exoplatform.processes.rest;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.*;
@@ -21,12 +22,12 @@ import java.util.Map;
 
 import javax.jcr.ItemExistsException;
 import jakarta.persistence.EntityNotFoundException;
+import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.core.EntityTag;
 import javax.ws.rs.core.Request;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.RuntimeDelegate;
 
-import org.exoplatform.services.security.IdentityRegistry;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
@@ -83,9 +84,6 @@ public class ProcessesRestTest {
   @Mock
   private ProcessesAttachmentService                                                          processesAttachmentService;
 
-  @Mock
-  private IdentityRegistry identityRegistry;
-
   private ProcessesRest                                                                       processesRest;
 
   @Mock
@@ -103,7 +101,7 @@ public class ProcessesRestTest {
   @Before
   public void setUp() {
     RuntimeDelegate.setInstance(new RuntimeDelegateImpl());
-    this.processesRest = new ProcessesRest(processesService, identityManager, identityRegistry, processesAttachmentService);
+    this.processesRest = new ProcessesRest(processesService, identityManager, processesAttachmentService);
 
     ConversationState conversationState = mock(ConversationState.class);
     CONVERSATION_STATE.when(() -> ConversationState.getCurrent()).thenReturn(conversationState);
@@ -185,19 +183,38 @@ public class ProcessesRestTest {
     assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), processesRest.updateWorkDraft(workEntity).getStatus());
   }
 
+  /**
+   * The permissions endpoint answers whether the Service counts the current
+   * user as a processes administrator, which shows the process creation button
+   * to a platform administrator as well. Mutation: answer from the
+   * /platform/processes membership alone and the 'true' assertion fails.
+   */
   @Test
-  public void isProcessesManager() {
+  public void isProcessesManager() throws Exception {
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
     Response response1 = processesRest.isProcessesManager();
     assertEquals(response1.getStatus(), Response.Status.UNAUTHORIZED.getStatusCode());
-    REST_UTILS.when(() -> RestUtils.isProcessesGroupMember(identity)).thenReturn(true);
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    when(processesService.isProcessesAdministrator(1L)).thenReturn(true);
     Response response2 = processesRest.isProcessesManager();
     assertEquals(response2.getStatus(), Response.Status.OK.getStatusCode());
     assertEquals("true", response2.getEntity());
-    REST_UTILS.when(() -> RestUtils.isProcessesGroupMember(identity)).thenThrow(RuntimeException.class);
-    Response response3 = processesRest.isProcessesManager();
-    assertEquals(response3.getStatus(), Response.Status.INTERNAL_SERVER_ERROR.getStatusCode());
+    when(processesService.isProcessesAdministrator(1L)).thenReturn(false);
+    assertEquals("false", processesRest.isProcessesManager().getEntity());
+    when(processesService.isProcessesAdministrator(1L)).thenThrow(IllegalAccessException.class);
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), processesRest.isProcessesManager().getStatus());
+  }
+
+  /**
+   * A process is deleted by whoever its ACL lets delete it, a manager of its
+   * managing space included: the endpoint is open to every user and the
+   * Service checks. Mutation: restrict the endpoint to the processes role and
+   * this test fails.
+   */
+  @Test
+  public void deleteWorkflowIsOpenToUsers() throws Exception {
+    RolesAllowed rolesAllowed = ProcessesRest.class.getMethod("deleteWorkflow", Long.class).getAnnotation(RolesAllowed.class);
+    assertArrayEquals(new String[] { "users" }, rolesAllowed.value());
   }
 
   @Test
