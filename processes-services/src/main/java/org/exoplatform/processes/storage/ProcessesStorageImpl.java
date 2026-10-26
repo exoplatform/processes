@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -582,15 +583,9 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     List<String> listedMemberships = memberships;
     if (memberships != null && processesFilter != null && Boolean.TRUE.equals(processesFilter.getManager())) {
       // The processes a user manages are those whose managing space the user
-      // administers, not every one whose space the user is a member of; a '*'
-      // membership administers the space too
+      // administers, not every one whose space the user is a member of
       listedMemberships = memberships.stream()
-                                     .filter(membership -> membership.startsWith(ProcessesUtils.MANAGER_MEMBERSHIP_TYPE + ":")
-                                         || membership.startsWith(MembershipEntry.ANY_TYPE + ":"))
-                                     .map(membership -> membership.startsWith(MembershipEntry.ANY_TYPE + ":")
-                                         ? ProcessesUtils.MANAGER_MEMBERSHIP_TYPE + membership.substring(MembershipEntry.ANY_TYPE.length())
-                                         : membership)
-                                     .distinct()
+                                     .filter(membership -> membership.startsWith(ProcessesUtils.MANAGER_MEMBERSHIP_TYPE + ":"))
                                      .toList();
       if (listedMemberships.isEmpty()) {
         return new ArrayList<>();
@@ -645,9 +640,28 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     List<String> memberships = new ArrayList<>();
     memberships.add(userName);
     if (CollectionUtils.isNotEmpty(aclIdentity.getMemberships())) {
-      memberships.addAll(aclIdentity.getMemberships().stream().map(m -> m.getMembershipType() + ":" + m.getGroup()).toList());
+      memberships.addAll(aclIdentity.getMemberships()
+                                    .stream()
+                                    .flatMap(m -> toQueriedMemberships(m.getMembershipType(), m.getGroup()))
+                                    .distinct()
+                                    .toList());
     }
     return Map.entry(userName, memberships);
+  }
+
+  /**
+   * A process stores the memberships of its managing space as 'manager:' and
+   * 'member:' entries, which the lists match as strings: a '*' membership,
+   * which the permissions count as both, is queried as both too
+   */
+  private Stream<String> toQueriedMemberships(String membershipType, String group) {
+    String membership = membershipType + ":" + group;
+    if (!MembershipEntry.ANY_TYPE.equals(membershipType)) {
+      return Stream.of(membership);
+    }
+    return Stream.of(membership,
+                     ProcessesUtils.MANAGER_MEMBERSHIP_TYPE + ":" + group,
+                     ProcessesUtils.MEMBER_MEMBERSHIP_TYPE + ":" + group);
   }
   
   private Set<String> getManagers(List<CreatorIdentityEntity> requestsCreators) {

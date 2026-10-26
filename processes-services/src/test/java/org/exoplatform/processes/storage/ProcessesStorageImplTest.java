@@ -667,7 +667,10 @@ public class ProcessesStorageImplTest {
     memberships.add(identity.getRemoteId());
     memberships.add("member:/platform/administrators");
     memberships.add("*:/platform/administrators");
+    memberships.add("manager:/platform/administrators");
     memberships.add("*:/platform/users");
+    memberships.add("manager:/platform/users");
+    memberships.add("member:/platform/users");
     when(workFlowDAO.findWorkFlows(filter, memberships, 0, 0)).thenReturn(workFlowEntities);
     when(workFlow.getIllustrativeAttachment()).thenReturn(illustrativeAttachment);
     this.processesStorage.saveWorkFlow(workFlow, 1L);
@@ -782,10 +785,11 @@ public class ProcessesStorageImplTest {
 
   /**
    * The processes a user manages are those whose managing space the user
-   * administers, as a manager or with a '*' membership: the manager filter
-   * queries those memberships only, as manager ones, while the other lists
-   * query all of them. Mutation: query every membership with the manager
-   * filter, or drop the '*' membership from it, and this test fails.
+   * administers: the manager filter queries the manager memberships only,
+   * while the other lists query all of them, and a '*' membership, which the
+   * permissions count as both, is queried as a manager and a member one too.
+   * Mutation: query every membership with the manager filter, or stop
+   * expanding the '*' membership, and this test fails.
    */
   @Test
   public void findWorkFlowsManagedByTheUserQueriesTheManagerMembershipsOnly() {
@@ -806,11 +810,13 @@ public class ProcessesStorageImplTest {
                                       eq(0),
                                       eq(10));
     verify(workFlowDAO).findWorkFlows(eq(allFilter),
-                                      argThat(memberships -> memberships.size() == 4
+                                      argThat(memberships -> memberships.size() == 6
                                           && memberships.containsAll(List.of("john",
                                                                              "member:/spaces/hr",
                                                                              "manager:/spaces/hr",
-                                                                             "*:/spaces/legal"))),
+                                                                             "*:/spaces/legal",
+                                                                             "manager:/spaces/legal",
+                                                                             "member:/spaces/legal"))),
                                       eq(0),
                                       eq(10));
   }

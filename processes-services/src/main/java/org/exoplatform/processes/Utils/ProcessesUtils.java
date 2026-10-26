@@ -23,6 +23,11 @@ public class ProcessesUtils {
    */
   public static final String MANAGER_MEMBERSHIP_TYPE = "manager";
 
+  /**
+   * The membership type of a space's members
+   */
+  public static final String MEMBER_MEMBERSHIP_TYPE  = "member";
+
   private static final Log   LOG                     = ExoLogger.getLogger(ProcessesUtils.class);
 
   /**
