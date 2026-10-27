@@ -126,8 +126,9 @@ public class WorkFlowDAOTest {
   }
 
   /**
-   * The deprecated process manager flag no longer widens a user's listing.
-   * Mutation: list every process when the flag is set and this test fails.
+   * A user's memberships restrict the listing, whatever the deprecated process
+   * manager flag says. Mutation: list every process when the flag is set and
+   * this test fails.
    */
   @Test
   @SuppressWarnings("deprecation")
