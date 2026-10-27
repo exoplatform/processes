@@ -49,6 +49,17 @@ public interface ProcessesService {
   int countWorkFlows(ProcessesFilter filter,
                      long userIdentityId) throws IllegalAccessException;
 
+  /**
+   * Retrieves a workflow by its id, with the user's permissions on it
+   *
+   * @param id workflow technical identifier
+   * @param userIdentityId the user's identity technical identifier, or null for
+   *          a read made by the platform itself, whose permissions are all
+   *          false
+   * @return the {@link WorkFlow}, or null when it doesn't exist
+   * @throws IllegalAccessException when the identity isn't an active user, or
+   *           neither participates in the workflow nor may add a request to it
+   */
   WorkFlow getWorkFlow(long id, Long userIdentityId) throws IllegalAccessException;
 
   /**

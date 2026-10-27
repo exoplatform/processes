@@ -2,6 +2,7 @@ package org.exoplatform.processes.rest;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.doNothing;
@@ -126,6 +127,7 @@ public class ProcessesRestTest {
     ENTITY_BUILDER.when(() -> EntityBuilder.toRestEntities(workFlows, null)).thenReturn(workFlowEntities);
     Response response2 = processesRest.getWorkFlows(1L, true, null, "test", null, 0, 10);
     assertEquals(response2.getStatus(), Response.Status.OK.getStatusCode());
+    assertNeitherSharedNorStored(response2);
     when(processesService.getWorkFlows(any(ProcessesFilter.class), anyInt(), anyInt(), anyLong())).thenThrow(RuntimeException.class);
     Response response3 = processesRest.getWorkFlows(1L, null, null, null, null, 0, 10);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response3.getStatus());
@@ -215,6 +217,7 @@ public class ProcessesRestTest {
     Response response2 = processesRest.isProcessesManager();
     assertEquals(response2.getStatus(), Response.Status.OK.getStatusCode());
     assertEquals("true", response2.getEntity());
+    assertNeitherSharedNorStored(response2);
     when(processesService.isProcessesAdministrator(1L)).thenReturn(false);
     assertEquals("false", processesRest.isProcessesManager().getEntity());
     when(processesService.isProcessesAdministrator(1L)).thenThrow(IllegalAccessException.class);
@@ -662,9 +665,22 @@ public class ProcessesRestTest {
     ENTITY_BUILDER.when(() -> EntityBuilder.toEntity(workFlow, "")).thenReturn(workFlowEntity);
     Response response3 = processesRest.getWorkFlowById(1L, "");
     assertEquals(Response.Status.OK.getStatusCode(), response3.getStatus());
+    assertNeitherSharedNorStored(response3);
     doThrow(new RuntimeException()).when(processesService).getWorkFlow(anyLong(), anyLong());
     Response response4 = processesRest.getWorkFlowById(1L, "");
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response4.getStatus());
+  }
+
+  /**
+   * A workflow the user may not see is answered with a 403. Mutation: drop the
+   * IllegalAccessException mapping and this test fails on a 500.
+   */
+  @Test
+  public void workflowTheUserMayNotSeeIsForbidden() throws Exception {
+    REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    when(processesService.getWorkFlow(anyLong(), anyLong())).thenThrow(IllegalAccessException.class);
+
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), processesRest.getWorkFlowById(1L, "").getStatus());
   }
 
   @Test
@@ -796,14 +812,33 @@ public class ProcessesRestTest {
     when(request.evaluatePreconditions(any(EntityTag.class))).thenReturn(null);
     Response response2 = processesRest.getImageIllustration(request, 1L, 0);
     assertEquals(Response.Status.OK.getStatusCode(), response2.getStatus());
+    assertTrue(cacheControl(response2).isPrivate());
     Response response3 = processesRest.getImageIllustration(request, 1L, 133584);
     assertEquals(Response.Status.OK.getStatusCode(), response3.getStatus());
     // An illustration served after an ACL check is never stored by a shared cache
-    assertTrue(((javax.ws.rs.core.CacheControl) response3.getMetadata().getFirst("Cache-Control")).isPrivate());
+    assertTrue(cacheControl(response3).isPrivate());
+    when(request.evaluatePreconditions(any(EntityTag.class))).thenReturn(Response.notModified());
+    Response response4 = processesRest.getImageIllustration(request, 1L, 0);
+    assertEquals(Response.Status.NOT_MODIFIED.getStatusCode(), response4.getStatus());
+    assertTrue(cacheControl(response4).isPrivate());
     doThrow(new RuntimeException()).when(processesService).getWorkFlowIllustration(1L, 1L);
     Response response5 = processesRest.getImageIllustration(request, 1L, 133584);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response5.getStatus());
     verify(processesService, times(0)).getWorkFlow(anyLong(), any());
+  }
+
+  // An answer made for one user, with their rights, is neither shared by a
+  // cache nor stored
+  private static void assertNeitherSharedNorStored(Response response) {
+    javax.ws.rs.core.CacheControl cacheControl = cacheControl(response);
+    assertTrue(cacheControl.isPrivate());
+    assertTrue(cacheControl.isNoStore());
+  }
+
+  private static javax.ws.rs.core.CacheControl cacheControl(Response response) {
+    javax.ws.rs.core.CacheControl cacheControl = (javax.ws.rs.core.CacheControl) response.getMetadata().getFirst("Cache-Control");
+    assertNotNull("the answer carries a Cache-Control header", cacheControl);
+    return cacheControl;
   }
 
   /**

@@ -82,7 +82,16 @@ public class ProcessesServiceImpl implements ProcessesService {
 
   @Override
   public WorkFlow getWorkFlow(long id, Long userIdentityId) throws IllegalAccessException {
-    return processesStorage.getWorkFlowById(id, userIdentityId);
+    if (userIdentityId == null) {
+      // The platform's own read, for no user: every permission flag is false
+      return processesStorage.getWorkFlowById(id, null);
+    }
+    getAclIdentity(userIdentityId);
+    WorkFlow workFlow = processesStorage.getWorkFlowById(id, userIdentityId);
+    if (workFlow != null) {
+      checkCanSee(workFlow, id, userIdentityId);
+    }
+    return workFlow;
   }
 
   @Override
@@ -411,14 +420,12 @@ public class ProcessesServiceImpl implements ProcessesService {
                                                                                               IllegalAccessException,
                                                                                               FileStorageException,
                                                                                               IOException {
+    getAclIdentity(userIdentityId);
     WorkFlow workFlow = processesStorage.getWorkFlowById(workflowId, userIdentityId);
     if (workFlow == null) {
       throw new ObjectNotFoundException("Workflow " + workflowId + " not found");
     }
-    ProcessPermission acl = workFlow.getAcl();
-    if (acl == null || !(acl.isCanAccess() || acl.isCanAddRequest())) {
-      throw new IllegalAccessException("User " + userIdentityId + " can't see the process " + workflowId);
-    }
+    checkCanSee(workFlow, workflowId, userIdentityId);
     Long illustrationId = workFlow.getIllustrativeAttachment() == null ? null : workFlow.getIllustrativeAttachment().getId();
     if (illustrationId == null) {
       throw new ObjectNotFoundException("Workflow " + workflowId + " has no illustration");
@@ -541,6 +548,14 @@ public class ProcessesServiceImpl implements ProcessesService {
 
   private boolean isProcessesAdministrator(org.exoplatform.services.security.Identity aclIdentity) {
     return ProcessesUtils.isProcessesAdministrator(userACL, aclIdentity);
+  }
+
+  // A user sees a process they participate in or may add a request to
+  private void checkCanSee(WorkFlow workFlow, long workflowId, long userIdentityId) throws IllegalAccessException {
+    ProcessPermission acl = workFlow.getAcl();
+    if (acl == null || !(acl.isCanAccess() || acl.isCanAddRequest())) {
+      throw new IllegalAccessException("User " + userIdentityId + " can't see the process " + workflowId);
+    }
   }
 
   private org.exoplatform.services.security.Identity getAclIdentity(long userIdentityId) throws IllegalAccessException {

@@ -382,6 +382,35 @@ public class ProcessesServiceImplTest {
    * Mutation: drop the canAccess/canAddRequest guard, or either of its two
    * branches, and this test fails.
    */
+  /**
+   * A user reads a process by its id only when they participate in it or may
+   * add a request to it, and only as an active user; the platform's own read,
+   * with no user, is not refused. Mutation: drop the visibility check, or the
+   * active user check, and this test fails.
+   */
+  @Test
+  public void getWorkFlowIsGuarded() throws Exception {
+    WorkFlow hidden = new WorkFlow();
+    hidden.setAcl(new ProcessPermission(false, false, false, false));
+    WorkFlow participated = new WorkFlow();
+    participated.setAcl(new ProcessPermission(true, false, false, false));
+    WorkFlow requestable = new WorkFlow();
+    requestable.setAcl(new ProcessPermission(false, false, false, true));
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, NON_MEMBER_ID)).thenReturn(hidden);
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, PARTICIPANT_ID)).thenReturn(participated);
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, CREATOR_ID)).thenReturn(requestable);
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, null)).thenReturn(hidden);
+
+    assertThrows(IllegalAccessException.class, () -> processesService.getWorkFlow(WORKFLOW_ID, NON_MEMBER_ID));
+    assertThrows(IllegalAccessException.class, () -> processesService.getWorkFlow(WORKFLOW_ID, DISABLED_USER_ID));
+    verify(processesStorage, never()).getWorkFlowById(WORKFLOW_ID, DISABLED_USER_ID);
+    assertNull(processesService.getWorkFlow(UNKNOWN_ID, PARTICIPANT_ID));
+
+    assertEquals(participated, processesService.getWorkFlow(WORKFLOW_ID, PARTICIPANT_ID));
+    assertEquals(requestable, processesService.getWorkFlow(WORKFLOW_ID, CREATOR_ID));
+    assertEquals(hidden, processesService.getWorkFlow(WORKFLOW_ID, null));
+  }
+
   @Test
   public void getWorkFlowIllustrationIsGuarded() throws Exception {
     WorkFlow hidden = new WorkFlow();
@@ -403,6 +432,7 @@ public class ProcessesServiceImplTest {
 
     assertThrows(ObjectNotFoundException.class, () -> processesService.getWorkFlowIllustration(UNKNOWN_ID, CREATOR_ID));
     assertThrows(IllegalAccessException.class, () -> processesService.getWorkFlowIllustration(WORKFLOW_ID, NON_MEMBER_ID));
+    assertThrows(IllegalAccessException.class, () -> processesService.getWorkFlowIllustration(WORKFLOW_ID, DISABLED_USER_ID));
     assertThrows(ObjectNotFoundException.class, () -> processesService.getWorkFlowIllustration(WORKFLOW_ID, PROJECT_MANAGER_ID));
     verify(processesStorage, never()).getIllustrationImageById(any());
 
