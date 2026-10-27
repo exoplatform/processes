@@ -208,8 +208,9 @@ public class ProcessesMcpTool implements McpToolPlugin {
 
   // Lists the requests awaiting a decision: tasks still in the 'Request' /
   // 'RequestInProgress' status (not completed) that belong to the process
-  // projects whose space the current user is a member of -- membership does not
-  // by itself mean the user can decide them (update_task_status may still be
+  // projects whose space the current user is a member of, or of every enabled
+  // process for a platform administrator -- seeing them does not by itself mean
+  // the user can decide them (update_task_status may still be
   // refused for a plain member). Use the returned task_id with the Task MCP
   // tools (update_task_status to Validated/Refused, add_task_comment) to
   // respond. READ.
@@ -218,7 +219,8 @@ public class ProcessesMcpTool implements McpToolPlugin {
     ProcessesFilter filter = buildEnabledProcessesFilter();
     List<WorkFlow> workFlows = processesService.getWorkFlows(filter, 0, MAX_WORKFLOWS, userIdentityId);
     // Keep only the processes whose pending requests the current user may see
-    // (member of the process's space), and index their project id -> process title.
+    // (member of the process's space, or platform administrator), and index
+    // their project id -> process title.
     Map<Long, String> managedProjects = new LinkedHashMap<>();
     for (WorkFlow workFlow : workFlows) {
       if (workFlow != null && workFlow.isCanShowPending() && workFlow.getProjectId() > 0) {
