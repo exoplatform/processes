@@ -209,9 +209,8 @@ public class ProcessesMcpTool implements McpToolPlugin {
   // Lists the requests awaiting a decision: tasks still in the 'Request' /
   // 'RequestInProgress' status (not completed) that belong to the process
   // projects whose space the current user is a member of, or of every enabled
-  // process for a platform administrator -- seeing them does not by itself mean
-  // the user can decide them (update_task_status may still be
-  // refused for a plain member). Use the returned task_id with the Task MCP
+  // process that has a space for a platform administrator, within the
+  // MAX_WORKFLOWS and MAX_PENDING caps. Use the returned task_id with the Task MCP
   // tools (update_task_status to Validated/Refused, add_task_comment) to
   // respond. READ.
   public List<PendingApprovalModel> getPendingApprovals() throws Exception {

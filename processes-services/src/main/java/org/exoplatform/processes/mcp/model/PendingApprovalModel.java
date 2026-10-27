@@ -19,8 +19,9 @@ package org.exoplatform.processes.mcp.model;
 import java.util.Date;
 
 // Lean, serialization-safe view of a request pending in a process whose space
-// the current user is a member of (still in Request / RequestInProgress and not
-// completed) -- membership does not by itself mean the user can decide it.
+// the current user is a member of, or in any process with a space for a
+// platform administrator (still in Request / RequestInProgress and not
+// completed).
 // taskId is the underlying task id: pass it to the Task MCP tools
 // (update_task_status to Validated/Refused, add_task_comment) to respond.
 // Returned by get_pending_approvals.
