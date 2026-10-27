@@ -242,16 +242,11 @@ public class ProcessesMcpTool implements McpToolPlugin {
   // Helpers
   // ---------------------------------------------------------------------------
 
-  // Builds the filter used to list enabled process types. isProcessManager MUST be
-  // set explicitly: WorkFlowDAO.buildWorkflowQuery unboxes filter.getIsProcessManager()
-  // into a primitive boolean, so leaving it null throws a NullPointerException deep in
-  // the service (there is no requester-role distinction for this AI discovery view, and
-  // since 'enabled' is set the membership-scoped query runs regardless of this flag, so
-  // false is the correct, safe value).
+  // Builds the filter used to list the enabled process types the current user
+  // sees.
   private ProcessesFilter buildEnabledProcessesFilter() {
     ProcessesFilter filter = new ProcessesFilter();
     filter.setEnabled(true);
-    filter.setIsProcessManager(false);
     return filter;
   }
 

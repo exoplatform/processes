@@ -70,6 +70,8 @@ public class ProcessesServiceImpl implements ProcessesService {
                                      int offset,
                                      int limit,
                                      long userIdentityId) throws IllegalAccessException {
+    // Only an active user lists processes
+    getAclIdentity(userIdentityId);
     return processesStorage.findWorkFlows(filter, userIdentityId, offset, limit);
   }
 

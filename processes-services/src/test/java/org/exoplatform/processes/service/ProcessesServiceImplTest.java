@@ -7,6 +7,7 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -177,12 +178,23 @@ public class ProcessesServiceImplTest {
     ProcessesFilter processesFilter = new ProcessesFilter();
     processesFilter.setEnabled(true);
     processesFilter.setQuery("test");
-    when(processesStorage.findWorkFlows(processesFilter, 0, 0, 10)).thenReturn(enabledWorkFlowList);
+    when(processesStorage.findWorkFlows(processesFilter, PARTICIPANT_ID, 0, 10)).thenReturn(enabledWorkFlowList);
 
-    List<WorkFlow> enabledResult = processesService.getWorkFlows(processesFilter, 0, 10, 0L);
+    List<WorkFlow> enabledResult = processesService.getWorkFlows(processesFilter, 0, 10, PARTICIPANT_ID);
     assertEquals(enabledWorkFlowList, enabledResult);
     assertEquals(1, enabledResult.size());
     assertTrue(enabledResult.get(0).isEnabled());
+  }
+
+  /**
+   * A user who isn't active lists no process. Mutation: drop the active user
+   * check from getWorkFlows and this test fails.
+   */
+  @Test
+  public void getWorkFlowsRefusesAnInactiveUser() {
+    assertThrows(IllegalAccessException.class,
+                 () -> processesService.getWorkFlows(new ProcessesFilter(), 0, 10, DISABLED_USER_ID));
+    verify(processesStorage, never()).findWorkFlows(any(), anyLong(), anyInt(), anyInt());
   }
 
   @Test

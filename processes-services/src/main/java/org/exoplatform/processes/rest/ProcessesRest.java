@@ -143,7 +143,6 @@ public class ProcessesRest implements ResourceContainer {
         return Response.status(Response.Status.FORBIDDEN).entity(ONLY_CURRENT_USER_MESSAGE).build();
       }
       long userIdentityId = currentIdentityId;
-      filter.setIsProcessManager(processesService.isProcessesAdministrator(userIdentityId));
       List<WorkFlow> workFlows = processesService.getWorkFlows(filter, offset, limit, userIdentityId);
       return Response.ok(EntityBuilder.toRestEntities(workFlows, expand)).build();
     } catch (IllegalAccessException e) {

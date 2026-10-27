@@ -18,8 +18,6 @@ package org.exoplatform.processes.mcp;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -59,9 +57,7 @@ import org.exoplatform.task.service.TaskService;
 
 /**
  * Exercises the real {@code ProcessesMcpTool} (only its collaborators are
- * mocked): the live NPE where a {@code ProcessesFilter} passed to
- * {@code getWorkFlows} with a null {@code isProcessManager} is unboxed into a
- * primitive {@code boolean} by the service / {@code WorkFlowDAO}; the ACL gate
+ * mocked): the enabled processes filter of its listings; the ACL gate
  * on {@code submitWorkRequest} ({@code WorkFlow.acl.canAddRequest}); the
  * refusal to cancel an already-decided request; and the read/cancel/pending
  * paths' mapping and self-scoping.
@@ -96,7 +92,7 @@ public class ProcessesMcpToolTest {
   }
 
   @Test
-  public void listProcessesSetsIsProcessManagerToAvoidNpe() throws Exception {
+  public void listProcessesListsEnabledProcesses() throws Exception {
     when(processesService.getWorkFlows(any(ProcessesFilter.class),
                                        anyInt(),
                                        anyInt(),
@@ -106,15 +102,11 @@ public class ProcessesMcpToolTest {
 
     ArgumentCaptor<ProcessesFilter> captor = ArgumentCaptor.forClass(ProcessesFilter.class);
     verify(processesService).getWorkFlows(captor.capture(), anyInt(), anyInt(), anyLong());
-    ProcessesFilter filter = captor.getValue();
-    assertNotNull("isProcessManager must be non-null (the service unboxes it into a boolean)",
-                  filter.getIsProcessManager());
-    assertFalse(filter.getIsProcessManager());
-    assertEquals(Boolean.TRUE, filter.getEnabled());
+    assertEquals(Boolean.TRUE, captor.getValue().getEnabled());
   }
 
   @Test
-  public void getPendingApprovalsSetsIsProcessManagerToAvoidNpe() throws Exception {
+  public void getPendingApprovalsListsEnabledProcesses() throws Exception {
     when(processesService.getWorkFlows(any(ProcessesFilter.class),
                                        anyInt(),
                                        anyInt(),
@@ -124,8 +116,7 @@ public class ProcessesMcpToolTest {
 
     ArgumentCaptor<ProcessesFilter> captor = ArgumentCaptor.forClass(ProcessesFilter.class);
     verify(processesService).getWorkFlows(captor.capture(), anyInt(), anyInt(), anyLong());
-    assertNotNull("isProcessManager must be non-null (the service unboxes it into a boolean)",
-                  captor.getValue().getIsProcessManager());
+    assertEquals(Boolean.TRUE, captor.getValue().getEnabled());
   }
 
   @Test

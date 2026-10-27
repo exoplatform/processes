@@ -133,6 +133,22 @@ public class ProcessesRestTest {
   }
 
   /**
+   * A listing the service refuses is answered with a 403. Mutation: drop the
+   * IllegalAccessException mapping and this test fails on a 500.
+   */
+  @Test
+  public void listingRefusedByTheServiceIsForbidden() throws Exception {
+    REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    when(processesService.getWorkFlows(any(ProcessesFilter.class),
+                                       anyInt(),
+                                       anyInt(),
+                                       anyLong())).thenThrow(IllegalAccessException.class);
+
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(),
+                 processesRest.getWorkFlows(1L, null, null, null, null, 0, 10).getStatus());
+  }
+
+  /**
    * The lists are the current user's own: a userId naming another user is
    * refused, and the service is never asked for that user's data. Mutation:
    * go back to using the userId parameter as the acting user and this test

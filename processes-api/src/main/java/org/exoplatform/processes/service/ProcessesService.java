@@ -38,8 +38,7 @@ public interface ProcessesService {
    * @param userIdentityId {@link Identity} technical identifier of the user
    *          acessing files
    * @return {@link List} of {@link WorkFlow}
-   * @throws IllegalAccessException when the user isn't allowed to access
-   *           documents of the designated ownerId
+   * @throws IllegalAccessException when the identity isn't an active user
    */
   List<WorkFlow> getWorkFlows(ProcessesFilter filter,
                                     int offset,
