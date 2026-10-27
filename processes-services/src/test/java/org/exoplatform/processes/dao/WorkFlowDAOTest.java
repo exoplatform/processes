@@ -20,6 +20,7 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mockStatic;
 
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -181,27 +182,31 @@ public class WorkFlowDAOTest {
   }
 
   /**
-   * A process that matches several of a user's memberships is listed once.
-   * Mutation: drop DISTINCT from the query and this test fails.
+   * A process that matches several of a user's memberships takes one place in
+   * a page: Hibernate removes duplicate entities from a result list, but only
+   * after the database applied the page's offset and limit to the joined rows.
+   * Mutation: drop DISTINCT from the query and the second page repeats the
+   * first one's process.
    */
   @Test
-  public void aProcessMatchingSeveralMembershipsIsListedOnce() {
+  public void aProcessMatchingSeveralMembershipsTakesOnePlaceInAPage() {
     ProcessesFilter filter = new ProcessesFilter();
     filter.setManager(false);
+    List<String> memberships = List.of("manager:/spaces/hr", "member:/spaces/hr");
 
-    List<WorkFlowEntity> workFlows = workFlowDAO.findWorkFlows(filter,
-                                                               List.of("manager:/spaces/hr", "member:/spaces/hr"),
-                                                               0,
-                                                               0);
+    Set<Long> twoPages = new HashSet<>();
+    twoPages.addAll(workFlowIds(workFlowDAO.findWorkFlows(filter, memberships, 0, 1)));
+    twoPages.addAll(workFlowIds(workFlowDAO.findWorkFlows(filter, memberships, 1, 1)));
 
-    assertEquals(2, workFlows.size());
+    assertEquals(Set.of(hrProcess, disabledHrProcess), twoPages);
   }
 
   private Set<Long> findWorkFlows(ProcessesFilter filter, List<String> memberships) {
-    return workFlowDAO.findWorkFlows(filter, memberships, 0, 0)
-                      .stream()
-                      .map(WorkFlowEntity::getId)
-                      .collect(Collectors.toSet());
+    return workFlowIds(workFlowDAO.findWorkFlows(filter, memberships, 0, 0));
+  }
+
+  private static Set<Long> workFlowIds(List<WorkFlowEntity> workFlows) {
+    return workFlows.stream().map(WorkFlowEntity::getId).collect(Collectors.toSet());
   }
 
   private static long createProcess(EntityManager em, String title, boolean enabled, String spaceGroupId, Set<String> managers) {
