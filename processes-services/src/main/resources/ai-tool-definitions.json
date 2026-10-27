@@ -118,7 +118,7 @@
     {
       "name": "get_pending_approvals",
       "title": "List pending requests I can see",
-      "description": "Lists the requests still pending a decision in the processes whose space the current user is a member of, or, for a platform administrator, in every enabled process that has a space. It reads at most 200 processes and 100 requests per status. To respond to one, use the eXo Task tools on the returned 'taskId': call update_task_status to move it to 'Validated' or 'Refused', and add_task_comment to leave a note. Returns an empty list when the user is neither a member of a process space nor a platform administrator, or has nothing pending.",
+      "description": "Lists the requests still pending a decision in the enabled processes whose space the current user is a member of, or, for a platform administrator, in every enabled process that has a space. It reads at most 200 processes and 100 requests per status. To respond to one, use the eXo Task tools on the returned 'taskId': call update_task_status to move it to 'Validated' or 'Refused', and add_task_comment to leave a note. Returns an empty list when the user is neither a member of a process space nor a platform administrator, or has nothing pending.",
       "input_schema": {
         "type": "object",
         "properties": {}
