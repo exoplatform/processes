@@ -191,6 +191,23 @@ public class ProcessesMcpToolTest {
     tool.submitWorkRequest(5L, "title", "description");
   }
 
+  /**
+   * A process the user can't see is refused in the tool's own words, naming
+   * the process by its id, not by the Service's message. Mutation: let the
+   * Service's exception through and this test fails on the message.
+   */
+  @Test
+  public void submitWorkRequestRefusesAProcessTheUserCannotSee() throws Exception {
+    when(processesService.getWorkFlow(5L, 1L)).thenThrow(new IllegalAccessException("User 1 can't see the process 5"));
+
+    IllegalAccessException exception = assertThrows(IllegalAccessException.class,
+                                                    () -> tool.submitWorkRequest(5L, "title", "description"));
+
+    assertEquals("You are not allowed to submit a request under the process 5. Call list_processes to see the process types "
+        + "available to you.", exception.getMessage());
+    verify(processesService, never()).createWork(any(Work.class), anyLong());
+  }
+
   @Test(expected = IllegalArgumentException.class)
   public void submitWorkRequestRejectsDisabledProcess() throws Exception {
     WorkFlow workFlow = new WorkFlow();

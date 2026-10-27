@@ -149,7 +149,15 @@ public class ProcessesMcpTool implements McpToolPlugin {
       throw new IllegalArgumentException("The 'title' parameter is mandatory (a short title for the request).");
     }
     long userIdentityId = getCurrentUserIdentityId();
-    WorkFlow workFlow = processesService.getWorkFlow(processId, userIdentityId);
+    WorkFlow workFlow;
+    try {
+      workFlow = processesService.getWorkFlow(processId, userIdentityId);
+    } catch (IllegalAccessException e) {
+      // A process the user can't see: answer in the tool's terms, and name
+      // the process by its id only
+      throw new IllegalAccessException(("You are not allowed to submit a request under the process %d. Call list_processes to "
+          + "see the process types available to you.").formatted(processId));
+    }
     if (workFlow == null) {
       throw new ObjectNotFoundException(("No process found with id %d. Call list_processes to list the available process types "
           + "and their ids.").formatted(processId));
