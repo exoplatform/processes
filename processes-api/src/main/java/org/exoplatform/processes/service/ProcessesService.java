@@ -289,7 +289,8 @@ public interface ProcessesService {
    * @return {@link IllustrativeAttachment}
    * @throws ObjectNotFoundException when the workflow doesn't exist or has no
    *           illustration
-   * @throws IllegalAccessException when the user can't see the workflow
+   * @throws IllegalAccessException when the identity isn't an active user, or
+   *           can't see the workflow
    * @throws FileStorageException
    * @throws IOException
    */

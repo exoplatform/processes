@@ -813,14 +813,23 @@ public class ProcessesRestTest {
     Response response2 = processesRest.getImageIllustration(request, 1L, 0);
     assertEquals(Response.Status.OK.getStatusCode(), response2.getStatus());
     assertTrue(cacheControl(response2).isPrivate());
+    // Only a versioned URL may be kept: an unversioned one carries no max-age
+    assertEquals(-1, cacheControl(response2).getMaxAge());
     Response response3 = processesRest.getImageIllustration(request, 1L, 133584);
     assertEquals(Response.Status.OK.getStatusCode(), response3.getStatus());
     // An illustration served after an ACL check is never stored by a shared cache
     assertTrue(cacheControl(response3).isPrivate());
+    assertEquals(31536000, cacheControl(response3).getMaxAge());
     when(request.evaluatePreconditions(any(EntityTag.class))).thenReturn(Response.notModified());
     Response response4 = processesRest.getImageIllustration(request, 1L, 0);
     assertEquals(Response.Status.NOT_MODIFIED.getStatusCode(), response4.getStatus());
     assertTrue(cacheControl(response4).isPrivate());
+    assertEquals(-1, cacheControl(response4).getMaxAge());
+    when(request.evaluatePreconditions(any(EntityTag.class))).thenReturn(Response.notModified());
+    Response versionedNotModified = processesRest.getImageIllustration(request, 1L, 133584);
+    assertEquals(Response.Status.NOT_MODIFIED.getStatusCode(), versionedNotModified.getStatus());
+    assertTrue(cacheControl(versionedNotModified).isPrivate());
+    assertEquals(31536000, cacheControl(versionedNotModified).getMaxAge());
     doThrow(new RuntimeException()).when(processesService).getWorkFlowIllustration(1L, 1L);
     Response response5 = processesRest.getImageIllustration(request, 1L, 133584);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response5.getStatus());

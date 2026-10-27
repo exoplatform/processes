@@ -377,12 +377,6 @@ public class ProcessesServiceImplTest {
   }
 
   /**
-   * A process illustration is served to the users who see the process in their
-   * lists (participators and request creators), never read with a null user.
-   * Mutation: drop the canAccess/canAddRequest guard, or either of its two
-   * branches, and this test fails.
-   */
-  /**
    * A user reads a process by its id only when they participate in it or may
    * add a request to it, and only as an active user; the platform's own read,
    * with no user, is not refused. Mutation: drop the visibility check, or the
@@ -411,6 +405,12 @@ public class ProcessesServiceImplTest {
     assertEquals(hidden, processesService.getWorkFlow(WORKFLOW_ID, null));
   }
 
+  /**
+   * A process illustration is served to the active users who see the process
+   * in their lists (participators and request creators), never read with a
+   * null user. Mutation: drop the canAccess/canAddRequest guard, either of its
+   * two branches, or the active user check, and this test fails.
+   */
   @Test
   public void getWorkFlowIllustrationIsGuarded() throws Exception {
     WorkFlow hidden = new WorkFlow();
