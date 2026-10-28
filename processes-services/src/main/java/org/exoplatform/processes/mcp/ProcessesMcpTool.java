@@ -149,7 +149,15 @@ public class ProcessesMcpTool implements McpToolPlugin {
       throw new IllegalArgumentException("The 'title' parameter is mandatory (a short title for the request).");
     }
     long userIdentityId = getCurrentUserIdentityId();
-    WorkFlow workFlow = processesService.getWorkFlow(processId, userIdentityId);
+    WorkFlow workFlow;
+    try {
+      workFlow = processesService.getWorkFlow(processId, userIdentityId);
+    } catch (IllegalAccessException e) {
+      // A process the user can't see: answer in the tool's terms, and name
+      // the process by its id only
+      throw new IllegalAccessException(("You are not allowed to submit a request under the process %d. Call list_processes to "
+          + "see the process types available to you.").formatted(processId));
+    }
     if (workFlow == null) {
       throw new ObjectNotFoundException(("No process found with id %d. Call list_processes to list the available process types "
           + "and their ids.").formatted(processId));
@@ -200,9 +208,9 @@ public class ProcessesMcpTool implements McpToolPlugin {
 
   // Lists the requests awaiting a decision: tasks still in the 'Request' /
   // 'RequestInProgress' status (not completed) that belong to the process
-  // projects whose space the current user is a member of -- membership does not
-  // by itself mean the user can decide them (update_task_status may still be
-  // refused for a plain member). Use the returned task_id with the Task MCP
+  // projects of the enabled processes whose space the current user is a member
+  // of, or of every enabled process that has a space for a platform administrator, within the
+  // MAX_WORKFLOWS and MAX_PENDING caps. Use the returned task_id with the Task MCP
   // tools (update_task_status to Validated/Refused, add_task_comment) to
   // respond. READ.
   public List<PendingApprovalModel> getPendingApprovals() throws Exception {
@@ -210,7 +218,8 @@ public class ProcessesMcpTool implements McpToolPlugin {
     ProcessesFilter filter = buildEnabledProcessesFilter();
     List<WorkFlow> workFlows = processesService.getWorkFlows(filter, 0, MAX_WORKFLOWS, userIdentityId);
     // Keep only the processes whose pending requests the current user may see
-    // (member of the process's space), and index their project id -> process title.
+    // (member of the process's space, or platform administrator), and index
+    // their project id -> process title.
     Map<Long, String> managedProjects = new LinkedHashMap<>();
     for (WorkFlow workFlow : workFlows) {
       if (workFlow != null && workFlow.isCanShowPending() && workFlow.getProjectId() > 0) {
@@ -242,16 +251,11 @@ public class ProcessesMcpTool implements McpToolPlugin {
   // Helpers
   // ---------------------------------------------------------------------------
 
-  // Builds the filter used to list enabled process types. isProcessManager MUST be
-  // set explicitly: WorkFlowDAO.buildWorkflowQuery unboxes filter.getIsProcessManager()
-  // into a primitive boolean, so leaving it null throws a NullPointerException deep in
-  // the service (there is no requester-role distinction for this AI discovery view, and
-  // since 'enabled' is set the membership-scoped query runs regardless of this flag, so
-  // false is the correct, safe value).
+  // Builds the filter used to list the enabled process types the current user
+  // sees.
   private ProcessesFilter buildEnabledProcessesFilter() {
     ProcessesFilter filter = new ProcessesFilter();
     filter.setEnabled(true);
-    filter.setIsProcessManager(false);
     return filter;
   }
 

@@ -1,11 +1,13 @@
 package org.exoplatform.processes.service;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -176,12 +178,23 @@ public class ProcessesServiceImplTest {
     ProcessesFilter processesFilter = new ProcessesFilter();
     processesFilter.setEnabled(true);
     processesFilter.setQuery("test");
-    when(processesStorage.findWorkFlows(processesFilter, 0, 0, 10)).thenReturn(enabledWorkFlowList);
+    when(processesStorage.findWorkFlows(processesFilter, PARTICIPANT_ID, 0, 10)).thenReturn(enabledWorkFlowList);
 
-    List<WorkFlow> enabledResult = processesService.getWorkFlows(processesFilter, 0, 10, 0L);
+    List<WorkFlow> enabledResult = processesService.getWorkFlows(processesFilter, 0, 10, PARTICIPANT_ID);
     assertEquals(enabledWorkFlowList, enabledResult);
     assertEquals(1, enabledResult.size());
     assertTrue(enabledResult.get(0).isEnabled());
+  }
+
+  /**
+   * A user who isn't active lists no process. Mutation: drop the active user
+   * check from getWorkFlows and this test fails.
+   */
+  @Test
+  public void getWorkFlowsRefusesAnInactiveUser() {
+    assertThrows(IllegalAccessException.class,
+                 () -> processesService.getWorkFlows(new ProcessesFilter(), 0, 10, DISABLED_USER_ID));
+    verify(processesStorage, never()).findWorkFlows(any(), anyLong(), anyInt(), anyInt());
   }
 
   @Test
@@ -364,10 +377,39 @@ public class ProcessesServiceImplTest {
   }
 
   /**
-   * A process illustration is served to the users who see the process in their
-   * lists (participators and request creators), never read with a null user.
-   * Mutation: drop the canAccess/canAddRequest guard, or either of its two
-   * branches, and this test fails.
+   * A user reads a process by its id only when they participate in it or may
+   * add a request to it, and only as an active user; the platform's own read,
+   * with no user, is not refused. Mutation: drop the visibility check, or the
+   * active user check, and this test fails.
+   */
+  @Test
+  public void getWorkFlowIsGuarded() throws Exception {
+    WorkFlow hidden = new WorkFlow();
+    hidden.setAcl(new ProcessPermission(false, false, false, false));
+    WorkFlow participated = new WorkFlow();
+    participated.setAcl(new ProcessPermission(true, false, false, false));
+    WorkFlow requestable = new WorkFlow();
+    requestable.setAcl(new ProcessPermission(false, false, false, true));
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, NON_MEMBER_ID)).thenReturn(hidden);
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, PARTICIPANT_ID)).thenReturn(participated);
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, CREATOR_ID)).thenReturn(requestable);
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, null)).thenReturn(hidden);
+
+    assertThrows(IllegalAccessException.class, () -> processesService.getWorkFlow(WORKFLOW_ID, NON_MEMBER_ID));
+    assertThrows(IllegalAccessException.class, () -> processesService.getWorkFlow(WORKFLOW_ID, DISABLED_USER_ID));
+    verify(processesStorage, never()).getWorkFlowById(WORKFLOW_ID, DISABLED_USER_ID);
+    assertNull(processesService.getWorkFlow(UNKNOWN_ID, PARTICIPANT_ID));
+
+    assertEquals(participated, processesService.getWorkFlow(WORKFLOW_ID, PARTICIPANT_ID));
+    assertEquals(requestable, processesService.getWorkFlow(WORKFLOW_ID, CREATOR_ID));
+    assertEquals(hidden, processesService.getWorkFlow(WORKFLOW_ID, null));
+  }
+
+  /**
+   * A process illustration is served to the active users who see the process
+   * in their lists (participators and request creators), never read with a
+   * null user. Mutation: drop the canAccess/canAddRequest guard, either of its
+   * two branches, or the active user check, and this test fails.
    */
   @Test
   public void getWorkFlowIllustrationIsGuarded() throws Exception {
@@ -390,6 +432,7 @@ public class ProcessesServiceImplTest {
 
     assertThrows(ObjectNotFoundException.class, () -> processesService.getWorkFlowIllustration(UNKNOWN_ID, CREATOR_ID));
     assertThrows(IllegalAccessException.class, () -> processesService.getWorkFlowIllustration(WORKFLOW_ID, NON_MEMBER_ID));
+    assertThrows(IllegalAccessException.class, () -> processesService.getWorkFlowIllustration(WORKFLOW_ID, DISABLED_USER_ID));
     assertThrows(ObjectNotFoundException.class, () -> processesService.getWorkFlowIllustration(WORKFLOW_ID, PROJECT_MANAGER_ID));
     verify(processesStorage, never()).getIllustrationImageById(any());
 
@@ -401,9 +444,10 @@ public class ProcessesServiceImplTest {
   /**
    * Moving a process to another space hands its project, and the management of
    * its requests, to the target space's managers: an editor of the process who
-   * isn't a processes manager may move it only as a manager of both spaces.
+   * isn't a processes administrator may move it only as a manager of both
+   * spaces, while a platform administrator moves it as a processes one.
    * Mutation: drop the move guard, its current-space or target-space check, or
-   * the processes manager branch, and this test fails.
+   * the processes administrator branch, and this test fails.
    */
   @Test
   public void updateWorkflowSpaceMoveIsGuarded() throws Exception {
@@ -415,7 +459,7 @@ public class ProcessesServiceImplTest {
     targetSpace.setGroupId("/spaces/sales");
     when(spaceService.getSpaceByGroupId(PROCESS_SPACE_GROUP)).thenReturn(currentSpace);
     when(spaceService.getSpaceById("2")).thenReturn(targetSpace);
-    for (long userId : Arrays.asList(PARTICIPANT_ID, PROJECT_MANAGER_ID, OTHER_SPACE_ID, PROCESSES_ADMIN_ID)) {
+    for (long userId : Arrays.asList(PARTICIPANT_ID, PROJECT_MANAGER_ID, OTHER_SPACE_ID, PROCESSES_ADMIN_ID, PLATFORM_ADMIN_ID)) {
       WorkFlow storedWorkFlow = new WorkFlow();
       storedWorkFlow.setId(WORKFLOW_ID);
       storedWorkFlow.setProjectId(PROCESS_PROJECT_ID);
@@ -432,9 +476,10 @@ public class ProcessesServiceImplTest {
 
     processesService.updateWorkFlow(movedWorkFlow("1"), PARTICIPANT_ID);
     processesService.updateWorkFlow(movedWorkFlow("2"), PROCESSES_ADMIN_ID);
+    processesService.updateWorkFlow(movedWorkFlow("2"), PLATFORM_ADMIN_ID);
     when(spaceService.isManager(targetSpace, "manager")).thenReturn(true);
     processesService.updateWorkFlow(movedWorkFlow("2"), PROJECT_MANAGER_ID);
-    verify(processesStorage, times(3)).saveWorkFlow(any(), anyLong());
+    verify(processesStorage, times(4)).saveWorkFlow(any(), anyLong());
   }
 
   @Test
@@ -455,7 +500,7 @@ public class ProcessesServiceImplTest {
   }
 
   /**
-   * Only a member of /platform/processes creates a workflow, as the UI's
+   * Only a processes administrator creates a workflow, as the UI's
    * isProcessesManager gate. Mutation: drop the guard and this test fails.
    */
   @Test
@@ -464,6 +509,32 @@ public class ProcessesServiceImplTest {
     assertThrows(IllegalAccessException.class, () -> processesService.createWorkFlow(workFlow, PROJECT_MANAGER_ID));
     assertThrows(IllegalAccessException.class, () -> processesService.createWorkFlow(workFlow, UNKNOWN_ID));
     verify(processesStorage, never()).saveWorkFlow(any(), anyLong());
+  }
+
+  /**
+   * A processes administrator and a platform administrator both create a
+   * process. Mutation: accept the /platform/processes members only and the
+   * platform administrator's creation fails.
+   */
+  @Test
+  public void createWorkflowIsAllowedToProcessesAndPlatformAdministrators() throws Exception {
+    processesService.createWorkFlow(new WorkFlow(), PROCESSES_ADMIN_ID);
+    processesService.createWorkFlow(new WorkFlow(), PLATFORM_ADMIN_ID);
+    verify(processesStorage, times(2)).saveWorkFlow(any(), anyLong());
+  }
+
+  /**
+   * The processes administrators are the members of /platform/processes and the
+   * platform administrators, never a space manager or member. Mutation: drop
+   * either branch, or grant a space manager, and this test fails.
+   */
+  @Test
+  public void isProcessesAdministrator() throws Exception {
+    assertTrue(processesService.isProcessesAdministrator(PROCESSES_ADMIN_ID));
+    assertTrue(processesService.isProcessesAdministrator(PLATFORM_ADMIN_ID));
+    assertFalse(processesService.isProcessesAdministrator(PROJECT_MANAGER_ID));
+    assertFalse(processesService.isProcessesAdministrator(PARTICIPANT_ID));
+    assertThrows(IllegalAccessException.class, () -> processesService.isProcessesAdministrator(DISABLED_USER_ID));
   }
 
   @Test
