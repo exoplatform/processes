@@ -20,6 +20,7 @@ import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.portal.webui.util.Util;
+import org.exoplatform.processes.Utils.ProcessesUtils;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.service.ProcessesService;
 import org.exoplatform.services.log.ExoLogger;
@@ -41,14 +42,12 @@ import java.util.stream.Collectors;
 public class NotificationUtils {
   private static final Log    LOG             = ExoLogger.getLogger(NotificationUtils.class);
 
-  private static final String PROCESSES_GROUP = "/platform/processes";
-
   public static List<String> getProcessAdmins(String currentUser) {
     List<String> admins = new ArrayList<>();
     ListAccess<User> list;
     try {
       OrganizationService organizationService = CommonsUtils.getService(OrganizationService.class);
-      list = organizationService.getUserHandler().findUsersByGroupId(PROCESSES_GROUP);
+      list = organizationService.getUserHandler().findUsersByGroupId(ProcessesUtils.PROCESSES_GROUP);
       Arrays.stream(list.load(0, list.getSize()))
             .map(User::getUserName)
             .filter(userName -> !userName.equals(currentUser))

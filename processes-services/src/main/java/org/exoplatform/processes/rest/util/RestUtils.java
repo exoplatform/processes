@@ -17,13 +17,10 @@
 package org.exoplatform.processes.rest.util;
 
 import org.exoplatform.services.security.ConversationState;
-import org.exoplatform.services.security.IdentityRegistry;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 
 public class RestUtils {
-
-  private static final String PROCESSES_GROUP =  "/platform/processes";
 
   private RestUtils() {
   }
@@ -41,23 +38,5 @@ public class RestUtils {
     String currentUser = getCurrentUser();
     Identity identity = identityManager.getOrCreateUserIdentity(currentUser);
     return identity == null ? 0 : Long.parseLong(identity.getId());
-  }
-
-  public static boolean isProcessesGroupMember(org.exoplatform.services.security.Identity identity) {
-    return identity != null && identity.isMemberOf(PROCESSES_GROUP);
-  }
-
-  public static boolean isProcessesGroupMember(IdentityManager identityManager, IdentityRegistry identityRegistry, long userId) {
-    Identity identity = identityManager.getIdentity(userId);
-    if (identity == null) {
-      return false;
-    }
-
-    String remoteId = identity.getRemoteId();
-    if (remoteId == null) {
-      return false;
-    }
-
-    return isProcessesGroupMember(identityRegistry.getIdentity(remoteId));
   }
 }

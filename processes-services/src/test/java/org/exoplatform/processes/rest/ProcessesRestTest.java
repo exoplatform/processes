@@ -1,6 +1,8 @@
 package org.exoplatform.processes.rest;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.doNothing;
@@ -21,12 +23,12 @@ import java.util.Map;
 
 import javax.jcr.ItemExistsException;
 import jakarta.persistence.EntityNotFoundException;
+import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.core.EntityTag;
 import javax.ws.rs.core.Request;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.RuntimeDelegate;
 
-import org.exoplatform.services.security.IdentityRegistry;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
@@ -83,9 +85,6 @@ public class ProcessesRestTest {
   @Mock
   private ProcessesAttachmentService                                                          processesAttachmentService;
 
-  @Mock
-  private IdentityRegistry identityRegistry;
-
   private ProcessesRest                                                                       processesRest;
 
   @Mock
@@ -103,7 +102,7 @@ public class ProcessesRestTest {
   @Before
   public void setUp() {
     RuntimeDelegate.setInstance(new RuntimeDelegateImpl());
-    this.processesRest = new ProcessesRest(processesService, identityManager, identityRegistry, processesAttachmentService);
+    this.processesRest = new ProcessesRest(processesService, identityManager, processesAttachmentService);
 
     ConversationState conversationState = mock(ConversationState.class);
     CONVERSATION_STATE.when(() -> ConversationState.getCurrent()).thenReturn(conversationState);
@@ -128,10 +127,27 @@ public class ProcessesRestTest {
     ENTITY_BUILDER.when(() -> EntityBuilder.toRestEntities(workFlows, null)).thenReturn(workFlowEntities);
     Response response2 = processesRest.getWorkFlows(1L, true, null, "test", null, 0, 10);
     assertEquals(response2.getStatus(), Response.Status.OK.getStatusCode());
+    assertNeitherSharedNorStored(response2);
     when(processesService.getWorkFlows(any(ProcessesFilter.class), anyInt(), anyInt(), anyLong())).thenThrow(RuntimeException.class);
     Response response3 = processesRest.getWorkFlows(1L, null, null, null, null, 0, 10);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response3.getStatus());
 
+  }
+
+  /**
+   * A listing the service refuses is answered with a 403. Mutation: drop the
+   * IllegalAccessException mapping and this test fails on a 500.
+   */
+  @Test
+  public void listingRefusedByTheServiceIsForbidden() throws Exception {
+    REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    when(processesService.getWorkFlows(any(ProcessesFilter.class),
+                                       anyInt(),
+                                       anyInt(),
+                                       anyLong())).thenThrow(IllegalAccessException.class);
+
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(),
+                 processesRest.getWorkFlows(1L, null, null, null, null, 0, 10).getStatus());
   }
 
   /**
@@ -185,19 +201,39 @@ public class ProcessesRestTest {
     assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), processesRest.updateWorkDraft(workEntity).getStatus());
   }
 
+  /**
+   * The permissions endpoint answers whether the Service counts the current
+   * user as a processes administrator, which shows the process creation button
+   * to a platform administrator as well. Mutation: answer from the
+   * /platform/processes membership alone and the 'true' assertion fails.
+   */
   @Test
-  public void isProcessesManager() {
+  public void isProcessesManager() throws Exception {
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
     Response response1 = processesRest.isProcessesManager();
     assertEquals(response1.getStatus(), Response.Status.UNAUTHORIZED.getStatusCode());
-    REST_UTILS.when(() -> RestUtils.isProcessesGroupMember(identity)).thenReturn(true);
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    when(processesService.isProcessesAdministrator(1L)).thenReturn(true);
     Response response2 = processesRest.isProcessesManager();
     assertEquals(response2.getStatus(), Response.Status.OK.getStatusCode());
     assertEquals("true", response2.getEntity());
-    REST_UTILS.when(() -> RestUtils.isProcessesGroupMember(identity)).thenThrow(RuntimeException.class);
-    Response response3 = processesRest.isProcessesManager();
-    assertEquals(response3.getStatus(), Response.Status.INTERNAL_SERVER_ERROR.getStatusCode());
+    assertNeitherSharedNorStored(response2);
+    when(processesService.isProcessesAdministrator(1L)).thenReturn(false);
+    assertEquals("false", processesRest.isProcessesManager().getEntity());
+    when(processesService.isProcessesAdministrator(1L)).thenThrow(IllegalAccessException.class);
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), processesRest.isProcessesManager().getStatus());
+  }
+
+  /**
+   * A process is deleted by whoever its ACL lets delete it, a manager of its
+   * managing space included: the endpoint is open to every user and the
+   * Service checks. Mutation: restrict the endpoint to the processes role and
+   * this test fails.
+   */
+  @Test
+  public void deleteWorkflowIsOpenToUsers() throws Exception {
+    RolesAllowed rolesAllowed = ProcessesRest.class.getMethod("deleteWorkflow", Long.class).getAnnotation(RolesAllowed.class);
+    assertArrayEquals(new String[] { "users" }, rolesAllowed.value());
   }
 
   @Test
@@ -629,9 +665,22 @@ public class ProcessesRestTest {
     ENTITY_BUILDER.when(() -> EntityBuilder.toEntity(workFlow, "")).thenReturn(workFlowEntity);
     Response response3 = processesRest.getWorkFlowById(1L, "");
     assertEquals(Response.Status.OK.getStatusCode(), response3.getStatus());
+    assertNeitherSharedNorStored(response3);
     doThrow(new RuntimeException()).when(processesService).getWorkFlow(anyLong(), anyLong());
     Response response4 = processesRest.getWorkFlowById(1L, "");
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response4.getStatus());
+  }
+
+  /**
+   * A workflow the user may not see is answered with a 403. Mutation: drop the
+   * IllegalAccessException mapping and this test fails on a 500.
+   */
+  @Test
+  public void workflowTheUserMayNotSeeIsForbidden() throws Exception {
+    REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    when(processesService.getWorkFlow(anyLong(), anyLong())).thenThrow(IllegalAccessException.class);
+
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), processesRest.getWorkFlowById(1L, "").getStatus());
   }
 
   @Test
@@ -763,14 +812,42 @@ public class ProcessesRestTest {
     when(request.evaluatePreconditions(any(EntityTag.class))).thenReturn(null);
     Response response2 = processesRest.getImageIllustration(request, 1L, 0);
     assertEquals(Response.Status.OK.getStatusCode(), response2.getStatus());
+    assertTrue(cacheControl(response2).isPrivate());
+    // Only a versioned URL may be kept: an unversioned one carries no max-age
+    assertEquals(-1, cacheControl(response2).getMaxAge());
     Response response3 = processesRest.getImageIllustration(request, 1L, 133584);
     assertEquals(Response.Status.OK.getStatusCode(), response3.getStatus());
     // An illustration served after an ACL check is never stored by a shared cache
-    assertTrue(((javax.ws.rs.core.CacheControl) response3.getMetadata().getFirst("Cache-Control")).isPrivate());
+    assertTrue(cacheControl(response3).isPrivate());
+    assertEquals(31536000, cacheControl(response3).getMaxAge());
+    when(request.evaluatePreconditions(any(EntityTag.class))).thenReturn(Response.notModified());
+    Response response4 = processesRest.getImageIllustration(request, 1L, 0);
+    assertEquals(Response.Status.NOT_MODIFIED.getStatusCode(), response4.getStatus());
+    assertTrue(cacheControl(response4).isPrivate());
+    assertEquals(-1, cacheControl(response4).getMaxAge());
+    when(request.evaluatePreconditions(any(EntityTag.class))).thenReturn(Response.notModified());
+    Response versionedNotModified = processesRest.getImageIllustration(request, 1L, 133584);
+    assertEquals(Response.Status.NOT_MODIFIED.getStatusCode(), versionedNotModified.getStatus());
+    assertTrue(cacheControl(versionedNotModified).isPrivate());
+    assertEquals(31536000, cacheControl(versionedNotModified).getMaxAge());
     doThrow(new RuntimeException()).when(processesService).getWorkFlowIllustration(1L, 1L);
     Response response5 = processesRest.getImageIllustration(request, 1L, 133584);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response5.getStatus());
     verify(processesService, times(0)).getWorkFlow(anyLong(), any());
+  }
+
+  // An answer made for one user, with their rights, is neither shared by a
+  // cache nor stored
+  private static void assertNeitherSharedNorStored(Response response) {
+    javax.ws.rs.core.CacheControl cacheControl = cacheControl(response);
+    assertTrue(cacheControl.isPrivate());
+    assertTrue(cacheControl.isNoStore());
+  }
+
+  private static javax.ws.rs.core.CacheControl cacheControl(Response response) {
+    javax.ws.rs.core.CacheControl cacheControl = (javax.ws.rs.core.CacheControl) response.getMetadata().getFirst("Cache-Control");
+    assertNotNull("the answer carries a Cache-Control header", cacheControl);
+    return cacheControl;
   }
 
   /**

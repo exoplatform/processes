@@ -38,8 +38,7 @@ public interface ProcessesService {
    * @param userIdentityId {@link Identity} technical identifier of the user
    *          acessing files
    * @return {@link List} of {@link WorkFlow}
-   * @throws IllegalAccessException when the user isn't allowed to access
-   *           documents of the designated ownerId
+   * @throws IllegalAccessException when the identity isn't an active user
    */
   List<WorkFlow> getWorkFlows(ProcessesFilter filter,
                                     int offset,
@@ -50,7 +49,29 @@ public interface ProcessesService {
   int countWorkFlows(ProcessesFilter filter,
                      long userIdentityId) throws IllegalAccessException;
 
+  /**
+   * Retrieves a workflow by its id, with the user's permissions on it
+   *
+   * @param id workflow technical identifier
+   * @param userIdentityId the user's identity technical identifier, or null for
+   *          a read made by the platform itself, whose permissions are all
+   *          false
+   * @return the {@link WorkFlow}, or null when it doesn't exist
+   * @throws IllegalAccessException when the identity isn't an active user, or
+   *           neither participates in the workflow nor may add a request to it
+   */
   WorkFlow getWorkFlow(long id, Long userIdentityId) throws IllegalAccessException;
+
+  /**
+   * Checks whether a user administers every process: a member of
+   * /platform/processes or a platform administrator creates, edits and deletes
+   * any process, and manages any request
+   *
+   * @param userIdentityId {@link Identity} technical identifier of the user
+   * @return true when the user administers every process
+   * @throws IllegalAccessException when the identity isn't an active user
+   */
+  boolean isProcessesAdministrator(long userIdentityId) throws IllegalAccessException;
 
   WorkFlow createWorkFlow(WorkFlow workFlow, long userId) throws IllegalAccessException;
 
@@ -268,7 +289,8 @@ public interface ProcessesService {
    * @return {@link IllustrativeAttachment}
    * @throws ObjectNotFoundException when the workflow doesn't exist or has no
    *           illustration
-   * @throws IllegalAccessException when the user can't see the workflow
+   * @throws IllegalAccessException when the identity isn't an active user, or
+   *           can't see the workflow
    * @throws FileStorageException
    * @throws IOException
    */

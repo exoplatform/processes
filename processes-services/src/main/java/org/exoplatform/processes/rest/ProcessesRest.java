@@ -48,9 +48,6 @@ import org.exoplatform.services.attachments.model.Attachment;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.rest.resource.ResourceContainer;
-import org.exoplatform.services.security.ConversationState;
-import org.exoplatform.services.security.Identity;
-import org.exoplatform.services.security.IdentityRegistry;
 import org.exoplatform.social.core.manager.IdentityManager;
 
 
@@ -64,8 +61,6 @@ public class ProcessesRest implements ResourceContainer {
 
   private IdentityManager  identityManager;
 
-  private IdentityRegistry identityRegistry;
-
   private ProcessesAttachmentService processesAttachmentService;
 
   private static final int           CACHE_DURATION_SECONDS      = 31536000;
@@ -74,7 +69,9 @@ public class ProcessesRest implements ResourceContainer {
 
   private static final CacheControl  ILLUSTRATION_CACHE_CONTROL  = new CacheControl();
 
-  private static final String              PROCESSES_GROUP          = "/platform/processes";
+  private static final CacheControl  UNVERSIONED_ILLUSTRATION_CACHE_CONTROL = new CacheControl();
+
+  private static final CacheControl  PER_USER_CACHE_CONTROL      = new CacheControl();
 
   private static final String              ONLY_CURRENT_USER_MESSAGE = "Only the current user can be queried";
 
@@ -84,15 +81,18 @@ public class ProcessesRest implements ResourceContainer {
     ILLUSTRATION_CACHE_CONTROL.setMaxAge(CACHE_DURATION_SECONDS);
     // The illustration is served only to the users who see the process
     ILLUSTRATION_CACHE_CONTROL.setPrivate(true);
+    UNVERSIONED_ILLUSTRATION_CACHE_CONTROL.setPrivate(true);
+    // The workflows and the permissions are answered per user, with their own
+    // rights: no cache shares or stores them
+    PER_USER_CACHE_CONTROL.setPrivate(true);
+    PER_USER_CACHE_CONTROL.setNoStore(true);
   }
 
   public ProcessesRest(ProcessesService processesService,
                        IdentityManager identityManager,
-                       IdentityRegistry identityRegistry,
                        ProcessesAttachmentService processesAttachmentService) {
     this.processesService = processesService;
     this.identityManager = identityManager;
-    this.identityRegistry = identityRegistry;
     this.processesAttachmentService = processesAttachmentService;
   }
 
@@ -132,11 +132,11 @@ public class ProcessesRest implements ResourceContainer {
                                   @Schema(defaultValue = "10")
                                   @QueryParam("limit")
                                   int limit) {
+    long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    if (currentIdentityId == 0) {
+      return Response.status(Response.Status.UNAUTHORIZED).build();
+    }
     try {
-      long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
-      if (currentIdentityId == 0) {
-        return Response.status(Response.Status.UNAUTHORIZED).build();
-      }
       ProcessesFilter filter = new ProcessesFilter();
       if (enabled != null) {
         filter.setEnabled(enabled);
@@ -152,9 +152,11 @@ public class ProcessesRest implements ResourceContainer {
         return Response.status(Response.Status.FORBIDDEN).entity(ONLY_CURRENT_USER_MESSAGE).build();
       }
       long userIdentityId = currentIdentityId;
-      filter.setIsProcessManager(RestUtils.isProcessesGroupMember(identityManager, identityRegistry, userIdentityId));
       List<WorkFlow> workFlows = processesService.getWorkFlows(filter, offset, limit, userIdentityId);
-      return Response.ok(EntityBuilder.toRestEntities(workFlows, expand)).build();
+      return Response.ok(EntityBuilder.toRestEntities(workFlows, expand)).cacheControl(PER_USER_CACHE_CONTROL).build();
+    } catch (IllegalAccessException e) {
+      LOG.debug("User '{}' isn't allowed to list the workflows", currentIdentityId, e);
+      return Response.status(Response.Status.FORBIDDEN).build();
     } catch (Exception e) {
       LOG.warn("Error retrieving list of workFlows", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -390,12 +392,13 @@ public class ProcessesRest implements ResourceContainer {
   @RolesAllowed("users")
   @Path("/permissions")
   @Operation(
-          summary = "checks is current user is a processes manager",
-          description = "checks is current user is a processes manager",
+          summary = "checks whether the current user administers every process",
+          description = "checks whether the current user administers every process: a member of /platform/processes or a platform administrator",
           method = "GET")
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Request fulfilled"),
           @ApiResponse(responseCode = "400", description = "Invalid query input"),
           @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "403", description = "The current user isn't an active user"),
           @ApiResponse(responseCode = "500", description = "Internal server error"),})
   public Response isProcessesManager() {
 
@@ -404,9 +407,14 @@ public class ProcessesRest implements ResourceContainer {
       return Response.status(Response.Status.UNAUTHORIZED).build();
     }
     try {
-      Identity identity = ConversationState.getCurrent().getIdentity();
-      boolean isProcessesGroupMember = RestUtils.isProcessesGroupMember(identity);
-      return Response.ok(String.valueOf(isProcessesGroupMember)).type(MediaType.TEXT_PLAIN).build();
+      boolean isProcessesAdministrator = processesService.isProcessesAdministrator(currentIdentityId);
+      return Response.ok(String.valueOf(isProcessesAdministrator))
+                     .type(MediaType.TEXT_PLAIN)
+                     .cacheControl(PER_USER_CACHE_CONTROL)
+                     .build();
+    } catch (IllegalAccessException e) {
+      LOG.debug("User '{}' isn't an active user", currentIdentityId, e);
+      return Response.status(Response.Status.FORBIDDEN).build();
     } catch (Exception e) {
       LOG.warn("Error while checking user permissions", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -415,7 +423,7 @@ public class ProcessesRest implements ResourceContainer {
 
   @DELETE
   @Produces(MediaType.TEXT_PLAIN)
-  @RolesAllowed("processes")
+  @RolesAllowed("users")
   @Path("/workflow/{workflowId}")
   @Operation(
           summary = "delete a workflow by its id",
@@ -805,6 +813,7 @@ public class ProcessesRest implements ResourceContainer {
           method = "GET")
   @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
       @ApiResponse(responseCode = "400", description = "Invalid query input"),
+      @ApiResponse(responseCode = "403", description = "Forbidden operation"),
       @ApiResponse(responseCode = "404", description = "Not found"),
       @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
       @ApiResponse(responseCode = "500", description = "Internal server error"), })
@@ -824,7 +833,10 @@ public class ProcessesRest implements ResourceContainer {
       if (workFlow == null) {
         return Response.status(Response.Status.NOT_FOUND).build();
       }
-      return Response.ok(EntityBuilder.toEntity(workFlow, expand)).build();
+      return Response.ok(EntityBuilder.toEntity(workFlow, expand)).cacheControl(PER_USER_CACHE_CONTROL).build();
+    } catch (IllegalAccessException e) {
+      LOG.debug("User isn't allowed to see the workflow '{}'", workflowId, e);
+      return Response.status(Response.Status.FORBIDDEN).build();
     } catch (Exception e) {
       LOG.warn("Error while getting workflow", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -929,9 +941,9 @@ public class ProcessesRest implements ResourceContainer {
         if (lastModified > 0) {
           builder.lastModified(new Date(lastUpdated));
           builder.expires(new Date(System.currentTimeMillis() + CACHE_DURATION_MILLISECONDS));
-          builder.cacheControl(ILLUSTRATION_CACHE_CONTROL);
         }
       }
+      builder.cacheControl(lastModified > 0 ? ILLUSTRATION_CACHE_CONTROL : UNVERSIONED_ILLUSTRATION_CACHE_CONTROL);
       return builder.build();
     } catch (ObjectNotFoundException e) {
       LOG.debug("Illustrative image of workflow '{}' not found", workflowId, e);

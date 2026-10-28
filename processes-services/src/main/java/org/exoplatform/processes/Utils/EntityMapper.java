@@ -27,8 +27,6 @@ import org.exoplatform.task.dto.TaskDto;
 public class EntityMapper {
   private static final Log LOG = ExoLogger.getLogger(EntityMapper.class);
 
-  private static final String PROCESSES_GROUP =  "/platform/processes";
-
   private EntityMapper() {
   }
 
@@ -106,11 +104,15 @@ public class EntityMapper {
       for (String participator : workFlowEntity.getParticipator()) {
         if (isGranted(member, participator)) {
           permission.setCanAccess(true);
-          permission.setCanEdit(true);
-          break;
+          if (isManagerMembership(participator)) {
+            // The managing space's administrators are the process managers
+            permission.setCanEdit(true);
+            permission.setCanDelete(true);
+            permission.setCanAddRequest(true);
+          }
         }
       }
-      if (isGranted(member, PROCESSES_GROUP)) {
+      if (isGranted(member, ProcessesUtils.PROCESSES_GROUP)) {
         permission.setCanDelete(true);
         permission.setCanEdit(true);
       }
@@ -139,9 +141,24 @@ public class EntityMapper {
     if (memberEntry == null) {
       return member.equals(permission);
     }
-    MembershipEntry permissionEntry = permission.startsWith("/") ? new MembershipEntry(permission)
-                                                                 : MembershipEntry.parse(permission);
-    return memberEntry.equals(permissionEntry);
+    return memberEntry.equals(toMembershipEntry(permission));
+  }
+
+  /**
+   * @param permission a workflow permission entry
+   * @return true when the entry is the membership of a group's administrators,
+   *         not of all its members
+   */
+  static boolean isManagerMembership(String permission) {
+    if (StringUtils.isBlank(permission)) {
+      return false;
+    }
+    MembershipEntry permissionEntry = toMembershipEntry(permission);
+    return permissionEntry != null && ProcessesUtils.MANAGER_MEMBERSHIP_TYPE.equals(permissionEntry.getMembershipType());
+  }
+
+  private static MembershipEntry toMembershipEntry(String permission) {
+    return permission.startsWith("/") ? new MembershipEntry(permission) : MembershipEntry.parse(permission);
   }
 
   public static WorkFlow fromEntity(WorkFlowEntity workFlowEntity,

@@ -37,8 +37,6 @@ import org.exoplatform.task.service.ProjectService;
 
 public class ProcessesServiceImpl implements ProcessesService {
 
-  private static final String      PROCESSES_GROUP     = "/platform/processes";
-
   private static final String      STATUS_CANCELED     = "Canceled";
 
   private static final Set<String> PENDING_STATUSES    = Set.of("Request", "RequestInProgress");
@@ -72,6 +70,8 @@ public class ProcessesServiceImpl implements ProcessesService {
                                      int offset,
                                      int limit,
                                      long userIdentityId) throws IllegalAccessException {
+    // Only an active user lists processes
+    getAclIdentity(userIdentityId);
     return processesStorage.findWorkFlows(filter, userIdentityId, offset, limit);
   }
 
@@ -82,7 +82,21 @@ public class ProcessesServiceImpl implements ProcessesService {
 
   @Override
   public WorkFlow getWorkFlow(long id, Long userIdentityId) throws IllegalAccessException {
-    return processesStorage.getWorkFlowById(id, userIdentityId);
+    if (userIdentityId == null) {
+      // The platform's own read, for no user: every permission flag is false
+      return processesStorage.getWorkFlowById(id, null);
+    }
+    getAclIdentity(userIdentityId);
+    WorkFlow workFlow = processesStorage.getWorkFlowById(id, userIdentityId);
+    if (workFlow != null) {
+      checkCanSee(workFlow, id, userIdentityId);
+    }
+    return workFlow;
+  }
+
+  @Override
+  public boolean isProcessesAdministrator(long userIdentityId) throws IllegalAccessException {
+    return isProcessesAdministrator(getAclIdentity(userIdentityId));
   }
 
   @Override
@@ -93,7 +107,7 @@ public class ProcessesServiceImpl implements ProcessesService {
     if (workFlow.getId() != 0) {
       throw new IllegalArgumentException("workFlow id must be equal to 0");
     }
-    if (!isProcessesManager(getAclIdentity(userId))) {
+    if (!isProcessesAdministrator(getAclIdentity(userId))) {
       throw new IllegalAccessException("User " + userId + " isn't allowed to create a process");
     }
     // A new process always gets its own project and illustration file, never
@@ -406,14 +420,12 @@ public class ProcessesServiceImpl implements ProcessesService {
                                                                                               IllegalAccessException,
                                                                                               FileStorageException,
                                                                                               IOException {
+    getAclIdentity(userIdentityId);
     WorkFlow workFlow = processesStorage.getWorkFlowById(workflowId, userIdentityId);
     if (workFlow == null) {
       throw new ObjectNotFoundException("Workflow " + workflowId + " not found");
     }
-    ProcessPermission acl = workFlow.getAcl();
-    if (acl == null || !(acl.isCanAccess() || acl.isCanAddRequest())) {
-      throw new IllegalAccessException("User " + userIdentityId + " can't see the process " + workflowId);
-    }
+    checkCanSee(workFlow, workflowId, userIdentityId);
     Long illustrationId = workFlow.getIllustrativeAttachment() == null ? null : workFlow.getIllustrativeAttachment().getId();
     if (illustrationId == null) {
       throw new ObjectNotFoundException("Workflow " + workflowId + " has no illustration");
@@ -496,8 +508,8 @@ public class ProcessesServiceImpl implements ProcessesService {
   /**
    * Checks a process update that moves the process to another space: the move
    * hands the process project, and so the management of its requests, to the
-   * target space's managers, so it requires a processes manager, or a manager
-   * of both the current and the target space
+   * target space's managers, so it requires a processes administrator, or a
+   * manager of both the current and the target space
    */
   private void checkSpaceMove(WorkFlow storedWorkFlow, String targetSpaceId, long userIdentityId) throws IllegalAccessException {
     if (targetSpaceId == null) {
@@ -508,7 +520,7 @@ public class ProcessesServiceImpl implements ProcessesService {
       return;
     }
     org.exoplatform.services.security.Identity aclIdentity = getAclIdentity(userIdentityId);
-    if (isProcessesManager(aclIdentity)) {
+    if (isProcessesAdministrator(aclIdentity)) {
       return;
     }
     Space targetSpace = spaceService.getSpaceById(targetSpaceId);
@@ -523,7 +535,7 @@ public class ProcessesServiceImpl implements ProcessesService {
   }
 
   private boolean isWorkFlowManager(org.exoplatform.services.security.Identity aclIdentity, long projectId) {
-    if (isProcessesManager(aclIdentity) || userACL.isAdministrator(aclIdentity)) {
+    if (isProcessesAdministrator(aclIdentity)) {
       return true;
     }
     try {
@@ -534,8 +546,16 @@ public class ProcessesServiceImpl implements ProcessesService {
     }
   }
 
-  private boolean isProcessesManager(org.exoplatform.services.security.Identity aclIdentity) {
-    return aclIdentity.isMemberOf(PROCESSES_GROUP);
+  private boolean isProcessesAdministrator(org.exoplatform.services.security.Identity aclIdentity) {
+    return ProcessesUtils.isProcessesAdministrator(userACL, aclIdentity);
+  }
+
+  // A user sees a process they participate in or may add a request to
+  private void checkCanSee(WorkFlow workFlow, long workflowId, long userIdentityId) throws IllegalAccessException {
+    ProcessPermission acl = workFlow.getAcl();
+    if (acl == null || !(acl.isCanAccess() || acl.isCanAddRequest())) {
+      throw new IllegalAccessException("User " + userIdentityId + " can't see the process " + workflowId);
+    }
   }
 
   private org.exoplatform.services.security.Identity getAclIdentity(long userIdentityId) throws IllegalAccessException {
