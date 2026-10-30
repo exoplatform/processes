@@ -20,7 +20,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
@@ -66,16 +65,26 @@ public class ProcessSpaceScopeResolver implements SpaceScopeResolver {
   private static final String SPACES_PREFIX = "/spaces/";
 
   /** Reads the process. */
-  @Autowired
-  private ProcessesService    processesService;
+  private final ProcessesService processesService;
 
   /** Reads the process's project. */
-  @Autowired
-  private ProjectService      projectService;
+  private final ProjectService   projectService;
 
   /** Reads the space of a group. */
-  @Autowired
-  private SpaceService        spaceService;
+  private final SpaceService     spaceService;
+
+  /**
+   * @param processesService reads the process
+   * @param projectService reads the process's project
+   * @param spaceService reads the space of a group
+   */
+  public ProcessSpaceScopeResolver(ProcessesService processesService,
+                                   ProjectService projectService,
+                                   SpaceService spaceService) {
+    this.processesService = processesService;
+    this.projectService = projectService;
+    this.spaceService = spaceService;
+  }
 
   /**
    * @return {@value #NAME}

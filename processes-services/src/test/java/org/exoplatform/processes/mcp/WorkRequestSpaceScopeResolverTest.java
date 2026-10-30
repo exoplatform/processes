@@ -25,7 +25,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFlow;
@@ -52,9 +51,7 @@ public class WorkRequestSpaceScopeResolverTest {
   public void setUp() {
     processesService = mock(ProcessesService.class);
     processResolver = mock(ProcessSpaceScopeResolver.class);
-    resolver = new WorkRequestSpaceScopeResolver();
-    ReflectionTestUtils.setField(resolver, "processesService", processesService);
-    ReflectionTestUtils.setField(resolver, "processSpaceScopeResolver", processResolver);
+    resolver = new WorkRequestSpaceScopeResolver(processesService, processResolver);
     when(processesService.getWorkFlowByProjectId(7L)).thenReturn(new WorkFlow());
     when(processResolver.spaceOfProject(7L)).thenReturn(12L);
     when(processResolver.spaceOfProject(8L)).thenReturn(12L);
