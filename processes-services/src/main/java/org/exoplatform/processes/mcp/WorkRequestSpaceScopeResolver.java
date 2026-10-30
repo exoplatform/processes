@@ -17,7 +17,6 @@
 package org.exoplatform.processes.mcp;
 
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
@@ -54,12 +53,20 @@ public class WorkRequestSpaceScopeResolver implements SpaceScopeResolver {
   private static final Log LOG = ExoLogger.getLogger(WorkRequestSpaceScopeResolver.class);
 
   /** Reads the request and the process of its project. */
-  @Autowired
-  private ProcessesService          processesService;
+  private final ProcessesService          processesService;
 
   /** Tells the space of a process project. */
-  @Autowired
-  private ProcessSpaceScopeResolver processSpaceScopeResolver;
+  private final ProcessSpaceScopeResolver processSpaceScopeResolver;
+
+  /**
+   * @param processesService reads the request and the process of its project
+   * @param processSpaceScopeResolver tells the space of a process project
+   */
+  public WorkRequestSpaceScopeResolver(ProcessesService processesService,
+                                       ProcessSpaceScopeResolver processSpaceScopeResolver) {
+    this.processesService = processesService;
+    this.processSpaceScopeResolver = processSpaceScopeResolver;
+  }
 
   /**
    * @return {@value #NAME}
