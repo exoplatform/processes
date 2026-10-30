@@ -17,6 +17,7 @@
 package org.exoplatform.processes.mcp;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -25,6 +26,7 @@ import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.net.URL;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -56,6 +58,10 @@ public class ProcessesToolDefinitionSpaceScopeTest {
   private static final Set<String> WRITES     = Set.of("submit_work_request", "cancel_work_request");
 
   private static final JsonMapper  MAPPER     = JsonMapper.builder().build();
+
+  /** The role each space-scoped write declares in {@code space_role}. */
+  private static final Map<String, String> SPACE_ROLES = Map.of("cancel_work_request", "member",
+                                                                "submit_work_request", "member");
 
   /**
    * Exactly four processes tools declare a space scope, each well formed for
@@ -208,6 +214,41 @@ public class ProcessesToolDefinitionSpaceScopeTest {
     } catch (Exception e) {
       throw new IllegalStateException("The processes tool definitions couldn't be read", e);
     }
+  }
+
+  /**
+   * Each space-scoped write declares in {@code space_role} the role the member
+   * who asks a digital worker for it must hold in the call's space
+   * (EXO-91405), and no space-scoped read declares one: who may submit a
+   * request is the process's own list of requesters, and a request is
+   * cancelled by its requester, no space role, so each of them is
+   * {@code member}.
+   * Mutants: a write's role dropped or changed, or a read given one.
+   *
+   * @throws Exception when the shipped definitions can't be read
+   */
+  @Test
+  public void spaceScopedWritesDeclareTheAskersSpaceRole() throws Exception {
+    Map<String, String> roles = new HashMap<>();
+    URL classes = ProcessesMcpTool.class.getProtectionDomain().getCodeSource().getLocation();
+    JsonNode definitions = MAPPER.readTree(new File(new File(classes.toURI()), "ai-tool-definitions.json"));
+    for (JsonNode tool : definitions.path("tools")) {
+      String name = tool.path("name").asString();
+      JsonNode scope = tool.path("space_scope");
+      if (!scope.isObject()) {
+        continue;
+      }
+      if (tool.path("annotations").path("readOnlyHint").asBoolean(false)) {
+        assertFalse(name, scope.has("space_role"));
+      } else {
+        assertTrue(name, scope.has("space_role"));
+        roles.put(name, scope.path("space_role").asString());
+        if (scope.path("space_admin").asBoolean(false)) {
+          assertEquals(name, "manager", roles.get(name));
+        }
+      }
+    }
+    assertEquals(SPACE_ROLES, roles);
   }
 
 }
