@@ -96,7 +96,7 @@
         "idempotentHint": false,
         "openWorldHint": false
       },
-      "space_scope": { "object_arg": "process_id", "resolver": "process", "allowed_args": ["title", "description"] },
+      "space_scope": { "object_arg": "process_id", "resolver": "process", "allowed_args": ["title", "description"], "space_role": "member" },
       "require_approval": true
     },
     {
@@ -121,7 +121,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
-      "space_scope": { "object_arg": "request_id", "resolver": "work_request" },
+      "space_scope": { "object_arg": "request_id", "resolver": "work_request", "space_role": "member" },
       "require_approval": true
     },
     {
