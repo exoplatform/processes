@@ -33,12 +33,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 
-import org.exoplatform.social.core.space.model.Space;
-import org.exoplatform.social.core.space.spi.SpaceService;
-import org.exoplatform.processes.mcp.model.ProcessModel;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -46,6 +45,7 @@ import org.mockito.ArgumentCaptor;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.processes.mcp.model.PendingApprovalModel;
+import org.exoplatform.processes.mcp.model.ProcessModel;
 import org.exoplatform.processes.mcp.model.RequestModel;
 import org.exoplatform.processes.model.ProcessesFilter;
 import org.exoplatform.processes.model.Work;
@@ -56,6 +56,8 @@ import org.exoplatform.processes.service.ProcessesService;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.core.space.model.Space;
+import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
@@ -119,7 +121,7 @@ public class ProcessesMcpToolTest {
    */
   @Test
   public void listProcessesOfASpaceNamesOnlyThatSpacesProcesses() throws Exception {
-    List<WorkFlow> firstPage = new java.util.ArrayList<>();
+    List<WorkFlow> firstPage = new ArrayList<>();
     for (int i = 1; i <= 200; i++) {
       firstPage.add(workFlow(i, 100 + i));
     }
@@ -160,11 +162,11 @@ public class ProcessesMcpToolTest {
    */
   @Test
   public void listProcessesOfASpaceStopsAtTheCapAndListsAProcessOnce() throws Exception {
-    List<WorkFlow> firstPage = new java.util.ArrayList<>();
+    List<WorkFlow> firstPage = new ArrayList<>();
     for (int i = 1; i <= 200; i++) {
       firstPage.add(workFlow(i, i <= 150 ? i : 10000 + i));
     }
-    List<WorkFlow> secondPage = new java.util.ArrayList<>();
+    List<WorkFlow> secondPage = new ArrayList<>();
     secondPage.add(workFlow(1, 1));
     for (int i = 201; i <= 399; i++) {
       secondPage.add(workFlow(i, i));
@@ -184,7 +186,7 @@ public class ProcessesMcpToolTest {
     List<Long> ids = tool.listProcesses(12L).stream().map(ProcessModel::id).toList();
 
     assertEquals(200, ids.size());
-    assertEquals(200, new java.util.HashSet<>(ids).size());
+    assertEquals(200, new HashSet<>(ids).size());
     assertEquals(Long.valueOf(150L), ids.get(149));
     assertEquals(Long.valueOf(250L), ids.get(199));
     verify(processesService, never()).getWorkFlows(any(ProcessesFilter.class), eq(400), eq(200), anyLong());
