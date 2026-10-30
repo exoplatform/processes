@@ -3,17 +3,23 @@
     {
       "name": "list_processes",
       "title": "List process types (request types)",
-      "description": "Lists the enabled eXo Processes types (a.k.a. request types) the current user can see, e.g. 'Leave request', 'Expense report', 'IT support'. Use this to discover what the user can request and to get the process id ('id' in the result) to pass to submit_work_request. Each result also exposes 'projectId' (the underlying Task/Kanban project) and 'canManageRequests' (true when the user can see that process's pending requests, i.e. is a member of its space -- not necessarily able to decide them).",
+      "description": "Lists the enabled eXo Processes types (a.k.a. request types) the current user can see, or only those of one space with 'space_id' (in a run limited to a space, that space), e.g. 'Leave request', 'Expense report', 'IT support'. Use this to discover what the user can request and to get the process id ('id' in the result) to pass to submit_work_request. Each result also exposes 'projectId' (the underlying Task/Kanban project) and 'canManageRequests' (true when the user can see that process's pending requests, i.e. is a member of its space -- not necessarily able to decide them).",
       "input_schema": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "space_id": {
+            "type": "integer",
+            "description": "Optional. The id of a space: lists only the processes of that space. Without it, every process the user can see is listed."
+          }
+        }
       },
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false
-      }
+      },
+      "space_scope": { "space_arg": "space_id", "when_absent": "use_scope" }
     },
     {
       "name": "get_my_requests",
@@ -56,7 +62,8 @@
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false
-      }
+      },
+      "space_scope": { "object_arg": "request_id", "resolver": "work_request" }
     },
     {
       "name": "submit_work_request",
@@ -89,6 +96,7 @@
         "idempotentHint": false,
         "openWorldHint": false
       },
+      "space_scope": { "object_arg": "process_id", "resolver": "process", "allowed_args": ["title", "description"], "space_role": "member" },
       "require_approval": true
     },
     {
@@ -113,6 +121,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
+      "space_scope": { "object_arg": "request_id", "resolver": "work_request", "space_role": "member" },
       "require_approval": true
     },
     {
