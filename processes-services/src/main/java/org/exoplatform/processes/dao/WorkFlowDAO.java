@@ -51,54 +51,47 @@ public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
     return resultList == null ? Collections.emptyList() : resultList;
   }
 
+  /**
+   * Builds the listing query. Null memberships list every process: only a
+   * processes administrator's listing passes them; any other user's is
+   * restricted to the processes their memberships participate in.
+   */
   private String buildWorkflowQuery(ProcessesFilter processesFilter, List<String> memberships) {
 
     String q = processesFilter.getQuery();
     Boolean enabled = processesFilter.getEnabled();
     Boolean manager = processesFilter.getManager();
-    boolean isProcessManager = processesFilter.getIsProcessManager();
 
     StringBuilder queryString =
       new StringBuilder("SELECT DISTINCT workFlow FROM WorkFlow workFlow");
 
-    if (enabled != null || Boolean.TRUE.equals(manager) || !isProcessManager) {
-
-      if (memberships != null) {
-        if (Boolean.FALSE.equals(manager)) {
-          queryString.append(" LEFT JOIN workFlow.manager manager");
-        }
-        queryString.append(" LEFT JOIN workFlow.participator participator");
+    if (memberships != null) {
+      if (Boolean.FALSE.equals(manager)) {
+        queryString.append(" LEFT JOIN workFlow.manager manager");
       }
-      if (StringUtils.isNotEmpty(q) || memberships != null || enabled != null) {
-        List<String> predicates = new ArrayList<>();
-        if (StringUtils.isNotEmpty(q)) {
-          predicates.add("""
-              (workFlow.title LIKE :query
-              OR workFlow.description LIKE :query
-              OR workFlow.summary LIKE :query)
-              """);
-        }
-        if (enabled != null) {
-          predicates.add("workFlow.enabled = :enabled");
-        }
-        if (memberships != null) {
-          if (Boolean.FALSE.equals(manager)) {
-            predicates.add("(manager IN :managers OR participator IN :memberships)");
-          } else {
-            predicates.add("participator IN :memberships");
-          }
-        }
-        if (!predicates.isEmpty()) {
-          queryString.append(" WHERE ")
-            .append(StringUtils.join(predicates, " AND "));
-        }
+      queryString.append(" LEFT JOIN workFlow.participator participator");
+    }
+    List<String> predicates = new ArrayList<>();
+    if (StringUtils.isNotEmpty(q)) {
+      predicates.add("""
+          (workFlow.title LIKE :query
+          OR workFlow.description LIKE :query
+          OR workFlow.summary LIKE :query)
+          """);
+    }
+    if (enabled != null) {
+      predicates.add("workFlow.enabled = :enabled");
+    }
+    if (memberships != null) {
+      if (Boolean.FALSE.equals(manager)) {
+        predicates.add("(manager IN :managers OR participator IN :memberships)");
+      } else {
+        predicates.add("participator IN :memberships");
       }
-    } else {
-      if (StringUtils.isNotEmpty(q)) {
-        queryString.append(" WHERE (workFlow.title LIKE :query")
-          .append(" OR workFlow.description LIKE :query")
-          .append(" OR workFlow.summary LIKE :query)");
-      }
+    }
+    if (!predicates.isEmpty()) {
+      queryString.append(" WHERE ")
+        .append(StringUtils.join(predicates, " AND "));
     }
 
     return queryString.toString();

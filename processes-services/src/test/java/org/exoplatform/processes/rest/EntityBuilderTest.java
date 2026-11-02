@@ -33,7 +33,6 @@ import org.exoplatform.processes.service.ProcessesAttachmentService;
 import org.exoplatform.processes.service.ProcessesService;
 import org.exoplatform.services.rest.impl.RuntimeDelegateImpl;
 import org.exoplatform.services.security.ConversationState;
-import org.exoplatform.services.security.IdentityRegistry;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.model.Profile;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
@@ -61,8 +60,6 @@ public class EntityBuilderTest {
 
   private ProcessesRest                             processesRest;
 
-  private IdentityRegistry                          identityRegistry;
-
   @AfterClass
   public static void afterRunBare() throws Exception { // NOSONAR
     COMMONS_UTILS.close();
@@ -73,8 +70,7 @@ public class EntityBuilderTest {
   @Before
   public void setUp() {
     RuntimeDelegate.setInstance(new RuntimeDelegateImpl());
-    identityRegistry = mock(IdentityRegistry.class);
-    this.processesRest = new ProcessesRest(processesService, identityManager, identityRegistry, processesAttachmentService);
+    this.processesRest = new ProcessesRest(processesService, identityManager, processesAttachmentService);
   }
 
   @Test
@@ -139,9 +135,7 @@ public class EntityBuilderTest {
     Profile currentProfile = new Profile();
     currentProfile.setProperty(Profile.FULL_NAME, username);
     currentIdentity.setProfile(currentProfile);
-    org.exoplatform.services.security.Identity userID = new org.exoplatform.services.security.Identity(username);
 
-    when(identityRegistry.getIdentity(username)).thenReturn(userID);
     when(identityManager.getIdentity((String.valueOf(currentOwnerId)))).thenReturn(currentIdentity);
     when(identityManager.getOrCreateUserIdentity(username)).thenReturn(currentIdentity);
 
