@@ -167,7 +167,7 @@ public class ProcessesRestTest {
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
     WorkFlow workFlow = new WorkFlow();
     WorkFlowEntity workFlowEntity = new WorkFlowEntity();
-    ENTITY_BUILDER.when(() -> EntityBuilder.fromEntity(workFlowEntity)).thenReturn(workFlow);
+    ENTITY_BUILDER.when(() -> EntityBuilder.fromEntity(same(workFlowEntity))).thenReturn(workFlow);
     when(processesService.createWorkFlow(workFlow, 1L)).thenThrow(new IllegalArgumentException("workFlow id must be equal to 0"));
     when(processesService.updateWorkFlow(workFlow, 1L)).thenThrow(new IllegalArgumentException("there are no changes to save"));
     WorkEntity workEntity = new WorkEntity();
@@ -250,7 +250,7 @@ public class ProcessesRestTest {
     Date createdDate = new Date();
     Date modifiedDate = new Date();
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
-    ENTITY_BUILDER.when(() -> EntityBuilder.fromEntity(workFlowEntity)).thenReturn(workFlow);
+    ENTITY_BUILDER.when(() -> EntityBuilder.fromEntity(same(workFlowEntity))).thenReturn(workFlow);
     when(processesService.updateWorkFlow(workFlow, 1L)).thenThrow(IllegalAccessException.class);
     Response response = processesRest.updateWorkFlow(workFlowEntity);
     assertEquals(Response.Status.FORBIDDEN.getStatusCode(), response.getStatus());
