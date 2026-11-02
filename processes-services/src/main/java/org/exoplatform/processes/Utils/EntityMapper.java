@@ -18,6 +18,7 @@ import org.exoplatform.services.log.Log;
 import org.exoplatform.services.organization.Group;
 import org.exoplatform.services.organization.GroupHandler;
 import org.exoplatform.services.organization.OrganizationService;
+import org.exoplatform.services.security.MembershipEntry;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dto.StatusDto;
@@ -97,19 +98,19 @@ public class EntityMapper {
     ProcessPermission permission = new ProcessPermission(false, false, false, false);
     for (String member : memberships) {
       for (String manager : workFlowEntity.getManager()) {
-        if (member.contains(manager)) {
+        if (isGranted(member, manager)) {
           permission.setCanAddRequest(true);
           break;
         }
       }
       for (String participator : workFlowEntity.getParticipator()) {
-        if (member.equals(participator)) {
+        if (isGranted(member, participator)) {
           permission.setCanAccess(true);
           permission.setCanEdit(true);
           break;
         }
       }
-      if (member.contains(PROCESSES_GROUP)) {
+      if (isGranted(member, PROCESSES_GROUP)) {
         permission.setCanDelete(true);
         permission.setCanEdit(true);
       }
@@ -118,6 +119,29 @@ public class EntityMapper {
       }
     }
     return permission;
+  }
+
+  /**
+   * Checks whether a user's membership grants a workflow permission entry
+   *
+   * @param member a user's membership, 'type:/group', or the user's name
+   * @param permission a permission entry: a group id, which any membership type
+   *          of that group grants, a 'type:/group' membership, where the type
+   *          '*' stands for any type, or a user name
+   * @return true when the entry designates exactly that group, membership or
+   *         user
+   */
+  static boolean isGranted(String member, String permission) {
+    if (StringUtils.isBlank(member) || StringUtils.isBlank(permission)) {
+      return false;
+    }
+    MembershipEntry memberEntry = MembershipEntry.parse(member);
+    if (memberEntry == null) {
+      return member.equals(permission);
+    }
+    MembershipEntry permissionEntry = permission.startsWith("/") ? new MembershipEntry(permission)
+                                                                 : MembershipEntry.parse(permission);
+    return memberEntry.equals(permissionEntry);
   }
 
   public static WorkFlow fromEntity(WorkFlowEntity workFlowEntity,
@@ -255,10 +279,12 @@ public class EntityMapper {
     if (task == null) {
       return null;
     }
+    // A task outside any project, such as a personal task, has no status
+    StatusDto status = task.getStatus();
     return new Work(task.getId(),
                     task.getTitle(),
                     task.getDescription(),
-                    task.getStatus().getName(),
+                    status == null ? null : status.getName(),
                     task.isCompleted(),
                     task.getCreatedBy(),
                     task.getCreatedTime(),
@@ -267,7 +293,7 @@ public class EntityMapper {
                     task.getDueDate(),
                     false,
                     null,
-                    task.getStatus().getProject().getId());
+                    status == null || status.getProject() == null ? 0 : status.getProject().getId());
   }
 
   public static List<Work> tasksToWorkList(List<TaskDto> tasks) {
