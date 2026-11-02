@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -43,6 +44,7 @@ import org.exoplatform.processes.service.ProcessesAttachmentService;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
+import org.exoplatform.services.security.MembershipEntry;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
@@ -63,7 +65,6 @@ import org.exoplatform.task.util.UserUtil;
 public class ProcessesStorageImpl implements ProcessesStorage {
 
   private static final Log                 LOG                      = ExoLogger.getLogger(ProcessesStorageImpl.class);
-  private static final String              PROCESSES_GROUP          = "/platform/processes";
   private static final String              WORK_DRAFT_ENTITY_TYPE   = "workdraft";
   private static final String              TASK_ENTITY_TYPE         = "task";
   private static final String              WORKFLOW_ENTITY_TYPE     = "workflow";
@@ -579,7 +580,18 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     Map.Entry<String, List<String>> userMemberships = getUserMemberships(userIdentityId);
     String userName = userMemberships.getKey();
     List<String> memberships = userMemberships.getValue();
-    List<WorkFlowEntity> workFlowEntities = workFlowDAO.findWorkFlows(processesFilter, memberships, offset, limit);
+    List<String> listedMemberships = memberships;
+    if (memberships != null && processesFilter != null && Boolean.TRUE.equals(processesFilter.getManager())) {
+      // The processes a user manages are those whose managing space the user
+      // administers, not every one whose space the user is a member of
+      listedMemberships = memberships.stream()
+                                     .filter(membership -> membership.startsWith(ProcessesUtils.MANAGER_MEMBERSHIP_TYPE + ":"))
+                                     .toList();
+      if (listedMemberships.isEmpty()) {
+        return new ArrayList<>();
+      }
+    }
+    List<WorkFlowEntity> workFlowEntities = workFlowDAO.findWorkFlows(processesFilter, listedMemberships, offset, limit);
     List<WorkFlow> workFlows = new ArrayList<>();
     List<String> finalMemberships = memberships;
     workFlowEntities.forEach(workflowEntity -> {
@@ -622,15 +634,34 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     }
     String userName = identity.getRemoteId();
     org.exoplatform.services.security.Identity aclIdentity = userACL.getUserIdentity(userName);
-    if (aclIdentity.isMemberOf(PROCESSES_GROUP)) {
+    if (ProcessesUtils.isProcessesAdministrator(userACL, aclIdentity)) {
       return new AbstractMap.SimpleEntry<>(userName, null);
     }
     List<String> memberships = new ArrayList<>();
     memberships.add(userName);
     if (CollectionUtils.isNotEmpty(aclIdentity.getMemberships())) {
-      memberships.addAll(aclIdentity.getMemberships().stream().map(m -> m.getMembershipType() + ":" + m.getGroup()).toList());
+      memberships.addAll(aclIdentity.getMemberships()
+                                    .stream()
+                                    .flatMap(m -> toQueriedMemberships(m.getMembershipType(), m.getGroup()))
+                                    .distinct()
+                                    .toList());
     }
     return Map.entry(userName, memberships);
+  }
+
+  /**
+   * A process stores the memberships of its managing space as 'manager:' and
+   * 'member:' entries, which the lists match as strings: a '*' membership,
+   * which the permissions count as both, is queried as both too
+   */
+  private Stream<String> toQueriedMemberships(String membershipType, String group) {
+    String membership = membershipType + ":" + group;
+    if (!MembershipEntry.ANY_TYPE.equals(membershipType)) {
+      return Stream.of(membership);
+    }
+    return Stream.of(membership,
+                     ProcessesUtils.MANAGER_MEMBERSHIP_TYPE + ":" + group,
+                     ProcessesUtils.MEMBER_MEMBERSHIP_TYPE + ":" + group);
   }
   
   private Set<String> getManagers(List<CreatorIdentityEntity> requestsCreators) {

@@ -19,8 +19,8 @@ package org.exoplatform.processes.mcp.model;
 // Lean, serialization-safe view of a process type (WorkFlow) returned by the
 // list_processes MCP tool. id is the workflow id to pass to submit_work_request;
 // projectId is the underlying Task/Kanban project; canManageRequests is true when
-// the current user can see this process's pending requests (member of its space) --
-// not necessarily able to decide them.
+// the current user can see this process's pending requests (the process has a
+// space, and the user is a member of it or a platform administrator).
 public record ProcessModel(long id,
                            String title,
                            String description,

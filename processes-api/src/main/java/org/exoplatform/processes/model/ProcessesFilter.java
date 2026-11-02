@@ -28,5 +28,10 @@ public class ProcessesFilter {
   private String query;
   private Boolean enabled;
   private Boolean manager;
+  /**
+   * @deprecated not read: whether a user lists every process is derived from
+   *             the user. Since 7.3.0, for removal.
+   */
+  @Deprecated(forRemoval = true)
   private Boolean isProcessManager;
 }
