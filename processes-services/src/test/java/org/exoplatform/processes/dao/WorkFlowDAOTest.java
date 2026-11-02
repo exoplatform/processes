@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.hibernate.jpa.HibernatePersistenceConfiguration;
+import org.hibernate.cfg.Configuration;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -65,17 +65,13 @@ public class WorkFlowDAOTest {
 
   @BeforeClass
   public static void createProcesses() {
-    entityManagerFactory = new HibernatePersistenceConfiguration("processes-dao-test")
-                                                                                       .managedClass(WorkFlowEntity.class)
-                                                                                       .property("jakarta.persistence.jdbc.url",
-                                                                                                 "jdbc:hsqldb:mem:processes-dao;shutdown=true")
-                                                                                       .property("jakarta.persistence.jdbc.user",
-                                                                                                 "SA")
-                                                                                       .property("jakarta.persistence.jdbc.password",
-                                                                                                 "")
-                                                                                       .property("hibernate.hbm2ddl.auto",
-                                                                                                 "create-drop")
-                                                                                       .createEntityManagerFactory();
+    entityManagerFactory = new Configuration().addAnnotatedClass(WorkFlowEntity.class)
+                                              .setProperty("jakarta.persistence.jdbc.url",
+                                                           "jdbc:hsqldb:mem:processes-dao;shutdown=true")
+                                              .setProperty("jakarta.persistence.jdbc.user", "SA")
+                                              .setProperty("jakarta.persistence.jdbc.password", "")
+                                              .setProperty("hibernate.hbm2ddl.auto", "create-drop")
+                                              .buildSessionFactory();
     EntityManager em = entityManagerFactory.createEntityManager();
     em.getTransaction().begin();
     hrProcess = createProcess(em, "Expense report", true, "/spaces/hr", Set.of("/spaces/hr"));
