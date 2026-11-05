@@ -1,7 +1,11 @@
 package org.exoplatform.processes.service;
 
+import org.apache.commons.lang3.StringUtils;
+
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.CommonsUtils;
+import org.exoplatform.ecm.utils.permission.PermissionUtil;
+import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.processes.Utils.ProcessesUtils;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.services.attachments.model.Attachment;
@@ -14,6 +18,7 @@ import org.exoplatform.services.jcr.RepositoryService;
 import org.exoplatform.services.jcr.access.PermissionType;
 import org.exoplatform.services.jcr.core.ExtendedNode;
 import org.exoplatform.services.jcr.ext.app.SessionProviderService;
+import org.exoplatform.services.jcr.ext.common.SessionProvider;
 import org.exoplatform.services.jcr.ext.hierarchy.NodeHierarchyCreator;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -32,7 +37,9 @@ import javax.jcr.*;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentService {
   private static final Log             LOG                  = ExoLogger.getLogger(ProcessesAttachmentServiceImpl.class);
@@ -53,6 +60,8 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
 
   private final ProjectService         projectService;
 
+  private final UserACL                userACL;
+
   private static final String          PRIVATE_FOLDER       = "/Private";
 
   private static final String          PUBLIC_FOLDER        = "/Public";
@@ -69,6 +78,8 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
   
   private static final String          WORKFLOW_ENTITY_TYPE = "workflow";
 
+  private static final String          WORK_DRAFT_ENTITY_TYPE = "workdraft";
+
   private static DateTimeFormatter     formatter            = DateTimeFormatter.ofPattern("yyyyMMdd");
 
   public ProcessesAttachmentServiceImpl(AttachmentService attachmentService,
@@ -78,7 +89,8 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
                                         NodeHierarchyCreator nodeHierarchyCreator,
                                         NodeFinder nodeFinder,
                                         ProjectService projectService,
-                                        IdentityManager identityManager) {
+                                        IdentityManager identityManager,
+                                        UserACL userACL) {
     this.attachmentService = attachmentService;
     this.repositoryService = repositoryService;
     this.sessionProviderService = sessionProviderService;
@@ -87,6 +99,7 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
     this.nodeFinder = nodeFinder;
     this.projectService = projectService;
     this.identityManager = identityManager;
+    this.userACL = userACL;
   }
 
   @Override
@@ -99,7 +112,7 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
           LOG.error("Error while attaching files to entity", e);
         }
       });
-      moveOrCopyAttachmentsJcrNodes(Arrays.asList(attachments), entityId, entityType, false, projectId);
+      moveOrCopyAttachmentsJcrNodes(Arrays.asList(attachments), entityId, entityType, entityId, entityType, false, projectId);
     }
   }
 
@@ -128,6 +141,8 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
   }
 
   private void moveOrCopyAttachmentsJcrNodes(List<Attachment> attachments,
+                                             Long sourceEntityId,
+                                             String sourceEntityType,
                                              Long destEntityId,
                                              String destEntityType,
                                              boolean copy,
@@ -215,8 +230,7 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
           workspace.move(attachmentNode.getPath(), destPath);
           Node copyNode = (Node) session.getItem(destPath);
           copyNode.addMixin(NodetypeConstant.EXO_HIDDENABLE);
-          if (attachments.size() - 1 == index && sourceEntityIdNode != null
-                  && sourceEntityIdNode.getPrimaryNodeType().isNodeType(NodetypeConstant.NT_FOLDER)) {
+          if (attachments.size() - 1 == index && isEntityFolder(sourceEntityIdNode, rootNode, sourceEntityType, sourceEntityId)) {
             sourceEntityIdNode.remove();
           }
           copyNode.save();
@@ -254,7 +268,13 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
       LOG.error("Error while getting entity attachments", e);
     }
     if (!attachments.isEmpty()) {
-      moveOrCopyAttachmentsJcrNodes(attachments, destEntityId, destEntityType, false, projectId);
+      moveOrCopyAttachmentsJcrNodes(attachments,
+                                    sourceEntityId,
+                                    sourceEntityType,
+                                    destEntityId,
+                                    destEntityType,
+                                    false,
+                                    projectId);
       linkFromEntityToEntity(userId, attachments, sourceEntityId, sourceEntityType, destEntityId, destEntityType, true);
     } else {
       createWorkflowTaskFolder(userId, projectId, destEntityType, destEntityId);
@@ -269,7 +289,13 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
                                       String destEntityType,
                                       Long projectId) {
     if (attachments!= null && !attachments.isEmpty()) {
-      moveOrCopyAttachmentsJcrNodes(attachments, destEntityId, destEntityType, false, projectId);
+      moveOrCopyAttachmentsJcrNodes(attachments,
+                                    sourceEntityId,
+                                    sourceEntityType,
+                                    destEntityId,
+                                    destEntityType,
+                                    false,
+                                    projectId);
       linkFromEntityToEntity(userId, attachments, sourceEntityId, sourceEntityType, destEntityId, destEntityType, true);
     } else {
       createWorkflowTaskFolder(userId, projectId, destEntityType, destEntityId);
@@ -290,9 +316,49 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
       LOG.error("Error while getting entity attachments", e);
     }
     if (!attachments.isEmpty()) {
-      moveOrCopyAttachmentsJcrNodes(attachments, destEntityId, destEntityType, true, projectId);
+      moveOrCopyAttachmentsJcrNodes(attachments, sourceEntityId, sourceEntityType, destEntityId, destEntityType, true, projectId);
       linkFromEntityToEntity(userId, attachments, sourceEntityId, sourceEntityType, destEntityId, destEntityType, false);
     }
+  }
+
+  @Override
+  public List<Attachment> selectRequestAttachments(long userId,
+                                                   long draftId,
+                                                   long projectId,
+                                                   List<Attachment> sentAttachments) throws IllegalAccessException {
+    List<Attachment> draftAttachments = attachmentService.getAttachmentsByEntity(userId, draftId, WORK_DRAFT_ENTITY_TYPE);
+    Set<String> drivePickIds = sentAttachments == null ? Collections.emptySet() : getDrivePickIds(sentAttachments.stream());
+    return selectAttachments(userId,
+                             draftAttachments,
+                             drivePickIds,
+                             Collections.emptySet(),
+                             WORK_DRAFT_ENTITY_TYPE,
+                             draftId,
+                             projectId);
+  }
+
+  @Override
+  public Attachment[] selectProcessAttachments(long userId,
+                                               long workflowId,
+                                               long projectId,
+                                               Attachment[] sentAttachments) throws IllegalAccessException {
+    if (sentAttachments == null || sentAttachments.length == 0) {
+      return sentAttachments;
+    }
+    Set<String> linkedIds = Collections.emptySet();
+    if (workflowId > 0) {
+      linkedIds = attachmentService.getAttachmentsByEntity(userId, workflowId, WORKFLOW_ENTITY_TYPE)
+                                   .stream()
+                                   .map(Attachment::getId)
+                                   .collect(Collectors.toSet());
+    }
+    return selectAttachments(userId,
+                             Arrays.asList(sentAttachments),
+                             getDrivePickIds(Arrays.stream(sentAttachments)),
+                             linkedIds,
+                             WORKFLOW_ENTITY_TYPE,
+                             workflowId,
+                             projectId).toArray(new Attachment[0]);
   }
 
   @Override
@@ -325,6 +391,124 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
                               workFlow.getProjectId());
     }
     return attachmentService.getAttachmentById(attachment.getId());
+  }
+
+  /**
+   * Keeps an attachment the processes placed in the entity's folder, and any
+   * other one only when the user's own session reads it: one the user may
+   * remove is marked to be moved, unless picked from a drive, and every other
+   * one to be copied. The platform's session moves or copies them afterwards,
+   * so the user's rights are checked here, before anything is written.
+   *
+   * @param linkedIds ids already linked to the entity, left as they are when
+   *          the user can't read them
+   */
+  private List<Attachment> selectAttachments(long userId,
+                                             List<Attachment> attachments,
+                                             Set<String> drivePickIds,
+                                             Set<String> linkedIds,
+                                             String entityType,
+                                             long entityId,
+                                             long projectId) throws IllegalAccessException {
+    List<Attachment> selected = new ArrayList<>();
+    if (attachments == null || attachments.isEmpty()) {
+      return selected;
+    }
+    String entityFolderPath = entityId > 0 ? getEntityFolderPath(projectId, entityType, entityId) : null;
+    SessionProvider userSessionProvider = getUserSessionProvider(userId);
+    try {
+      Session systemSession = Utils.getSystemSession(sessionProviderService, repositoryService);
+      Session userSession = userSessionProvider.getSession(Utils.getCurrentWorkspace(repositoryService),
+                                                           repositoryService.getCurrentRepository());
+      for (Attachment attachment : attachments) {
+        if (attachment == null || StringUtils.isBlank(attachment.getId())) {
+          continue;
+        }
+        String attachmentId = attachment.getId();
+        if (isInFolder(systemSession, attachmentId, entityFolderPath)) {
+          attachment.setEXoDrive(false);
+          selected.add(attachment);
+        } else {
+          Node node = getReadableNode(userSession, attachmentId);
+          if (node != null) {
+            attachment.setEXoDrive(drivePickIds.contains(attachmentId) || !PermissionUtil.canRemoveNode(node));
+            selected.add(attachment);
+          } else if (!linkedIds.contains(attachmentId)) {
+            throw new IllegalAccessException("User " + userId + " can't read the attachment " + attachmentId);
+          }
+        }
+      }
+    } catch (RepositoryException e) {
+      throw new IllegalStateException("Can't check the attachments of " + entityType + " " + entityId, e);
+    } finally {
+      userSessionProvider.close();
+    }
+    return selected;
+  }
+
+  private Set<String> getDrivePickIds(Stream<Attachment> attachments) {
+    return attachments.filter(attachment -> attachment != null && attachment.isEXoDrive())
+                      .map(Attachment::getId)
+                      .collect(Collectors.toSet());
+  }
+
+  private SessionProvider getUserSessionProvider(long userId) throws IllegalAccessException {
+    org.exoplatform.social.core.identity.model.Identity userIdentity = identityManager.getIdentity(String.valueOf(userId));
+    Identity aclIdentity = userIdentity == null ? null : userACL.getUserIdentity(userIdentity.getRemoteId());
+    if (aclIdentity == null) {
+      throw new IllegalAccessException("User " + userId + " isn't an active user");
+    }
+    return Utils.getUserSessionProvider(repositoryService, aclIdentity);
+  }
+
+  private Node getReadableNode(Session userSession, String attachmentId) {
+    try {
+      return userSession.getNodeByUUID(attachmentId);
+    } catch (RepositoryException e) {
+      LOG.debug("Attachment {} isn't readable by the user", attachmentId, e);
+      return null;
+    }
+  }
+
+  private boolean isInFolder(Session systemSession, String attachmentId, String folderPath) throws RepositoryException {
+    if (folderPath == null) {
+      return false;
+    }
+    try {
+      return folderPath.equals(systemSession.getNodeByUUID(attachmentId).getParent().getPath());
+    } catch (ItemNotFoundException e) {
+      return false;
+    }
+  }
+
+  /**
+   * @return the path of the folder the processes keep for the entity's
+   *         attachments in the process space's drive, null when the process
+   *         has no space
+   */
+  private String getEntityFolderPath(long projectId, String entityType, long entityId) {
+    Space space = ProcessesUtils.getProjectParentSpace(projectId);
+    if (space == null) {
+      return null;
+    }
+    try {
+      DriveData driveData = manageDriveService.getGroupDrive(space.getGroupId());
+      return driveData == null ? null : (driveData.getHomePath() + "/" + entityType + "/" + entityId).replace("//", "/");
+    } catch (Exception e) {
+      LOG.warn("Can't get the drive of the space {}", space.getGroupId(), e);
+      return null;
+    }
+  }
+
+  /**
+   * @return true when the node is the folder the processes keep for the
+   *         entity's attachments in the process drive, the only source folder a
+   *         move may remove
+   */
+  private boolean isEntityFolder(Node node, Node driveRootNode, String entityType, Long entityId) throws RepositoryException {
+    return node != null && entityType != null && entityId != null
+        && node.getPath().equals(driveRootNode.getPath() + "/" + entityType + "/" + entityId)
+        && node.getPrimaryNodeType().isNodeType(NodetypeConstant.NT_FOLDER);
   }
 
   private void processDocument(Node node, String currentUser) {

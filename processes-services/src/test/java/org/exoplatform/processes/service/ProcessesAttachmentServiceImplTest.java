@@ -1,8 +1,11 @@
 package org.exoplatform.processes.service;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -10,14 +13,20 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.security.AccessControlException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
+import javax.jcr.AccessDeniedException;
 import javax.jcr.Node;
 import javax.jcr.Session;
 import javax.jcr.Workspace;
+import javax.jcr.nodetype.NodeType;
 
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -29,6 +38,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.CommonsUtils;
+import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.processes.Utils.ProcessesUtils;
 import org.exoplatform.processes.model.ProcessPermission;
 import org.exoplatform.processes.model.WorkFlow;
@@ -39,8 +49,11 @@ import org.exoplatform.services.cms.drives.DriveData;
 import org.exoplatform.services.cms.drives.ManageDriveService;
 import org.exoplatform.services.cms.link.NodeFinder;
 import org.exoplatform.services.jcr.RepositoryService;
+import org.exoplatform.services.jcr.access.PermissionType;
 import org.exoplatform.services.jcr.core.ExtendedNode;
+import org.exoplatform.services.jcr.core.ManageableRepository;
 import org.exoplatform.services.jcr.ext.app.SessionProviderService;
+import org.exoplatform.services.jcr.ext.common.SessionProvider;
 import org.exoplatform.services.jcr.ext.hierarchy.NodeHierarchyCreator;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
@@ -88,7 +101,30 @@ public class ProcessesAttachmentServiceImplTest {
   @Mock
   private IdentityManager            identityManager;
 
+  @Mock
+  private UserACL                    userACL;
+
   private ProcessesAttachmentService processesAttachmentService;
+
+  private static final long          REQUESTER_ID       = 5L;
+
+  private static final long          DRAFT_ID           = 50L;
+
+  private static final long          WORKFLOW_ID        = 7L;
+
+  private static final long          PROJECT_ID         = 10L;
+
+  private static final String        SPACE_GROUP        = "/spaces/hr";
+
+  private static final String        DRIVE_HOME         = "/Groups/spaces/hr/Documents";
+
+  private static final String        DRAFT_FOLDER       = DRIVE_HOME + "/workdraft/" + DRAFT_ID;
+
+  private static final String        WORKSPACE          = "collaboration";
+
+  private Session                    systemSession;
+
+  private Session                    requesterSession;
 
   @AfterClass
   public static void afterRunBare() throws Exception { // NOSONAR
@@ -107,7 +143,8 @@ public class ProcessesAttachmentServiceImplTest {
                                                                          nodeHierarchyCreator,
                                                                          nodeFinder,
                                                                          projectService,
-                                                                         identityManager);
+                                                                         identityManager,
+                                                                         userACL);
     ConversationState conversationState = mock(ConversationState.class);
     CONVERSATION_STATE.when(() -> ConversationState.getCurrent()).thenReturn(conversationState);
     Identity identity = mock(Identity.class);
@@ -333,5 +370,316 @@ public class ProcessesAttachmentServiceImplTest {
     verify(attachmentService, never()).createNewDocument(any(), any(), any(), any(), any());
     assertEquals(IllegalAccessException.class, refusal.getClass());
     assertEquals(ObjectNotFoundException.class, notFound.getClass());
+  }
+  /**
+   * A request takes its draft's stored attachments, and the list the client
+   * sends only tells which of them were picked from a drive. Mutation: select
+   * among the client's list and the foreign attachment is kept, or ignore the
+   * client's drive pick and the picked document is moved: this test fails.
+   */
+  @Test
+  public void selectRequestAttachmentsTakesTheDraftsStoredAttachmentsOnly() throws Exception {
+    mockRequesterSessions();
+    readableNode("picked", "/Users/r___/requester/Private/Documents", true);
+    when(attachmentService.getAttachmentsByEntity(REQUESTER_ID, DRAFT_ID, "workdraft")).thenReturn(attachments("picked"));
+    readableNode("foreign", "/Groups/spaces/secret/Documents", true);
+    Attachment pickedFromDrive = attachment("picked");
+    pickedFromDrive.setEXoDrive(true);
+
+    List<Attachment> selected = processesAttachmentService.selectRequestAttachments(REQUESTER_ID,
+                                                                                    DRAFT_ID,
+                                                                                    PROJECT_ID,
+                                                                                    Arrays.asList(attachment("foreign"),
+                                                                                                  pickedFromDrive));
+
+    assertEquals(Collections.singletonList("picked"), ids(selected));
+    assertTrue("a document picked from a drive is copied", selected.get(0).isEXoDrive());
+  }
+
+  /**
+   * A draft attachment the acting user can't read through their own session
+   * refuses the request, even when the platform's session and the user of the
+   * current thread read it. Mutation: skip it silently, read it with the
+   * platform's session, or with the current thread's user, and this test
+   * fails.
+   */
+  @Test
+  public void selectRequestAttachmentsRefusesAnAttachmentTheActingUserCantRead() throws Exception {
+    mockRequesterSessions();
+    unreadableNode("secret", "/Groups/spaces/secret/Documents");
+    Session threadUserSession = mock(Session.class);
+    when(threadUserSession.getNodeByUUID("secret")).thenReturn(mock(ExtendedNode.class));
+    Identity threadUserIdentity = new Identity("test");
+    when(userACL.getUserIdentity("test")).thenReturn(threadUserIdentity);
+    SessionProvider threadUserSessionProvider = mock(SessionProvider.class);
+    when(threadUserSessionProvider.getSession(any(), any())).thenReturn(threadUserSession);
+    UTILS.when(() -> Utils.getUserSessionProvider(repositoryService, threadUserIdentity)).thenReturn(threadUserSessionProvider);
+    when(attachmentService.getAttachmentsByEntity(REQUESTER_ID, DRAFT_ID, "workdraft")).thenReturn(attachments("secret"));
+
+    assertThrows(IllegalAccessException.class,
+                 () -> processesAttachmentService.selectRequestAttachments(REQUESTER_ID,
+                                                                          DRAFT_ID,
+                                                                          PROJECT_ID,
+                                                                          Collections.emptyList()));
+  }
+
+  /**
+   * A readable attachment is moved only when the user may remove it and
+   * didn't pick it from a drive; otherwise it is copied and stays where it
+   * is. Mutation: ignore the remove permission, or the drive pick, and this
+   * test fails.
+   */
+  @Test
+  public void selectRequestAttachmentsCopiesWhatTheUserMayNotMove() throws Exception {
+    mockRequesterSessions();
+    readableNode("uploaded", "/Users/r___/requester/Private/Documents", true);
+    readableNode("picked", "/Users/r___/requester/Private/Documents", true);
+    readableNode("readOnly", "/Groups/spaces/sales/Documents", false);
+    when(attachmentService.getAttachmentsByEntity(REQUESTER_ID,
+                                                  DRAFT_ID,
+                                                  "workdraft")).thenReturn(attachments("uploaded", "picked", "readOnly"));
+    Attachment pickedFromDrive = attachment("picked");
+    pickedFromDrive.setEXoDrive(true);
+
+    List<Attachment> selected = processesAttachmentService.selectRequestAttachments(REQUESTER_ID,
+                                                                                    DRAFT_ID,
+                                                                                    PROJECT_ID,
+                                                                                    Collections.singletonList(pickedFromDrive));
+
+    assertEquals(Arrays.asList("uploaded", "picked", "readOnly"), ids(selected));
+    assertFalse("an upload the user may remove is moved", selected.get(0).isEXoDrive());
+    assertTrue("a document picked from a drive is copied", selected.get(1).isEXoDrive());
+    assertTrue("a document the user may not remove is copied", selected.get(2).isEXoDrive());
+  }
+
+  /**
+   * An attachment the processes placed in the draft's own folder, the copy of
+   * a process form, is kept and moved even when the user can't read it; one
+   * in another draft's folder is not trusted. Mutation: drop the folder
+   * exemption, or compare the folder loosely, and this test fails.
+   */
+  @Test
+  public void selectRequestAttachmentsKeepsWhatTheProcessesPlacedInTheDraftFolder() throws Exception {
+    mockRequesterSessions();
+    unreadableNode("form", DRAFT_FOLDER);
+    when(attachmentService.getAttachmentsByEntity(REQUESTER_ID, DRAFT_ID, "workdraft")).thenReturn(attachments("form"));
+
+    List<Attachment> selected = processesAttachmentService.selectRequestAttachments(REQUESTER_ID,
+                                                                                    DRAFT_ID,
+                                                                                    PROJECT_ID,
+                                                                                    Collections.emptyList());
+
+    assertEquals(Collections.singletonList("form"), ids(selected));
+    assertFalse(selected.get(0).isEXoDrive());
+
+    unreadableNode("otherForm", DRIVE_HOME + "/workdraft/51");
+    when(attachmentService.getAttachmentsByEntity(REQUESTER_ID, DRAFT_ID, "workdraft")).thenReturn(attachments("otherForm"));
+    assertThrows(IllegalAccessException.class,
+                 () -> processesAttachmentService.selectRequestAttachments(REQUESTER_ID,
+                                                                          DRAFT_ID,
+                                                                          PROJECT_ID,
+                                                                          Collections.emptyList()));
+  }
+
+  /**
+   * On a process update, an attachment already linked to the process that the
+   * editor can't read, another editor's drive pick, is left as it is and not
+   * moved; one that isn't linked refuses the update, as on a creation, where
+   * nothing is linked yet. Mutation: drop the linked exemption, or apply it to
+   * every attachment, and this test fails.
+   */
+  @Test
+  public void selectProcessAttachmentsLeavesAnUnreadableLinkedAttachmentAsItIs() throws Exception {
+    mockRequesterSessions();
+    unreadableNode("othersPick", "/Users/o___/other/Private/Documents");
+    readableNode("uploaded", "/Users/r___/requester/Private/Documents", true);
+    unreadableNode("foreign", "/Groups/spaces/secret/Documents");
+    when(attachmentService.getAttachmentsByEntity(REQUESTER_ID, WORKFLOW_ID, "workflow")).thenReturn(attachments("othersPick"));
+
+    Attachment[] selected = processesAttachmentService.selectProcessAttachments(REQUESTER_ID,
+                                                                                WORKFLOW_ID,
+                                                                                PROJECT_ID,
+                                                                                new Attachment[] { attachment("othersPick"),
+                                                                                    attachment("uploaded") });
+
+    assertEquals(Collections.singletonList("uploaded"), ids(Arrays.asList(selected)));
+    assertThrows(IllegalAccessException.class,
+                 () -> processesAttachmentService.selectProcessAttachments(REQUESTER_ID,
+                                                                          WORKFLOW_ID,
+                                                                          PROJECT_ID,
+                                                                          new Attachment[] { attachment("foreign") }));
+    assertThrows(IllegalAccessException.class,
+                 () -> processesAttachmentService.selectProcessAttachments(REQUESTER_ID,
+                                                                          0,
+                                                                          0,
+                                                                          new Attachment[] { attachment("othersPick") }));
+  }
+
+  /**
+   * A move removes the source folder only when it is the folder the processes
+   * keep for the source entity in the process drive, never the folder a
+   * user's document came from, nor a folder of the same names in another
+   * drive or of another draft. Mutation: remove any source folder, or none, or
+   * compare the folder's names only, and this test fails.
+   */
+  @Test
+  public void moveRemovesOnlyTheSourceEntityFolder() throws Exception {
+    Session session = mock(Session.class);
+    Workspace workspace = mock(Workspace.class);
+    when(session.getWorkspace()).thenReturn(workspace);
+    UTILS.when(() -> Utils.getSystemSession(sessionProviderService, repositoryService)).thenReturn(session);
+    ProjectDto projectDto = new ProjectDto();
+    projectDto.setId(PROJECT_ID);
+    projectDto.setManager(new HashSet<>(Collections.singletonList("manager:" + SPACE_GROUP)));
+    projectDto.setParticipator(new HashSet<>(Collections.singletonList("member:" + SPACE_GROUP)));
+    when(projectService.getProject(PROJECT_ID)).thenReturn(projectDto);
+    Space space = new Space();
+    space.setGroupId(SPACE_GROUP);
+    PROCESSES_UTILS.when(() -> ProcessesUtils.getProjectParentSpace(PROJECT_ID)).thenReturn(space);
+    DriveData driveData = new DriveData();
+    driveData.setHomePath(DRIVE_HOME);
+    driveData.setName("spaces.hr");
+    when(manageDriveService.getGroupDrive(SPACE_GROUP)).thenReturn(driveData);
+    Node rootNode = mock(Node.class);
+    when(rootNode.getPath()).thenReturn(DRIVE_HOME);
+    when(rootNode.hasNode("task")).thenReturn(true);
+    when(rootNode.getNode("task")).thenReturn(rootNode);
+    when(rootNode.hasNode("9")).thenReturn(true);
+    ExtendedNode destNode = mock(ExtendedNode.class);
+    when(destNode.getPath()).thenReturn(DRIVE_HOME + "/task/9");
+    UTILS.when(() -> Utils.getParentFolderNode(session,
+                                               manageDriveService,
+                                               nodeHierarchyCreator,
+                                               nodeFinder,
+                                               "spaces.hr",
+                                               "task/9")).thenReturn(destNode);
+    when(session.getItem(any())).thenAnswer(invocation -> DRIVE_HOME.equals(invocation.getArgument(0)) ? rootNode
+                                                                                                         : mock(Node.class));
+
+    Node documentsFolder = folder("/Users/r___/requester/Private/Documents");
+    sourceNode(session, "upload", documentsFolder);
+    processesAttachmentService.moveAttachmentsToEntity(attachments("upload"),
+                                                       REQUESTER_ID,
+                                                       DRAFT_ID,
+                                                       "workdraft",
+                                                       9L,
+                                                       "task",
+                                                       PROJECT_ID);
+    verify(workspace).move("/source/upload", DRIVE_HOME + "/task/9/upload");
+    verify(documentsFolder, never()).remove();
+
+    Node sameNameFolder = folder("/Groups/spaces/sales/Documents/workdraft/" + DRAFT_ID);
+    sourceNode(session, "named", sameNameFolder);
+    processesAttachmentService.moveAttachmentsToEntity(attachments("named"),
+                                                       REQUESTER_ID,
+                                                       DRAFT_ID,
+                                                       "workdraft",
+                                                       9L,
+                                                       "task",
+                                                       PROJECT_ID);
+    verify(workspace).move("/source/named", DRIVE_HOME + "/task/9/named");
+    verify(sameNameFolder, never()).remove();
+
+    Node otherDraftFolder = folder(DRIVE_HOME + "/workdraft/51");
+    sourceNode(session, "otherDraft", otherDraftFolder);
+    processesAttachmentService.moveAttachmentsToEntity(attachments("otherDraft"),
+                                                       REQUESTER_ID,
+                                                       DRAFT_ID,
+                                                       "workdraft",
+                                                       9L,
+                                                       "task",
+                                                       PROJECT_ID);
+    verify(workspace).move("/source/otherDraft", DRIVE_HOME + "/task/9/otherDraft");
+    verify(otherDraftFolder, never()).remove();
+
+    Node draftFolder = folder(DRAFT_FOLDER);
+    sourceNode(session, "form", draftFolder);
+    processesAttachmentService.moveAttachmentsToEntity(attachments("form"),
+                                                       REQUESTER_ID,
+                                                       DRAFT_ID,
+                                                       "workdraft",
+                                                       9L,
+                                                       "task",
+                                                       PROJECT_ID);
+    verify(workspace).move("/source/form", DRIVE_HOME + "/task/9/form");
+    verify(draftFolder).remove();
+  }
+
+  private void mockRequesterSessions() throws Exception {
+    org.exoplatform.social.core.identity.model.Identity requester =
+                                                                  mock(org.exoplatform.social.core.identity.model.Identity.class);
+    when(requester.getRemoteId()).thenReturn("requester");
+    when(identityManager.getIdentity(String.valueOf(REQUESTER_ID))).thenReturn(requester);
+    Identity requesterAclIdentity = new Identity("requester");
+    when(userACL.getUserIdentity("requester")).thenReturn(requesterAclIdentity);
+    requesterSession = mock(Session.class);
+    SessionProvider requesterSessionProvider = mock(SessionProvider.class);
+    ManageableRepository repository = mock(ManageableRepository.class);
+    when(repositoryService.getCurrentRepository()).thenReturn(repository);
+    UTILS.when(() -> Utils.getCurrentWorkspace(repositoryService)).thenReturn(WORKSPACE);
+    when(requesterSessionProvider.getSession(WORKSPACE, repository)).thenReturn(requesterSession);
+    UTILS.when(() -> Utils.getUserSessionProvider(repositoryService, requesterAclIdentity)).thenReturn(requesterSessionProvider);
+    systemSession = mock(Session.class);
+    UTILS.when(() -> Utils.getSystemSession(sessionProviderService, repositoryService)).thenReturn(systemSession);
+    Space space = new Space();
+    space.setGroupId(SPACE_GROUP);
+    PROCESSES_UTILS.when(() -> ProcessesUtils.getProjectParentSpace(PROJECT_ID)).thenReturn(space);
+    DriveData driveData = new DriveData();
+    driveData.setHomePath(DRIVE_HOME);
+    when(manageDriveService.getGroupDrive(SPACE_GROUP)).thenReturn(driveData);
+  }
+
+  private void readableNode(String id, String parentPath, boolean removable) throws Exception {
+    systemNode(id, parentPath);
+    ExtendedNode node = mock(ExtendedNode.class);
+    if (!removable) {
+      doThrow(new AccessControlException("no remove")).when(node).checkPermission(PermissionType.REMOVE);
+    }
+    when(requesterSession.getNodeByUUID(id)).thenReturn(node);
+  }
+
+  private void unreadableNode(String id, String parentPath) throws Exception {
+    systemNode(id, parentPath);
+    when(requesterSession.getNodeByUUID(id)).thenThrow(new AccessDeniedException("no read"));
+  }
+
+  private void systemNode(String id, String parentPath) throws Exception {
+    Node parent = mock(Node.class);
+    when(parent.getPath()).thenReturn(parentPath);
+    ExtendedNode node = mock(ExtendedNode.class);
+    when(node.getParent()).thenReturn(parent);
+    when(systemSession.getNodeByUUID(id)).thenReturn(node);
+  }
+
+  private Node folder(String path) throws Exception {
+    Node folder = mock(Node.class);
+    when(folder.getPath()).thenReturn(path);
+    when(folder.getName()).thenReturn(path.substring(path.lastIndexOf('/') + 1));
+    NodeType folderType = mock(NodeType.class);
+    when(folderType.isNodeType(NodetypeConstant.NT_FOLDER)).thenReturn(true);
+    when(folder.getPrimaryNodeType()).thenReturn(folderType);
+    return folder;
+  }
+
+  private void sourceNode(Session session, String id, Node parent) throws Exception {
+    Node node = mock(Node.class);
+    when(node.getName()).thenReturn(id);
+    when(node.getPath()).thenReturn("/source/" + id);
+    when(node.getParent()).thenReturn(parent);
+    when(session.getNodeByUUID(id)).thenReturn(node);
+  }
+
+  private List<Attachment> attachments(String... ids) {
+    return Arrays.stream(ids).map(this::attachment).collect(Collectors.toCollection(ArrayList::new));
+  }
+
+  private Attachment attachment(String id) {
+    Attachment attachment = new Attachment();
+    attachment.setId(id);
+    return attachment;
+  }
+
+  private List<String> ids(List<Attachment> attachments) {
+    return attachments.stream().map(Attachment::getId).collect(Collectors.toList());
   }
 }
