@@ -53,16 +53,20 @@ public class ProcessesServiceImpl implements ProcessesService {
 
   private final SpaceService     spaceService;
 
+  private final ProcessesAttachmentService processesAttachmentService;
+
   public ProcessesServiceImpl(ProcessesStorage processesStorage,
                               ProjectService projectService,
                               IdentityManager identityManager,
                               UserACL userACL,
-                              SpaceService spaceService) {
+                              SpaceService spaceService,
+                              ProcessesAttachmentService processesAttachmentService) {
     this.processesStorage = processesStorage;
     this.projectService = projectService;
     this.identityManager = identityManager;
     this.userACL = userACL;
     this.spaceService = spaceService;
+    this.processesAttachmentService = processesAttachmentService;
   }
 
   @Override
@@ -116,6 +120,7 @@ public class ProcessesServiceImpl implements ProcessesService {
     if (workFlow.getIllustrativeAttachment() != null) {
       workFlow.getIllustrativeAttachment().setId(null);
     }
+    workFlow.setAttachments(processesAttachmentService.selectProcessAttachments(userId, 0, 0, workFlow.getAttachments()));
     return processesStorage.saveWorkFlow(workFlow, userId);
   }
 
@@ -149,6 +154,10 @@ public class ProcessesServiceImpl implements ProcessesService {
     if (oldWorkFlow.equals(workFlow)) {
       throw new IllegalArgumentException("there are no changes to save");
     }
+    workFlow.setAttachments(processesAttachmentService.selectProcessAttachments(userId,
+                                                                                workFlow.getId(),
+                                                                                oldWorkFlow.getProjectId(),
+                                                                                workFlow.getAttachments()));
     return processesStorage.saveWorkFlow(workFlow, userId);
   }
 
@@ -179,7 +188,16 @@ public class ProcessesServiceImpl implements ProcessesService {
       throw new IllegalArgumentException("Workflow is disabled");
     }
     if (work.getDraftId() != null) {
-      getOwnWorkDraft(work.getDraftId(), userId);
+      Work draft = getOwnWorkDraft(work.getDraftId(), userId);
+      if (draft.getWorkFlow() == null || draft.getWorkFlow().getId() != workFlow.getId()) {
+        throw new IllegalArgumentException("The request draft " + work.getDraftId() + " isn't a draft of the process "
+            + workFlow.getId());
+      }
+      // The request takes its draft's stored attachments, never the ones the client names
+      work.setAttachments(processesAttachmentService.selectRequestAttachments(userId,
+                                                                              work.getDraftId(),
+                                                                              workFlow.getProjectId(),
+                                                                              work.getAttachments()));
     }
     return processesStorage.saveWork(work, userId);
   }

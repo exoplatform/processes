@@ -39,6 +39,7 @@ import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFilter;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.storage.ProcessesStorage;
+import org.exoplatform.services.attachments.model.Attachment;
 import org.exoplatform.services.security.MembershipEntry;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
@@ -100,6 +101,9 @@ public class ProcessesServiceImplTest {
   @Mock
   private SpaceService           spaceService;
 
+  @Mock
+  private ProcessesAttachmentService processesAttachmentService;
+
   private ProcessesService       processesService;
 
   private WorkFlow               disabledWorkFlow, enabledWorkFlow;
@@ -121,7 +125,12 @@ public class ProcessesServiceImplTest {
 
   @Before
   public void setUp() throws Exception {
-    this.processesService = new ProcessesServiceImpl(processesStorage, projectService, identityManager, userACL, spaceService);
+    this.processesService = new ProcessesServiceImpl(processesStorage,
+                                                     projectService,
+                                                     identityManager,
+                                                     userACL,
+                                                     spaceService,
+                                                     processesAttachmentService);
     disabledWorkFlow = new WorkFlow();
     disabledWorkFlow.setEnabled(false);
     enabledWorkFlow = new WorkFlow();
@@ -631,6 +640,150 @@ public class ProcessesServiceImplTest {
     verify(processesStorage, never()).saveWork(any(), anyLong());
   }
 
+  /**
+   * A request created from a draft takes the attachments selected among the
+   * draft's stored ones, and never the list the client sent. Mutation: hand
+   * the storage the client's list and this test fails.
+   */
+  @Test
+  public void createWorkFromDraftTakesTheSelectedDraftAttachments() throws Exception {
+    List<Attachment> sentAttachments = Collections.singletonList(attachment("foreign"));
+    List<Attachment> draftAttachments = new ArrayList<>(Collections.singletonList(attachment("drafted")));
+    Work work = new Work();
+    work.setProjectId(PROCESS_PROJECT_ID);
+    work.setDraftId(DRAFT_ID);
+    work.setAttachments(sentAttachments);
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, CREATOR_ID)).thenReturn(requestableWorkFlow(true, true));
+    when(processesStorage.getWorkDraftyId(DRAFT_ID)).thenReturn(storedDraft(CREATOR_ID));
+    when(processesAttachmentService.selectRequestAttachments(CREATOR_ID,
+                                                             DRAFT_ID,
+                                                             PROCESS_PROJECT_ID,
+                                                             sentAttachments)).thenReturn(draftAttachments);
+
+    processesService.createWork(work, CREATOR_ID);
+
+    ArgumentCaptor<Work> saved = ArgumentCaptor.forClass(Work.class);
+    verify(processesStorage).saveWork(saved.capture(), eq(CREATOR_ID));
+    assertEquals(draftAttachments, saved.getValue().getAttachments());
+  }
+
+  /**
+   * A request takes the attachments of a draft of its own process only: a
+   * draft of another process is refused before anything is selected or
+   * written. Mutation: drop the process check and this test fails.
+   */
+  @Test
+  public void createWorkIsRefusedFromADraftOfAnotherProcess() throws Exception {
+    Work work = new Work();
+    work.setProjectId(PROCESS_PROJECT_ID);
+    work.setDraftId(DRAFT_ID);
+    Work otherProcessDraft = storedDraft(CREATOR_ID);
+    otherProcessDraft.getWorkFlow().setId(WORKFLOW_ID + 1);
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, CREATOR_ID)).thenReturn(requestableWorkFlow(true, true));
+    when(processesStorage.getWorkDraftyId(DRAFT_ID)).thenReturn(otherProcessDraft);
+
+    assertThrows(IllegalArgumentException.class, () -> processesService.createWork(work, CREATOR_ID));
+    verify(processesAttachmentService, never()).selectRequestAttachments(anyLong(), anyLong(), anyLong(), any());
+    verify(processesStorage, never()).saveWork(any(), anyLong());
+  }
+
+  /**
+   * A draft attachment the user can't read refuses the request before
+   * anything is written. Mutation: drop the selection, or run it after the
+   * save, and this test fails.
+   */
+  @Test
+  public void createWorkIsRefusedWhenADraftAttachmentIsNotReadable() throws Exception {
+    Work work = new Work();
+    work.setProjectId(PROCESS_PROJECT_ID);
+    work.setDraftId(DRAFT_ID);
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, CREATOR_ID)).thenReturn(requestableWorkFlow(true, true));
+    when(processesStorage.getWorkDraftyId(DRAFT_ID)).thenReturn(storedDraft(CREATOR_ID));
+    when(processesAttachmentService.selectRequestAttachments(anyLong(),
+                                                             anyLong(),
+                                                             anyLong(),
+                                                             any())).thenThrow(new IllegalAccessException("not readable"));
+
+    assertThrows(IllegalAccessException.class, () -> processesService.createWork(work, CREATOR_ID));
+    verify(processesStorage, never()).saveWork(any(), anyLong());
+  }
+
+  /**
+   * A new process links only the attachments selected for its creator, and
+   * one the creator can't read refuses it before anything is written.
+   * Mutation: hand the storage the client's list, or drop the selection, and
+   * this test fails.
+   */
+  @Test
+  public void createWorkflowLinksOnlyTheSelectedAttachments() throws Exception {
+    Attachment[] sentAttachments = new Attachment[] { attachment("foreign"), attachment("uploaded") };
+    Attachment[] selectedAttachments = new Attachment[] { attachment("uploaded") };
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setAttachments(sentAttachments);
+    when(processesAttachmentService.selectProcessAttachments(PROCESSES_ADMIN_ID,
+                                                             0,
+                                                             0,
+                                                             sentAttachments)).thenReturn(selectedAttachments);
+
+    processesService.createWorkFlow(workFlow, PROCESSES_ADMIN_ID);
+
+    ArgumentCaptor<WorkFlow> saved = ArgumentCaptor.forClass(WorkFlow.class);
+    verify(processesStorage).saveWorkFlow(saved.capture(), eq(PROCESSES_ADMIN_ID));
+    assertEquals(selectedAttachments, saved.getValue().getAttachments());
+
+    WorkFlow refusedWorkFlow = new WorkFlow();
+    refusedWorkFlow.setAttachments(new Attachment[] { attachment("secret") });
+    when(processesAttachmentService.selectProcessAttachments(anyLong(),
+                                                             anyLong(),
+                                                             anyLong(),
+                                                             eq(refusedWorkFlow.getAttachments())))
+        .thenThrow(new IllegalAccessException("not readable"));
+    assertThrows(IllegalAccessException.class, () -> processesService.createWorkFlow(refusedWorkFlow, PROCESSES_ADMIN_ID));
+    verify(processesStorage, times(1)).saveWorkFlow(any(), anyLong());
+  }
+
+  /**
+   * An updated process links only the attachments selected for its editor,
+   * in the stored process project; one the editor can't read refuses the
+   * update before anything is written. Mutation: hand the storage the
+   * client's list, or drop the selection, and this test fails.
+   */
+  @Test
+  public void updateWorkflowLinksOnlyTheSelectedAttachments() throws Exception {
+    WorkFlow storedWorkFlow = new WorkFlow();
+    storedWorkFlow.setId(WORKFLOW_ID);
+    storedWorkFlow.setProjectId(PROCESS_PROJECT_ID);
+    storedWorkFlow.setAcl(new ProcessPermission(true, true, false, false));
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, PROJECT_MANAGER_ID)).thenReturn(storedWorkFlow);
+    Attachment[] sentAttachments = new Attachment[] { attachment("foreign"), attachment("uploaded") };
+    Attachment[] selectedAttachments = new Attachment[] { attachment("uploaded") };
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setId(WORKFLOW_ID);
+    workFlow.setProjectId(OTHER_PROJECT_ID);
+    workFlow.setAttachments(sentAttachments);
+    when(processesAttachmentService.selectProcessAttachments(PROJECT_MANAGER_ID,
+                                                             WORKFLOW_ID,
+                                                             PROCESS_PROJECT_ID,
+                                                             sentAttachments)).thenReturn(selectedAttachments);
+
+    processesService.updateWorkFlow(workFlow, PROJECT_MANAGER_ID);
+
+    ArgumentCaptor<WorkFlow> saved = ArgumentCaptor.forClass(WorkFlow.class);
+    verify(processesStorage).saveWorkFlow(saved.capture(), eq(PROJECT_MANAGER_ID));
+    assertEquals(selectedAttachments, saved.getValue().getAttachments());
+
+    WorkFlow refusedWorkFlow = new WorkFlow();
+    refusedWorkFlow.setId(WORKFLOW_ID);
+    refusedWorkFlow.setAttachments(new Attachment[] { attachment("secret") });
+    when(processesAttachmentService.selectProcessAttachments(anyLong(),
+                                                             anyLong(),
+                                                             anyLong(),
+                                                             eq(refusedWorkFlow.getAttachments())))
+        .thenThrow(new IllegalAccessException("not readable"));
+    assertThrows(IllegalAccessException.class, () -> processesService.updateWorkFlow(refusedWorkFlow, PROJECT_MANAGER_ID));
+    verify(processesStorage, times(1)).saveWorkFlow(any(), anyLong());
+  }
+
   @Test
   public void updateWork() throws ObjectNotFoundException, IllegalAccessException {
     Work work = new Work();
@@ -980,6 +1133,12 @@ public class ProcessesServiceImplTest {
     identity.setId(String.valueOf(identityId));
     identity.setEnable(enabled);
     return identity;
+  }
+
+  private Attachment attachment(String id) {
+    Attachment attachment = new Attachment();
+    attachment.setId(id);
+    return attachment;
   }
 
   private Work storedWork(long workId, long projectId) {
