@@ -189,11 +189,14 @@ public class ProcessesServiceImpl implements ProcessesService {
     }
     if (work.getDraftId() != null) {
       Work draft = getOwnWorkDraft(work.getDraftId(), userId);
+      if (draft.getWorkFlow() == null || draft.getWorkFlow().getId() != workFlow.getId()) {
+        throw new IllegalArgumentException("The request draft " + work.getDraftId() + " isn't a draft of the process "
+            + workFlow.getId());
+      }
       // The request takes its draft's stored attachments, never the ones the client names
-      long draftProjectId = draft.getWorkFlow() == null ? workFlow.getProjectId() : draft.getWorkFlow().getProjectId();
       work.setAttachments(processesAttachmentService.selectRequestAttachments(userId,
                                                                               work.getDraftId(),
-                                                                              draftProjectId,
+                                                                              workFlow.getProjectId(),
                                                                               work.getAttachments()));
     }
     return processesStorage.saveWork(work, userId);

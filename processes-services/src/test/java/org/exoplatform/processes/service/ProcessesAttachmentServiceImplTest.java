@@ -24,7 +24,9 @@ import java.util.stream.Collectors;
 
 import javax.jcr.AccessDeniedException;
 import javax.jcr.Node;
+import javax.jcr.RepositoryException;
 import javax.jcr.Session;
+import javax.jcr.UnsupportedRepositoryOperationException;
 import javax.jcr.Workspace;
 import javax.jcr.nodetype.NodeType;
 
@@ -51,6 +53,7 @@ import org.exoplatform.services.cms.link.NodeFinder;
 import org.exoplatform.services.jcr.RepositoryService;
 import org.exoplatform.services.jcr.access.PermissionType;
 import org.exoplatform.services.jcr.core.ExtendedNode;
+import org.exoplatform.services.jcr.core.ExtendedSession;
 import org.exoplatform.services.jcr.core.ManageableRepository;
 import org.exoplatform.services.jcr.ext.app.SessionProviderService;
 import org.exoplatform.services.jcr.ext.common.SessionProvider;
@@ -122,9 +125,9 @@ public class ProcessesAttachmentServiceImplTest {
 
   private static final String        WORKSPACE          = "collaboration";
 
-  private Session                    systemSession;
+  private ExtendedSession            systemSession;
 
-  private Session                    requesterSession;
+  private ExtendedSession            requesterSession;
 
   @AfterClass
   public static void afterRunBare() throws Exception { // NOSONAR
@@ -407,8 +410,8 @@ public class ProcessesAttachmentServiceImplTest {
   public void selectRequestAttachmentsRefusesAnAttachmentTheActingUserCantRead() throws Exception {
     mockRequesterSessions();
     unreadableNode("secret", "/Groups/spaces/secret/Documents");
-    Session threadUserSession = mock(Session.class);
-    when(threadUserSession.getNodeByUUID("secret")).thenReturn(mock(ExtendedNode.class));
+    ExtendedSession threadUserSession = mock(ExtendedSession.class);
+    when(threadUserSession.getNodeByIdentifier("secret")).thenReturn(mock(ExtendedNode.class));
     Identity threadUserIdentity = new Identity("test");
     when(userACL.getUserIdentity("test")).thenReturn(threadUserIdentity);
     SessionProvider threadUserSessionProvider = mock(SessionProvider.class);
@@ -421,6 +424,32 @@ public class ProcessesAttachmentServiceImplTest {
                                                                           DRAFT_ID,
                                                                           PROJECT_ID,
                                                                           Collections.emptyList()));
+  }
+
+  /**
+   * A user with no active identity is refused before any attachment is read.
+   * Mutation: drop the guard and the selection fails on a missing session
+   * instead: this test fails.
+   */
+  @Test
+  public void selectRequestAttachmentsRefusesAnInactiveUser() throws Exception {
+    mockRequesterSessions();
+    readableNode("picked", "/Users/r___/requester/Private/Documents", true);
+    when(attachmentService.getAttachmentsByEntity(REQUESTER_ID, DRAFT_ID, "workdraft")).thenReturn(attachments("picked"));
+
+    when(userACL.getUserIdentity("requester")).thenReturn(null);
+    assertThrows(IllegalAccessException.class,
+                 () -> processesAttachmentService.selectRequestAttachments(REQUESTER_ID,
+                                                                          DRAFT_ID,
+                                                                          PROJECT_ID,
+                                                                          Collections.emptyList()));
+    when(identityManager.getIdentity(String.valueOf(REQUESTER_ID))).thenReturn(null);
+    assertThrows(IllegalAccessException.class,
+                 () -> processesAttachmentService.selectRequestAttachments(REQUESTER_ID,
+                                                                          DRAFT_ID,
+                                                                          PROJECT_ID,
+                                                                          Collections.emptyList()));
+    verify(requesterSession, never()).getNodeByIdentifier(any());
   }
 
   /**
@@ -513,6 +542,53 @@ public class ProcessesAttachmentServiceImplTest {
                                                                           0,
                                                                           0,
                                                                           new Attachment[] { attachment("othersPick") }));
+  }
+
+  /**
+   * A shortcut isn't referenceable, so only a lookup by identifier finds it:
+   * a readable shortcut is selected on a request and on a process update.
+   * Mutation: look either session's node up by UUID and this test fails.
+   */
+  @Test
+  public void selectAttachmentsTakesAReadableShortcut() throws Exception {
+    mockRequesterSessions();
+    readableNode("shortcut", "/Users/r___/requester/Private/Documents/Shared", false);
+    UnsupportedRepositoryOperationException notReferenceable = new UnsupportedRepositoryOperationException("not referenceable");
+    when(systemSession.getNodeByUUID("shortcut")).thenThrow(notReferenceable);
+    when(requesterSession.getNodeByUUID("shortcut")).thenThrow(notReferenceable);
+    when(attachmentService.getAttachmentsByEntity(REQUESTER_ID, DRAFT_ID, "workdraft")).thenReturn(attachments("shortcut"));
+
+    List<Attachment> selected = processesAttachmentService.selectRequestAttachments(REQUESTER_ID,
+                                                                                    DRAFT_ID,
+                                                                                    PROJECT_ID,
+                                                                                    Collections.emptyList());
+    Attachment[] updated = processesAttachmentService.selectProcessAttachments(REQUESTER_ID,
+                                                                               WORKFLOW_ID,
+                                                                               PROJECT_ID,
+                                                                               new Attachment[] { attachment("shortcut") });
+
+    assertEquals(Collections.singletonList("shortcut"), ids(selected));
+    assertEquals(Collections.singletonList("shortcut"), ids(Arrays.asList(updated)));
+  }
+
+  /**
+   * Only a denied or missing node counts as unreadable: another repository
+   * error fails the selection instead of passing for a refusal or for a
+   * linked attachment left as it is. Mutation: count every repository error
+   * as unreadable and this test fails.
+   */
+  @Test
+  public void selectProcessAttachmentsFailsOnARepositoryError() throws Exception {
+    mockRequesterSessions();
+    systemNode("broken", "/Groups/spaces/hr/Documents");
+    when(requesterSession.getNodeByIdentifier("broken")).thenThrow(new RepositoryException("broken"));
+    when(attachmentService.getAttachmentsByEntity(REQUESTER_ID, WORKFLOW_ID, "workflow")).thenReturn(attachments("broken"));
+
+    assertThrows(IllegalStateException.class,
+                 () -> processesAttachmentService.selectProcessAttachments(REQUESTER_ID,
+                                                                          WORKFLOW_ID,
+                                                                          PROJECT_ID,
+                                                                          new Attachment[] { attachment("broken") }));
   }
 
   /**
@@ -612,14 +688,14 @@ public class ProcessesAttachmentServiceImplTest {
     when(identityManager.getIdentity(String.valueOf(REQUESTER_ID))).thenReturn(requester);
     Identity requesterAclIdentity = new Identity("requester");
     when(userACL.getUserIdentity("requester")).thenReturn(requesterAclIdentity);
-    requesterSession = mock(Session.class);
+    requesterSession = mock(ExtendedSession.class);
     SessionProvider requesterSessionProvider = mock(SessionProvider.class);
     ManageableRepository repository = mock(ManageableRepository.class);
     when(repositoryService.getCurrentRepository()).thenReturn(repository);
     UTILS.when(() -> Utils.getCurrentWorkspace(repositoryService)).thenReturn(WORKSPACE);
     when(requesterSessionProvider.getSession(WORKSPACE, repository)).thenReturn(requesterSession);
     UTILS.when(() -> Utils.getUserSessionProvider(repositoryService, requesterAclIdentity)).thenReturn(requesterSessionProvider);
-    systemSession = mock(Session.class);
+    systemSession = mock(ExtendedSession.class);
     UTILS.when(() -> Utils.getSystemSession(sessionProviderService, repositoryService)).thenReturn(systemSession);
     Space space = new Space();
     space.setGroupId(SPACE_GROUP);
@@ -635,12 +711,12 @@ public class ProcessesAttachmentServiceImplTest {
     if (!removable) {
       doThrow(new AccessControlException("no remove")).when(node).checkPermission(PermissionType.REMOVE);
     }
-    when(requesterSession.getNodeByUUID(id)).thenReturn(node);
+    when(requesterSession.getNodeByIdentifier(id)).thenReturn(node);
   }
 
   private void unreadableNode(String id, String parentPath) throws Exception {
     systemNode(id, parentPath);
-    when(requesterSession.getNodeByUUID(id)).thenThrow(new AccessDeniedException("no read"));
+    when(requesterSession.getNodeByIdentifier(id)).thenThrow(new AccessDeniedException("no read"));
   }
 
   private void systemNode(String id, String parentPath) throws Exception {
@@ -648,7 +724,7 @@ public class ProcessesAttachmentServiceImplTest {
     when(parent.getPath()).thenReturn(parentPath);
     ExtendedNode node = mock(ExtendedNode.class);
     when(node.getParent()).thenReturn(parent);
-    when(systemSession.getNodeByUUID(id)).thenReturn(node);
+    when(systemSession.getNodeByIdentifier(id)).thenReturn(node);
   }
 
   private Node folder(String path) throws Exception {

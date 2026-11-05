@@ -58,8 +58,6 @@ public class ProcessesServiceImplTest {
 
   private static final long      OTHER_PROJECT_ID    = 20L;
 
-  private static final long      DRAFT_PROJECT_ID    = 30L;
-
   private static final long      WORKFLOW_ID         = 7L;
 
   private static final long      WORK_ID             = 100L;
@@ -644,9 +642,8 @@ public class ProcessesServiceImplTest {
 
   /**
    * A request created from a draft takes the attachments selected among the
-   * draft's stored ones, in the project of the draft's process, and never the
-   * list the client sent. Mutation: hand the storage the client's list, or
-   * select in the project of the request's process, and this test fails.
+   * draft's stored ones, and never the list the client sent. Mutation: hand
+   * the storage the client's list and this test fails.
    */
   @Test
   public void createWorkFromDraftTakesTheSelectedDraftAttachments() throws Exception {
@@ -656,13 +653,11 @@ public class ProcessesServiceImplTest {
     work.setProjectId(PROCESS_PROJECT_ID);
     work.setDraftId(DRAFT_ID);
     work.setAttachments(sentAttachments);
-    Work draft = storedDraft(CREATOR_ID);
-    draft.getWorkFlow().setProjectId(DRAFT_PROJECT_ID);
     when(processesStorage.getWorkFlowById(WORKFLOW_ID, CREATOR_ID)).thenReturn(requestableWorkFlow(true, true));
-    when(processesStorage.getWorkDraftyId(DRAFT_ID)).thenReturn(draft);
+    when(processesStorage.getWorkDraftyId(DRAFT_ID)).thenReturn(storedDraft(CREATOR_ID));
     when(processesAttachmentService.selectRequestAttachments(CREATOR_ID,
                                                              DRAFT_ID,
-                                                             DRAFT_PROJECT_ID,
+                                                             PROCESS_PROJECT_ID,
                                                              sentAttachments)).thenReturn(draftAttachments);
 
     processesService.createWork(work, CREATOR_ID);
@@ -670,6 +665,26 @@ public class ProcessesServiceImplTest {
     ArgumentCaptor<Work> saved = ArgumentCaptor.forClass(Work.class);
     verify(processesStorage).saveWork(saved.capture(), eq(CREATOR_ID));
     assertEquals(draftAttachments, saved.getValue().getAttachments());
+  }
+
+  /**
+   * A request takes the attachments of a draft of its own process only: a
+   * draft of another process is refused before anything is selected or
+   * written. Mutation: drop the process check and this test fails.
+   */
+  @Test
+  public void createWorkIsRefusedFromADraftOfAnotherProcess() throws Exception {
+    Work work = new Work();
+    work.setProjectId(PROCESS_PROJECT_ID);
+    work.setDraftId(DRAFT_ID);
+    Work otherProcessDraft = storedDraft(CREATOR_ID);
+    otherProcessDraft.getWorkFlow().setId(WORKFLOW_ID + 1);
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, CREATOR_ID)).thenReturn(requestableWorkFlow(true, true));
+    when(processesStorage.getWorkDraftyId(DRAFT_ID)).thenReturn(otherProcessDraft);
+
+    assertThrows(IllegalArgumentException.class, () -> processesService.createWork(work, CREATOR_ID));
+    verify(processesAttachmentService, never()).selectRequestAttachments(anyLong(), anyLong(), anyLong(), any());
+    verify(processesStorage, never()).saveWork(any(), anyLong());
   }
 
   /**

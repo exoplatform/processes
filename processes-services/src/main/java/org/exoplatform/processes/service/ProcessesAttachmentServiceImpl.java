@@ -17,6 +17,7 @@ import org.exoplatform.services.cms.link.NodeFinder;
 import org.exoplatform.services.jcr.RepositoryService;
 import org.exoplatform.services.jcr.access.PermissionType;
 import org.exoplatform.services.jcr.core.ExtendedNode;
+import org.exoplatform.services.jcr.core.ExtendedSession;
 import org.exoplatform.services.jcr.ext.app.SessionProviderService;
 import org.exoplatform.services.jcr.ext.common.SessionProvider;
 import org.exoplatform.services.jcr.ext.hierarchy.NodeHierarchyCreator;
@@ -461,10 +462,14 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
     return Utils.getUserSessionProvider(repositoryService, aclIdentity);
   }
 
-  private Node getReadableNode(Session userSession, String attachmentId) {
+  /**
+   * Looks the node up by identifier rather than by UUID: a shortcut isn't
+   * referenceable, and its identifier is what the attachment holds.
+   */
+  private Node getReadableNode(Session userSession, String attachmentId) throws RepositoryException {
     try {
-      return userSession.getNodeByUUID(attachmentId);
-    } catch (RepositoryException e) {
+      return ((ExtendedSession) userSession).getNodeByIdentifier(attachmentId);
+    } catch (AccessDeniedException | ItemNotFoundException e) {
       LOG.debug("Attachment {} isn't readable by the user", attachmentId, e);
       return null;
     }
@@ -475,7 +480,7 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
       return false;
     }
     try {
-      return folderPath.equals(systemSession.getNodeByUUID(attachmentId).getParent().getPath());
+      return folderPath.equals(((ExtendedSession) systemSession).getNodeByIdentifier(attachmentId).getParent().getPath());
     } catch (ItemNotFoundException e) {
       return false;
     }
