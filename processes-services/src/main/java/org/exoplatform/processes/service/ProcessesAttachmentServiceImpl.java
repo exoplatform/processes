@@ -30,6 +30,7 @@ import org.exoplatform.social.core.identity.model.Profile;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
+import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.service.ProjectService;
@@ -63,6 +64,8 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
 
   private final UserACL                userACL;
 
+  private final SpaceService           spaceService;
+
   private static final String          PRIVATE_FOLDER       = "/Private";
 
   private static final String          PUBLIC_FOLDER        = "/Public";
@@ -81,6 +84,8 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
 
   private static final String          WORK_DRAFT_ENTITY_TYPE = "workdraft";
 
+  private static final String          GROUP_ID_PARAMETER   = "${groupId}";
+
   private static DateTimeFormatter     formatter            = DateTimeFormatter.ofPattern("yyyyMMdd");
 
   public ProcessesAttachmentServiceImpl(AttachmentService attachmentService,
@@ -91,7 +96,8 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
                                         NodeFinder nodeFinder,
                                         ProjectService projectService,
                                         IdentityManager identityManager,
-                                        UserACL userACL) {
+                                        UserACL userACL,
+                                        SpaceService spaceService) {
     this.attachmentService = attachmentService;
     this.repositoryService = repositoryService;
     this.sessionProviderService = sessionProviderService;
@@ -101,6 +107,7 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
     this.projectService = projectService;
     this.identityManager = identityManager;
     this.userACL = userACL;
+    this.spaceService = spaceService;
   }
 
   @Override
@@ -395,8 +402,9 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
   }
 
   /**
-   * Keeps an attachment the processes placed in the entity's folder, and any
-   * other one only when the user's own session reads it: one the user may
+   * Keeps an attachment in the entity's folder in the process space's drive,
+   * or for a draft in its folder at the root of the drive of any existing
+   * space, and any other one only when the user's own session reads it: one the user may
    * remove is marked to be moved, unless picked from a drive, and every other
    * one to be copied. The platform's session moves or copies them afterwards,
    * so the user's rights are checked here, before anything is written.
@@ -426,7 +434,7 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
           continue;
         }
         String attachmentId = attachment.getId();
-        if (isInFolder(systemSession, attachmentId, entityFolderPath)) {
+        if (isInEntityFolder(systemSession, attachmentId, entityFolderPath, entityType, entityId)) {
           attachment.setEXoDrive(false);
           selected.add(attachment);
         } else {
@@ -459,6 +467,11 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
     if (aclIdentity == null) {
       throw new IllegalAccessException("User " + userId + " isn't an active user");
     }
+    // The session is opened as the current thread's user, whatever identity it is built with
+    ConversationState conversationState = ConversationState.getCurrent();
+    if (conversationState == null || !aclIdentity.getUserId().equals(conversationState.getIdentity().getUserId())) {
+      throw new IllegalAccessException("User " + userId + " isn't the current user");
+    }
     return Utils.getUserSessionProvider(repositoryService, aclIdentity);
   }
 
@@ -475,15 +488,61 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
     }
   }
 
-  private boolean isInFolder(Session systemSession, String attachmentId, String folderPath) throws RepositoryException {
-    if (folderPath == null) {
+  private boolean isInEntityFolder(Session systemSession,
+                                   String attachmentId,
+                                   String entityFolderPath,
+                                   String entityType,
+                                   long entityId) throws RepositoryException {
+    if (entityId <= 0) {
       return false;
     }
+    Node folder;
     try {
-      return folderPath.equals(((ExtendedSession) systemSession).getNodeByIdentifier(attachmentId).getParent().getPath());
+      folder = ((ExtendedSession) systemSession).getNodeByIdentifier(attachmentId).getParent();
     } catch (ItemNotFoundException e) {
       return false;
     }
+    return folder.getPath().equals(entityFolderPath)
+        || (WORK_DRAFT_ENTITY_TYPE.equals(entityType) && isEntityFolderInASpaceDrive(folder, entityType, entityId));
+  }
+
+  /**
+   * A draft's folder is made in the drive of the space its process is in when
+   * the draft is saved, and stays there when the process moves to another
+   * space.
+   *
+   * @return true when the folder is the entity's folder at the root of the
+   *         drive of an existing space
+   */
+  private boolean isEntityFolderInASpaceDrive(Node folder, String entityType, long entityId) throws RepositoryException {
+    if (!String.valueOf(entityId).equals(folder.getName())) {
+      return false;
+    }
+    Node entityTypeFolder = folder.getParent();
+    if (!entityType.equals(entityTypeFolder.getName())) {
+      return false;
+    }
+    String groupId = getDriveGroupId(entityTypeFolder.getParent().getPath());
+    return groupId != null && spaceService.getSpaceByGroupId(groupId) != null;
+  }
+
+  /**
+   * @return the group of the drive whose home path the group drive template
+   *         gives this path, null when the template gives it no group
+   */
+  private String getDriveGroupId(String path) {
+    DriveData template = manageDriveService.getGroupDriveTemplate();
+    String templatePath = template == null ? null : template.getHomePath();
+    int index = templatePath == null ? -1 : templatePath.indexOf(GROUP_ID_PARAMETER);
+    if (index < 0) {
+      return null;
+    }
+    String prefix = templatePath.substring(0, index);
+    String suffix = templatePath.substring(index + GROUP_ID_PARAMETER.length());
+    if (path.length() <= prefix.length() + suffix.length() || !path.startsWith(prefix) || !path.endsWith(suffix)) {
+      return null;
+    }
+    return path.substring(prefix.length(), path.length() - suffix.length());
   }
 
   /**

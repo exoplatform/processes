@@ -23,6 +23,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.jcr.AccessDeniedException;
+import javax.jcr.ItemNotFoundException;
 import javax.jcr.Node;
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
@@ -63,6 +64,7 @@ import org.exoplatform.services.security.Identity;
 import org.exoplatform.services.wcm.core.NodetypeConstant;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
+import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.service.ProjectService;
 
@@ -107,6 +109,9 @@ public class ProcessesAttachmentServiceImplTest {
   @Mock
   private UserACL                    userACL;
 
+  @Mock
+  private SpaceService               spaceService;
+
   private ProcessesAttachmentService processesAttachmentService;
 
   private static final long          REQUESTER_ID       = 5L;
@@ -147,7 +152,8 @@ public class ProcessesAttachmentServiceImplTest {
                                                                          nodeFinder,
                                                                          projectService,
                                                                          identityManager,
-                                                                         userACL);
+                                                                         userACL,
+                                                                         spaceService);
     ConversationState conversationState = mock(ConversationState.class);
     CONVERSATION_STATE.when(() -> ConversationState.getCurrent()).thenReturn(conversationState);
     Identity identity = mock(Identity.class);
@@ -400,23 +406,15 @@ public class ProcessesAttachmentServiceImplTest {
   }
 
   /**
-   * A draft attachment the acting user can't read through their own session
-   * refuses the request, even when the platform's session and the user of the
-   * current thread read it. Mutation: skip it silently, read it with the
-   * platform's session, or with the current thread's user, and this test
-   * fails.
+   * A draft attachment the requester can't read through their own session
+   * refuses the request, even when the platform's session reads it.
+   * Mutation: skip it silently, or read it with the platform's session, and
+   * this test fails.
    */
   @Test
-  public void selectRequestAttachmentsRefusesAnAttachmentTheActingUserCantRead() throws Exception {
+  public void selectRequestAttachmentsRefusesAnAttachmentTheRequesterCantRead() throws Exception {
     mockRequesterSessions();
     unreadableNode("secret", "/Groups/spaces/secret/Documents");
-    ExtendedSession threadUserSession = mock(ExtendedSession.class);
-    when(threadUserSession.getNodeByIdentifier("secret")).thenReturn(mock(ExtendedNode.class));
-    Identity threadUserIdentity = new Identity("test");
-    when(userACL.getUserIdentity("test")).thenReturn(threadUserIdentity);
-    SessionProvider threadUserSessionProvider = mock(SessionProvider.class);
-    when(threadUserSessionProvider.getSession(any(), any())).thenReturn(threadUserSession);
-    UTILS.when(() -> Utils.getUserSessionProvider(repositoryService, threadUserIdentity)).thenReturn(threadUserSessionProvider);
     when(attachmentService.getAttachmentsByEntity(REQUESTER_ID, DRAFT_ID, "workdraft")).thenReturn(attachments("secret"));
 
     assertThrows(IllegalAccessException.class,
@@ -424,6 +422,35 @@ public class ProcessesAttachmentServiceImplTest {
                                                                           DRAFT_ID,
                                                                           PROJECT_ID,
                                                                           Collections.emptyList()));
+  }
+
+  /**
+   * The user's session reads as the current thread's user, whatever identity
+   * it is built with: a user who isn't the current one is refused before any
+   * attachment is read, and so is a thread with no user. Mutation: drop
+   * either check and this test fails.
+   */
+  @Test
+  public void selectRequestAttachmentsRefusesAUserWhoIsntTheCurrentOne() throws Exception {
+    mockRequesterSessions();
+    readableNode("picked", "/Users/r___/requester/Private/Documents", true);
+    when(attachmentService.getAttachmentsByEntity(REQUESTER_ID, DRAFT_ID, "workdraft")).thenReturn(attachments("picked"));
+
+    ConversationState otherUserState = mock(ConversationState.class);
+    when(otherUserState.getIdentity()).thenReturn(new Identity("test"));
+    CONVERSATION_STATE.when(ConversationState::getCurrent).thenReturn(otherUserState);
+    assertThrows(IllegalAccessException.class,
+                 () -> processesAttachmentService.selectRequestAttachments(REQUESTER_ID,
+                                                                          DRAFT_ID,
+                                                                          PROJECT_ID,
+                                                                          Collections.emptyList()));
+    CONVERSATION_STATE.when(ConversationState::getCurrent).thenReturn(null);
+    assertThrows(IllegalAccessException.class,
+                 () -> processesAttachmentService.selectRequestAttachments(REQUESTER_ID,
+                                                                          DRAFT_ID,
+                                                                          PROJECT_ID,
+                                                                          Collections.emptyList()));
+    verify(requesterSession, never()).getNodeByIdentifier(any());
   }
 
   /**
@@ -542,6 +569,71 @@ public class ProcessesAttachmentServiceImplTest {
                                                                           0,
                                                                           0,
                                                                           new Attachment[] { attachment("othersPick") }));
+  }
+
+  /**
+   * What the processes placed in the process folder of the process space's
+   * drive is kept without a read check. Mutation: look for the entity's
+   * folder in the process space's drive no more and this test fails.
+   */
+  @Test
+  public void selectProcessAttachmentsKeepsWhatTheProcessesPlacedInTheProcessFolder() throws Exception {
+    mockRequesterSessions();
+    unreadableNode("processForm", DRIVE_HOME + "/workflow/" + WORKFLOW_ID);
+
+    Attachment[] selected = processesAttachmentService.selectProcessAttachments(REQUESTER_ID,
+                                                                                WORKFLOW_ID,
+                                                                                PROJECT_ID,
+                                                                                new Attachment[] { attachment("processForm") });
+
+    assertEquals(Collections.singletonList("processForm"), ids(Arrays.asList(selected)));
+    assertFalse(selected[0].isEXoDrive());
+  }
+
+  /**
+   * A draft's folder stays in the drive of the space its process was in when
+   * the draft was saved: after a space move, what the processes placed there
+   * is kept, while a folder of another draft or entity there, or one that only
+   * looks like a draft's folder outside the root of a space's drive, isn't.
+   * Only a draft's folder is looked for in another space's drive. Mutation:
+   * look in the current drive only, accept any group, drop the draft or the
+   * folder name check, or look for a process folder too, and this test fails.
+   */
+  @Test
+  public void selectRequestAttachmentsKeepsWhatTheProcessesPlacedInTheDraftFolderBeforeASpaceMove() throws Exception {
+    mockRequesterSessions();
+    when(spaceService.getSpaceByGroupId("/spaces/old")).thenReturn(new Space());
+    unreadableNode("oldForm", "/Groups/spaces/old/Documents/workdraft/" + DRAFT_ID);
+    when(attachmentService.getAttachmentsByEntity(REQUESTER_ID, DRAFT_ID, "workdraft")).thenReturn(attachments("oldForm"));
+
+    List<Attachment> selected = processesAttachmentService.selectRequestAttachments(REQUESTER_ID,
+                                                                                    DRAFT_ID,
+                                                                                    PROJECT_ID,
+                                                                                    Collections.emptyList());
+
+    assertEquals(Collections.singletonList("oldForm"), ids(selected));
+    assertFalse(selected.get(0).isEXoDrive());
+    List<String> otherFolders = Arrays.asList("/Groups/spaces/old/Documents/workdraft/51",
+                                              "/Groups/spaces/old/Documents/task/" + DRAFT_ID,
+                                              "/Groups/spaces/hr/Documents/sub/Documents/workdraft/" + DRAFT_ID,
+                                              "/Groups/platform/users/Documents/workdraft/" + DRAFT_ID);
+    for (int i = 0; i < otherFolders.size(); i++) {
+      String id = "other" + i;
+      unreadableNode(id, otherFolders.get(i));
+      when(attachmentService.getAttachmentsByEntity(REQUESTER_ID, DRAFT_ID, "workdraft")).thenReturn(attachments(id));
+      assertThrows(otherFolders.get(i),
+                   IllegalAccessException.class,
+                   () -> processesAttachmentService.selectRequestAttachments(REQUESTER_ID,
+                                                                            DRAFT_ID,
+                                                                            PROJECT_ID,
+                                                                            Collections.emptyList()));
+    }
+    unreadableNode("oldProcessForm", "/Groups/spaces/old/Documents/workflow/" + WORKFLOW_ID);
+    assertThrows(IllegalAccessException.class,
+                 () -> processesAttachmentService.selectProcessAttachments(REQUESTER_ID,
+                                                                          WORKFLOW_ID,
+                                                                          PROJECT_ID,
+                                                                          new Attachment[] { attachment("oldProcessForm") }));
   }
 
   /**
@@ -688,6 +780,9 @@ public class ProcessesAttachmentServiceImplTest {
     when(identityManager.getIdentity(String.valueOf(REQUESTER_ID))).thenReturn(requester);
     Identity requesterAclIdentity = new Identity("requester");
     when(userACL.getUserIdentity("requester")).thenReturn(requesterAclIdentity);
+    ConversationState requesterState = mock(ConversationState.class);
+    when(requesterState.getIdentity()).thenReturn(requesterAclIdentity);
+    CONVERSATION_STATE.when(ConversationState::getCurrent).thenReturn(requesterState);
     requesterSession = mock(ExtendedSession.class);
     SessionProvider requesterSessionProvider = mock(SessionProvider.class);
     ManageableRepository repository = mock(ManageableRepository.class);
@@ -700,9 +795,13 @@ public class ProcessesAttachmentServiceImplTest {
     Space space = new Space();
     space.setGroupId(SPACE_GROUP);
     PROCESSES_UTILS.when(() -> ProcessesUtils.getProjectParentSpace(PROJECT_ID)).thenReturn(space);
+    when(spaceService.getSpaceByGroupId(SPACE_GROUP)).thenReturn(space);
     DriveData driveData = new DriveData();
     driveData.setHomePath(DRIVE_HOME);
     when(manageDriveService.getGroupDrive(SPACE_GROUP)).thenReturn(driveData);
+    DriveData groupDriveTemplate = new DriveData();
+    groupDriveTemplate.setHomePath("/Groups${groupId}/Documents");
+    when(manageDriveService.getGroupDriveTemplate()).thenReturn(groupDriveTemplate);
   }
 
   private void readableNode(String id, String parentPath, boolean removable) throws Exception {
@@ -720,11 +819,25 @@ public class ProcessesAttachmentServiceImplTest {
   }
 
   private void systemNode(String id, String parentPath) throws Exception {
-    Node parent = mock(Node.class);
-    when(parent.getPath()).thenReturn(parentPath);
+    Node parent = pathNode(parentPath);
     ExtendedNode node = mock(ExtendedNode.class);
     when(node.getParent()).thenReturn(parent);
     when(systemSession.getNodeByIdentifier(id)).thenReturn(node);
+  }
+
+  private Node pathNode(String path) throws Exception {
+    Node node = mock(Node.class);
+    when(node.getPath()).thenReturn(path);
+    if ("/".equals(path)) {
+      when(node.getName()).thenReturn("");
+      when(node.getParent()).thenThrow(new ItemNotFoundException("root"));
+    } else {
+      String parentPath = path.substring(0, path.lastIndexOf('/'));
+      Node parent = pathNode(parentPath.isEmpty() ? "/" : parentPath);
+      when(node.getName()).thenReturn(path.substring(path.lastIndexOf('/') + 1));
+      when(node.getParent()).thenReturn(parent);
+    }
+    return node;
   }
 
   private Node folder(String path) throws Exception {

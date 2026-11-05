@@ -69,12 +69,15 @@ public interface ProcessesAttachmentService {
     /**
      * Selects the attachments a request created from a draft takes: the
      * attachments stored on the draft, never a list the client sends. An
-     * attachment the processes placed in the draft's folder is kept and moved;
+     * attachment in the draft's folder, {@code workdraft/<draftId>} at the root
+     * of the drive of an existing space, where the processes place the draft's
+     * copies of the process attachments, is kept and moved;
      * any other one must be readable by the user, and is moved only when the
      * user may remove it and didn't pick it from a drive, otherwise copied.
      * Nothing is written.
      *
-     * @param userId identity id of the user creating the request
+     * @param userId identity id of the user creating the request, the current
+     *          user
      * @param draftId id of the request draft
      * @param projectId task project id of the draft's process
      * @param sentAttachments attachments the client sent, read only to know
@@ -82,7 +85,8 @@ public interface ProcessesAttachmentService {
      * @return the attachments to move or copy, a copy being marked by
      *         {@link Attachment#isEXoDrive()}
      * @throws IllegalAccessException when the user can't read one of the
-     *           draft's attachments
+     *           draft's attachments, or isn't the current user while the
+     *           draft has one
      */
     List<Attachment> selectRequestAttachments(long userId,
                                               long draftId,
@@ -97,7 +101,8 @@ public interface ProcessesAttachmentService {
      * an update, an attachment already linked to the process that the user
      * can't read is left as it is. Nothing is written.
      *
-     * @param userId identity id of the user creating or updating the process
+     * @param userId identity id of the user creating or updating the process,
+     *          the current user
      * @param workflowId id of the process, 0 for a process to create
      * @param projectId task project id of the process, 0 for a process to
      *          create
@@ -105,7 +110,8 @@ public interface ProcessesAttachmentService {
      * @return the attachments to link, move or copy, a copy being marked by
      *         {@link Attachment#isEXoDrive()}
      * @throws IllegalAccessException when the user can't read an attachment
-     *           that isn't linked to the process yet
+     *           that isn't linked to the process yet, or isn't the current user
+     *           while an attachment is sent
      */
     Attachment[] selectProcessAttachments(long userId,
                                           long workflowId,
