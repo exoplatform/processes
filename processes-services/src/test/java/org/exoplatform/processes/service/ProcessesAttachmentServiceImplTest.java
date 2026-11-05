@@ -455,8 +455,8 @@ public class ProcessesAttachmentServiceImplTest {
 
   /**
    * A user with no active identity is refused before any attachment is read.
-   * Mutation: drop the guard and the selection fails on a missing session
-   * instead: this test fails.
+   * Mutation: drop the guard and the selection fails with a
+   * NullPointerException in the current-user check instead: this test fails.
    */
   @Test
   public void selectRequestAttachmentsRefusesAnInactiveUser() throws Exception {
