@@ -5,6 +5,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
@@ -614,6 +615,29 @@ public class ProcessesAttachmentServiceImplTest {
     verify(attachmentService).linkAttachmentToEntity(REQUESTER_ID, WORKFLOW_ID, "workflow", "uploaded");
     verify(workspace).move("/source/uploaded", processFolder + "/uploaded");
     assertEquals(Collections.singletonList("uploaded"), ids(Arrays.asList(selected)));
+  }
+
+  /**
+   * A process to create has no attachment list yet, and the attachment service
+   * refuses an entity id of 0: the selection doesn't ask for one, and a
+   * readable attachment sent with a new process is selected. Mutation: read
+   * the process's attachment list whatever its id and this test fails.
+   */
+  @Test
+  public void selectProcessAttachmentsReadsNoAttachmentListOnACreation() throws Exception {
+    mockRequesterSessions();
+    readableNode("uploaded", "/Users/r___/requester/Private/Documents", true);
+    when(attachmentService.getAttachmentsByEntity(anyLong(),
+                                                  eq(0L),
+                                                  anyString())).thenThrow(new IllegalArgumentException("Entity Id should be positive"));
+
+    Attachment[] selected = processesAttachmentService.selectProcessAttachments(REQUESTER_ID,
+                                                                                0,
+                                                                                0,
+                                                                                new Attachment[] { attachment("uploaded") });
+
+    assertEquals(Collections.singletonList("uploaded"), ids(Arrays.asList(selected)));
+    assertFalse(selected[0].isEXoDrive());
   }
 
   /**
