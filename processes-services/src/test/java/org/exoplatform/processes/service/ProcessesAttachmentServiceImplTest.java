@@ -5,6 +5,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -572,6 +574,49 @@ public class ProcessesAttachmentServiceImplTest {
   }
 
   /**
+   * On a process update, what the client sends back that is already linked to
+   * the process, a drive pick's original in the editor's drive that the editor
+   * may remove, sent without the drive-pick flag, or a document in the process
+   * folder, is neither linked again, nor moved, nor copied, while an attachment
+   * that isn't linked yet is still linked and moved. The selection goes through
+   * the link as the process storage passes it. Mutation: select the linked
+   * attachments again and this test fails on their link; leave every sent
+   * attachment out on an update and it fails on the new one's link.
+   */
+  @Test
+  public void selectProcessAttachmentsLeavesAnAlreadyLinkedAttachmentAsItIs() throws Exception {
+    mockRequesterSessions();
+    Workspace workspace = mockProcessFolder();
+    String editorDocuments = "/Users/r___/requester/Private/Documents";
+    String processFolder = DRIVE_HOME + "/workflow/" + WORKFLOW_ID;
+    readableNode("original", editorDocuments, true);
+    sourceNode(systemSession, "original", folder(editorDocuments));
+    readableNode("processForm", processFolder, true);
+    sourceNode(systemSession, "processForm", folder(processFolder));
+    readableNode("uploaded", editorDocuments, true);
+    sourceNode(systemSession, "uploaded", folder(editorDocuments));
+    when(attachmentService.getAttachmentsByEntity(REQUESTER_ID, WORKFLOW_ID, "workflow")).thenReturn(attachments("original",
+                                                                                                                 "processForm"));
+
+    Attachment[] selected = processesAttachmentService.selectProcessAttachments(REQUESTER_ID,
+                                                                                WORKFLOW_ID,
+                                                                                PROJECT_ID,
+                                                                                new Attachment[] { attachment("original"),
+                                                                                    attachment("processForm"),
+                                                                                    attachment("uploaded") });
+    processesAttachmentService.linkAttachmentsToEntity(selected, REQUESTER_ID, WORKFLOW_ID, "workflow", PROJECT_ID);
+
+    for (String linkedId : Arrays.asList("original", "processForm")) {
+      verify(attachmentService, never()).linkAttachmentToEntity(REQUESTER_ID, WORKFLOW_ID, "workflow", linkedId);
+      verify(workspace, never()).move(eq("/source/" + linkedId), anyString());
+      verify(workspace, never()).copy(eq("/source/" + linkedId), anyString());
+    }
+    verify(attachmentService).linkAttachmentToEntity(REQUESTER_ID, WORKFLOW_ID, "workflow", "uploaded");
+    verify(workspace).move("/source/uploaded", processFolder + "/uploaded");
+    assertEquals(Collections.singletonList("uploaded"), ids(Arrays.asList(selected)));
+  }
+
+  /**
    * What the processes placed in the process folder of the process space's
    * drive is kept without a read check. Mutation: look for the entity's
    * folder in the process space's drive no more and this test fails.
@@ -665,16 +710,14 @@ public class ProcessesAttachmentServiceImplTest {
 
   /**
    * Only a denied or missing node counts as unreadable: another repository
-   * error fails the selection instead of passing for a refusal or for a
-   * linked attachment left as it is. Mutation: count every repository error
-   * as unreadable and this test fails.
+   * error fails the selection instead of passing for a refusal. Mutation:
+   * count every repository error as unreadable and this test fails.
    */
   @Test
   public void selectProcessAttachmentsFailsOnARepositoryError() throws Exception {
     mockRequesterSessions();
     systemNode("broken", "/Groups/spaces/hr/Documents");
     when(requesterSession.getNodeByIdentifier("broken")).thenThrow(new RepositoryException("broken"));
-    when(attachmentService.getAttachmentsByEntity(REQUESTER_ID, WORKFLOW_ID, "workflow")).thenReturn(attachments("broken"));
 
     assertThrows(IllegalStateException.class,
                  () -> processesAttachmentService.selectProcessAttachments(REQUESTER_ID,
@@ -802,6 +845,39 @@ public class ProcessesAttachmentServiceImplTest {
     DriveData groupDriveTemplate = new DriveData();
     groupDriveTemplate.setHomePath("/Groups${groupId}/Documents");
     when(manageDriveService.getGroupDriveTemplate()).thenReturn(groupDriveTemplate);
+  }
+
+  /**
+   * Lets the platform's session move or copy a node into the process folder,
+   * after {@link #mockRequesterSessions()}.
+   *
+   * @return the workspace that moves and copies
+   */
+  private Workspace mockProcessFolder() throws Exception {
+    ProjectDto projectDto = new ProjectDto();
+    projectDto.setId(PROJECT_ID);
+    projectDto.setManager(new HashSet<>(Collections.singletonList("manager:" + SPACE_GROUP)));
+    projectDto.setParticipator(new HashSet<>(Collections.singletonList("member:" + SPACE_GROUP)));
+    when(projectService.getProject(PROJECT_ID)).thenReturn(projectDto);
+    Node rootNode = mock(Node.class);
+    when(rootNode.getPath()).thenReturn(DRIVE_HOME);
+    when(rootNode.hasNode("workflow")).thenReturn(true);
+    when(rootNode.getNode("workflow")).thenReturn(rootNode);
+    when(rootNode.hasNode(String.valueOf(WORKFLOW_ID))).thenReturn(true);
+    when(systemSession.getItem(any())).thenAnswer(invocation -> DRIVE_HOME.equals(invocation.getArgument(0)) ? rootNode
+                                                                                                               : mock(Node.class));
+    ExtendedNode processFolder = mock(ExtendedNode.class);
+    when(processFolder.getPath()).thenReturn(DRIVE_HOME + "/workflow/" + WORKFLOW_ID);
+    UTILS.when(() -> Utils.getParentFolderNode(systemSession,
+                                               manageDriveService,
+                                               nodeHierarchyCreator,
+                                               nodeFinder,
+                                               null,
+                                               "workflow/" + WORKFLOW_ID))
+         .thenReturn(processFolder);
+    Workspace workspace = mock(Workspace.class);
+    when(systemSession.getWorkspace()).thenReturn(workspace);
+    return workspace;
   }
 
   private void readableNode(String id, String parentPath, boolean removable) throws Exception {

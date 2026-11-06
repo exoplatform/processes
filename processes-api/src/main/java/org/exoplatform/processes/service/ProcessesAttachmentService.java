@@ -98,8 +98,11 @@ public interface ProcessesAttachmentService {
      * it. An attachment the processes placed in the process folder is kept;
      * any other one must be readable by the user, and is moved only when the
      * user may remove it and didn't pick it from a drive, otherwise copied. On
-     * an update, an attachment already linked to the process that the user
-     * can't read is left as it is. Nothing is written.
+     * an update, an attachment the process's attachment list already holds is
+     * left as it is, whatever the user's rights on it: it is neither linked
+     * again, nor moved, nor copied. A linked attachment that list leaves out,
+     * such as a trashed or quarantined one, is selected like one not linked
+     * yet. Nothing is written.
      *
      * @param userId identity id of the user creating or updating the process,
      *          the current user
@@ -110,8 +113,8 @@ public interface ProcessesAttachmentService {
      * @return the attachments to link, move or copy, a copy being marked by
      *         {@link Attachment#isEXoDrive()}
      * @throws IllegalAccessException when the user can't read an attachment
-     *           that isn't linked to the process yet, or isn't the current user
-     *           while an attachment is sent
+     *           the process's attachment list doesn't hold, or isn't the current
+     *           user while such an attachment is sent
      */
     Attachment[] selectProcessAttachments(long userId,
                                           long workflowId,

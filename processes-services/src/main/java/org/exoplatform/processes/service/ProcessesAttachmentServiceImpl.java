@@ -339,7 +339,6 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
     return selectAttachments(userId,
                              draftAttachments,
                              drivePickIds,
-                             Collections.emptySet(),
                              WORK_DRAFT_ENTITY_TYPE,
                              draftId,
                              projectId);
@@ -353,17 +352,15 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
     if (sentAttachments == null || sentAttachments.length == 0) {
       return sentAttachments;
     }
-    Set<String> linkedIds = Collections.emptySet();
-    if (workflowId > 0) {
-      linkedIds = attachmentService.getAttachmentsByEntity(userId, workflowId, WORKFLOW_ENTITY_TYPE)
-                                   .stream()
-                                   .map(Attachment::getId)
-                                   .collect(Collectors.toSet());
-    }
+    Set<String> linkedIds = workflowId > 0 ? getLinkedIds(userId, workflowId) : Collections.emptySet();
+    // An attachment the process's attachment list already holds has nothing to
+    // link, move or copy, whatever the user's rights on it
+    List<Attachment> attachmentsToLink = Arrays.stream(sentAttachments)
+                                               .filter(attachment -> attachment != null && !linkedIds.contains(attachment.getId()))
+                                               .collect(Collectors.toList());
     return selectAttachments(userId,
-                             Arrays.asList(sentAttachments),
+                             attachmentsToLink,
                              getDrivePickIds(Arrays.stream(sentAttachments)),
-                             linkedIds,
                              WORKFLOW_ENTITY_TYPE,
                              workflowId,
                              projectId).toArray(new Attachment[0]);
@@ -408,14 +405,10 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
    * remove is marked to be moved, unless picked from a drive, and every other
    * one to be copied. The platform's session moves or copies them afterwards,
    * so the user's rights are checked here, before anything is written.
-   *
-   * @param linkedIds ids already linked to the entity, left as they are when
-   *          the user can't read them
    */
   private List<Attachment> selectAttachments(long userId,
                                              List<Attachment> attachments,
                                              Set<String> drivePickIds,
-                                             Set<String> linkedIds,
                                              String entityType,
                                              long entityId,
                                              long projectId) throws IllegalAccessException {
@@ -439,12 +432,11 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
           selected.add(attachment);
         } else {
           Node node = getReadableNode(userSession, attachmentId);
-          if (node != null) {
-            attachment.setEXoDrive(drivePickIds.contains(attachmentId) || !PermissionUtil.canRemoveNode(node));
-            selected.add(attachment);
-          } else if (!linkedIds.contains(attachmentId)) {
+          if (node == null) {
             throw new IllegalAccessException("User " + userId + " can't read the attachment " + attachmentId);
           }
+          attachment.setEXoDrive(drivePickIds.contains(attachmentId) || !PermissionUtil.canRemoveNode(node));
+          selected.add(attachment);
         }
       }
     } catch (RepositoryException e) {
@@ -453,6 +445,13 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
       userSessionProvider.close();
     }
     return selected;
+  }
+
+  private Set<String> getLinkedIds(long userId, long workflowId) throws IllegalAccessException {
+    return attachmentService.getAttachmentsByEntity(userId, workflowId, WORKFLOW_ENTITY_TYPE)
+                            .stream()
+                            .map(Attachment::getId)
+                            .collect(Collectors.toSet());
   }
 
   private Set<String> getDrivePickIds(Stream<Attachment> attachments) {
