@@ -36,7 +36,7 @@ public interface ProcessesAttachmentService {
     /**
      * Move attachments from source entity to a dest entity, with the
      * platform's rights: the caller passes only attachments selected by
-     * {@link #selectRequestAttachments(long, long, long, List)}
+     * {@link #selectRequestAttachments(long, long, long, long, List)}
      *
      * @param attachments list of attachment
      * @param userId user identity id
