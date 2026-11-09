@@ -642,8 +642,9 @@ public class ProcessesServiceImplTest {
 
   /**
    * A request created from a draft takes the attachments selected among the
-   * draft's stored ones, and never the list the client sent. Mutation: hand
-   * the storage the client's list and this test fails.
+   * draft's stored ones for the draft's process, and never the list the
+   * client sent. Mutation: hand the storage the client's list, or select for
+   * another process id, and this test fails.
    */
   @Test
   public void createWorkFromDraftTakesTheSelectedDraftAttachments() throws Exception {
@@ -657,6 +658,7 @@ public class ProcessesServiceImplTest {
     when(processesStorage.getWorkDraftyId(DRAFT_ID)).thenReturn(storedDraft(CREATOR_ID));
     when(processesAttachmentService.selectRequestAttachments(CREATOR_ID,
                                                              DRAFT_ID,
+                                                             WORKFLOW_ID,
                                                              PROCESS_PROJECT_ID,
                                                              sentAttachments)).thenReturn(draftAttachments);
 
@@ -683,7 +685,7 @@ public class ProcessesServiceImplTest {
     when(processesStorage.getWorkDraftyId(DRAFT_ID)).thenReturn(otherProcessDraft);
 
     assertThrows(IllegalArgumentException.class, () -> processesService.createWork(work, CREATOR_ID));
-    verify(processesAttachmentService, never()).selectRequestAttachments(anyLong(), anyLong(), anyLong(), any());
+    verify(processesAttachmentService, never()).selectRequestAttachments(anyLong(), anyLong(), anyLong(), anyLong(), any());
     verify(processesStorage, never()).saveWork(any(), anyLong());
   }
 
@@ -700,6 +702,7 @@ public class ProcessesServiceImplTest {
     when(processesStorage.getWorkFlowById(WORKFLOW_ID, CREATOR_ID)).thenReturn(requestableWorkFlow(true, true));
     when(processesStorage.getWorkDraftyId(DRAFT_ID)).thenReturn(storedDraft(CREATOR_ID));
     when(processesAttachmentService.selectRequestAttachments(anyLong(),
+                                                             anyLong(),
                                                              anyLong(),
                                                              anyLong(),
                                                              any())).thenThrow(new IllegalAccessException("not readable"));

@@ -196,6 +196,7 @@ public class ProcessesServiceImpl implements ProcessesService {
       // The request takes its draft's stored attachments, never the ones the client names
       work.setAttachments(processesAttachmentService.selectRequestAttachments(userId,
                                                                               work.getDraftId(),
+                                                                              workFlow.getId(),
                                                                               workFlow.getProjectId(),
                                                                               work.getAttachments()));
     }

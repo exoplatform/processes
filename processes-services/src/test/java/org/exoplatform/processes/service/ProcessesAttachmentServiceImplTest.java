@@ -125,6 +125,8 @@ public class ProcessesAttachmentServiceImplTest {
 
   private static final long          PROJECT_ID         = 10L;
 
+  private static final long          TASK_ID            = 9L;
+
   private static final String        SPACE_GROUP        = "/spaces/hr";
 
   private static final String        DRIVE_HOME         = "/Groups/spaces/hr/Documents";
@@ -400,6 +402,7 @@ public class ProcessesAttachmentServiceImplTest {
 
     List<Attachment> selected = processesAttachmentService.selectRequestAttachments(REQUESTER_ID,
                                                                                     DRAFT_ID,
+                                                                                    WORKFLOW_ID,
                                                                                     PROJECT_ID,
                                                                                     Arrays.asList(attachment("foreign"),
                                                                                                   pickedFromDrive));
@@ -423,6 +426,7 @@ public class ProcessesAttachmentServiceImplTest {
     assertThrows(IllegalAccessException.class,
                  () -> processesAttachmentService.selectRequestAttachments(REQUESTER_ID,
                                                                           DRAFT_ID,
+                                                                          WORKFLOW_ID,
                                                                           PROJECT_ID,
                                                                           Collections.emptyList()));
   }
@@ -445,12 +449,14 @@ public class ProcessesAttachmentServiceImplTest {
     assertThrows(IllegalAccessException.class,
                  () -> processesAttachmentService.selectRequestAttachments(REQUESTER_ID,
                                                                           DRAFT_ID,
+                                                                          WORKFLOW_ID,
                                                                           PROJECT_ID,
                                                                           Collections.emptyList()));
     CONVERSATION_STATE.when(ConversationState::getCurrent).thenReturn(null);
     assertThrows(IllegalAccessException.class,
                  () -> processesAttachmentService.selectRequestAttachments(REQUESTER_ID,
                                                                           DRAFT_ID,
+                                                                          WORKFLOW_ID,
                                                                           PROJECT_ID,
                                                                           Collections.emptyList()));
     verify(requesterSession, never()).getNodeByIdentifier(any());
@@ -471,12 +477,14 @@ public class ProcessesAttachmentServiceImplTest {
     assertThrows(IllegalAccessException.class,
                  () -> processesAttachmentService.selectRequestAttachments(REQUESTER_ID,
                                                                           DRAFT_ID,
+                                                                          WORKFLOW_ID,
                                                                           PROJECT_ID,
                                                                           Collections.emptyList()));
     when(identityManager.getIdentity(String.valueOf(REQUESTER_ID))).thenReturn(null);
     assertThrows(IllegalAccessException.class,
                  () -> processesAttachmentService.selectRequestAttachments(REQUESTER_ID,
                                                                           DRAFT_ID,
+                                                                          WORKFLOW_ID,
                                                                           PROJECT_ID,
                                                                           Collections.emptyList()));
     verify(requesterSession, never()).getNodeByIdentifier(any());
@@ -502,6 +510,7 @@ public class ProcessesAttachmentServiceImplTest {
 
     List<Attachment> selected = processesAttachmentService.selectRequestAttachments(REQUESTER_ID,
                                                                                     DRAFT_ID,
+                                                                                    WORKFLOW_ID,
                                                                                     PROJECT_ID,
                                                                                     Collections.singletonList(pickedFromDrive));
 
@@ -525,6 +534,7 @@ public class ProcessesAttachmentServiceImplTest {
 
     List<Attachment> selected = processesAttachmentService.selectRequestAttachments(REQUESTER_ID,
                                                                                     DRAFT_ID,
+                                                                                    WORKFLOW_ID,
                                                                                     PROJECT_ID,
                                                                                     Collections.emptyList());
 
@@ -536,8 +546,106 @@ public class ProcessesAttachmentServiceImplTest {
     assertThrows(IllegalAccessException.class,
                  () -> processesAttachmentService.selectRequestAttachments(REQUESTER_ID,
                                                                           DRAFT_ID,
+                                                                          WORKFLOW_ID,
                                                                           PROJECT_ID,
                                                                           Collections.emptyList()));
+  }
+
+  /**
+   * A draft attachment the draft's process holds, such as a shortcut whose
+   * draft copy failed, is kept without the requester's read check and marked
+   * to be copied; one the process doesn't hold still refuses the request when
+   * the requester can't read it. Mutation: drop the exemption, apply it to
+   * every draft attachment, mark it to be moved, or read another process's
+   * attachment list, and this test fails.
+   */
+  @Test
+  public void selectRequestAttachmentsCopiesWhatTheProcessHoldsWithoutTheRequesterCheck() throws Exception {
+    mockRequesterSessions();
+    unreadableNode("shortcut", "/Users/e___/editor/Private/Documents/Shared");
+    unreadableNode("foreign", "/Groups/spaces/secret/Documents");
+    when(attachmentService.getAttachmentsByEntity(REQUESTER_ID, WORKFLOW_ID, "workflow")).thenReturn(attachments("shortcut"));
+    when(attachmentService.getAttachmentsByEntity(REQUESTER_ID, DRAFT_ID, "workdraft")).thenReturn(attachments("shortcut"));
+
+    List<Attachment> selected = processesAttachmentService.selectRequestAttachments(REQUESTER_ID,
+                                                                                    DRAFT_ID,
+                                                                                    WORKFLOW_ID,
+                                                                                    PROJECT_ID,
+                                                                                    Collections.emptyList());
+
+    assertEquals(Collections.singletonList("shortcut"), ids(selected));
+    assertTrue(selected.get(0).isEXoDrive());
+    when(attachmentService.getAttachmentsByEntity(REQUESTER_ID, DRAFT_ID, "workdraft")).thenReturn(attachments("shortcut",
+                                                                                                              "foreign"));
+    assertThrows(IllegalAccessException.class,
+                 () -> processesAttachmentService.selectRequestAttachments(REQUESTER_ID,
+                                                                          DRAFT_ID,
+                                                                          WORKFLOW_ID,
+                                                                          PROJECT_ID,
+                                                                          Collections.emptyList()));
+  }
+
+  /**
+   * A draft attachment the draft's process holds is copied even when the
+   * requester may read and remove it, or when it sits in the draft's folder,
+   * so it never leaves where it is. Mutation: read-check it first and exempt
+   * only an unreadable one, look for the draft's folder first, or mark it to
+   * be moved, and this test fails.
+   */
+  @Test
+  public void selectRequestAttachmentsCopiesWhatTheProcessHoldsEvenWhenTheRequesterMayMoveIt() throws Exception {
+    mockRequesterSessions();
+    readableNode("shared", "/Users/r___/requester/Private/Documents", true);
+    unreadableNode("inDraftFolder", DRAFT_FOLDER);
+    when(attachmentService.getAttachmentsByEntity(REQUESTER_ID, WORKFLOW_ID, "workflow")).thenReturn(attachments("shared",
+                                                                                                                 "inDraftFolder"));
+    when(attachmentService.getAttachmentsByEntity(REQUESTER_ID, DRAFT_ID, "workdraft")).thenReturn(attachments("shared",
+                                                                                                              "inDraftFolder"));
+
+    List<Attachment> selected = processesAttachmentService.selectRequestAttachments(REQUESTER_ID,
+                                                                                    DRAFT_ID,
+                                                                                    WORKFLOW_ID,
+                                                                                    PROJECT_ID,
+                                                                                    Collections.emptyList());
+
+    assertEquals(Arrays.asList("shared", "inDraftFolder"), ids(selected));
+    assertTrue("a process attachment the requester may remove is copied", selected.get(0).isEXoDrive());
+    assertTrue("a process attachment in the draft's folder is copied", selected.get(1).isEXoDrive());
+  }
+
+  /**
+   * A request from a draft that holds a shortcut of its process is created and
+   * linked to that shortcut, which is neither moved nor copied: a shortcut
+   * isn't referenceable, so the platform's session can't resolve it by UUID.
+   * The selection goes through the move to the request as the request storage
+   * passes it. Mutation: drop the exemption and this test fails on the
+   * requester's read check.
+   */
+  @Test
+  public void requestFromADraftLinksAShortcutOfItsProcessInPlace() throws Exception {
+    mockRequesterSessions();
+    Workspace workspace = mockEntityFolder("task", TASK_ID);
+    unreadableNode("shortcut", "/Users/e___/editor/Private/Documents/Shared");
+    when(systemSession.getNodeByUUID("shortcut")).thenThrow(new UnsupportedRepositoryOperationException("not referenceable"));
+    when(attachmentService.getAttachmentsByEntity(REQUESTER_ID, WORKFLOW_ID, "workflow")).thenReturn(attachments("shortcut"));
+    when(attachmentService.getAttachmentsByEntity(REQUESTER_ID, DRAFT_ID, "workdraft")).thenReturn(attachments("shortcut"));
+
+    List<Attachment> selected = processesAttachmentService.selectRequestAttachments(REQUESTER_ID,
+                                                                                    DRAFT_ID,
+                                                                                    WORKFLOW_ID,
+                                                                                    PROJECT_ID,
+                                                                                    Collections.emptyList());
+    processesAttachmentService.moveAttachmentsToEntity(selected,
+                                                       REQUESTER_ID,
+                                                       DRAFT_ID,
+                                                       "workdraft",
+                                                       TASK_ID,
+                                                       "task",
+                                                       PROJECT_ID);
+
+    verify(attachmentService).linkAttachmentToEntity(REQUESTER_ID, TASK_ID, "task", "shortcut");
+    verify(workspace, never()).move(anyString(), anyString());
+    verify(workspace, never()).copy(anyString(), anyString());
   }
 
   /**
@@ -587,7 +695,7 @@ public class ProcessesAttachmentServiceImplTest {
   @Test
   public void selectProcessAttachmentsLeavesAnAlreadyLinkedAttachmentAsItIs() throws Exception {
     mockRequesterSessions();
-    Workspace workspace = mockProcessFolder();
+    Workspace workspace = mockEntityFolder("workflow", WORKFLOW_ID);
     String editorDocuments = "/Users/r___/requester/Private/Documents";
     String processFolder = DRIVE_HOME + "/workflow/" + WORKFLOW_ID;
     readableNode("original", editorDocuments, true);
@@ -677,6 +785,7 @@ public class ProcessesAttachmentServiceImplTest {
 
     List<Attachment> selected = processesAttachmentService.selectRequestAttachments(REQUESTER_ID,
                                                                                     DRAFT_ID,
+                                                                                    WORKFLOW_ID,
                                                                                     PROJECT_ID,
                                                                                     Collections.emptyList());
 
@@ -694,6 +803,7 @@ public class ProcessesAttachmentServiceImplTest {
                    IllegalAccessException.class,
                    () -> processesAttachmentService.selectRequestAttachments(REQUESTER_ID,
                                                                             DRAFT_ID,
+                                                                            WORKFLOW_ID,
                                                                             PROJECT_ID,
                                                                             Collections.emptyList()));
     }
@@ -721,6 +831,7 @@ public class ProcessesAttachmentServiceImplTest {
 
     List<Attachment> selected = processesAttachmentService.selectRequestAttachments(REQUESTER_ID,
                                                                                     DRAFT_ID,
+                                                                                    WORKFLOW_ID,
                                                                                     PROJECT_ID,
                                                                                     Collections.emptyList());
     Attachment[] updated = processesAttachmentService.selectProcessAttachments(REQUESTER_ID,
@@ -872,12 +983,12 @@ public class ProcessesAttachmentServiceImplTest {
   }
 
   /**
-   * Lets the platform's session move or copy a node into the process folder,
-   * after {@link #mockRequesterSessions()}.
+   * Lets the platform's session move or copy a node into an entity's folder
+   * in the process space's drive, after {@link #mockRequesterSessions()}.
    *
    * @return the workspace that moves and copies
    */
-  private Workspace mockProcessFolder() throws Exception {
+  private Workspace mockEntityFolder(String entityType, long entityId) throws Exception {
     ProjectDto projectDto = new ProjectDto();
     projectDto.setId(PROJECT_ID);
     projectDto.setManager(new HashSet<>(Collections.singletonList("manager:" + SPACE_GROUP)));
@@ -885,20 +996,20 @@ public class ProcessesAttachmentServiceImplTest {
     when(projectService.getProject(PROJECT_ID)).thenReturn(projectDto);
     Node rootNode = mock(Node.class);
     when(rootNode.getPath()).thenReturn(DRIVE_HOME);
-    when(rootNode.hasNode("workflow")).thenReturn(true);
-    when(rootNode.getNode("workflow")).thenReturn(rootNode);
-    when(rootNode.hasNode(String.valueOf(WORKFLOW_ID))).thenReturn(true);
+    when(rootNode.hasNode(entityType)).thenReturn(true);
+    when(rootNode.getNode(entityType)).thenReturn(rootNode);
+    when(rootNode.hasNode(String.valueOf(entityId))).thenReturn(true);
     when(systemSession.getItem(any())).thenAnswer(invocation -> DRIVE_HOME.equals(invocation.getArgument(0)) ? rootNode
                                                                                                                : mock(Node.class));
-    ExtendedNode processFolder = mock(ExtendedNode.class);
-    when(processFolder.getPath()).thenReturn(DRIVE_HOME + "/workflow/" + WORKFLOW_ID);
+    ExtendedNode entityFolder = mock(ExtendedNode.class);
+    when(entityFolder.getPath()).thenReturn(DRIVE_HOME + "/" + entityType + "/" + entityId);
     UTILS.when(() -> Utils.getParentFolderNode(systemSession,
                                                manageDriveService,
                                                nodeHierarchyCreator,
                                                nodeFinder,
                                                null,
-                                               "workflow/" + WORKFLOW_ID))
-         .thenReturn(processFolder);
+                                               entityType + "/" + entityId))
+         .thenReturn(entityFolder);
     Workspace workspace = mock(Workspace.class);
     when(systemSession.getWorkspace()).thenReturn(workspace);
     return workspace;

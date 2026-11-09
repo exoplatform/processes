@@ -332,13 +332,16 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
   @Override
   public List<Attachment> selectRequestAttachments(long userId,
                                                    long draftId,
+                                                   long workflowId,
                                                    long projectId,
                                                    List<Attachment> sentAttachments) throws IllegalAccessException {
     List<Attachment> draftAttachments = attachmentService.getAttachmentsByEntity(userId, draftId, WORK_DRAFT_ENTITY_TYPE);
     Set<String> drivePickIds = sentAttachments == null ? Collections.emptySet() : getDrivePickIds(sentAttachments.stream());
+    Set<String> processIds = draftAttachments.isEmpty() ? Collections.emptySet() : getLinkedIds(userId, workflowId);
     return selectAttachments(userId,
                              draftAttachments,
                              drivePickIds,
+                             processIds,
                              WORK_DRAFT_ENTITY_TYPE,
                              draftId,
                              projectId);
@@ -361,6 +364,7 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
     return selectAttachments(userId,
                              attachmentsToLink,
                              getDrivePickIds(Arrays.stream(sentAttachments)),
+                             Collections.emptySet(),
                              WORKFLOW_ENTITY_TYPE,
                              workflowId,
                              projectId).toArray(new Attachment[0]);
@@ -399,16 +403,22 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
   }
 
   /**
-   * Keeps an attachment in the entity's folder in the process space's drive,
-   * or for a draft in its folder at the root of the drive of any existing
-   * space, and any other one only when the user's own session reads it: one the user may
-   * remove is marked to be moved, unless picked from a drive, and every other
-   * one to be copied. The platform's session moves or copies them afterwards,
-   * so the user's rights are checked here, before anything is written.
+   * Keeps an attachment whose id is in {@code copiedIds}, marked to be copied,
+   * then one in the entity's folder in the process space's drive, or for a
+   * draft in its folder at the root of the drive of any existing space, marked
+   * to be moved, and any other one only when the user's own session reads it:
+   * one the user may remove is marked to be moved, unless picked from a drive,
+   * and every other one to be copied. The platform's session moves or copies
+   * them afterwards, so the user's rights are checked here, before anything is
+   * written.
+   *
+   * @param copiedIds ids kept without the user's read check, and marked to be
+   *          copied
    */
   private List<Attachment> selectAttachments(long userId,
                                              List<Attachment> attachments,
                                              Set<String> drivePickIds,
+                                             Set<String> copiedIds,
                                              String entityType,
                                              long entityId,
                                              long projectId) throws IllegalAccessException {
@@ -427,7 +437,10 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
           continue;
         }
         String attachmentId = attachment.getId();
-        if (isInEntityFolder(systemSession, attachmentId, entityFolderPath, entityType, entityId)) {
+        if (copiedIds.contains(attachmentId)) {
+          attachment.setEXoDrive(true);
+          selected.add(attachment);
+        } else if (isInEntityFolder(systemSession, attachmentId, entityFolderPath, entityType, entityId)) {
           attachment.setEXoDrive(false);
           selected.add(attachment);
         } else {

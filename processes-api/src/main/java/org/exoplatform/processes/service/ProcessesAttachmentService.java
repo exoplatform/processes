@@ -69,27 +69,33 @@ public interface ProcessesAttachmentService {
     /**
      * Selects the attachments a request created from a draft takes: the
      * attachments stored on the draft, never a list the client sends. An
-     * attachment in the draft's folder, {@code workdraft/<draftId>} at the root
-     * of the drive of an existing space, where the processes place the draft's
-     * copies of the process attachments, is kept and moved;
-     * any other one must be readable by the user, and is moved only when the
+     * attachment the draft's process holds is kept without the user's read
+     * check and copied, never moved: the draft copy hands the process's
+     * attachments to every requester, and leaves the original id on the draft
+     * when a copy fails. Any other attachment in the draft's folder,
+     * {@code workdraft/<draftId>} at the root of the drive of an existing
+     * space, where the processes place the draft's copies of the process
+     * attachments, is kept and moved.
+     * Any other one must be readable by the user, and is moved only when the
      * user may remove it and didn't pick it from a drive, otherwise copied.
      * Nothing is written.
      *
      * @param userId identity id of the user creating the request, the current
      *          user
      * @param draftId id of the request draft
+     * @param workflowId id of the draft's process
      * @param projectId task project id of the draft's process
      * @param sentAttachments attachments the client sent, read only to know
      *          which ones were picked from a drive
      * @return the attachments to move or copy, a copy being marked by
      *         {@link Attachment#isEXoDrive()}
      * @throws IllegalAccessException when the user can't read one of the
-     *           draft's attachments, or isn't the current user while the
-     *           draft has one
+     *           draft's attachments the process doesn't hold, or isn't the
+     *           current user while the draft has one
      */
     List<Attachment> selectRequestAttachments(long userId,
                                               long draftId,
+                                              long workflowId,
                                               long projectId,
                                               List<Attachment> sentAttachments) throws IllegalAccessException;
 
