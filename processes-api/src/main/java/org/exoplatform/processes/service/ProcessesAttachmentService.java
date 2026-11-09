@@ -69,8 +69,9 @@ public interface ProcessesAttachmentService {
     /**
      * Selects the attachments a request created from a draft takes: the
      * attachments stored on the draft, never a list the client sends. An
-     * attachment the draft's process holds is kept without the user's read
-     * check and copied, never moved: the draft copy hands the process's
+     * attachment the process's attachment list returns, which lists a shortcut
+     * and its target once, is kept without the user's read check and copied,
+     * never moved: the draft copy hands the process's
      * attachments to every requester, and leaves the original id on the draft
      * when a copy fails. Any other attachment in the draft's folder,
      * {@code workdraft/<draftId>} at the root of the drive of an existing
@@ -107,8 +108,9 @@ public interface ProcessesAttachmentService {
      * an update, an attachment the process's attachment list already holds is
      * left as it is, whatever the user's rights on it: it is neither linked
      * again, nor moved, nor copied. A linked attachment that list leaves out,
-     * such as a trashed or quarantined one, is selected like one not linked
-     * yet. Nothing is written.
+     * such as a trashed or quarantined one, or the second of a shortcut and
+     * its target, which it lists once, is selected like one not linked yet.
+     * Nothing is written.
      *
      * @param userId identity id of the user creating or updating the process,
      *          the current user
