@@ -73,7 +73,48 @@ public interface ProcessesService {
    */
   boolean isProcessesAdministrator(long userIdentityId) throws IllegalAccessException;
 
+  /**
+   * Creates a process. Its task project is a new one named after it
+   * ({@link org.exoplatform.processes.constant.ProjectMode#NEW}, or no mode
+   * stated), or the existing one its project id names
+   * ({@link org.exoplatform.processes.constant.ProjectMode#EXISTING}), which
+   * must be one {@link #listEligibleProjects} returns for its managing space;
+   * the process statuses missing from that project are added to it.
+   *
+   * @param workFlow the process to create
+   * @param userId the creator's identity id
+   * @return the created process
+   * @throws IllegalAccessException when the user isn't a processes administrator
+   * @throws IllegalArgumentException with the message code
+   *           processes.project.notEligible or
+   *           processes.project.statusNameConflict when the existing project
+   *           cannot be used
+   */
   WorkFlow createWorkFlow(WorkFlow workFlow, long userId) throws IllegalAccessException;
+
+  /**
+   * Lists the task projects a process of a space may feed: the projects
+   * attached to the space, whose managers hold the space's manager membership
+   * and whose managers and participants hold no group membership but the
+   * space's, users being allowed, less the projects with a column named like a
+   * process status in another case. Each comes with the processes of that
+   * space that already feed it.
+   *
+   * @param spaceId the managing space id
+   * @param offset the index of the first project of the page
+   * @param limit the page size, 0 for every project
+   * @param userIdentityId the reading user's identity id
+   * @return the page and the number of eligible projects
+   * @throws ObjectNotFoundException when the space does not exist
+   * @throws IllegalAccessException when the user is neither a processes
+   *           administrator nor a manager of the space
+   * @throws IllegalArgumentException processes.projects.invalidPage for a
+   *           negative offset or limit
+   */
+  EligibleProjects listEligibleProjects(String spaceId,
+                                        int offset,
+                                        int limit,
+                                        long userIdentityId) throws ObjectNotFoundException, IllegalAccessException;
 
   WorkFlow updateWorkFlow(WorkFlow workFlow,
                                 long userId) throws IllegalArgumentException, ObjectNotFoundException, IllegalAccessException;

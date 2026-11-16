@@ -1,6 +1,9 @@
 package org.exoplatform.processes.rest;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
@@ -22,6 +25,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.processes.Utils.ProcessesUtils;
+import org.exoplatform.processes.constant.ProjectMode;
 import org.exoplatform.processes.model.ProcessesFilter;
 import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFlow;
@@ -165,5 +169,29 @@ public class EntityBuilderTest {
     when(processesService.updateWork(work1, 1L)).thenReturn(work);
     processesRest.updateWork(workEntity);
     assertNotNull(toWorkEntity);
+  }
+
+  /**
+   * The project mode a REST body states is read as NEW or EXISTING, an unstated
+   * one as none, and any other value is refused with its message code; the
+   * process built from the body carries it. Mutation: accept any value as NEW,
+   * or drop the mode from the process, and this test fails.
+   */
+  @Test
+  public void theProjectModeIsReadFromTheBody() {
+    assertNull(EntityBuilder.toProjectMode(null));
+    assertNull(EntityBuilder.toProjectMode(" "));
+    assertEquals(ProjectMode.NEW, EntityBuilder.toProjectMode("NEW"));
+    assertEquals(ProjectMode.EXISTING, EntityBuilder.toProjectMode("EXISTING"));
+    for (String invalid : new String[] { "existing", "OTHER" }) {
+      IllegalArgumentException refusal = assertThrows(IllegalArgumentException.class, () -> EntityBuilder.toProjectMode(invalid));
+      assertEquals("processes.project.invalidMode", refusal.getMessage());
+    }
+    WorkFlowEntity body = new WorkFlowEntity();
+    body.setProjectMode("EXISTING");
+    body.setProjectId(10L);
+    WorkFlow workFlow = EntityBuilder.fromEntity(body);
+    assertEquals(ProjectMode.EXISTING, workFlow.getProjectMode());
+    assertEquals(10L, workFlow.getProjectId());
   }
 }

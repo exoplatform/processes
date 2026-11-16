@@ -48,6 +48,7 @@ import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.service.ProjectService;
+import org.exoplatform.task.service.StatusService;
 
 @RunWith(MockitoJUnitRunner.Silent.class)
 public class ProcessesServiceImplTest {
@@ -104,6 +105,9 @@ public class ProcessesServiceImplTest {
   @Mock
   private ProcessesAttachmentService processesAttachmentService;
 
+  @Mock
+  private StatusService          statusService;
+
   private ProcessesService       processesService;
 
   private WorkFlow               disabledWorkFlow, enabledWorkFlow;
@@ -130,7 +134,8 @@ public class ProcessesServiceImplTest {
                                                      identityManager,
                                                      userACL,
                                                      spaceService,
-                                                     processesAttachmentService);
+                                                     processesAttachmentService,
+                                                     statusService);
     disabledWorkFlow = new WorkFlow();
     disabledWorkFlow.setEnabled(false);
     enabledWorkFlow = new WorkFlow();

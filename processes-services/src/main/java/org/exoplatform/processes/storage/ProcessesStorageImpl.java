@@ -11,6 +11,7 @@ import java.util.Base64;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -35,6 +36,7 @@ import org.exoplatform.processes.entity.WorkFlowEntity;
 import org.exoplatform.processes.model.CreatorIdentityEntity;
 import org.exoplatform.processes.model.IdentityEntity;
 import org.exoplatform.processes.model.IllustrativeAttachment;
+import org.exoplatform.processes.model.ProcessReference;
 import org.exoplatform.processes.model.ProcessesFilter;
 import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFilter;
@@ -71,6 +73,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   private static final String[]            DEFAULT_PROCESS_STATUS   = { "Request", "RequestInProgress", "Validated", "Refused",
       "Canceled" };
   private static final String              PROCESS_FILES_NAME_SPACE = "processesApp";
+  /** How many ids a query receives at most, below every database's parameter limit */
+  private static final int                 ID_CHUNK_SIZE            = 1000;
   private final WorkFlowDAO                workFlowDAO;
   private final WorkDraftDAO               workDraftDAO;
   private final IdentityManager            identityManager;
@@ -143,6 +147,25 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     return EntityMapper.fromEntity(workFlowDAO.find(id), memberships);
   }
 
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Map<Long, List<ProcessReference>> findProcessesOfProjects(List<Long> projectIds, long spaceId) {
+    Map<Long, List<ProcessReference>> processes = new LinkedHashMap<>();
+    if (projectIds == null) {
+      return processes;
+    }
+    for (int start = 0; start < projectIds.size(); start += ID_CHUNK_SIZE) {
+      List<Long> chunk = projectIds.subList(start, Math.min(start + ID_CHUNK_SIZE, projectIds.size()));
+      for (Object[] row : workFlowDAO.findProcessesOfProjects(chunk, spaceId)) {
+        processes.computeIfAbsent((Long) row[0], projectId -> new ArrayList<>())
+                 .add(new ProcessReference((Long) row[1], (String) row[2]));
+      }
+    }
+    return processes;
+  }
+
   @Override
   public WorkFlow getWorkFlowByProjectId(long projectId) {
     return EntityMapper.fromEntity(workFlowDAO.getWorkFlowByProjectId(projectId), null);
@@ -176,9 +199,11 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       if (workFlow.getProjectId() == 0) {
         workFlow = createProject(workFlow);
         workFlowEntity.setProjectId(workFlow.getProjectId());
-        workFlowEntity.setParticipator(workFlow.getParticipator());
-        workFlowEntity.setManager(getManagers(workFlow.getRequestsCreators()));
       }
+      // The managing space's members access the process and its managers
+      // manage it, whichever project of the space it feeds
+      workFlowEntity.setParticipator(getSpaceParticipators(workFlow.getSpaceId()));
+      workFlowEntity.setManager(getManagers(workFlow.getRequestsCreators()));
       workFlowEntity = workFlowDAO.create(workFlowEntity);
       WorkFlow newWorkflow = EntityMapper.fromEntity(workFlowEntity, illustrativeAttachment, null);
       ProcessesUtils.broadcast(listenerService, "exo.process.created", userId, newWorkflow);
@@ -672,6 +697,22 @@ public class ProcessesStorageImpl implements ProcessesStorage {
                      ProcessesUtils.MEMBER_MEMBERSHIP_TYPE + ":" + group);
   }
   
+  /**
+   * Builds the participator entries of a process from its managing space: the
+   * space's manager and member memberships.
+   *
+   * @param spaceId the managing space id
+   * @return the entries
+   * @throws IllegalArgumentException when the space does not exist
+   */
+  private Set<String> getSpaceParticipators(String spaceId) {
+    Space space = StringUtils.isBlank(spaceId) ? null : spaceService.getSpaceById(spaceId);
+    if (space == null) {
+      throw new IllegalArgumentException("Space of processes not exist");
+    }
+    return new HashSet<>(UserUtil.getSpaceMemberships(space.getGroupId()));
+  }
+
   private Set<String> getManagers(List<CreatorIdentityEntity> requestsCreators) {
     Set<String> managers = new HashSet<>();
     for (CreatorIdentityEntity creatorIdentityEntity : requestsCreators) {

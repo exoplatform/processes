@@ -21,14 +21,14 @@ import java.util.Date;
 import java.util.List;
 import java.util.Set;
 
+import org.exoplatform.processes.constant.ProjectMode;
 import org.exoplatform.services.attachments.model.Attachment;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
 public class WorkFlow {
 
@@ -71,5 +71,81 @@ public class WorkFlow {
   private boolean canShowPending;
 
   private List<CreatorIdentityEntity> requestsCreators;
+
+  /**
+   * How a save chooses the process's task project: a new one, or the existing
+   * one {@link #projectId} names. It is an instruction of the save, not a state
+   * of the process, so it is left out of the comparison of two processes. Null
+   * when the caller does not state it.
+   */
+  @EqualsAndHashCode.Exclude
+  private ProjectMode                 projectMode;
+
+  /**
+   * Builds a process with every field but the save's project mode.
+   *
+   * @param id the process id, 0 for a new process
+   * @param title its title
+   * @param description its description
+   * @param summary its summary
+   * @param image its image
+   * @param helpLink its help link
+   * @param enabled whether requests may be added to it
+   * @param creatorId its creator's identity id
+   * @param createdDate its creation date
+   * @param modifierId its last modifier's identity id
+   * @param modifiedDate its last modification date
+   * @param projectId its task project id
+   * @param spaceId its managing space id, blank when unknown
+   * @param acl the permissions of the reading user on it
+   * @param attachments its attachments
+   * @param illustrativeAttachment its illustration
+   * @param manager the memberships and users who may add requests to it
+   * @param participator the memberships of its managing space
+   * @param canShowPending whether the reading user sees its pending requests
+   * @param requestsCreators the identities who may add requests to it
+   */
+  @SuppressWarnings("java:S107")
+  public WorkFlow(long id,
+                  String title,
+                  String description,
+                  String summary,
+                  String image,
+                  String helpLink,
+                  boolean enabled,
+                  long creatorId,
+                  Date createdDate,
+                  long modifierId,
+                  Date modifiedDate,
+                  long projectId,
+                  String spaceId,
+                  ProcessPermission acl,
+                  Attachment[] attachments,
+                  IllustrativeAttachment illustrativeAttachment,
+                  Set<String> manager,
+                  Set<String> participator,
+                  boolean canShowPending,
+                  List<CreatorIdentityEntity> requestsCreators) {
+    this.id = id;
+    this.title = title;
+    this.description = description;
+    this.summary = summary;
+    this.image = image;
+    this.helpLink = helpLink;
+    this.enabled = enabled;
+    this.creatorId = creatorId;
+    this.createdDate = createdDate;
+    this.modifierId = modifierId;
+    this.modifiedDate = modifiedDate;
+    this.projectId = projectId;
+    this.spaceId = spaceId;
+    this.acl = acl;
+    this.attachments = attachments;
+    this.illustrativeAttachment = illustrativeAttachment;
+    this.manager = manager;
+    this.participator = participator;
+    this.canShowPending = canShowPending;
+    this.requestsCreators = requestsCreators;
+  }
 
 }
