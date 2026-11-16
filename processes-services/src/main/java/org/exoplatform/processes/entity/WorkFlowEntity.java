@@ -21,7 +21,7 @@ import lombok.Data;
 @Table(name = "PROCESSES_WORK_FLOW")
 @Data
 @NamedQuery(name = "WorkFlow.findProcessesOfProjects", query = "SELECT w.projectId, w.id, w.title FROM WorkFlow w WHERE w.projectId IN (:projectIds) AND w.spaceId = :spaceId ORDER BY w.title, w.id")
-@NamedQuery(name = "WorkFlow.getWorkFlowByProjectId", query = "SELECT DISTINCT c FROM WorkFlow c where c.projectId = :projectId")
+@NamedQuery(name = "WorkFlow.getWorkFlowByProjectId", query = "SELECT DISTINCT c FROM WorkFlow c where c.projectId = :projectId order by c.id")
 @NamedQuery(name = "WorkFlow.findAllWorkFlowsByUser", query = "SELECT DISTINCT c FROM WorkFlow c where c.creatorId = :userId order by c.id desc")
 @NamedQuery(name = "WorkFlow.findEnabledWorkFlowsByUser", query = "SELECT DISTINCT c FROM WorkFlow c where c.creatorId = :userId and  c.enabled = true order by c.id desc")
 @NamedQuery(name = "WorkFlow.findAllWorkFlows", query = "SELECT DISTINCT c FROM WorkFlow c order by c.id desc")
