@@ -116,6 +116,21 @@ public interface ProcessesService {
                                         int limit,
                                         long userIdentityId) throws ObjectNotFoundException, IllegalAccessException;
 
+  /**
+   * Updates a process, which keeps its task project. Moving it to another space
+   * is refused while it keeps that project, since the project may be fed by
+   * other processes.
+   *
+   * @param workFlow the process as the client sent it
+   * @param userId the editor's identity id
+   * @return the updated process
+   * @throws IllegalArgumentException processes.project.notEligible for a space
+   *           change, processes.space.notFound for a space that does not
+   *           exist, or when nothing changed
+   * @throws ObjectNotFoundException when the process does not exist
+   * @throws IllegalAccessException when the user may not edit it, or may not
+   *           move it to the space sent
+   */
   WorkFlow updateWorkFlow(WorkFlow workFlow,
                                 long userId) throws IllegalArgumentException, ObjectNotFoundException, IllegalAccessException;
 

@@ -210,6 +210,9 @@ public class ProcessesServiceImpl implements ProcessesService {
     return new EligibleProjects(projects, size);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public WorkFlow updateWorkFlow(WorkFlow workFlow,
                                  long userId) throws IllegalArgumentException, ObjectNotFoundException, IllegalAccessException {
@@ -227,6 +230,7 @@ public class ProcessesServiceImpl implements ProcessesService {
       throw new IllegalAccessException("User " + userId + " isn't allowed to update the process " + workFlow.getId());
     }
     checkSpaceMove(oldWorkFlow, workFlow.getSpaceId(), userId);
+    checkSpaceKept(oldWorkFlow, workFlow.getSpaceId());
     // The process keeps its project and its creation data, whatever the client sent
     workFlow.setProjectId(oldWorkFlow.getProjectId());
     workFlow.setCreatorId(oldWorkFlow.getCreatorId());
@@ -736,29 +740,88 @@ public class ProcessesServiceImpl implements ProcessesService {
    * Checks a process update that moves the process to another space: the move
    * hands the process project, and so the management of its requests, to the
    * target space's managers, so it requires a processes administrator, or a
-   * manager of both the current and the target space
+   * manager of both the current and the target space. A process whose current
+   * space is not known any more gets one from a processes administrator only,
+   * and only an existing one.
+   *
+   * @param storedWorkFlow the stored process
+   * @param targetSpaceId the space the client sent, blank when not stated
+   * @param userIdentityId the editor's identity id
+   * @throws IllegalAccessException when the editor may not set that space
+   * @throws IllegalArgumentException when that space does not exist
    */
   private void checkSpaceMove(WorkFlow storedWorkFlow, String targetSpaceId, long userIdentityId) throws IllegalAccessException {
-    if (targetSpaceId == null) {
+    if (StringUtils.isBlank(targetSpaceId)) {
+      // No space stated: the process keeps its stored one
       return;
     }
-    Space currentSpace = ProcessesUtils.getProjectParentSpace(projectService, spaceService, storedWorkFlow.getProjectId());
-    if (currentSpace == null || currentSpace.getId().equals(targetSpaceId)) {
+    Space currentSpace = getCurrentSpace(storedWorkFlow);
+    if (currentSpace != null && currentSpace.getId().equals(targetSpaceId)) {
       return;
     }
     org.exoplatform.services.security.Identity aclIdentity = getAclIdentity(userIdentityId);
-    if (isProcessesAdministrator(aclIdentity)) {
+    if (currentSpace == null) {
+      // A process whose space is not known any more, its project being gone,
+      // is given one by a processes administrator only, and an existing one
+      if (!isProcessesAdministrator(aclIdentity)) {
+        throw new IllegalAccessException("User " + userIdentityId + " isn't allowed to set the space of the process "
+            + storedWorkFlow.getId());
+      }
+      if (spaceService.getSpaceById(targetSpaceId) == null) {
+        throw new IllegalArgumentException("processes.space.notFound");
+      }
       return;
     }
     Space targetSpace = spaceService.getSpaceById(targetSpaceId);
     if (targetSpace == null) {
-      throw new IllegalArgumentException("Space " + targetSpaceId + " not found");
+      throw new IllegalArgumentException("processes.space.notFound");
+    }
+    if (isProcessesAdministrator(aclIdentity)) {
+      return;
     }
     if (!spaceService.isManager(currentSpace, aclIdentity.getUserId())
         || !spaceService.isManager(targetSpace, aclIdentity.getUserId())) {
       throw new IllegalAccessException("User " + userIdentityId + " isn't allowed to move the process "
           + storedWorkFlow.getId() + " to the space " + targetSpaceId);
     }
+  }
+
+  /**
+   * Refuses an update that moves a process to another space while it keeps its
+   * task project: the project may be fed by other processes and hold other
+   * tasks, so its members are never handed to another space. A space change
+   * needs a project of the new space, which comes with the change of project.
+   *
+   * @param storedWorkFlow the stored process
+   * @param targetSpaceId the space the client sent, blank when not stated
+   * @throws IllegalArgumentException processes.project.notEligible when the
+   *           space differs from the process's current one
+   */
+  private void checkSpaceKept(WorkFlow storedWorkFlow, String targetSpaceId) {
+    if (StringUtils.isBlank(targetSpaceId)) {
+      return;
+    }
+    Space currentSpace = getCurrentSpace(storedWorkFlow);
+    if (currentSpace != null && !currentSpace.getId().equals(targetSpaceId)) {
+      throw new IllegalArgumentException(PROJECT_NOT_ELIGIBLE);
+    }
+  }
+
+  /**
+   * Reads the current managing space of a process: its stored space, else,
+   * for a process stored before it had one, the space of its task project.
+   *
+   * @param storedWorkFlow the stored process
+   * @return the space, or null when neither is known
+   */
+  private Space getCurrentSpace(WorkFlow storedWorkFlow) {
+    if (StringUtils.isNotBlank(storedWorkFlow.getSpaceId())) {
+      Space storedSpace = spaceService.getSpaceById(storedWorkFlow.getSpaceId());
+      if (storedSpace != null) {
+        return storedSpace;
+      }
+    }
+    return ProcessesUtils.getProjectParentSpace(projectService, spaceService, storedWorkFlow.getProjectId());
   }
 
   private boolean isWorkFlowManager(org.exoplatform.services.security.Identity aclIdentity, long projectId) {

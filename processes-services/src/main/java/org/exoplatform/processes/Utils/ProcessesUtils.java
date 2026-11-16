@@ -54,15 +54,32 @@ public class ProcessesUtils {
                                  projectId);
   }
 
+  /**
+   * Reads the space of a task project: the space whose manager membership its
+   * managers hold, which Tasks writes for a project created in a space. A
+   * project shared by several processes may hold users, or no participant at
+   * all, so the space is never read from its first participant.
+   *
+   * @param projectService the Task add-on's project service
+   * @param spaceService the space service
+   * @param projectId the project id
+   * @return the space, or null when the project does not exist or is attached
+   *         to no space
+   */
   public static Space getProjectParentSpace(ProjectService projectService, SpaceService spaceService, Long projectId) {
     try {
       ProjectDto projectDto = projectService.getProject(projectId);
-      boolean isProjectInSpace = projectDto.getManager().stream().anyMatch(manager -> manager.contains("/spaces/"));
-      if (isProjectInSpace) {
-        String participator = projectDto.getParticipator().iterator().next();
-        String groupId = participator.substring(participator.indexOf(":") + 1);
-        return spaceService.getSpaceByGroupId(groupId);
+      if (projectDto == null || projectDto.getManager() == null) {
+        return null;
       }
+      String spaceManagerPrefix = MANAGER_MEMBERSHIP_TYPE + ":/spaces/";
+      return projectDto.getManager()
+                       .stream()
+                       .filter(manager -> manager != null && manager.startsWith(spaceManagerPrefix))
+                       .map(manager -> spaceService.getSpaceByGroupId(manager.substring(manager.indexOf(":") + 1)))
+                       .filter(java.util.Objects::nonNull)
+                       .findFirst()
+                       .orElse(null);
     } catch (EntityNotFoundException e) {
       LOG.error("Project Not found", e);
     }

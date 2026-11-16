@@ -314,8 +314,12 @@ public class ProcessesStorageImplTest {
 
   /**
    * An update that does not state the process's space keeps the stored one,
-   * and one that states it saves it. Mutation: drop the fallback to the stored
-   * space and the first save writes no space.
+   * and one that states it saves it; a space the process takes gives it that
+   * space's participants, and the stored space keeps the stored ones; none
+   * rewrites the members of the task project, which other processes may feed.
+   * Mutation: drop the fallback to the stored space, keep the former
+   * participants on a new space, or rewrite the project's members again, and
+   * this test fails.
    */
   @Test
   public void anUpdateWithoutASpaceKeepsTheStoredOne() {
@@ -327,8 +331,11 @@ public class ProcessesStorageImplTest {
     WorkFlowEntity stored = new WorkFlowEntity();
     stored.setId(5L);
     stored.setSpaceId(7L);
+    stored.setParticipator(new HashSet<>(Arrays.asList("manager:/spaces/hr", "member:/spaces/hr")));
     when(workFlowDAO.find(5L)).thenReturn(stored);
-    PROCESSES_UTILS.when(() -> ProcessesUtils.getProjectParentSpace(9L)).thenReturn(null);
+    Space otherSpace = mock(Space.class);
+    when(otherSpace.getId()).thenReturn("8");
+    PROCESSES_UTILS.when(() -> ProcessesUtils.getProjectParentSpace(9L)).thenReturn(otherSpace);
     WorkFlowEntity sent = new WorkFlowEntity();
     sent.setId(5L);
     sent.setProjectId(9L);
@@ -337,6 +344,7 @@ public class ProcessesStorageImplTest {
 
     processesStorage.saveWorkFlow(workFlow, 1L);
     assertEquals(Long.valueOf(7L), sent.getSpaceId());
+    assertEquals(stored.getParticipator(), sent.getParticipator());
 
     WorkFlowEntity sentWithASpace = new WorkFlowEntity();
     sentWithASpace.setId(5L);
@@ -344,8 +352,26 @@ public class ProcessesStorageImplTest {
     sentWithASpace.setSpaceId(8L);
     ENTITY_MAPPER.when(() -> EntityMapper.toEntity(workFlow)).thenReturn(sentWithASpace);
 
+    Space newSpace = mock(Space.class);
+    when(newSpace.getGroupId()).thenReturn("/spaces/sales");
+    when(spaceService.getSpaceById("8")).thenReturn(newSpace);
+    USER_UTIL.when(() -> UserUtil.getSpaceMemberships("/spaces/sales")).thenReturn(Arrays.asList("manager:/spaces/sales", "member:/spaces/sales"));
+
     processesStorage.saveWorkFlow(workFlow, 1L);
     assertEquals(Long.valueOf(8L), sentWithASpace.getSpaceId());
+    assertEquals("a space the process takes gives it that space's participants",
+                 new HashSet<>(Arrays.asList("manager:/spaces/sales", "member:/spaces/sales")),
+                 sentWithASpace.getParticipator());
+
+    WorkFlowEntity sentWithTheStoredSpace = new WorkFlowEntity();
+    sentWithTheStoredSpace.setId(5L);
+    sentWithTheStoredSpace.setProjectId(9L);
+    sentWithTheStoredSpace.setSpaceId(7L);
+    ENTITY_MAPPER.when(() -> EntityMapper.toEntity(workFlow)).thenReturn(sentWithTheStoredSpace);
+
+    processesStorage.saveWorkFlow(workFlow, 1L);
+    assertEquals("the stored space keeps the stored participants", stored.getParticipator(), sentWithTheStoredSpace.getParticipator());
+    verify(projectService, never()).updateProjectNoReturn(any());
   }
 
   /**

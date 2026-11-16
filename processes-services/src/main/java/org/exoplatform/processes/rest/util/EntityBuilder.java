@@ -36,6 +36,8 @@ import org.exoplatform.processes.rest.model.WorkFlowEntity;
 import org.exoplatform.processes.service.ProcessesService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
+import org.exoplatform.social.core.space.model.Space;
+import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.service.StatusService;
 
 public class EntityBuilder {
@@ -115,6 +117,14 @@ public class EntityBuilder {
                     fromEntity(workEntity.getWorkFlow()));
   }
 
+  /**
+   * Builds the REST view of a process, with its project's statuses and its
+   * managing space.
+   *
+   * @param workFlow the process
+   * @param expand the properties to expand, none is supported yet
+   * @return the REST view, or null when no process is given
+   */
   public static WorkFlowEntity toEntity(WorkFlow workFlow, String expand) {
     if (workFlow == null) {
       return null;
@@ -139,11 +149,29 @@ public class EntityBuilder {
                               workFlow.getAttachments(),
                               statusService.getStatuses(workFlow.getProjectId()),
                               workFlow.getAcl(),
-                              ProcessesUtils.getProjectParentSpace(workFlow.getProjectId()),
+                              getManagingSpace(workFlow),
                               workFlow.isCanShowPending(),
                               workFlow.getIllustrativeAttachment(),
                               workFlow.getRequestsCreators(),
                               null);
+  }
+
+  /**
+   * Reads the managing space a process is shown with: its stored space, else,
+   * for a process stored before it had one, the space of its task project, so
+   * that the editor sends back the space the update checks against.
+   *
+   * @param workFlow the process
+   * @return the space, or null when neither is known
+   */
+  private static Space getManagingSpace(WorkFlow workFlow) {
+    if (StringUtils.isNotBlank(workFlow.getSpaceId())) {
+      Space storedSpace = CommonsUtils.getService(SpaceService.class).getSpaceById(workFlow.getSpaceId());
+      if (storedSpace != null) {
+        return storedSpace;
+      }
+    }
+    return ProcessesUtils.getProjectParentSpace(workFlow.getProjectId());
   }
 
   public static WorkFlowEntity toEntity(WorkFlow workFlow) {

@@ -242,4 +242,30 @@ public class EntityBuilderTest {
     work.setWorkFlowId(0);
     assertEquals(7L, EntityBuilder.toWorkEntity(processesService, work, "workFlow").getWorkFlow().getId());
   }
+
+  /**
+   * A process is shown with its stored space, which the update checks against,
+   * and a process stored before it had one with its project's space, so the
+   * editor sends back the space the update expects. Mutation: show the
+   * project's space again and the first assertion fails.
+   */
+  @Test
+  public void aProcessIsShownWithItsStoredSpace() {
+    COMMONS_UTILS.when(() -> CommonsUtils.getService(StatusService.class)).thenReturn(mock(StatusService.class));
+    org.exoplatform.social.core.space.spi.SpaceService spaceService = mock(org.exoplatform.social.core.space.spi.SpaceService.class);
+    COMMONS_UTILS.when(() -> CommonsUtils.getService(org.exoplatform.social.core.space.spi.SpaceService.class)).thenReturn(spaceService);
+    Space storedSpace = new Space();
+    storedSpace.setId("5");
+    Space projectSpace = new Space();
+    projectSpace.setId("1");
+    when(spaceService.getSpaceById("5")).thenReturn(storedSpace);
+    PROCESSES_UTILS.when(() -> ProcessesUtils.getProjectParentSpace(10L)).thenReturn(projectSpace);
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setProjectId(10L);
+    workFlow.setSpaceId("5");
+
+    assertEquals("5", EntityBuilder.toEntity(workFlow, "").getParentSpace().getId());
+    workFlow.setSpaceId("");
+    assertEquals("1", EntityBuilder.toEntity(workFlow, "").getParentSpace().getId());
+  }
 }
