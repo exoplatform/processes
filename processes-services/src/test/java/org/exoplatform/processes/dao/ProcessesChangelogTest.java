@@ -236,7 +236,10 @@ public class ProcessesChangelogTest {
 
   /**
    * A request record goes through {@link RequestDAO} into the table the
-   * changelog creates, and is found by its task id.
+   * changelog creates and is found by its task id, and the deletion of a
+   * process's records, run by the engine, removes those of that process only.
+   * Mutation: drop the process condition of the deletion and the other
+   * process's record goes too.
    *
    * @throws Exception when Liquibase or Hibernate fails
    */
@@ -244,6 +247,8 @@ public class ProcessesChangelogTest {
   public void aRequestRecordRoundTripsThroughItsDao() throws Exception {
     update(connection);
     insertWorkFlow(1, 10);
+    insertWorkFlow(2, 10);
+    insertRequest(200, 2, 6);
     connection.commit();
 
     EntityManagerFactory entityManagerFactory = new HibernatePersistenceConfiguration("processes-changelog-test")
@@ -267,11 +272,20 @@ public class ProcessesChangelogTest {
       entityManager.clear();
 
       assertEquals(new RequestEntity(100L, 1L, 5L), requestDAO.find(100L));
+
+      // Deleting a process's records leaves the other processes' ones
+      entityManager.getTransaction().begin();
+      requestDAO.create(new RequestEntity(101L, 1L, 5L));
+      entityManager.getTransaction().commit();
+      entityManager.getTransaction().begin();
+      assertEquals(2, requestDAO.deleteByWorkFlowId(1L));
+      entityManager.getTransaction().commit();
     } finally {
       entityManager.close();
       entityManagerFactory.close();
     }
-    assertEquals(1, count("SELECT COUNT(*) FROM " + REQUEST_TABLE + " WHERE TASK_ID = 100 AND WORK_FLOW_ID = 1 AND CREATOR_ID = 5"));
+    assertEquals(0, count("SELECT COUNT(*) FROM " + REQUEST_TABLE + " WHERE WORK_FLOW_ID = 1"));
+    assertEquals(1, count("SELECT COUNT(*) FROM " + REQUEST_TABLE + " WHERE WORK_FLOW_ID = 2"));
   }
 
   /**

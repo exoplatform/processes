@@ -21,6 +21,7 @@ import java.io.Serializable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.NamedQuery;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -32,6 +33,7 @@ import lombok.NoArgsConstructor;
  * of a task project, which several processes may feed.
  */
 @Entity(name = "ProcessesRequest")
+@NamedQuery(name = "ProcessesRequest.deleteByWorkFlowId", query = "DELETE FROM ProcessesRequest r WHERE r.workFlowId = :workFlowId")
 @Table(name = "PROCESSES_REQUEST")
 @Data
 @NoArgsConstructor

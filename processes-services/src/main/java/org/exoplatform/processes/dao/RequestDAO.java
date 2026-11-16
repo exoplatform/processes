@@ -23,4 +23,17 @@ import org.exoplatform.processes.entity.RequestEntity;
  * Stores the request records, keyed by the id of the request's task.
  */
 public class RequestDAO extends GenericDAOJPAImpl<RequestEntity, Long> {
+
+  /**
+   * Deletes the request records of a process, in the caller's transaction. The
+   * request tasks are not touched.
+   *
+   * @param workFlowId the process id
+   * @return how many records were deleted
+   */
+  public int deleteByWorkFlowId(long workFlowId) {
+    return getEntityManager().createNamedQuery("ProcessesRequest.deleteByWorkFlowId")
+                             .setParameter("workFlowId", workFlowId)
+                             .executeUpdate();
+  }
 }

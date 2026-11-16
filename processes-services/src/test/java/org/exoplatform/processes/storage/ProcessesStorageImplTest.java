@@ -176,31 +176,53 @@ public class ProcessesStorageImplTest {
 
   }
 
+  /**
+   * Deleting a process deletes its drafts, its request records, then the
+   * process, and never its task project, which other processes may feed and
+   * whose tasks stay as plain tasks; the request records go before the process
+   * they reference. An unknown process is not found. Mutation: remove the
+   * project again, or drop the request records' deletion, and this test fails.
+   *
+   * @throws EntityNotFoundException never, the mocks throw nothing
+   */
   @Test
-  public void deleteWorkflowById() throws EntityNotFoundException {
-    WorkFlowEntity workFlowEntity = mock(WorkFlowEntity.class);
-    ProjectDto projectDto = mock(ProjectDto.class);
-    List<WorkEntity> drafts = new ArrayList<>();
-    drafts.add(new WorkEntity());
-    when(workFlowDAO.find(1l)).thenReturn(null);
-    Throwable exception = assertThrows(jakarta.persistence.EntityNotFoundException.class,
-                                       () -> this.processesStorage.deleteWorkflowById(1l));
-    assertEquals("Workflow not found", exception.getMessage());
-    verify(projectService, times(0)).getProject(0l);
-    verify(workFlowDAO, times(0)).delete(workFlowEntity);
-    when(workFlowDAO.find(1l)).thenReturn(workFlowEntity);
-    when(projectService.getProject(1L)).thenReturn(projectDto);
-    when(projectDto.getId()).thenReturn(1L);
-    when(workFlowEntity.getProjectId()).thenReturn(1L);
+  public void deletingAProcessKeepsItsProjectAndDeletesItsRequestRecords() throws EntityNotFoundException {
+    ProcessesStorageImpl storage = (ProcessesStorageImpl) processesStorage;
+    when(workFlowDAO.find(1L)).thenReturn(null);
+    assertThrows(jakarta.persistence.EntityNotFoundException.class, () -> storage.deleteWorkflowRows(1L));
+    verify(workFlowDAO, never()).delete(any());
+
+    WorkFlowEntity workFlowEntity = new WorkFlowEntity();
+    workFlowEntity.setId(1L);
+    workFlowEntity.setProjectId(9L);
+    List<WorkEntity> drafts = new ArrayList<>(List.of(new WorkEntity()));
+    when(workFlowDAO.find(1L)).thenReturn(workFlowEntity);
     when(workDraftDAO.getDraftsByWorkflowId(1L)).thenReturn(drafts);
-    this.processesStorage.deleteWorkflowById(1L);
-    verify(workDraftDAO, times(1)).deleteAll(drafts);
-    verify(projectService, times(1)).getProject(1L);
-    verify(workFlowDAO, times(1)).delete(workFlowEntity);
-    when(projectService.getProject(1L)).thenThrow(new EntityNotFoundException(1L, Object.class));
-    this.processesStorage.deleteWorkflowById(1L);
-    Throwable exception2 = assertThrows(EntityNotFoundException.class, () -> this.projectService.getProject(1L));
-    assertEquals("Object does not exist with ID: 1", exception2.getMessage());
+
+    storage.deleteWorkflowRows(1L);
+
+    org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(workDraftDAO, requestDAO, workFlowDAO);
+    inOrder.verify(workDraftDAO).deleteAll(drafts);
+    inOrder.verify(requestDAO).deleteByWorkFlowId(1L);
+    inOrder.verify(workFlowDAO).delete(workFlowEntity);
+    verify(projectService, never()).removeProject(anyLong(), org.mockito.ArgumentMatchers.anyBoolean());
+  }
+
+  /**
+   * The deletion runs in one database transaction: the framework applies it
+   * through the annotation, so a test calling the method's body cannot see it
+   * removed. Mutation: drop the annotation or its atomic flag and this test
+   * fails.
+   *
+   * @throws NoSuchMethodException never
+   */
+  @Test
+  public void deletingAProcessIsAtomic() throws NoSuchMethodException {
+    io.meeds.common.ContainerTransactional transactional =
+                                                       ProcessesStorageImpl.class.getMethod("deleteWorkflowById", Long.class)
+                                                                                 .getAnnotation(io.meeds.common.ContainerTransactional.class);
+    assertNotNull(transactional);
+    assertTrue(transactional.atomic());
   }
 
   @Test

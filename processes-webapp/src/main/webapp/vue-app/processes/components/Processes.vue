@@ -577,7 +577,7 @@ export default {
       this.dialogAction = reason;
       this.targetModel = model;
       if (reason === 'delete_workflow') {
-        this.confirmMessage = this.$t('processes.workflow.delete.confirmDialog.message', {0: `<strong>${model.title}</strong>`});
+        this.confirmMessage = this.$t('processes.workflow.delete.keepRequests.confirmDialog.message', {0: `<strong>${model.title}</strong>`});
       }
       if (reason === 'cancel_work') {
         this.confirmMessage = this.$t('processes.work.delete.confirmDialog.message');
