@@ -387,6 +387,55 @@ public class ProcessesRest implements ResourceContainer {
     }
   }
 
+  /**
+   * Lists the task projects a process of a space may feed, each with the
+   * processes of that space that already feed it.
+   *
+   * @param spaceId the managing space id
+   * @param offset the index of the first project of the page
+   * @param limit the page size, 0 for every project
+   * @return the page and the number of eligible projects, 404 when the space
+   *         does not exist, 403 unless the user is a processes administrator or
+   *         a manager of the space
+   */
+  @GET
+  @Produces(MediaType.APPLICATION_JSON)
+  @RolesAllowed("users")
+  @Path("/projects")
+  @Operation(summary = "Lists the task projects a process of a space may feed", description = "Lists the task projects attached to the managing space that a process may feed, each with the processes of that space that already feed it", method = "GET")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+      @ApiResponse(responseCode = "400", description = "Invalid query input"),
+      @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+      @ApiResponse(responseCode = "403", description = "Forbidden operation"),
+      @ApiResponse(responseCode = "404", description = "Space not found"),
+      @ApiResponse(responseCode = "500", description = "Internal server error"), })
+  public Response getSpaceProjects(@Parameter(description = "Managing space id", required = true)
+                                   @QueryParam("spaceId") String spaceId,
+                                   @Parameter(description = "Offset")
+                                   @QueryParam("offset") @DefaultValue("0") int offset,
+                                   @Parameter(description = "Limit, 0 for every project")
+                                   @QueryParam("limit") @DefaultValue("0") int limit) {
+    long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    if (currentIdentityId == 0) {
+      return Response.status(Response.Status.UNAUTHORIZED).build();
+    }
+    try {
+      EligibleProjects projects = processesService.listEligibleProjects(spaceId, offset, limit, currentIdentityId);
+      return Response.ok(projects).cacheControl(PER_USER_CACHE_CONTROL).build();
+    } catch (ObjectNotFoundException e) {
+      LOG.debug("User '{}' lists the projects of a space that does not exist", currentIdentityId, e);
+      return Response.status(Response.Status.NOT_FOUND).entity("Space not found").build();
+    } catch (IllegalAccessException e) {
+      LOG.debug("User '{}' isn't allowed to list the projects of the space '{}'", currentIdentityId, spaceId, e);
+      return Response.status(Response.Status.FORBIDDEN).entity("Not allowed to list the projects of this space").build();
+    } catch (IllegalArgumentException e) {
+      return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
+    } catch (Exception e) {
+      LOG.warn("Error listing the projects of the space '{}'", spaceId, e);
+      return Response.serverError().build();
+    }
+  }
+
   @GET
   @Produces(MediaType.TEXT_PLAIN)
   @RolesAllowed("users")
