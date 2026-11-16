@@ -1,2 +1,3 @@
 org.exoplatform.processes.entity.WorkEntity
 org.exoplatform.processes.entity.WorkFlowEntity
+org.exoplatform.processes.entity.RequestEntity

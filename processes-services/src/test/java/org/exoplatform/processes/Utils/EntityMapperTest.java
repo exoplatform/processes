@@ -3,6 +3,7 @@ package org.exoplatform.processes.Utils;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
@@ -90,6 +91,36 @@ public class EntityMapperTest {
     workFlowEntity.setManager(managers);
     WorkFlow workFlow = EntityMapper.fromEntity(workFlowEntity, null);
     assertEquals(workFlow.getManager().size(), managers.size());
+  }
+
+  /**
+   * A process's stored space id reaches its Service object as a string, and a
+   * blank one is stored as unknown; an id that is not a number is refused with
+   * its message code. Mutation: map the space id back to "" or drop it from
+   * toEntity, and this test fails.
+   */
+  @Test
+  public void theSpaceIdIsMappedBothWays() {
+    COMMONS_UTILS.when(() -> CommonsUtils.getService(OrganizationService.class)).thenReturn(organizationService);
+    when(organizationService.getGroupHandler()).thenReturn(groupHandler);
+    WorkFlowEntity workFlowEntity = new WorkFlowEntity();
+    workFlowEntity.setId(1L);
+    workFlowEntity.setCreatorId(1L);
+    workFlowEntity.setModifierId(1L);
+    workFlowEntity.setProjectId(1L);
+    workFlowEntity.setSpaceId(7L);
+    assertEquals("7", EntityMapper.fromEntity(workFlowEntity, null).getSpaceId());
+    workFlowEntity.setSpaceId(null);
+    assertEquals("", EntityMapper.fromEntity(workFlowEntity, null).getSpaceId());
+
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setSpaceId("7");
+    assertEquals(Long.valueOf(7L), EntityMapper.toEntity(workFlow).getSpaceId());
+    workFlow.setSpaceId(" ");
+    assertNull(EntityMapper.toEntity(workFlow).getSpaceId());
+    workFlow.setSpaceId("space");
+    IllegalArgumentException refusal = assertThrows(IllegalArgumentException.class, () -> EntityMapper.toEntity(workFlow));
+    assertEquals("processes.space.invalidId", refusal.getMessage());
   }
 
   /**

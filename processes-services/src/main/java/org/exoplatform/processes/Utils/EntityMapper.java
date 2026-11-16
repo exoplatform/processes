@@ -30,6 +30,15 @@ public class EntityMapper {
   private EntityMapper() {
   }
 
+  /**
+   * Maps a stored process to its Service object, with the permissions the given
+   * memberships grant on it.
+   *
+   * @param workFlowEntity the stored process
+   * @param memberships the user's queried memberships, null for a processes
+   *          administrator
+   * @return the process, or null when none is given
+   */
   public static WorkFlow fromEntity(WorkFlowEntity workFlowEntity, List<String> memberships) {
     if (workFlowEntity == null) {
       return null;
@@ -46,7 +55,7 @@ public class EntityMapper {
                         workFlowEntity.getModifierId(),
                         workFlowEntity.getModifiedDate(),
                         workFlowEntity.getProjectId(),
-                        "",
+                        workFlowEntity.getSpaceId() == null ? "" : String.valueOf(workFlowEntity.getSpaceId()),
                         getACL(workFlowEntity, memberships),
                         null,
                         new IllustrativeAttachment(workFlowEntity.getIllustrationImageId()),
@@ -203,6 +212,14 @@ public class EntityMapper {
     return statuses.stream().map(EntityMapper::toWorkStatus).collect(Collectors.toList());
   }
 
+  /**
+   * Maps a process to the entity the storage saves.
+   *
+   * @param workFlow the process
+   * @return the entity, or null when no process is given
+   * @throws IllegalArgumentException when the process's space id is not a
+   *           number
+   */
   public static WorkFlowEntity toEntity(WorkFlow workFlow) {
     if (workFlow == null) {
       return null;
@@ -221,6 +238,7 @@ public class EntityMapper {
     workFlowEntity.setModifierId(workFlow.getModifierId());
     workFlowEntity.setModifiedDate(workFlow.getModifiedDate());
     workFlowEntity.setProjectId(workFlow.getProjectId());
+    workFlowEntity.setSpaceId(toSpaceId(workFlow.getSpaceId()));
     workFlowEntity.setManager(workFlow.getManager());
     workFlowEntity.setParticipator(workFlow.getParticipator());
 
@@ -275,6 +293,24 @@ public class EntityMapper {
                                                           .map(workFlow -> toEntity(workFlow))
                                                           .collect(Collectors.toList());
       return workFlowEntities;
+    }
+  }
+
+  /**
+   * Reads the id of a process's managing space as it is stored.
+   *
+   * @param spaceId the space id a {@link WorkFlow} carries, blank when unknown
+   * @return the space id, or null when it is blank
+   * @throws IllegalArgumentException when the id is not a number
+   */
+  public static Long toSpaceId(String spaceId) {
+    if (StringUtils.isBlank(spaceId)) {
+      return null;
+    }
+    try {
+      return Long.parseLong(spaceId.trim());
+    } catch (NumberFormatException e) {
+      throw new IllegalArgumentException("processes.space.invalidId");
     }
   }
 

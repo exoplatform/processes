@@ -135,4 +135,84 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.-->
         <modifyDataType tableName="WORK_FLOW_PARTICIPATOR" columnName="PARTICIPATOR" newDataType="NVARCHAR(300)"/>
     </changeSet>
 
+    <!-- Several processes may feed one task project (EXO-91987). The rollback
+         re-adds the constraint, which fails once two processes share a project. -->
+    <changeSet author="processes" id="1.0.0-exo-91987-01">
+        <dropUniqueConstraint tableName="PROCESSES_WORK_FLOW" constraintName="UK_PROCESSES_WORK_FLOW_PROJECT_ID"/>
+        <rollback>
+            <addUniqueConstraint tableName="PROCESSES_WORK_FLOW" columnNames="PROJECT_ID"
+                                 constraintName="UK_PROCESSES_WORK_FLOW_PROJECT_ID"/>
+        </rollback>
+    </changeSet>
+
+    <!-- The process each request task belongs to (EXO-91987). No foreign key to
+         TASK_TASKS, which belongs to another domain. -->
+    <changeSet author="processes" id="1.0.0-exo-91987-02">
+        <createTable tableName="PROCESSES_REQUEST">
+            <column name="TASK_ID" type="BIGINT">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="PK_PROCESSES_REQUEST"/>
+            </column>
+            <column name="WORK_FLOW_ID" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="FK_PROCESSES_REQUEST_WF"
+                             references="PROCESSES_WORK_FLOW(WORK_FLOW_ID)"/>
+            </column>
+            <column name="CREATOR_ID" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <modifySql dbms="mysql">
+            <append value=" ENGINE=INNODB CHARSET=UTF8 COLLATE utf8_general_ci"/>
+        </modifySql>
+    </changeSet>
+
+    <!-- The managing space of a process, and the state of the move of its
+         requests to another task project (EXO-91987). Times are epoch
+         milliseconds. -->
+    <changeSet author="processes" id="1.0.0-exo-91987-03">
+        <addColumn tableName="PROCESSES_WORK_FLOW">
+            <column name="SPACE_ID" type="BIGINT"/>
+            <column name="PROJECT_MOVE_PENDING" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="MOVE_SEQ" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="MOVE_OWNER" type="VARCHAR(64)"/>
+            <column name="MOVE_LEASE_UNTIL" type="BIGINT"/>
+            <column name="MOVE_ATTEMPTS" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="MOVE_NEXT_ATTEMPT" type="BIGINT"/>
+            <column name="MOVE_REQUESTED_BY" type="VARCHAR(200)"/>
+        </addColumn>
+        <createIndex tableName="PROCESSES_WORK_FLOW" indexName="IDX_PROCESSES_WORK_FLOW_01">
+            <column name="PROJECT_MOVE_PENDING"/>
+            <column name="MOVE_NEXT_ATTEMPT"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Kept apart from the table creation: the MySQL suffix above is appended
+         to every statement of its changeset. -->
+    <changeSet author="processes" id="1.0.0-exo-91987-04">
+        <!-- Serves the keyset read of a process's requests by task id -->
+        <createIndex tableName="PROCESSES_REQUEST" indexName="IDX_PROCESSES_REQUEST_01">
+            <column name="WORK_FLOW_ID"/>
+            <column name="TASK_ID"/>
+        </createIndex>
+        <createIndex tableName="PROCESSES_REQUEST" indexName="IDX_PROCESSES_REQUEST_02">
+            <column name="CREATOR_ID"/>
+        </createIndex>
+        <!-- MySQL may drop the index it made for FK_PROCESSES_REQUEST_WF once
+             IDX_PROCESSES_REQUEST_01 can serve the key, and then refuses to drop
+             IDX_PROCESSES_REQUEST_01: an index on WORK_FLOW_ID is created first.
+             It is dropped with the table when the rollback goes on through
+             1.0.0-exo-91987-02, and stays, redundant, when this changeset alone
+             is rolled back then applied again. -->
+        <rollback>
+            <createIndex tableName="PROCESSES_REQUEST" indexName="IDX_PROCESSES_REQUEST_03">
+                <column name="WORK_FLOW_ID"/>
+            </createIndex>
+            <dropIndex tableName="PROCESSES_REQUEST" indexName="IDX_PROCESSES_REQUEST_01"/>
+            <dropIndex tableName="PROCESSES_REQUEST" indexName="IDX_PROCESSES_REQUEST_02"/>
+        </rollback>
+    </changeSet>
+
 </databaseChangeLog>

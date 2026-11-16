@@ -71,6 +71,10 @@ public class WorkFlowEntity implements Serializable {
   @Column(name = "ILLUSTRATION_IMAGE_ID")
   private Long illustrationImageId;
 
+  /** The id of the process's managing space, null when it is not known */
+  @Column(name = "SPACE_ID")
+  private Long spaceId;
+
   @ElementCollection
   @CollectionTable(name = "WORK_FLOW_MANAGERS",
           joinColumns = @JoinColumn(name = "WORK_FLOW_ID"))
