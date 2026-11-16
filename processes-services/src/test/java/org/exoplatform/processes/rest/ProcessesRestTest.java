@@ -39,6 +39,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.CommonsUtils;
+import org.exoplatform.processes.model.EligibleProjects;
 import org.exoplatform.processes.model.IllustrativeAttachment;
 import org.exoplatform.processes.model.ProcessesFilter;
 import org.exoplatform.processes.model.Work;
@@ -321,6 +322,7 @@ public class ProcessesRestTest {
                                                         null,
                                                         null,
                                                         false,
+                                                        null,
                                                         null,
                                                         null);
   }
@@ -861,5 +863,39 @@ public class ProcessesRestTest {
                                                .stream()
                                                .noneMatch(invocation -> invocation.getMethod().getName().equals(methodName)
                                                    && invocation.getArguments().length == argumentCount));
+  }
+
+  /**
+   * The eligible projects of a space answer per user, never cached, and the
+   * service's refusals answer their status: 404 for an unknown space, 403 for a
+   * user who may not list them, 400 with the message code for a bad page, 401
+   * without a user. Mutation: drop the cache control or map a refusal to 500
+   * and this test fails.
+   *
+   * @throws Exception on an unexpected failure
+   */
+  @Test
+  public void theProjectsOfASpaceAnswerPerUserAndMapTheRefusals() throws Exception {
+    REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
+    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), processesRest.getSpaceProjects("3", 0, 0).getStatus());
+
+    REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    EligibleProjects projects = new EligibleProjects(new ArrayList<>(), 0);
+    when(processesService.listEligibleProjects("3", 0, 20, 1L)).thenReturn(projects);
+    Response ok = processesRest.getSpaceProjects("3", 0, 20);
+    assertEquals(Response.Status.OK.getStatusCode(), ok.getStatus());
+    assertEquals(projects, ok.getEntity());
+    javax.ws.rs.core.CacheControl cacheControl = cacheControl(ok);
+    assertTrue(cacheControl.isPrivate());
+    assertTrue(cacheControl.isNoStore());
+
+    when(processesService.listEligibleProjects("99", 0, 0, 1L)).thenThrow(new ObjectNotFoundException("space"));
+    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), processesRest.getSpaceProjects("99", 0, 0).getStatus());
+    when(processesService.listEligibleProjects("4", 0, 0, 1L)).thenThrow(new IllegalAccessException("user"));
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), processesRest.getSpaceProjects("4", 0, 0).getStatus());
+    when(processesService.listEligibleProjects("3", -1, 0, 1L)).thenThrow(new IllegalArgumentException("processes.projects.invalidPage"));
+    Response badPage = processesRest.getSpaceProjects("3", -1, 0);
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), badPage.getStatus());
+    assertEquals("processes.projects.invalidPage", badPage.getEntity());
   }
 }

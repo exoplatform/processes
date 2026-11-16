@@ -74,4 +74,10 @@ public class WorkFlowEntity {
 
   private List<CreatorIdentityEntity> requestsCreators;
 
+  /**
+   * How a create chooses the task project: NEW (the default) or EXISTING, the
+   * project then being the one projectId names
+   */
+  private String                      projectMode;
+
 }
