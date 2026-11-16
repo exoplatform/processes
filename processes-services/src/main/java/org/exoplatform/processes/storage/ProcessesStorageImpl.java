@@ -29,8 +29,10 @@ import org.exoplatform.commons.file.services.FileStorageException;
 import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.processes.Utils.EntityMapper;
 import org.exoplatform.processes.Utils.ProcessesUtils;
+import org.exoplatform.processes.dao.RequestDAO;
 import org.exoplatform.processes.dao.WorkDraftDAO;
 import org.exoplatform.processes.dao.WorkFlowDAO;
+import org.exoplatform.processes.entity.RequestEntity;
 import org.exoplatform.processes.entity.WorkEntity;
 import org.exoplatform.processes.entity.WorkFlowEntity;
 import org.exoplatform.processes.model.CreatorIdentityEntity;
@@ -77,6 +79,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   private static final int                 ID_CHUNK_SIZE            = 1000;
   private final WorkFlowDAO                workFlowDAO;
   private final WorkDraftDAO               workDraftDAO;
+  private final RequestDAO                 requestDAO;
   private final IdentityManager            identityManager;
   private final TaskService                taskService;
   private final ProjectService             projectService;
@@ -89,8 +92,26 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   private final String                     DATE_FORMAT              = "yyyy/MM/dd";
   private final SimpleDateFormat           formatter                = new SimpleDateFormat(DATE_FORMAT);
 
+  /**
+   * Builds the processes storage.
+   *
+   * @param workFlowDAO the processes DAO
+   * @param workDraftDAO the request drafts DAO
+   * @param requestDAO the request records DAO
+   * @param taskService the Task add-on's task service
+   * @param projectService the Task add-on's project service
+   * @param statusService the Task add-on's status service
+   * @param identityManager the identity manager
+   * @param spaceService the space service
+   * @param listenerService the listener service
+   * @param processesAttachmentService the processes attachment service
+   * @param fileService the file service
+   * @param userACL the platform ACL
+   */
+  @SuppressWarnings("java:S107")
   public ProcessesStorageImpl(WorkFlowDAO workFlowDAO,
                               WorkDraftDAO workDraftDAO,
+                              RequestDAO requestDAO,
                               TaskService taskService,
                               ProjectService projectService,
                               StatusService statusService,
@@ -102,6 +123,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
                               UserACL userACL) {
     this.workFlowDAO = workFlowDAO;
     this.workDraftDAO = workDraftDAO;
+    this.requestDAO = requestDAO;
     this.identityManager = identityManager;
     this.taskService = taskService;
     this.projectService = projectService;
@@ -166,7 +188,11 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     return processes;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
+  @Deprecated(since = "7.3.0.50", forRemoval = true)
   public WorkFlow getWorkFlowByProjectId(long projectId) {
     return EntityMapper.fromEntity(workFlowDAO.getWorkFlowByProjectId(projectId), null);
   }
@@ -378,6 +404,15 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     }
   }
 
+  /**
+   * Creates the task of a new request in the request's project, in the
+   * project's Request status.
+   *
+   * @param work the request, whose project id the Service set from its process
+   * @param identity the requester
+   * @return the created task
+   * @throws IllegalArgumentException when the project does not exist
+   */
   private TaskDto createWorkTask(Work work, Identity identity) {
     TaskDto taskDto;
     try {
@@ -389,12 +424,53 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     if (StringUtils.isEmpty(taskDto.getTitle())) {
       taskDto.setTitle(formatter.format(new Date()) + " - " + identity.getProfile().getFullName());
     }
-    taskDto.setStatus(statusService.getDefaultStatus(work.getProjectId()));
+    taskDto.setStatus(getRequestStatus(work.getProjectId()));
     taskDto.setCreatedBy(identity.getRemoteId());
     taskDto.setCreatedTime(new Date());
     taskDto.setPriority(Priority.NONE);
     taskDto = taskService.createTask(taskDto);
     return taskDto;
+  }
+
+  /**
+   * Reads the status a new request starts in: the project's status named
+   * Request exactly, the one of lowest id when several are, else, when a
+   * manager deleted it in Tasks, the project's default status. A shared project
+   * starts with its own columns, so its default status is not a request
+   * status.
+   *
+   * @param projectId the request's project id
+   * @return the status
+   */
+  private StatusDto getRequestStatus(long projectId) {
+    StatusDto status = findStatusByName(projectId, DEFAULT_PROCESS_STATUS[0]);
+    if (status == null) {
+      LOG.warn("The project {} has no status named {}, the request is created in its default status",
+               projectId,
+               DEFAULT_PROCESS_STATUS[0]);
+      return statusService.getDefaultStatus(projectId);
+    }
+    return status;
+  }
+
+  /**
+   * Finds a status of a project by its exact name, the one of lowest id when
+   * several have it, rather than the first in the board's column order, which
+   * managers change in Tasks.
+   *
+   * @param projectId the project id
+   * @param name the status name
+   * @return the status, or null when none has that name
+   */
+  private StatusDto findStatusByName(long projectId, String name) {
+    List<StatusDto> statuses = statusService.getStatuses(projectId);
+    if (statuses == null) {
+      return null;
+    }
+    return statuses.stream()
+                   .filter(statusDto -> name.equals(statusDto.getName()))
+                   .min(Comparator.comparingLong(StatusDto::getId))
+                   .orElse(null);
   }
 
   private TaskDto updateWorkTask(Work work) {
@@ -421,6 +497,9 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     return taskDto;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public Work saveWork(Work work, long userId) throws IllegalArgumentException {
     if (work == null) {
@@ -432,6 +511,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     }
     if (work.getId() == 0) {
       TaskDto taskDto = createWorkTask(work, identity);
+      recordRequest(taskDto, work.getWorkFlowId(), userId);
       ProjectDto projectDto = taskDto.getStatus().getProject();
       if (work.getDraftId() != null) {
         processesAttachmentService.moveAttachmentsToEntity(work.getAttachments(),
@@ -445,11 +525,40 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       }
       Work newWork = EntityMapper.taskToWork(taskDto);
       newWork.setCreatorId(userId);
+      newWork.setWorkFlowId(work.getWorkFlowId());
       ProcessesUtils.broadcast(listenerService, "exo.process.request.created", newWork, projectDto);
       return newWork;
     } else {
       TaskDto taskDto = updateWorkTask(work);
       return EntityMapper.taskToWork(taskDto);
+    }
+  }
+
+  /**
+   * Records a created task as a request of its process. Task commits the task
+   * on its own, so no transaction covers both: when the record cannot be
+   * saved, for instance because the process was deleted meanwhile, the task
+   * is removed, so no task stays in a shared project without its record.
+   *
+   * @param taskDto the created task
+   * @param workFlowId the request's process id
+   * @param requesterIdentityId the requester's identity id
+   * @throws IllegalStateException when the record cannot be saved, the task
+   *           being removed
+   */
+  private void recordRequest(TaskDto taskDto, long workFlowId, long requesterIdentityId) {
+    try {
+      requestDAO.create(new RequestEntity(taskDto.getId(), workFlowId, requesterIdentityId));
+    } catch (RuntimeException e) {
+      try {
+        taskService.removeTask(taskDto.getId());
+      } catch (Exception removalError) {
+        LOG.warn("The task {} of a request of the process {} could not be removed after its record failed",
+                 taskDto.getId(),
+                 workFlowId,
+                 removalError);
+      }
+      throw new IllegalStateException("The request of the process " + workFlowId + " could not be recorded", e);
     }
   }
 

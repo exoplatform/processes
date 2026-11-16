@@ -232,7 +232,7 @@ public class ProcessesMcpTool implements McpToolPlugin {
     Work work = new Work();
     work.setTitle(title);
     work.setDescription(StringUtils.trimToEmpty(description));
-    work.setProjectId(workFlow.getProjectId());
+    work.setWorkFlowId(workFlow.getId());
     Work created = processesService.createWork(work, userIdentityId);
     return toRequestModel(created);
   }
