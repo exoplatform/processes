@@ -21,6 +21,8 @@ import java.util.stream.Stream;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
+import io.meeds.common.ContainerTransactional;
+
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.file.model.FileInfo;
 import org.exoplatform.commons.file.model.FileItem;
@@ -589,23 +591,32 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    * {@inheritDoc}
    */
   @Override
+  @ContainerTransactional(atomic = true)
   public void deleteWorkflowById(Long workflowId) throws jakarta.persistence.EntityNotFoundException {
+    deleteWorkflowRows(workflowId);
+  }
+
+  /**
+   * Deletes a process's own rows: its drafts, its request records, then the
+   * process. Its task project and the project's tasks are never deleted: the
+   * project may be fed by other processes, and its tasks stay as plain tasks.
+   * {@link #deleteWorkflowById} runs it in one transaction, so a failure leaves
+   * the process and its request records as they were.
+   *
+   * @param workflowId the process id
+   * @throws jakarta.persistence.EntityNotFoundException when the process does
+   *           not exist
+   */
+  void deleteWorkflowRows(Long workflowId) {
     WorkFlowEntity workFlowEntity = this.workFlowDAO.find(workflowId);
     if (workFlowEntity == null) {
       throw new jakarta.persistence.EntityNotFoundException("Workflow not found");
-    }
-    try {
-      ProjectDto project = projectService.getProject(workFlowEntity.getProjectId());
-      if (project != null) {
-        projectService.removeProject(project.getId(), true);
-      }
-    } catch (EntityNotFoundException e) {
-      LOG.error("Error while getting workflow project", e);
     }
     List<WorkEntity> drafts = this.workDraftDAO.getDraftsByWorkflowId(workflowId);
     if (!drafts.isEmpty()) {
       workDraftDAO.deleteAll(drafts);
     }
+    requestDAO.deleteByWorkFlowId(workflowId);
     this.workFlowDAO.delete(workFlowEntity);
   }
 
