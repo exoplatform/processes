@@ -148,6 +148,9 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     return EntityMapper.fromEntity(workFlowDAO.getWorkFlowByProjectId(projectId), null);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public WorkFlow saveWorkFlow(WorkFlow workFlow, long userId) throws IllegalArgumentException {
     if (workFlow == null) {
@@ -180,6 +183,11 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       WorkFlow newWorkflow = EntityMapper.fromEntity(workFlowEntity, illustrativeAttachment, null);
       ProcessesUtils.broadcast(listenerService, "exo.process.created", userId, newWorkflow);
     } else {
+      if (workFlowEntity.getSpaceId() == null) {
+        // A client that does not state the space keeps the stored one
+        WorkFlowEntity storedWorkFlowEntity = workFlowDAO.find(workFlowEntity.getId());
+        workFlowEntity.setSpaceId(storedWorkFlowEntity == null ? null : storedWorkFlowEntity.getSpaceId());
+      }
       Space space = ProcessesUtils.getProjectParentSpace(workFlow.getProjectId());
       if (space != null && !space.getId().equals(workFlow.getSpaceId())) {
         Space newSpace = spaceService.getSpaceById(workFlow.getSpaceId());
