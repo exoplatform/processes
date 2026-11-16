@@ -168,8 +168,9 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
       projectDto.getParticipator().forEach(participator -> permissions.put(participator, new String[] { PermissionType.READ }));
       projectDto.getManager().forEach(manager -> permissions.put(manager, PermissionType.ALL));
       if (space != null) {
-        String participator = projectDto.getParticipator().iterator().next();
-        String groupId = participator.substring(participator.indexOf(":") + 1);
+        // The space's own group, never the project's first participant, which
+        // may be a user or absent in a project several processes share
+        String groupId = space.getGroupId();
         boolean spaceHasARedactor = space != null && space.getRedactors() != null && space.getRedactors().length > 0;
         if (spaceHasARedactor){
           permissions.put("redactor:" + groupId, PermissionType.ALL);
@@ -634,8 +635,9 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
       projectDto.getParticipator().forEach(participator -> permissions.put(participator, new String[]{PermissionType.READ}));
       projectDto.getManager().forEach(manager -> permissions.put(manager, PermissionType.ALL));
       if (space != null) {
-        String participator = projectDto.getParticipator().iterator().next();
-        String groupId = participator.substring(participator.indexOf(":") + 1);
+        // The space's own group, never the project's first participant, which
+        // may be a user or absent in a project several processes share
+        String groupId = space.getGroupId();
         boolean spaceHasARedactor = space != null && space.getRedactors() != null && space.getRedactors().length > 0;
         if (spaceHasARedactor) {
           permissions.put("redactor:" + groupId, PermissionType.ALL);
