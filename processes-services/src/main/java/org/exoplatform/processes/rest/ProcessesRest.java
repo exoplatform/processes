@@ -77,6 +77,8 @@ public class ProcessesRest implements ResourceContainer {
 
   private static final String              WORKFLOW_NOT_FOUND_MESSAGE = "Workflow not found";
 
+  private static final String              WORKFLOW_REQUIRED          = "processes.request.workflowRequired";
+
   static {
     ILLUSTRATION_CACHE_CONTROL.setMaxAge(CACHE_DURATION_SECONDS);
     // The illustration is served only to the users who see the process
@@ -322,8 +324,8 @@ public class ProcessesRest implements ResourceContainer {
     if (workEntity == null) {
       return Response.status(Response.Status.BAD_REQUEST).entity("Work object is mandatory").build();
     }
-    if (workEntity.getProjectId() == 0 && workEntity.getWorkFlow().getProjectId() == 0 ) {
-      return Response.status(Response.Status.BAD_REQUEST).entity("Work projectId object is mandatory").build();
+    if (workEntity.getWorkFlow() == null || workEntity.getWorkFlow().getId() <= 0) {
+      return Response.status(Response.Status.BAD_REQUEST).entity(WORKFLOW_REQUIRED).build();
     }
     long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
     if (currentIdentityId == 0) {

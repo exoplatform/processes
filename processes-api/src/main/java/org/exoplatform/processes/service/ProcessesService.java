@@ -131,18 +131,34 @@ public interface ProcessesService {
    */
   List<Work> getWorks(long userIdentityId, WorkFilter workFilter, int offset, int limit) throws Exception;
 
+  /**
+   * Reads the first process feeding a task project.
+   *
+   * @param projectId the task project id
+   * @return the process of lowest id feeding it, or null when none does
+   * @deprecated a task project may now be fed by several processes: read the
+   *             process of a request from its request record instead. Since
+   *             7.3.0.50, for removal.
+   */
+  @Deprecated(since = "7.3.0.50", forRemoval = true)
   WorkFlow getWorkFlowByProjectId(long projectId);
 
   /**
-   * Creates a work from new work object or from exiting work draft
+   * Creates a request, from a new work object or from an existing draft, in
+   * the stored task project of the process its {@link Work#getWorkFlowId()}
+   * names, whatever project id it carries, and records it as a request of
+   * that process.
    *
-   * @param work Work Object
-   * @param userId user id
-   * @return {@link Work}
+   * @param work the request
+   * @param userId the requester's identity id
+   * @return the created request
    * @throws IllegalAccessException when the user can't add a request to the
-   *           work's process
-   * @throws ObjectNotFoundException when the work's project isn't a process
-   *           project
+   *           process, or the draft is another user's
+   * @throws ObjectNotFoundException when the process or the draft does not
+   *           exist
+   * @throws IllegalArgumentException processes.request.workflowRequired when no
+   *           process is named, processes.request.draftMismatch when the draft
+   *           is of another process
    */
   Work createWork(Work work, long userId) throws IllegalAccessException, ObjectNotFoundException;
 

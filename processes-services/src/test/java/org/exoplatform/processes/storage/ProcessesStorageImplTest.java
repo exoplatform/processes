@@ -11,6 +11,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -37,6 +38,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
@@ -50,9 +52,11 @@ import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.processes.Utils.EntityMapper;
 import org.exoplatform.processes.Utils.ProcessesUtils;
+import org.exoplatform.processes.dao.RequestDAO;
 import org.exoplatform.processes.dao.WorkDraftDAO;
 import org.exoplatform.processes.dao.WorkFlowDAO;
 import org.exoplatform.processes.entity.WorkEntity;
+import org.exoplatform.processes.entity.RequestEntity;
 import org.exoplatform.processes.entity.WorkFlowEntity;
 import org.exoplatform.processes.model.CreatorIdentityEntity;
 import org.exoplatform.processes.model.IdentityEntity;
@@ -110,6 +114,9 @@ public class ProcessesStorageImplTest {
   private WorkDraftDAO               workDraftDAO;
 
   @Mock
+  private RequestDAO                 requestDAO;
+
+  @Mock
   private IdentityManager            identityManager;
 
   @Mock
@@ -156,6 +163,7 @@ public class ProcessesStorageImplTest {
     listenerService = spy(listenerService);
     this.processesStorage = new ProcessesStorageImpl(workFlowDAO,
                                                      workDraftDAO,
+                                                     requestDAO,
                                                      taskService,
                                                      projectService,
                                                      statusService,
@@ -347,6 +355,120 @@ public class ProcessesStorageImplTest {
     assertEquals(Long.valueOf(9L), sent.getProjectId());
     assertEquals(new HashSet<>(Arrays.asList("manager:/spaces/hr", "member:/spaces/hr")), sent.getParticipator());
     verify(projectService, never()).createProject(any());
+  }
+
+  /**
+   * A new request is recorded as a request of its process, with its
+   * requester, once its task exists, and starts in the project's status named
+   * Request exactly, the one of lowest id when a column was duplicated, never
+   * the project's first column; the created request names its process.
+   * Mutation: drop the record, go back to the default status, or drop the
+   * process id from the created request, and this test fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  public void aNewRequestIsRecordedAndStartsInTheRequestStatus() throws Exception {
+    Work work = newRequest();
+    when(statusService.getStatuses(9L)).thenReturn(Arrays.asList(status(1L, "To Do"), status(7L, "Request"), status(5L, "Request")));
+    ArgumentCaptor<TaskDto> createdTask = ArgumentCaptor.forClass(TaskDto.class);
+
+    Work created = processesStorage.saveWork(work, 1L);
+
+    verify(taskService).createTask(createdTask.capture());
+    assertEquals(Long.valueOf(5L), createdTask.getValue().getStatus().getId());
+    verify(requestDAO).create(new RequestEntity(40L, 3L, 1L));
+    assertEquals("the created request names its process, which its answer shows", 3L, created.getWorkFlowId());
+    verify(statusService, never()).getDefaultStatus(anyLong());
+  }
+
+  /**
+   * A project whose Request column a manager deleted takes the project's
+   * default status, as before.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  public void aProjectWithoutARequestColumnTakesItsDefaultStatus() throws Exception {
+    Work work = newRequest();
+    StatusDto toDo = status(1L, "To Do");
+    when(statusService.getStatuses(9L)).thenReturn(Arrays.asList(toDo));
+    when(statusService.getDefaultStatus(9L)).thenReturn(toDo);
+    ArgumentCaptor<TaskDto> createdTask = ArgumentCaptor.forClass(TaskDto.class);
+
+    processesStorage.saveWork(work, 1L);
+
+    verify(taskService).createTask(createdTask.capture());
+    assertEquals(Long.valueOf(1L), createdTask.getValue().getStatus().getId());
+  }
+
+  /**
+   * When the request record cannot be saved, the task Task already committed
+   * is removed and the request fails, before any draft is consumed, so no task
+   * stays in a shared project without its record. Mutation: drop the removal
+   * and this test fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  public void aRequestWhoseRecordFailsRemovesItsTask() throws Exception {
+    Work work = newRequest();
+    work.setDraftId(8L);
+    when(statusService.getStatuses(9L)).thenReturn(Arrays.asList(status(7L, "Request")));
+    doThrow(new jakarta.persistence.PersistenceException("the process is gone")).when(requestDAO).create(any(RequestEntity.class));
+
+    assertThrows(IllegalStateException.class, () -> processesStorage.saveWork(work, 1L));
+
+    verify(taskService).removeTask(40L);
+    verify(workDraftDAO, never()).delete(any());
+    verify(processesAttachmentService, never()).moveAttachmentsToEntity(any(), anyLong(), anyLong(), any(), anyLong(), any(), anyLong());
+  }
+
+  /**
+   * Builds a new request of process 3 in project 9, whose task Task creates
+   * with id 40.
+   *
+   * @return the request
+   * @throws Exception never, the mocks throw nothing
+   */
+  private Work newRequest() throws Exception {
+    Work work = new Work();
+    work.setProjectId(9L);
+    work.setWorkFlowId(3L);
+    Identity identity = mock(Identity.class);
+    Profile profile = new Profile();
+    profile.setProperty("fullName", "Jean Martin");
+    when(identity.getProfile()).thenReturn(profile);
+    when(identity.getRemoteId()).thenReturn("jean");
+    when(identityManager.getIdentity(1L)).thenReturn(identity);
+    when(projectService.getProject(9L)).thenReturn(new ProjectDto());
+    TaskDto taskDto = new TaskDto();
+    taskDto.setTitle("title");
+    ENTITY_MAPPER.when(() -> EntityMapper.workToTask(work)).thenReturn(taskDto);
+    ENTITY_MAPPER.when(() -> EntityMapper.taskToWork(taskDto)).thenReturn(new Work());
+    when(taskService.createTask(any(TaskDto.class))).thenAnswer(invocation -> {
+      TaskDto created = invocation.getArgument(0);
+      created.setId(40L);
+      return created;
+    });
+    return work;
+  }
+
+  /**
+   * Builds a column of project 9.
+   *
+   * @param id its id
+   * @param name its name
+   * @return the column
+   */
+  private static StatusDto status(long id, String name) {
+    StatusDto status = new StatusDto();
+    status.setId(id);
+    status.setName(name);
+    ProjectDto project = new ProjectDto();
+    project.setId(9L);
+    status.setProject(project);
+    return status;
   }
 
   @Test

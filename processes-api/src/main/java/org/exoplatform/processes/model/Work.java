@@ -18,6 +18,7 @@ package org.exoplatform.processes.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import org.exoplatform.services.attachments.model.Attachment;
 
@@ -64,6 +65,14 @@ public class Work {
   private WorkFlow workFlow;
 
   private List<Attachment> attachments;
+
+  /**
+   * The id of the process a new request is submitted to, which decides its task
+   * project. A creation instruction, left out of the comparison of two
+   * requests; 0 when not stated.
+   */
+  @EqualsAndHashCode.Exclude
+  private long     workFlowId;
 
   /**
    * constructor for Work task object

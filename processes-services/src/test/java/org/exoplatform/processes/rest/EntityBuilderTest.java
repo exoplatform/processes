@@ -194,4 +194,52 @@ public class EntityBuilderTest {
     assertEquals(ProjectMode.EXISTING, workFlow.getProjectMode());
     assertEquals(10L, workFlow.getProjectId());
   }
+
+  /**
+   * A request built from a REST body names the process of the body's workFlow
+   * and never keeps the project id the body sends, nor reads the process to
+   * find one. Mutation: keep the body's project id, or drop the process id,
+   * and this test fails.
+   */
+  @Test
+  public void aRequestNamesItsProcessAndNeverTheProjectSent() {
+    WorkEntity body = new WorkEntity();
+    body.setProjectId(42L);
+    WorkFlowEntity workFlow = new WorkFlowEntity();
+    workFlow.setId(5L);
+    workFlow.setProjectId(43L);
+    body.setWorkFlow(workFlow);
+
+    Work work = EntityBuilder.toWork(processesService, body);
+
+    assertEquals(5L, work.getWorkFlowId());
+    assertEquals(0L, work.getProjectId());
+    org.mockito.Mockito.verifyNoInteractions(processesService);
+  }
+
+  /**
+   * A created request is shown with the process it was created for, not with
+   * the first process of its project, which several processes may share.
+   * Mutation: read the process by the project again and this test fails.
+   *
+   * @throws Exception when the stubbed read fails
+   */
+  @Test
+  @SuppressWarnings("removal")
+  public void aCreatedRequestIsShownWithItsOwnProcess() throws Exception {
+    COMMONS_UTILS.when(() -> CommonsUtils.getService(StatusService.class)).thenReturn(mock(StatusService.class));
+    Work work = new Work();
+    work.setProjectId(10L);
+    work.setWorkFlowId(8L);
+    WorkFlow ownProcess = new WorkFlow();
+    ownProcess.setId(8L);
+    WorkFlow firstProcess = new WorkFlow();
+    firstProcess.setId(7L);
+    when(processesService.getWorkFlow(8L, null)).thenReturn(ownProcess);
+    when(processesService.getWorkFlowByProjectId(10L)).thenReturn(firstProcess);
+
+    assertEquals(8L, EntityBuilder.toWorkEntity(processesService, work, "workFlow").getWorkFlow().getId());
+    work.setWorkFlowId(0);
+    assertEquals(7L, EntityBuilder.toWorkEntity(processesService, work, "workFlow").getWorkFlow().getId());
+  }
 }

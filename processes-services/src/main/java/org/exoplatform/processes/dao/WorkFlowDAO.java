@@ -6,7 +6,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import jakarta.persistence.NoResultException;
 import jakarta.persistence.Query;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
@@ -221,15 +220,23 @@ public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
     return query.getResultList();
   }
 
+  /**
+   * Reads the first process feeding a task project.
+   *
+   * @param projectId the task project id
+   * @return the process of lowest id feeding it, or null when none does
+   * @deprecated a task project may now be fed by several processes: read the
+   *             process of a request from its request record instead. Since
+   *             7.3.0.50, for removal.
+   */
+  @Deprecated(since = "7.3.0.50", forRemoval = true)
   public WorkFlowEntity getWorkFlowByProjectId(long projectId) {
     TypedQuery<WorkFlowEntity> query = getEntityManager().createNamedQuery("WorkFlow.getWorkFlowByProjectId",
             WorkFlowEntity.class);
     query.setParameter("projectId", projectId);
-    try {
-      return query.getSingleResult();
-    } catch (NoResultException e) {
-      return null;
-    }
+    query.setMaxResults(1);
+    List<WorkFlowEntity> workFlows = query.getResultList();
+    return workFlows.isEmpty() ? null : workFlows.get(0);
   }
 
 }
