@@ -282,6 +282,42 @@ public class ProcessesStorageImplTest {
     verify(workFlowDAO, times(1)).update(workFlowEntity);
   }
 
+  /**
+   * An update that does not state the process's space keeps the stored one,
+   * and one that states it saves it. Mutation: drop the fallback to the stored
+   * space and the first save writes no space.
+   */
+  @Test
+  public void anUpdateWithoutASpaceKeepsTheStoredOne() {
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setId(5L);
+    workFlow.setProjectId(9L);
+    workFlow.setRequestsCreators(new ArrayList<>());
+    when(identityManager.getIdentity(1L)).thenReturn(mock(Identity.class));
+    WorkFlowEntity stored = new WorkFlowEntity();
+    stored.setId(5L);
+    stored.setSpaceId(7L);
+    when(workFlowDAO.find(5L)).thenReturn(stored);
+    PROCESSES_UTILS.when(() -> ProcessesUtils.getProjectParentSpace(9L)).thenReturn(null);
+    WorkFlowEntity sent = new WorkFlowEntity();
+    sent.setId(5L);
+    sent.setProjectId(9L);
+    ENTITY_MAPPER.when(() -> EntityMapper.toEntity(workFlow)).thenReturn(sent);
+    when(workFlowDAO.update(any(WorkFlowEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    processesStorage.saveWorkFlow(workFlow, 1L);
+    assertEquals(Long.valueOf(7L), sent.getSpaceId());
+
+    WorkFlowEntity sentWithASpace = new WorkFlowEntity();
+    sentWithASpace.setId(5L);
+    sentWithASpace.setProjectId(9L);
+    sentWithASpace.setSpaceId(8L);
+    ENTITY_MAPPER.when(() -> EntityMapper.toEntity(workFlow)).thenReturn(sentWithASpace);
+
+    processesStorage.saveWorkFlow(workFlow, 1L);
+    assertEquals(Long.valueOf(8L), sentWithASpace.getSpaceId());
+  }
+
   @Test
   public void countWorksByWorkflow() throws Exception {
     processesStorage.countWorksByWorkflow(1L, false);
