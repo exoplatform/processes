@@ -459,9 +459,12 @@ public class ProcessesServiceImplTest {
    * Moving a process to another space hands its project, and the management of
    * its requests, to the target space's managers: an editor of the process who
    * isn't a processes administrator may move it only as a manager of both
-   * spaces, while a platform administrator moves it as a processes one.
-   * Mutation: drop the move guard, its current-space or target-space check, or
-   * the processes administrator branch, and this test fails.
+   * spaces, while a platform administrator moves it as a processes one. A user
+   * who passes that guard is then refused the move itself, since the process
+   * keeps a task project other processes may feed; an update in the same
+   * space saves. Mutation: drop the move guard, its current-space or
+   * target-space check, the processes administrator branch, or the refusal of
+   * a space change, and this test fails.
    */
   @Test
   public void updateWorkflowSpaceMoveIsGuarded() throws Exception {
@@ -488,12 +491,16 @@ public class ProcessesServiceImplTest {
     assertThrows(IllegalAccessException.class, () -> processesService.updateWorkFlow(movedWorkFlow("2"), OTHER_SPACE_ID));
     verify(processesStorage, never()).saveWorkFlow(any(), anyLong());
 
-    processesService.updateWorkFlow(movedWorkFlow("1"), PARTICIPANT_ID);
-    processesService.updateWorkFlow(movedWorkFlow("2"), PROCESSES_ADMIN_ID);
-    processesService.updateWorkFlow(movedWorkFlow("2"), PLATFORM_ADMIN_ID);
     when(spaceService.isManager(targetSpace, "manager")).thenReturn(true);
-    processesService.updateWorkFlow(movedWorkFlow("2"), PROJECT_MANAGER_ID);
-    verify(processesStorage, times(4)).saveWorkFlow(any(), anyLong());
+    for (long userId : Arrays.asList(PROCESSES_ADMIN_ID, PLATFORM_ADMIN_ID, PROJECT_MANAGER_ID)) {
+      IllegalArgumentException refusal = assertThrows(IllegalArgumentException.class,
+                                                      () -> processesService.updateWorkFlow(movedWorkFlow("2"), userId));
+      assertEquals("processes.project.notEligible", refusal.getMessage());
+    }
+    verify(processesStorage, never()).saveWorkFlow(any(), anyLong());
+
+    processesService.updateWorkFlow(movedWorkFlow("1"), PARTICIPANT_ID);
+    verify(processesStorage, times(1)).saveWorkFlow(any(), anyLong());
   }
 
   @Test
@@ -1186,6 +1193,88 @@ public class ProcessesServiceImplTest {
 
   private Work storedWork(long workId, long projectId) {
     return new Work(workId, "title", "description", "Request", false, "creator", null, null, null, null, false, null, projectId);
+  }
+
+  /**
+   * Both space guards read the process's stored space, which wins over the
+   * space of its project: a change is refused against it, and an editor who
+   * saves in it moves nothing, so needs to manage no space. A process with no
+   * stored space falls back to its project's space. Mutation: compare either
+   * guard with the project's space only and this test fails.
+   *
+   * @throws Exception on an unexpected refusal
+   */
+  @Test
+  public void aSpaceChangeIsReadAgainstTheStoredSpaceFirst() throws Exception {
+    Space projectSpace = new Space();
+    projectSpace.setId("1");
+    projectSpace.setGroupId(PROCESS_SPACE_GROUP);
+    when(spaceService.getSpaceByGroupId(PROCESS_SPACE_GROUP)).thenReturn(projectSpace);
+    WorkFlow storedWorkFlow = new WorkFlow();
+    storedWorkFlow.setId(WORKFLOW_ID);
+    storedWorkFlow.setProjectId(PROCESS_PROJECT_ID);
+    storedWorkFlow.setSpaceId("5");
+    storedWorkFlow.setAcl(new ProcessPermission(true, true, false, false));
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, PROCESSES_ADMIN_ID)).thenReturn(storedWorkFlow);
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, OTHER_SPACE_ID)).thenReturn(storedWorkFlow);
+    Space storedSpace = new Space();
+    storedSpace.setId("5");
+    storedSpace.setGroupId("/spaces/sales");
+    when(spaceService.getSpaceById("5")).thenReturn(storedSpace);
+    when(spaceService.getSpaceById("1")).thenReturn(projectSpace);
+
+    IllegalArgumentException refusal = assertThrows(IllegalArgumentException.class,
+                                                    () -> processesService.updateWorkFlow(movedWorkFlow("1"), PROCESSES_ADMIN_ID));
+    assertEquals("processes.project.notEligible", refusal.getMessage());
+    // A space that does not exist is named so, to an administrator too
+    IllegalArgumentException unknownSpace = assertThrows(IllegalArgumentException.class,
+                                                         () -> processesService.updateWorkFlow(movedWorkFlow("99"),
+                                                                                               PROCESSES_ADMIN_ID));
+    assertEquals("processes.space.notFound", unknownSpace.getMessage());
+    processesService.updateWorkFlow(movedWorkFlow("5"), PROCESSES_ADMIN_ID);
+    // An editor who manages neither space saves in the stored space: no move
+    processesService.updateWorkFlow(movedWorkFlow("5"), OTHER_SPACE_ID);
+
+    storedWorkFlow.setSpaceId("");
+    processesService.updateWorkFlow(movedWorkFlow("1"), PROCESSES_ADMIN_ID);
+    assertThrows(IllegalArgumentException.class, () -> processesService.updateWorkFlow(movedWorkFlow("5"), PROCESSES_ADMIN_ID));
+    verify(processesStorage, times(3)).saveWorkFlow(any(), anyLong());
+  }
+
+  /**
+   * A process whose space is not known any more, with no stored space and its
+   * project deleted in Tasks, gets a space from a processes administrator only,
+   * and only an existing one; an editor who doesn't administer processes is
+   * refused, and nothing is saved. Mutation: let an unknown current space pass
+   * as before and the editor's save goes through.
+   *
+   * @throws Exception on an unexpected refusal
+   */
+  @Test
+  public void aProcessWithoutAKnownSpaceGetsOneFromAProcessesAdministratorOnly() throws Exception {
+    long deletedProjectId = 30L;
+    when(projectService.getProject(deletedProjectId)).thenThrow(new org.exoplatform.task.exception.EntityNotFoundException(deletedProjectId,
+                                                                                                                      ProjectDto.class));
+    Space existingSpace = new Space();
+    existingSpace.setId("2");
+    existingSpace.setGroupId("/spaces/sales");
+    when(spaceService.getSpaceById("2")).thenReturn(existingSpace);
+    for (long userId : Arrays.asList(PROJECT_MANAGER_ID, PROCESSES_ADMIN_ID)) {
+      WorkFlow storedWorkFlow = new WorkFlow();
+      storedWorkFlow.setId(WORKFLOW_ID);
+      storedWorkFlow.setProjectId(deletedProjectId);
+      storedWorkFlow.setSpaceId("");
+      storedWorkFlow.setAcl(new ProcessPermission(true, true, false, false));
+      when(processesStorage.getWorkFlowById(WORKFLOW_ID, userId)).thenReturn(storedWorkFlow);
+    }
+
+    assertThrows(IllegalAccessException.class, () -> processesService.updateWorkFlow(movedWorkFlow("2"), PROJECT_MANAGER_ID));
+    assertThrows(IllegalArgumentException.class, () -> processesService.updateWorkFlow(movedWorkFlow("99"), PROCESSES_ADMIN_ID));
+    verify(processesStorage, never()).saveWorkFlow(any(), anyLong());
+
+    processesService.updateWorkFlow(movedWorkFlow("2"), PROCESSES_ADMIN_ID);
+    processesService.updateWorkFlow(movedWorkFlow(""), PROJECT_MANAGER_ID);
+    verify(processesStorage, times(2)).saveWorkFlow(any(), anyLong());
   }
 
   private Work storedDraft(long creatorId) {

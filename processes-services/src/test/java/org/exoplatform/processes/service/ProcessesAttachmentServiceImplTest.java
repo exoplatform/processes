@@ -1082,4 +1082,105 @@ public class ProcessesAttachmentServiceImplTest {
   private List<String> ids(List<Attachment> attachments) {
     return attachments.stream().map(Attachment::getId).collect(Collectors.toList());
   }
+
+  /**
+   * A request's folder gives the space's own group its ALL entry, whatever the
+   * participants of its task project: a project several processes share may
+   * have only users, or none, as participants. Mutation: take the group from
+   * the project's first participant again and the user-only case grants the
+   * user, the empty case throws.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  @SuppressWarnings("unchecked")
+  public void aRequestFolderGrantsTheSpaceGroupWhateverTheProjectParticipants() throws Exception {
+    org.exoplatform.social.core.identity.model.Identity requester = new org.exoplatform.social.core.identity.model.Identity("organization", "jean");
+    when(identityManager.getIdentity(String.valueOf(REQUESTER_ID))).thenReturn(requester);
+    Space space = new Space();
+    space.setGroupId("/spaces/hr");
+    PROCESSES_UTILS.when(() -> ProcessesUtils.getProjectParentSpace(PROJECT_ID)).thenReturn(space);
+    Session session = mock(Session.class);
+    UTILS.when(() -> Utils.getSystemSession(sessionProviderService, repositoryService)).thenReturn(session);
+    DriveData driveData = new DriveData();
+    driveData.setHomePath("/Groups/spaces/hr/Documents");
+    when(manageDriveService.getGroupDrive("/spaces/hr")).thenReturn(driveData);
+    Node rootNode = mock(Node.class);
+    Node entityTypeNode = mock(Node.class);
+    ExtendedNode requestFolder = mock(ExtendedNode.class);
+    when(session.getItem("/Groups/spaces/hr/Documents")).thenReturn(rootNode);
+    when(rootNode.addNode("task", NodetypeConstant.NT_FOLDER)).thenReturn(entityTypeNode);
+    when(entityTypeNode.addNode(String.valueOf(TASK_ID), NodetypeConstant.NT_FOLDER)).thenReturn(requestFolder);
+
+    for (Set<String> participators : List.of(Set.of("mary"), Set.<String> of())) {
+      ProjectDto project = new ProjectDto();
+      project.setId(PROJECT_ID);
+      project.setManager(new HashSet<>(Set.of("manager:/spaces/hr")));
+      project.setParticipator(new HashSet<>(participators));
+      when(projectService.getProject(PROJECT_ID)).thenReturn(project);
+      org.mockito.Mockito.clearInvocations(requestFolder);
+
+      processesAttachmentService.moveAttachmentsToEntity(Collections.emptyList(), REQUESTER_ID, DRAFT_ID, "workdraft", TASK_ID, "task", PROJECT_ID);
+
+      org.mockito.ArgumentCaptor<java.util.Map<String, String[]>> permissions = org.mockito.ArgumentCaptor.forClass(java.util.Map.class);
+      verify(requestFolder).setPermissions(permissions.capture());
+      assertTrue(participators + ": the space group manages the folder", permissions.getValue().containsKey("*:/spaces/hr"));
+      assertFalse(participators + ": no user is taken for the group", permissions.getValue().containsKey("*:mary"));
+    }
+  }
+
+  /**
+   * The folder a draft's attachments move into, when its request is created,
+   * gives the space's own group its ALL entry whatever the participants of the
+   * task project, as the empty request folder does. Mutation: take the group
+   * from the project's first participant again in the move and the user-only
+   * case grants the user, the empty case throws.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  @SuppressWarnings("unchecked")
+  public void movedDraftAttachmentsGrantTheSpaceGroupWhateverTheProjectParticipants() throws Exception {
+    Space space = new Space();
+    space.setGroupId("/spaces/hr");
+    PROCESSES_UTILS.when(() -> ProcessesUtils.getProjectParentSpace(PROJECT_ID)).thenReturn(space);
+    Session session = mock(Session.class);
+    UTILS.when(() -> Utils.getSystemSession(sessionProviderService, repositoryService)).thenReturn(session);
+    DriveData driveData = new DriveData();
+    driveData.setName("hr");
+    driveData.setHomePath("/Groups/spaces/hr/Documents");
+    when(manageDriveService.getGroupDrive("/spaces/hr")).thenReturn(driveData);
+    Node rootNode = mock(Node.class);
+    Node entityTypeNode = mock(Node.class);
+    when(session.getItem("/Groups/spaces/hr/Documents")).thenReturn(rootNode);
+    when(rootNode.addNode("task", NodetypeConstant.NT_FOLDER)).thenReturn(entityTypeNode);
+    when(session.getNodeByUUID("a1")).thenReturn(mock(Node.class));
+    ExtendedNode destNode = mock(ExtendedNode.class);
+    UTILS.when(() -> Utils.getParentFolderNode(session, manageDriveService, nodeHierarchyCreator, nodeFinder, "hr", "task/" + TASK_ID))
+         .thenReturn(destNode);
+
+    for (Set<String> participators : List.of(Set.of("mary"), Set.<String> of())) {
+      ProjectDto project = new ProjectDto();
+      project.setId(PROJECT_ID);
+      project.setManager(new HashSet<>(Set.of("manager:/spaces/hr")));
+      project.setParticipator(new HashSet<>(participators));
+      when(projectService.getProject(PROJECT_ID)).thenReturn(project);
+      org.mockito.Mockito.clearInvocations(destNode);
+      Attachment attachment = new Attachment();
+      attachment.setId("a1");
+
+      processesAttachmentService.moveAttachmentsToEntity(new ArrayList<>(List.of(attachment)),
+                                                         REQUESTER_ID,
+                                                         DRAFT_ID,
+                                                         "workdraft",
+                                                         TASK_ID,
+                                                         "task",
+                                                         PROJECT_ID);
+
+      org.mockito.ArgumentCaptor<java.util.Map<String, String[]>> permissions = org.mockito.ArgumentCaptor.forClass(java.util.Map.class);
+      verify(destNode).setPermissions(permissions.capture());
+      assertTrue(participators + ": the space group manages the folder", permissions.getValue().containsKey("*:/spaces/hr"));
+      assertFalse(participators + ": no user is taken for the group", permissions.getValue().containsKey("*:mary"));
+    }
+  }
 }
