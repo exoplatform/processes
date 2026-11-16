@@ -17,12 +17,18 @@
 package org.exoplatform.processes.service;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+
+import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.file.services.FileStorageException;
 import org.exoplatform.portal.config.UserACL;
+import org.exoplatform.processes.constant.ProjectMode;
 import org.exoplatform.processes.model.*;
 import org.exoplatform.processes.Utils.ProcessesUtils;
 import org.exoplatform.processes.storage.ProcessesStorage;
@@ -31,9 +37,13 @@ import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvide
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
+import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dto.ProjectDto;
+import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.service.ProjectService;
+import org.exoplatform.task.service.StatusService;
+import org.exoplatform.task.util.UserUtil;
 
 public class ProcessesServiceImpl implements ProcessesService {
 
@@ -42,6 +52,13 @@ public class ProcessesServiceImpl implements ProcessesService {
   private static final Set<String> PENDING_STATUSES    = Set.of("Request", "RequestInProgress");
 
   private static final Set<String> DECIDED_STATUSES    = Set.of("Validated", "Refused");
+
+  /** The statuses of a process's task project, in their column order */
+  private static final List<String> PROCESS_STATUSES   = List.of("Request", "RequestInProgress", "Validated", "Refused", "Canceled");
+
+  private static final String      PROJECT_NOT_ELIGIBLE = "processes.project.notEligible";
+
+  private static final String      STATUS_NAME_CONFLICT = "processes.project.statusNameConflict";
 
   private final ProcessesStorage processesStorage;
 
@@ -55,18 +72,33 @@ public class ProcessesServiceImpl implements ProcessesService {
 
   private final ProcessesAttachmentService processesAttachmentService;
 
+  private final StatusService    statusService;
+
+  /**
+   * Builds the processes service.
+   *
+   * @param processesStorage the processes storage
+   * @param projectService the Task add-on's project service
+   * @param identityManager the identity manager
+   * @param userACL the platform ACL
+   * @param spaceService the space service
+   * @param processesAttachmentService the processes attachment service
+   * @param statusService the Task add-on's status service
+   */
   public ProcessesServiceImpl(ProcessesStorage processesStorage,
                               ProjectService projectService,
                               IdentityManager identityManager,
                               UserACL userACL,
                               SpaceService spaceService,
-                              ProcessesAttachmentService processesAttachmentService) {
+                              ProcessesAttachmentService processesAttachmentService,
+                              StatusService statusService) {
     this.processesStorage = processesStorage;
     this.projectService = projectService;
     this.identityManager = identityManager;
     this.userACL = userACL;
     this.spaceService = spaceService;
     this.processesAttachmentService = processesAttachmentService;
+    this.statusService = statusService;
   }
 
   @Override
@@ -103,6 +135,9 @@ public class ProcessesServiceImpl implements ProcessesService {
     return isProcessesAdministrator(getAclIdentity(userIdentityId));
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public WorkFlow createWorkFlow(WorkFlow workFlow, long userId) throws IllegalAccessException {
     if (workFlow == null) {
@@ -114,14 +149,65 @@ public class ProcessesServiceImpl implements ProcessesService {
     if (!isProcessesAdministrator(getAclIdentity(userId))) {
       throw new IllegalAccessException("User " + userId + " isn't allowed to create a process");
     }
-    // A new process always gets its own project and illustration file, never
-    // existing ones the client names
-    workFlow.setProjectId(0);
+    ProjectDto existingProject = null;
+    if (workFlow.getProjectMode() == ProjectMode.EXISTING) {
+      // The project the client names is used only once it is shown to be one
+      // the editor offers for the managing space
+      existingProject = getEligibleProject(workFlow.getProjectId(), workFlow.getSpaceId());
+    } else {
+      // A new process gets its own project, never an existing one the client
+      // names
+      workFlow.setProjectId(0);
+    }
+    // A new process always gets its own illustration file, never an existing
+    // one the client names
     if (workFlow.getIllustrativeAttachment() != null) {
       workFlow.getIllustrativeAttachment().setId(null);
     }
     workFlow.setAttachments(processesAttachmentService.selectProcessAttachments(userId, 0, 0, workFlow.getAttachments()));
+    if (existingProject != null) {
+      // Task commits each status it creates, before the process is saved
+      ensureProcessStatuses(existingProject);
+    }
     return processesStorage.saveWorkFlow(workFlow, userId);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public EligibleProjects listEligibleProjects(String spaceId,
+                                               int offset,
+                                               int limit,
+                                               long userIdentityId) throws ObjectNotFoundException, IllegalAccessException {
+    Space space = StringUtils.isBlank(spaceId) ? null : spaceService.getSpaceById(spaceId);
+    if (space == null) {
+      throw new ObjectNotFoundException("Space " + spaceId + " not found");
+    }
+    org.exoplatform.services.security.Identity aclIdentity = getAclIdentity(userIdentityId);
+    if (!isProcessesAdministrator(aclIdentity) && !spaceService.isManager(space, aclIdentity.getUserId())) {
+      throw new IllegalAccessException("User " + userIdentityId + " isn't allowed to list the projects of the space " + spaceId);
+    }
+    if (offset < 0 || limit < 0) {
+      throw new IllegalArgumentException("processes.projects.invalidPage");
+    }
+    List<ProjectDto> eligibleProjects = findEligibleProjects(space);
+    int size = eligibleProjects.size();
+    int from = Math.min(offset, size);
+    int to = limit == 0 ? size : (int) Math.min((long) from + limit, size);
+    List<ProjectDto> page = eligibleProjects.subList(from, to);
+    Map<Long, List<ProcessReference>> processes =
+                                                 processesStorage.findProcessesOfProjects(page.stream()
+                                                                                              .map(ProjectDto::getId)
+                                                                                              .toList(),
+                                                                                          Long.parseLong(space.getId()));
+    List<EligibleProject> projects = new ArrayList<>();
+    for (ProjectDto project : page) {
+      projects.add(new EligibleProject(project.getId(),
+                                       project.getName(),
+                                       processes.getOrDefault(project.getId(), Collections.emptyList())));
+    }
+    return new EligibleProjects(projects, size);
   }
 
   @Override
@@ -450,6 +536,127 @@ public class ProcessesServiceImpl implements ProcessesService {
       throw new ObjectNotFoundException("Workflow " + workflowId + " has no illustration");
     }
     return processesStorage.getIllustrationImageById(illustrationId);
+  }
+
+  /**
+   * Reads the projects a process of a space may feed, by name: the projects
+   * attached to the space ({@link #isAttachedToSpace}) whose columns hold no
+   * process status name in another case ({@link #hasStatusNameConflict}).
+   *
+   * @param space the managing space
+   * @return the eligible projects
+   */
+  private List<ProjectDto> findEligibleProjects(Space space) {
+    List<String> spaceMemberships = UserUtil.getSpaceMemberships(space.getGroupId());
+    // Every project whose managers or participants hold one of the space's
+    // memberships; the attachment rule then keeps the space's own projects
+    List<ProjectDto> projects = projectService.findProjects(spaceMemberships, null, new OrderBy("name", true), 0, 0);
+    if (projects == null) {
+      return Collections.emptyList();
+    }
+    return projects.stream()
+                   .filter(project -> isAttachedToSpace(project, space.getGroupId()))
+                   .filter(project -> !hasStatusNameConflict(project))
+                   .toList();
+  }
+
+  /**
+   * Resolves the existing project a new process asks for, refusing it unless
+   * {@link #findEligibleProjects} would list it for the process's space: the
+   * same attachment rule and the same column check, applied to that project.
+   *
+   * @param projectId the project the client names
+   * @param spaceId the managing space the client names
+   * @return the project
+   * @throws IllegalArgumentException processes.project.notEligible when the
+   *           space or the project does not exist, or the project is not
+   *           attached to the space; processes.project.statusNameConflict when
+   *           a column of the project is named like a process status in another
+   *           case
+   */
+  private ProjectDto getEligibleProject(long projectId, String spaceId) {
+    Space space = StringUtils.isBlank(spaceId) ? null : spaceService.getSpaceById(spaceId);
+    if (space == null || projectId <= 0) {
+      throw new IllegalArgumentException(PROJECT_NOT_ELIGIBLE);
+    }
+    ProjectDto project;
+    try {
+      project = projectService.getProject(projectId);
+    } catch (EntityNotFoundException e) {
+      throw new IllegalArgumentException(PROJECT_NOT_ELIGIBLE);
+    }
+    if (project == null || !isAttachedToSpace(project, space.getGroupId())) {
+      throw new IllegalArgumentException(PROJECT_NOT_ELIGIBLE);
+    }
+    if (hasStatusNameConflict(project)) {
+      throw new IllegalArgumentException(STATUS_NAME_CONFLICT);
+    }
+    return project;
+  }
+
+  /**
+   * Tells whether a task project is attached to a space: its managers hold the
+   * space's manager membership, which Tasks writes for a project created in a
+   * space, and neither its managers nor its participants hold a group
+   * membership other than the space's manager and member ones. Users added to
+   * the project one by one are allowed.
+   *
+   * @param project the task project
+   * @param spaceGroupId the space's group id
+   * @return true when the project is attached to the space
+   */
+  static boolean isAttachedToSpace(ProjectDto project, String spaceGroupId) {
+    String managerMembership = ProcessesUtils.MANAGER_MEMBERSHIP_TYPE + ":" + spaceGroupId;
+    String memberMembership = ProcessesUtils.MEMBER_MEMBERSHIP_TYPE + ":" + spaceGroupId;
+    Set<String> managers = project.getManager() == null ? Collections.emptySet() : project.getManager();
+    Set<String> participators = project.getParticipator() == null ? Collections.emptySet() : project.getParticipator();
+    if (!managers.contains(managerMembership)) {
+      return false;
+    }
+    return java.util.stream.Stream.concat(managers.stream(), participators.stream())
+                                  .filter(entry -> entry != null && entry.contains("/"))
+                                  .allMatch(entry -> entry.equals(managerMembership) || entry.equals(memberMembership));
+  }
+
+  /**
+   * Tells whether a column of a task project is named like a process status in
+   * another case (request, CANCELED): Task would take it for the status and
+   * create none, while processes reads the status names exactly.
+   *
+   * @param project the task project
+   * @return true when such a column exists
+   */
+  private boolean hasStatusNameConflict(ProjectDto project) {
+    List<StatusDto> statuses = statusService.getStatuses(project.getId());
+    if (statuses == null) {
+      return false;
+    }
+    return statuses.stream()
+                   .map(StatusDto::getName)
+                   .filter(name -> name != null)
+                   .anyMatch(name -> PROCESS_STATUSES.stream()
+                                                     .anyMatch(statusName -> statusName.equalsIgnoreCase(name)
+                                                         && !statusName.equals(name)));
+  }
+
+  /**
+   * Adds to an existing task project the process statuses it lacks, compared
+   * exactly, after its columns. Only the missing ones: Task rewrites the whole
+   * project from its copy each time a status is created, whatever its name.
+   *
+   * @param project the task project
+   */
+  private void ensureProcessStatuses(ProjectDto project) {
+    List<StatusDto> statuses = statusService.getStatuses(project.getId());
+    Set<String> names = statuses == null ? Collections.emptySet()
+                                         : statuses.stream()
+                                                   .map(StatusDto::getName)
+                                                   .collect(java.util.stream.Collectors.toSet());
+    for (String statusName : PROCESS_STATUSES) {
+      if (!names.contains(statusName)) {
+        statusService.createStatus(project, statusName);
+      }
+    }
   }
 
   private long getWorkFlowIdByProjectId(long projectId) throws ObjectNotFoundException {

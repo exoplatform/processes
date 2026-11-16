@@ -1,6 +1,7 @@
 package org.exoplatform.processes.dao;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -200,6 +201,24 @@ public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
     }
     List<WorkFlowEntity> resultList = query.getResultList();
     return resultList == null ? Collections.emptyList() : resultList;
+  }
+
+  /**
+   * Reads the processes of a space that feed some task projects, by title.
+   *
+   * @param projectIds the task project ids, at most a chunk the database
+   *          accepts as parameters
+   * @param spaceId the managing space id the processes must have
+   * @return one row per process: its project id, its id and its title
+   */
+  public List<Object[]> findProcessesOfProjects(Collection<Long> projectIds, long spaceId) {
+    if (projectIds == null || projectIds.isEmpty()) {
+      return Collections.emptyList();
+    }
+    TypedQuery<Object[]> query = getEntityManager().createNamedQuery("WorkFlow.findProcessesOfProjects", Object[].class);
+    query.setParameter("projectIds", projectIds);
+    query.setParameter("spaceId", spaceId);
+    return query.getResultList();
   }
 
   public WorkFlowEntity getWorkFlowByProjectId(long projectId) {

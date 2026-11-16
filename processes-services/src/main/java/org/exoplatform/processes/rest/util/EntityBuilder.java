@@ -28,6 +28,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.commons.utils.HTMLSanitizer;
 import org.exoplatform.processes.Utils.ProcessesUtils;
+import org.exoplatform.processes.constant.ProjectMode;
 import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.rest.model.WorkEntity;
@@ -43,11 +44,19 @@ public class EntityBuilder {
   private EntityBuilder() {
   }
 
+  /**
+   * Builds the process a REST body describes.
+   *
+   * @param workFlowEntity the REST body
+   * @return the process, or null when no body is given
+   * @throws IllegalArgumentException processes.project.invalidMode when the
+   *           project mode is neither NEW nor EXISTING
+   */
   public static WorkFlow fromEntity(WorkFlowEntity workFlowEntity) {
     if (workFlowEntity == null) {
       return null;
     }
-    return new WorkFlow(workFlowEntity.getId(),
+    WorkFlow workFlow = new WorkFlow(workFlowEntity.getId(),
                         workFlowEntity.getTitle(),
                         workFlowEntity.getDescription(),
                         workFlowEntity.getSummary(),
@@ -68,6 +77,27 @@ public class EntityBuilder {
                         null,
                         false,
                         workFlowEntity.getRequestsCreators());
+    workFlow.setProjectMode(toProjectMode(workFlowEntity.getProjectMode()));
+    return workFlow;
+  }
+
+  /**
+   * Reads the project mode a REST body states.
+   *
+   * @param projectMode the mode as sent, null or blank when not stated
+   * @return the mode, or null when not stated
+   * @throws IllegalArgumentException processes.project.invalidMode for any
+   *           other value than NEW or EXISTING
+   */
+  public static ProjectMode toProjectMode(String projectMode) {
+    if (StringUtils.isBlank(projectMode)) {
+      return null;
+    }
+    try {
+      return ProjectMode.valueOf(projectMode);
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException("processes.project.invalidMode");
+    }
   }
 
   public static Work fromEntity(WorkEntity workEntity) {
@@ -112,7 +142,8 @@ public class EntityBuilder {
                               ProcessesUtils.getProjectParentSpace(workFlow.getProjectId()),
                               workFlow.isCanShowPending(),
                               workFlow.getIllustrativeAttachment(),
-                              workFlow.getRequestsCreators());
+                              workFlow.getRequestsCreators(),
+                              null);
   }
 
   public static WorkFlowEntity toEntity(WorkFlow workFlow) {
