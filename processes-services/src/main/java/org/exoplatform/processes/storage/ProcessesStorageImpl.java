@@ -236,31 +236,22 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       WorkFlow newWorkflow = EntityMapper.fromEntity(workFlowEntity, illustrativeAttachment, null);
       ProcessesUtils.broadcast(listenerService, "exo.process.created", userId, newWorkflow);
     } else {
-      if (workFlowEntity.getSpaceId() == null) {
-        // A client that does not state the space keeps the stored one
-        WorkFlowEntity storedWorkFlowEntity = workFlowDAO.find(workFlowEntity.getId());
-        workFlowEntity.setSpaceId(storedWorkFlowEntity == null ? null : storedWorkFlowEntity.getSpaceId());
-      }
-      Space space = ProcessesUtils.getProjectParentSpace(workFlow.getProjectId());
-      if (space != null && !space.getId().equals(workFlow.getSpaceId())) {
-        Space newSpace = spaceService.getSpaceById(workFlow.getSpaceId());
-        List<String> memberships = UserUtil.getSpaceMemberships(newSpace.getGroupId());
-        Set<String> managers = new HashSet<>(Arrays.asList(memberships.get(0)));
-
-        Set<String> participators = new HashSet<>(Arrays.asList(memberships.get(1)));
-        try {
-          ProjectDto project = projectService.getProject(workFlow.getProjectId());
-          project.setManager(managers);
-          project.setParticipator(participators);
-          projectService.updateProjectNoReturn(project);
-          workFlowEntity.setProjectId(project.getId());
-          participators.addAll(managers);
-          workFlowEntity.setParticipator(participators);
-        } catch (EntityNotFoundException e) {
-          throw new IllegalArgumentException("Process project does not exist");
+      // An update keeps the process's space, which the Service checked, and so
+      // its participants; it never rewrites the members of its task project,
+      // which other processes may feed
+      WorkFlowEntity storedWorkFlowEntity = workFlowDAO.find(workFlowEntity.getId());
+      if (storedWorkFlowEntity != null) {
+        if (workFlowEntity.getSpaceId() == null) {
+          // A client that does not state the space keeps the stored one
+          workFlowEntity.setSpaceId(storedWorkFlowEntity.getSpaceId());
         }
-      } else {
-        workFlowEntity.setParticipator(workFlowDAO.find(workFlowEntity.getId()).getParticipator());
+        if (workFlowEntity.getSpaceId() != null && !workFlowEntity.getSpaceId().equals(storedWorkFlowEntity.getSpaceId())) {
+          // A space the Service let a process take, its former one being
+          // unknown, gives the process that space's participants
+          workFlowEntity.setParticipator(getSpaceParticipators(String.valueOf(workFlowEntity.getSpaceId())));
+        } else {
+          workFlowEntity.setParticipator(storedWorkFlowEntity.getParticipator());
+        }
       }
       workFlowEntity.setManager(getManagers(workFlow.getRequestsCreators()));
       workFlowEntity = workFlowDAO.update(workFlowEntity);
