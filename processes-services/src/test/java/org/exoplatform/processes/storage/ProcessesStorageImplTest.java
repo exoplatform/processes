@@ -318,6 +318,37 @@ public class ProcessesStorageImplTest {
     assertEquals(Long.valueOf(8L), sentWithASpace.getSpaceId());
   }
 
+  /**
+   * A process created in an existing project keeps it, creates no project,
+   * and gets the managing space's two memberships as participants, which an
+   * existing-project creation would otherwise leave empty. Mutation: write the
+   * participants only when a project is created and this test fails.
+   *
+   * @throws EntityNotFoundException never, the mocks throw nothing
+   */
+  @Test
+  public void aProcessCreatedInAnExistingProjectGetsTheSpaceAsParticipants() throws EntityNotFoundException {
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setProjectId(9L);
+    workFlow.setSpaceId("3");
+    workFlow.setRequestsCreators(new ArrayList<>());
+    when(identityManager.getIdentity(1L)).thenReturn(mock(Identity.class));
+    Space space = mock(Space.class);
+    when(space.getGroupId()).thenReturn("/spaces/hr");
+    when(spaceService.getSpaceById("3")).thenReturn(space);
+    USER_UTIL.when(() -> UserUtil.getSpaceMemberships("/spaces/hr")).thenReturn(Arrays.asList("manager:/spaces/hr", "member:/spaces/hr"));
+    WorkFlowEntity sent = new WorkFlowEntity();
+    sent.setProjectId(9L);
+    ENTITY_MAPPER.when(() -> EntityMapper.toEntity(workFlow)).thenReturn(sent);
+    when(workFlowDAO.create(any(WorkFlowEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    processesStorage.saveWorkFlow(workFlow, 1L);
+
+    assertEquals(Long.valueOf(9L), sent.getProjectId());
+    assertEquals(new HashSet<>(Arrays.asList("manager:/spaces/hr", "member:/spaces/hr")), sent.getParticipator());
+    verify(projectService, never()).createProject(any());
+  }
+
   @Test
   public void countWorksByWorkflow() throws Exception {
     processesStorage.countWorksByWorkflow(1L, false);

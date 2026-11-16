@@ -18,6 +18,7 @@ package org.exoplatform.processes.storage;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.file.services.FileStorageException;
@@ -63,6 +64,16 @@ public interface ProcessesStorage {
   WorkFlow getWorkFlowById(long id, Long userIdentityId);
 
   WorkFlow getWorkFlowByProjectId(long projectId);
+
+  /**
+   * Reads the processes of a space that feed some task projects, by title, the
+   * ids being read in chunks the database accepts as parameters.
+   *
+   * @param projectIds the task project ids
+   * @param spaceId the managing space id the processes must have
+   * @return the processes of each project that has some
+   */
+  Map<Long, List<ProcessReference>> findProcessesOfProjects(List<Long> projectIds, long spaceId);
 
   WorkFlow saveWorkFlow(WorkFlow workFlow, long userId) throws IllegalArgumentException;
 
