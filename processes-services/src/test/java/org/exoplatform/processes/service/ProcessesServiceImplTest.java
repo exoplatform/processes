@@ -584,7 +584,7 @@ public class ProcessesServiceImplTest {
     verify(processesStorage, times(0)).saveWork(work, 1L);
 
     work.setId(0L);
-    work.setProjectId(PROCESS_PROJECT_ID);
+    work.setWorkFlowId(WORKFLOW_ID);
     when(processesStorage.getWorkFlowById(WORKFLOW_ID, CREATOR_ID)).thenReturn(requestableWorkFlow(true, true));
     processesService.createWork(work, CREATOR_ID);
     verify(processesStorage, times(1)).saveWork(work, CREATOR_ID);
@@ -598,7 +598,7 @@ public class ProcessesServiceImplTest {
   @Test
   public void createWorkIsRefusedWhenUserCantAddRequest() {
     Work work = new Work();
-    work.setProjectId(PROCESS_PROJECT_ID);
+    work.setWorkFlowId(WORKFLOW_ID);
     when(processesStorage.getWorkFlowById(WORKFLOW_ID, NON_MEMBER_ID)).thenReturn(requestableWorkFlow(true, false));
 
     assertThrows(IllegalAccessException.class, () -> processesService.createWork(work, NON_MEMBER_ID));
@@ -612,20 +612,53 @@ public class ProcessesServiceImplTest {
   @Test
   public void createWorkIsRefusedWhenStoredWorkflowIsDisabled() {
     Work work = new Work();
-    work.setProjectId(PROCESS_PROJECT_ID);
+    work.setWorkFlowId(WORKFLOW_ID);
     when(processesStorage.getWorkFlowById(WORKFLOW_ID, CREATOR_ID)).thenReturn(requestableWorkFlow(false, true));
 
     assertThrows(IllegalArgumentException.class, () -> processesService.createWork(work, CREATOR_ID));
     verify(processesStorage, never()).saveWork(any(), anyLong());
   }
 
+  /**
+   * A request names its process: one that does not exist is not found, and no
+   * process at all is refused with its message code, whatever project the
+   * client names. Mutation: resolve the process from the project again and
+   * this test fails.
+   */
   @Test
-  public void createWorkIsRefusedOnNonProcessProject() {
+  public void createWorkIsRefusedWithoutAnExistingProcess() {
     Work work = new Work();
-    work.setProjectId(OTHER_PROJECT_ID);
+    work.setWorkFlowId(UNKNOWN_ID);
+    work.setProjectId(PROCESS_PROJECT_ID);
 
     assertThrows(ObjectNotFoundException.class, () -> processesService.createWork(work, CREATOR_ID));
+    work.setWorkFlowId(0);
+    IllegalArgumentException refusal = assertThrows(IllegalArgumentException.class,
+                                                    () -> processesService.createWork(work, CREATOR_ID));
+    assertEquals("processes.request.workflowRequired", refusal.getMessage());
     verify(processesStorage, never()).saveWork(any(), anyLong());
+  }
+
+  /**
+   * A request goes to its process's stored project, never to the project the
+   * client names, which may be a project several processes share. Mutation:
+   * keep the client's project id and this test fails.
+   *
+   * @throws Exception on an unexpected refusal
+   */
+  @Test
+  public void createWorkGoesToTheProcessStoredProject() throws Exception {
+    Work work = new Work();
+    work.setWorkFlowId(WORKFLOW_ID);
+    work.setProjectId(OTHER_PROJECT_ID);
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, CREATOR_ID)).thenReturn(requestableWorkFlow(true, true));
+
+    processesService.createWork(work, CREATOR_ID);
+
+    ArgumentCaptor<Work> saved = ArgumentCaptor.forClass(Work.class);
+    verify(processesStorage).saveWork(saved.capture(), eq(CREATOR_ID));
+    assertEquals(PROCESS_PROJECT_ID, saved.getValue().getProjectId());
+    assertEquals(WORKFLOW_ID, saved.getValue().getWorkFlowId());
   }
 
   /**
@@ -636,7 +669,7 @@ public class ProcessesServiceImplTest {
   @Test
   public void createWorkIsRefusedFromAnotherUserDraft() {
     Work work = new Work();
-    work.setProjectId(PROCESS_PROJECT_ID);
+    work.setWorkFlowId(WORKFLOW_ID);
     work.setDraftId(DRAFT_ID);
     when(processesStorage.getWorkFlowById(WORKFLOW_ID, NON_MEMBER_ID)).thenReturn(requestableWorkFlow(true, true));
     when(processesStorage.getWorkDraftyId(DRAFT_ID)).thenReturn(storedDraft(CREATOR_ID));
@@ -656,7 +689,7 @@ public class ProcessesServiceImplTest {
     List<Attachment> sentAttachments = Collections.singletonList(attachment("foreign"));
     List<Attachment> draftAttachments = new ArrayList<>(Collections.singletonList(attachment("drafted")));
     Work work = new Work();
-    work.setProjectId(PROCESS_PROJECT_ID);
+    work.setWorkFlowId(WORKFLOW_ID);
     work.setDraftId(DRAFT_ID);
     work.setAttachments(sentAttachments);
     when(processesStorage.getWorkFlowById(WORKFLOW_ID, CREATOR_ID)).thenReturn(requestableWorkFlow(true, true));
@@ -682,14 +715,16 @@ public class ProcessesServiceImplTest {
   @Test
   public void createWorkIsRefusedFromADraftOfAnotherProcess() throws Exception {
     Work work = new Work();
-    work.setProjectId(PROCESS_PROJECT_ID);
+    work.setWorkFlowId(WORKFLOW_ID);
     work.setDraftId(DRAFT_ID);
     Work otherProcessDraft = storedDraft(CREATOR_ID);
     otherProcessDraft.getWorkFlow().setId(WORKFLOW_ID + 1);
     when(processesStorage.getWorkFlowById(WORKFLOW_ID, CREATOR_ID)).thenReturn(requestableWorkFlow(true, true));
     when(processesStorage.getWorkDraftyId(DRAFT_ID)).thenReturn(otherProcessDraft);
 
-    assertThrows(IllegalArgumentException.class, () -> processesService.createWork(work, CREATOR_ID));
+    IllegalArgumentException refusal = assertThrows(IllegalArgumentException.class,
+                                                    () -> processesService.createWork(work, CREATOR_ID));
+    assertEquals("processes.request.draftMismatch", refusal.getMessage());
     verify(processesAttachmentService, never()).selectRequestAttachments(anyLong(), anyLong(), anyLong(), anyLong(), any());
     verify(processesStorage, never()).saveWork(any(), anyLong());
   }
@@ -702,7 +737,7 @@ public class ProcessesServiceImplTest {
   @Test
   public void createWorkIsRefusedWhenADraftAttachmentIsNotReadable() throws Exception {
     Work work = new Work();
-    work.setProjectId(PROCESS_PROJECT_ID);
+    work.setWorkFlowId(WORKFLOW_ID);
     work.setDraftId(DRAFT_ID);
     when(processesStorage.getWorkFlowById(WORKFLOW_ID, CREATOR_ID)).thenReturn(requestableWorkFlow(true, true));
     when(processesStorage.getWorkDraftyId(DRAFT_ID)).thenReturn(storedDraft(CREATOR_ID));

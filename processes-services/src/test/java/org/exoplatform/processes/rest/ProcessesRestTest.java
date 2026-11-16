@@ -402,6 +402,8 @@ public class ProcessesRestTest {
     workEntity.toString();
     Response response2 = processesRest.createWork(workEntity);
     assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response2.getStatus());
+    assertEquals("processes.request.workflowRequired", response2.getEntity());
+    workEntity.getWorkFlow().setId(5L);
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
     workEntity.setProjectId(1L);
     workEntity.getWorkFlow().setProjectId(1L);
@@ -434,6 +436,7 @@ public class ProcessesRestTest {
     WorkEntity workEntity = new WorkEntity();
     Work work = mock(Work.class);
     WorkFlowEntity workFlowEntity = new WorkFlowEntity();
+    workFlowEntity.setId(5L);
     workFlowEntity.setCanShowPending(true);
     workFlowEntity.setParentSpace(null);
     workEntity.setWorkFlow(workFlowEntity);

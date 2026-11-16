@@ -347,7 +347,7 @@ public class ProcessesMcpToolTest {
     ArgumentCaptor<Work> captor = ArgumentCaptor.forClass(Work.class);
     verify(processesService).createWork(captor.capture(), eq(1L));
     assertEquals("New request", captor.getValue().getTitle());
-    assertEquals(42L, captor.getValue().getProjectId());
+    assertEquals("the request names its process, which decides its project", 5L, captor.getValue().getWorkFlowId());
     assertEquals("", captor.getValue().getDescription());
   }
 

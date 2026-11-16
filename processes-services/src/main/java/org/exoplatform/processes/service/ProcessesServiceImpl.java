@@ -253,7 +253,11 @@ public class ProcessesServiceImpl implements ProcessesService {
     return processesStorage.getWorks(userIdentityId, workFilter, offset, limit);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
+  @Deprecated(since = "7.3.0.50", forRemoval = true)
   public WorkFlow getWorkFlowByProjectId(long projectId) {
     return processesStorage.getWorkFlowByProjectId(projectId);
   }
@@ -269,15 +273,20 @@ public class ProcessesServiceImpl implements ProcessesService {
     if (work.getId() != 0) {
       throw new IllegalArgumentException("work id must be equal to 0");
     }
-    WorkFlow workFlow = checkCanAddRequest(getWorkFlowIdByProjectId(work.getProjectId()), userId);
+    if (work.getWorkFlowId() <= 0) {
+      throw new IllegalArgumentException("processes.request.workflowRequired");
+    }
+    WorkFlow workFlow = checkCanAddRequest(work.getWorkFlowId(), userId);
     if (!workFlow.isEnabled()) {
       throw new IllegalArgumentException("Workflow is disabled");
     }
+    // The request goes to its process's stored project, whatever project the
+    // client named
+    work.setProjectId(workFlow.getProjectId());
     if (work.getDraftId() != null) {
       Work draft = getOwnWorkDraft(work.getDraftId(), userId);
       if (draft.getWorkFlow() == null || draft.getWorkFlow().getId() != workFlow.getId()) {
-        throw new IllegalArgumentException("The request draft " + work.getDraftId() + " isn't a draft of the process "
-            + workFlow.getId());
+        throw new IllegalArgumentException("processes.request.draftMismatch");
       }
       // The request takes its draft's stored attachments, never the ones the client names
       work.setAttachments(processesAttachmentService.selectRequestAttachments(userId,
@@ -657,14 +666,6 @@ public class ProcessesServiceImpl implements ProcessesService {
         statusService.createStatus(project, statusName);
       }
     }
-  }
-
-  private long getWorkFlowIdByProjectId(long projectId) throws ObjectNotFoundException {
-    WorkFlow workFlow = processesStorage.getWorkFlowByProjectId(projectId);
-    if (workFlow == null) {
-      throw new ObjectNotFoundException("No process found for project " + projectId);
-    }
-    return workFlow.getId();
   }
 
   private WorkFlow checkCanAddRequest(long workFlowId, long userIdentityId) throws ObjectNotFoundException,

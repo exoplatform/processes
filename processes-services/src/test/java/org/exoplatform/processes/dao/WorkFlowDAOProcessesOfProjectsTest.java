@@ -132,6 +132,18 @@ public class WorkFlowDAOProcessesOfProjectsTest {
   }
 
   /**
+   * The deprecated lookup of a process by its project answers the process of
+   * lowest id once several share the project, where a single-result read would
+   * throw. Mutation: go back to getSingleResult and this test fails.
+   */
+  @Test
+  @SuppressWarnings("removal")
+  public void theLookupByProjectAnswersTheFirstProcessOfASharedProject() {
+    assertEquals(Long.valueOf(trainingRequest), workFlowDAO.getWorkFlowByProjectId(10L).getId());
+    assertEquals(null, workFlowDAO.getWorkFlowByProjectId(12L));
+  }
+
+  /**
    * No project id reads nothing and sends no query with an empty list.
    */
   @Test

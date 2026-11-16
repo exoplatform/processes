@@ -63,6 +63,16 @@ public interface ProcessesStorage {
 
   WorkFlow getWorkFlowById(long id, Long userIdentityId);
 
+  /**
+   * Reads the first process feeding a task project.
+   *
+   * @param projectId the task project id
+   * @return the process of lowest id feeding it, or null when none does
+   * @deprecated a task project may now be fed by several processes: read the
+   *             process of a request from its request record instead. Since
+   *             7.3.0.50, for removal.
+   */
+  @Deprecated(since = "7.3.0.50", forRemoval = true)
   WorkFlow getWorkFlowByProjectId(long projectId);
 
   /**

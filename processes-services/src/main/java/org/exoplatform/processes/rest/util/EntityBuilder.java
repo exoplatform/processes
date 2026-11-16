@@ -189,7 +189,17 @@ public class EntityBuilder {
     }
   }
 
-  public static Work toWork(ProcessesService processesService, WorkEntity workEntity) {
+  /**
+   * Builds the request a REST body describes. The process it is submitted to is
+   * the body's workFlow id; the project id the body names is never kept: a new
+   * request goes to its process's stored project, and an updated one stays in
+   * its own.
+   *
+   * @param processesService the processes service, unused
+   * @param workEntity the REST body
+   * @return the request, or null when no body is given
+   */
+  public static Work toWork(ProcessesService processesService, WorkEntity workEntity) { // NOSONAR the signature is the callers'
     if (workEntity == null) {
       return null;
     }
@@ -206,17 +216,10 @@ public class EntityBuilder {
                          null,
                          workEntity.getIsDraft(),
                          workEntity.getDraftId(),
-                         workEntity.getProjectId());
+                         0);
     work.setAttachments(workEntity.getAttachments());
     if (workEntity.getWorkFlow() != null) {
-      try {
-        WorkFlow workFlow = processesService.getWorkFlow(workEntity.getWorkFlow().getId(), null);
-        if (workFlow != null) {
-          work.setProjectId(workFlow.getProjectId());
-        }
-      } catch (IllegalAccessException e) {
-        LOG.warn("cannot get workFlow of work {}", work.getId());
-      }
+      work.setWorkFlowId(workEntity.getWorkFlow().getId());
     }
     return work;
   }
@@ -248,9 +251,31 @@ public class EntityBuilder {
       LOG.warn("Work description cannot be sanitized", e);
     }
     if (expandProperties.contains("workFlow")) {
-      workEntity.setWorkFlow(toEntity(processesService.getWorkFlowByProjectId(work.getProjectId()), ""));
+      workEntity.setWorkFlow(toEntity(getWorkFlowOfWork(processesService, work), ""));
     }
     return workEntity;
+  }
+
+  /**
+   * Reads the process a request belongs to, for its display: the process it was
+   * created for when the request names it, else the first process of its
+   * project. The read is the platform's own, so its permissions are all false.
+   *
+   * @param processesService the processes service
+   * @param work the request
+   * @return the process, or null when none is found
+   */
+  @SuppressWarnings("removal")
+  private static WorkFlow getWorkFlowOfWork(ProcessesService processesService, Work work) {
+    if (work.getWorkFlowId() > 0) {
+      try {
+        return processesService.getWorkFlow(work.getWorkFlowId(), null);
+      } catch (IllegalAccessException e) {
+        LOG.debug("The process {} of the request {} cannot be read", work.getWorkFlowId(), work.getId(), e);
+        return null;
+      }
+    }
+    return processesService.getWorkFlowByProjectId(work.getProjectId());
   }
 
   public static WorkEntity toEntity(Work work) {
