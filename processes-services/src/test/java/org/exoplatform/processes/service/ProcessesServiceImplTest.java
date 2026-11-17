@@ -10,12 +10,16 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -42,6 +46,7 @@ import org.exoplatform.processes.storage.ProcessesStorage;
 import org.exoplatform.services.attachments.model.Attachment;
 import org.exoplatform.services.security.MembershipEntry;
 import org.exoplatform.social.core.identity.model.Identity;
+import org.exoplatform.social.core.identity.model.Profile;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
@@ -669,6 +674,67 @@ public class ProcessesServiceImplTest {
   }
 
   /**
+   * A request is named by the fixed rule from its stored process's title, the
+   * creation date and the requester's full name, whatever title the client
+   * sent: the REST path gives no agent title. Mutation: keep the client's
+   * title and this test fails.
+   *
+   * @throws Exception on an unexpected refusal
+   */
+  @Test
+  public void createWorkNamesTheRequestByTheFixedRule() throws Exception {
+    Work work = new Work();
+    work.setWorkFlowId(WORKFLOW_ID);
+    work.setTitle("A title from the client");
+    WorkFlow workFlow = requestableWorkFlow(true, true);
+    workFlow.setTitle("Leave request");
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, CREATOR_ID)).thenReturn(workFlow);
+    withFullName(CREATOR_ID, "Jean Martin");
+
+    String before = today();
+    processesService.createWork(work, CREATOR_ID);
+    String after = today();
+
+    ArgumentCaptor<Work> saved = ArgumentCaptor.forClass(Work.class);
+    verify(processesStorage).saveWork(saved.capture(), eq(CREATOR_ID));
+    String title = saved.getValue().getTitle();
+    assertTrue(title, title.equals("Leave request - " + before + " - Jean Martin")
+        || title.equals("Leave request - " + after + " - Jean Martin"));
+  }
+
+  /**
+   * The AI agent's title goes after the fixed rule; a renamed process names
+   * the next request with its new title. Mutation: put the agent title first,
+   * or read the process title once, and this test fails.
+   *
+   * @throws Exception on an unexpected refusal
+   */
+  @Test
+  public void createWorkAddsTheAgentTitleAfterTheFixedRule() throws Exception {
+    WorkFlow workFlow = requestableWorkFlow(true, true);
+    workFlow.setTitle("Leave request");
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, CREATOR_ID)).thenReturn(workFlow);
+    withFullName(CREATOR_ID, "Jean Martin");
+    Work work = new Work();
+    work.setWorkFlowId(WORKFLOW_ID);
+
+    processesService.createWork(work, CREATOR_ID, "Summer\nholidays");
+    WorkFlow renamed = requestableWorkFlow(true, true);
+    renamed.setTitle("Holiday request");
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, CREATOR_ID)).thenReturn(renamed);
+    Work next = new Work();
+    next.setWorkFlowId(WORKFLOW_ID);
+    processesService.createWork(next, CREATOR_ID, "  ");
+
+    ArgumentCaptor<Work> saved = ArgumentCaptor.forClass(Work.class);
+    verify(processesStorage, times(2)).saveWork(saved.capture(), eq(CREATOR_ID));
+    assertTrue(saved.getAllValues().get(0).getTitle(),
+               saved.getAllValues().get(0).getTitle().matches("Leave request - \\d{4}/\\d{2}/\\d{2} - Jean Martin - Summer holidays"));
+    assertTrue(saved.getAllValues().get(1).getTitle(),
+               saved.getAllValues().get(1).getTitle().matches("Holiday request - \\d{4}/\\d{2}/\\d{2} - Jean Martin"));
+  }
+
+  /**
    * Creating a request from a draft moves the draft's attachments and deletes
    * it: the draft must be the user's own. Mutation: drop the draft check and
    * this test fails.
@@ -688,8 +754,10 @@ public class ProcessesServiceImplTest {
   /**
    * A request created from a draft takes the attachments selected among the
    * draft's stored ones for the draft's process, and never the list the
-   * client sent. Mutation: hand the storage the client's list, or select for
-   * another process id, and this test fails.
+   * client sent; it is named by the fixed rule, whatever title the client
+   * sent. Mutation: hand the storage the client's list, select for another
+   * process id, or name only a request made without a draft, and this test
+   * fails.
    */
   @Test
   public void createWorkFromDraftTakesTheSelectedDraftAttachments() throws Exception {
@@ -699,7 +767,11 @@ public class ProcessesServiceImplTest {
     work.setWorkFlowId(WORKFLOW_ID);
     work.setDraftId(DRAFT_ID);
     work.setAttachments(sentAttachments);
-    when(processesStorage.getWorkFlowById(WORKFLOW_ID, CREATOR_ID)).thenReturn(requestableWorkFlow(true, true));
+    work.setTitle("A title from the draft");
+    WorkFlow workFlow = requestableWorkFlow(true, true);
+    workFlow.setTitle("Leave request");
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, CREATOR_ID)).thenReturn(workFlow);
+    withFullName(CREATOR_ID, "Jean Martin");
     when(processesStorage.getWorkDraftyId(DRAFT_ID)).thenReturn(storedDraft(CREATOR_ID));
     when(processesAttachmentService.selectRequestAttachments(CREATOR_ID,
                                                              DRAFT_ID,
@@ -712,6 +784,8 @@ public class ProcessesServiceImplTest {
     ArgumentCaptor<Work> saved = ArgumentCaptor.forClass(Work.class);
     verify(processesStorage).saveWork(saved.capture(), eq(CREATOR_ID));
     assertEquals(draftAttachments, saved.getValue().getAttachments());
+    assertTrue(saved.getValue().getTitle(),
+               saved.getValue().getTitle().matches("Leave request - \\d{4}/\\d{2}/\\d{2} - Jean Martin"));
   }
 
   /**
@@ -1183,6 +1257,28 @@ public class ProcessesServiceImplTest {
     identity.setId(String.valueOf(identityId));
     identity.setEnable(enabled);
     return identity;
+  }
+
+  /**
+   * Gives a mocked user a profile with a full name.
+   *
+   * @param identityId the user's identity id
+   * @param fullName the full name
+   */
+  private void withFullName(long identityId, String fullName) {
+    Identity identity = identityManager.getIdentity(identityId);
+    Profile profile = mock(Profile.class);
+    when(profile.getFullName()).thenReturn(fullName);
+    identity.setProfile(profile);
+  }
+
+  /**
+   * Formats today, in the server's time zone, as a request title does.
+   *
+   * @return the date
+   */
+  private static String today() {
+    return LocalDate.now(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
   }
 
   private Attachment attachment(String id) {
