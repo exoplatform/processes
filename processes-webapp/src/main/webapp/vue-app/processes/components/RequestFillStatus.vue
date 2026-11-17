@@ -59,12 +59,22 @@ export default {
     },
   },
   computed: {
+    /**
+     * @returns {Number} how many required values are still missing
+     */
     missingCount() {
       return (this.fill.missing || []).length;
     },
+    /**
+     * @returns {Number} the share of the fields holding a value, in percent
+     */
     filledPercent() {
       return this.fill.total ? Math.round(this.fill.filled * 100 / this.fill.total) : 0;
     },
+    /**
+     * @returns {String} the missing values' count and names, or that the
+     *          request is ready
+     */
     missingText() {
       if (!this.missingCount) {
         return this.$t('processes.request.fill.ready');

@@ -81,9 +81,15 @@ export default {
     },
   },
   computed: {
+    /**
+     * @returns {Number} how many required values are still missing
+     */
     requiredMissing() {
       return (this.fill.missing || []).length;
     },
+    /**
+     * @returns {String} the tooltip of a Submit held back by missing values
+     */
     submitTip() {
       const key = this.requiredMissing > 1 ? 'processes.request.fill.submitTip' : 'processes.request.fill.submitTipOne';
       return this.$t(key, {0: this.requiredMissing});

@@ -32,13 +32,17 @@ export default {
   }),
   computed: {
     /**
-     * True once there is a draft, or an input that creates one: the draft
-     * mixin's own creation rule, so an empty request never gets a draft.
+     * True once there is a draft whose description the draft mixin may send,
+     * or an input that creates one: the draft mixin's own creation rule, so
+     * an empty request never gets a draft.
      *
      * @returns {Boolean} true when « Save as draft » may run
      */
     canSaveAsDraft() {
-      return !this.saving && !this.savingAsDraft && (this.hasDraft || this.descriptionHasText || this.sectionsChanged);
+      if (this.saving || this.savingAsDraft) {
+        return false;
+      }
+      return this.hasDraft ? this.emptyOrValidWorkDescription : this.descriptionHasText || this.sectionsChanged;
     },
   },
   methods: {
@@ -85,7 +89,10 @@ export default {
             return;
           }
           this.$root.$emit('show-alert', {type: 'success', message: this.$t('processes.request.draftSaved')});
-          this.close();
+          if (this.$refs.work && this.$refs.work.drawer) {
+            // A drawer the user closed meanwhile has already finished its close
+            this.close();
+          }
         })
         .catch(() => null)
         .finally(() => {
