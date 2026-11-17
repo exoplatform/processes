@@ -101,6 +101,8 @@ public class ProcessesServiceImpl implements ProcessesService {
 
   private final ListenerService  listenerService;
 
+  private final ProcessTranslationService processTranslationService;
+
   /**
    * Builds the processes service.
    *
@@ -113,6 +115,7 @@ public class ProcessesServiceImpl implements ProcessesService {
    * @param statusService the Task add-on's status service
    * @param labelService the Task add-on's label service
    * @param listenerService the listener service
+   * @param processTranslationService the per-language texts of a process
    */
   public ProcessesServiceImpl(ProcessesStorage processesStorage,
                               ProjectService projectService,
@@ -122,7 +125,8 @@ public class ProcessesServiceImpl implements ProcessesService {
                               ProcessesAttachmentService processesAttachmentService,
                               StatusService statusService,
                               LabelService labelService,
-                              ListenerService listenerService) {
+                              ListenerService listenerService,
+                              ProcessTranslationService processTranslationService) {
     this.processesStorage = processesStorage;
     this.projectService = projectService;
     this.identityManager = identityManager;
@@ -132,6 +136,7 @@ public class ProcessesServiceImpl implements ProcessesService {
     this.statusService = statusService;
     this.labelService = labelService;
     this.listenerService = listenerService;
+    this.processTranslationService = processTranslationService;
   }
 
   @Override
@@ -404,6 +409,7 @@ public class ProcessesServiceImpl implements ProcessesService {
     }
     WorkFlow savedWorkFlow = saveWorkFlowRows(workFlow, userId, labelChoices);
     processesStorage.linkWorkFlowAttachments(savedWorkFlow, workFlow.getAttachments(), userId);
+    processTranslationService.keepDefaultLanguage(savedWorkFlow);
     return savedWorkFlow;
   }
 
@@ -680,6 +686,7 @@ public class ProcessesServiceImpl implements ProcessesService {
       throw new IllegalAccessException("User " + userIdentityId + " isn't allowed to delete the process " + workflowId);
     }
     this.processesStorage.deleteWorkflowById(workflowId);
+    processTranslationService.deleteTranslations(workflowId);
   }
 
   /**

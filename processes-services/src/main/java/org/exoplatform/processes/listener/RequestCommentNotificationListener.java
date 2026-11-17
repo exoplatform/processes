@@ -43,6 +43,13 @@ public class RequestCommentNotificationListener extends TaskCommentNotificationL
     this.processesService = processesService;
   }
 
+  /**
+   * Notifies a request's creator of a comment on it, naming its process by
+   * its stored title and by its id.
+   *
+   * @param event the commented task and the comment
+   * @throws Exception when the notification can't be sent
+   */
   @Override
   public void onEvent(Event<TaskDto, CommentDto> event) throws Exception {
     CommentDto comment = event.getData();
@@ -56,6 +63,7 @@ public class RequestCommentNotificationListener extends TaskCommentNotificationL
     ctx.append(NotificationArguments.REQUEST_CREATOR, task.getCreatedBy());
     ctx.append(NotificationArguments.REQUEST_TITLE, task.getTitle());
     ctx.append(NotificationArguments.REQUEST_PROCESS, workFlow.getTitle());
+    ctx.append(NotificationArguments.WORKFLOW_ID, String.valueOf(workFlow.getId()));
     ctx.append(NotificationArguments.REQUEST_COMMENT_AUTHOR, comment.getAuthor());
     ctx.append(NotificationArguments.REQUEST_COMMENT, MentionUtils.substituteUsernames(getPortalOwner(), comment.getComment()));
     ctx.append(NotificationArguments.PROCESS_URL, NotificationUtils.getProcessLink(project.getId()));

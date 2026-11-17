@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 import org.apache.commons.collections.CollectionUtils;
@@ -33,6 +34,7 @@ import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.rest.model.WorkEntity;
 import org.exoplatform.processes.rest.model.WorkFlowEntity;
+import org.exoplatform.processes.service.ProcessTranslationService;
 import org.exoplatform.processes.service.ProcessesService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -128,6 +130,34 @@ public class EntityBuilder {
    * @return the REST view, or null when no process is given
    */
   public static WorkFlowEntity toEntity(WorkFlow workFlow, String expand) {
+    return toEntity(workFlow, expand, null);
+  }
+
+  /**
+   * Builds the REST view of a process in a reader's language, with its
+   * project's statuses and its managing space.
+   *
+   * @param workFlow the process
+   * @param expand the properties to expand, none is supported yet
+   * @param locale the reader's language, or null for the stored texts
+   * @return the REST view, or null when no process is given
+   */
+  public static WorkFlowEntity toEntity(WorkFlow workFlow, String expand, Locale locale) {
+    WorkFlowEntity workFlowEntity = newEntity(workFlow, expand);
+    if (workFlowEntity != null) {
+      translate(workFlowEntity, workFlow, locale);
+    }
+    return workFlowEntity;
+  }
+
+  /**
+   * Builds the REST view of a process with its stored texts.
+   *
+   * @param workFlow the process
+   * @param expand the properties to expand, none is supported yet
+   * @return the REST view, or null when no process is given
+   */
+  private static WorkFlowEntity newEntity(WorkFlow workFlow, String expand) {
     if (workFlow == null) {
       return null;
     }
@@ -160,6 +190,24 @@ public class EntityBuilder {
   }
 
   /**
+   * Puts a process's title, description and summary in a reader's language on
+   * its REST view, leaving the process itself as stored.
+   *
+   * @param workFlowEntity the REST view
+   * @param workFlow the process, as stored
+   * @param locale the reader's language, or null to keep the stored texts
+   */
+  private static void translate(WorkFlowEntity workFlowEntity, WorkFlow workFlow, Locale locale) {
+    if (locale == null) {
+      return;
+    }
+    ProcessTranslationService processTranslationService = CommonsUtils.getService(ProcessTranslationService.class);
+    workFlowEntity.setTitle(processTranslationService.getTitle(workFlow, locale));
+    workFlowEntity.setDescription(processTranslationService.getDescription(workFlow, locale));
+    workFlowEntity.setSummary(processTranslationService.getSummary(workFlow, locale));
+  }
+
+  /**
    * Reads the managing space a process is shown with: its stored space, else,
    * for a process stored before it had one, the space of its task project, so
    * that the editor sends back the space the update checks against.
@@ -177,7 +225,26 @@ public class EntityBuilder {
     return ProcessesUtils.getProjectParentSpace(workFlow.getProjectId());
   }
 
+  /**
+   * Builds the short REST view of a process, the one a request draft carries,
+   * with its stored texts.
+   *
+   * @param workFlow the process
+   * @return the REST view, or null when no process is given
+   */
   public static WorkFlowEntity toEntity(WorkFlow workFlow) {
+    return toEntity(workFlow, (Locale) null);
+  }
+
+  /**
+   * Builds the short REST view of a process, the one a request draft carries,
+   * in a reader's language.
+   *
+   * @param workFlow the process
+   * @param locale the reader's language, or null for the stored texts
+   * @return the REST view, or null when no process is given
+   */
+  public static WorkFlowEntity toEntity(WorkFlow workFlow, Locale locale) {
     if (workFlow == null) {
       return null;
     }
@@ -197,6 +264,7 @@ public class EntityBuilder {
     workFlowEntity.setProjectId(workFlow.getProjectId());
     workFlowEntity.setIllustrativeAttachment(workFlow.getIllustrativeAttachment());
     workFlowEntity.setAcl(workFlow.getAcl());
+    translate(workFlowEntity, workFlow, locale);
     return workFlowEntity;
   }
 
@@ -209,12 +277,31 @@ public class EntityBuilder {
     }
   }
 
+  /**
+   * Builds the REST views of processes with their stored texts.
+   *
+   * @param workFlowList the processes
+   * @param expand the properties to expand
+   * @return the REST views
+   */
   public static List<WorkFlowEntity> toRestEntities(List<WorkFlow> workFlowList, String expand) {
+    return toRestEntities(workFlowList, expand, null);
+  }
+
+  /**
+   * Builds the REST views of processes in a reader's language.
+   *
+   * @param workFlowList the processes
+   * @param expand the properties to expand
+   * @param locale the reader's language, or null for the stored texts
+   * @return the REST views
+   */
+  public static List<WorkFlowEntity> toRestEntities(List<WorkFlow> workFlowList, String expand, Locale locale) {
     if (CollectionUtils.isEmpty(workFlowList)) {
       return new ArrayList<>(Collections.emptyList());
     } else {
       List<WorkFlowEntity> workFlowEntities = workFlowList.stream()
-                                                          .map(workFlow -> toEntity(workFlow, expand))
+                                                          .map(workFlow -> toEntity(workFlow, expand, locale))
                                                           .collect(Collectors.toList());
       return workFlowEntities;
     }
@@ -255,7 +342,30 @@ public class EntityBuilder {
     return work;
   }
 
+  /**
+   * Builds the REST view of a request, its expanded process with its stored
+   * texts.
+   *
+   * @param processesService the processes service
+   * @param work the request
+   * @param expand the properties to expand
+   * @return the REST view, or null when no request is given
+   */
   public static WorkEntity toWorkEntity(ProcessesService processesService, Work work, String expand) {
+    return toWorkEntity(processesService, work, expand, null);
+  }
+
+  /**
+   * Builds the REST view of a request, its expanded process in a reader's
+   * language.
+   *
+   * @param processesService the processes service
+   * @param work the request
+   * @param expand the properties to expand
+   * @param locale the reader's language, or null for the stored texts
+   * @return the REST view, or null when no request is given
+   */
+  public static WorkEntity toWorkEntity(ProcessesService processesService, Work work, String expand, Locale locale) {
     if (work == null) {
       return null;
     }
@@ -282,7 +392,7 @@ public class EntityBuilder {
       LOG.warn("Work description cannot be sanitized", e);
     }
     if (expandProperties.contains("workFlow")) {
-      workEntity.setWorkFlow(toEntity(getWorkFlowOfWork(processesService, work), ""));
+      workEntity.setWorkFlow(toEntity(getWorkFlowOfWork(processesService, work), "", locale));
     }
     return workEntity;
   }
@@ -309,7 +419,26 @@ public class EntityBuilder {
     return processesService.getWorkFlowByProjectId(work.getProjectId());
   }
 
+  /**
+   * Builds the REST view of a request draft, its process with its stored
+   * texts.
+   *
+   * @param work the draft
+   * @return the REST view, or null when no draft is given
+   */
   public static WorkEntity toEntity(Work work) {
+    return toEntity(work, null);
+  }
+
+  /**
+   * Builds the REST view of a request draft, its process in a reader's
+   * language.
+   *
+   * @param work the draft
+   * @param locale the reader's language, or null for the stored texts
+   * @return the REST view, or null when no draft is given
+   */
+  public static WorkEntity toEntity(Work work, Locale locale) {
     if (work == null) {
       return null;
     }
@@ -322,22 +451,67 @@ public class EntityBuilder {
                           work.getModifiedDate(),
                           work.getTaskId(),
                           work.getIsDraft(),
-                          toEntity(work.getWorkFlow()));
+                          toEntity(work.getWorkFlow(), locale));
   }
 
+  /**
+   * Builds the REST views of requests, their expanded processes with their
+   * stored texts.
+   *
+   * @param processesService the processes service
+   * @param works the requests
+   * @param expand the properties to expand
+   * @return the REST views
+   */
   public static List<WorkEntity> toWorkEntityList(ProcessesService processesService, List<Work> works, String expand) {
+    return toWorkEntityList(processesService, works, expand, null);
+  }
+
+  /**
+   * Builds the REST views of requests, their expanded processes in a reader's
+   * language.
+   *
+   * @param processesService the processes service
+   * @param works the requests
+   * @param expand the properties to expand
+   * @param locale the reader's language, or null for the stored texts
+   * @return the REST views
+   */
+  public static List<WorkEntity> toWorkEntityList(ProcessesService processesService,
+                                                  List<Work> works,
+                                                  String expand,
+                                                  Locale locale) {
     if (CollectionUtils.isEmpty(works)) {
       return new ArrayList<>(Collections.emptyList());
     } else {
-      return works.stream().map(work -> toWorkEntity(processesService, work, expand)).collect(Collectors.toList());
+      return works.stream().map(work -> toWorkEntity(processesService, work, expand, locale)).collect(Collectors.toList());
     }
   }
 
+  /**
+   * Builds the REST views of request drafts, their processes with their
+   * stored texts.
+   *
+   * @param works the drafts
+   * @return the REST views
+   */
   public static List<WorkEntity> toWorkEntityList(List<Work> works) {
+    return toWorkEntityList(works, null);
+  }
+
+  /**
+   * Builds the REST views of request drafts, their processes in a reader's
+   * language.
+   *
+   * @param works the drafts
+   * @param locale the reader's language, or null for the stored texts
+   * @return the REST views
+   */
+  public static List<WorkEntity> toWorkEntityList(List<Work> works, Locale locale) {
     if (CollectionUtils.isEmpty(works)) {
       return new ArrayList<>(Collections.emptyList());
     } else {
-      return works.stream().map(EntityBuilder::toEntity).collect(Collectors.toList());
+      return works.stream().map(work -> toEntity(work, locale)).collect(Collectors.toList());
     }
   }
 

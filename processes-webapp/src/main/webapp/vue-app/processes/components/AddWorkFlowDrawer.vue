@@ -30,50 +30,98 @@
           <v-form
             v-model="valid"
             ref="form1">
-            <v-label for="name">
-              {{ $t('processes.works.form.label.title') }}
-            </v-label>
-            <v-text-field
-              :rules="[rules.required, rules.maxLength(titleMaxLength)]"
-              class="mt-n3 mb-1"
-              name="name"
-              dense
-              outlined
-              v-model="workflow.title"
-              :placeholder="$t('processes.works.form.placeholder.addTitle')" />
+            <translation-text-field
+              ref="titleTranslation"
+              :key="`title-${formKey}`"
+              v-model="translations.title"
+              :field-value.sync="workflow.title"
+              :object-id="translationObjectId"
+              :maxlength="titleMaxLength"
+              object-type="process"
+              field-name="title"
+              drawer-title="processes.workflow.form.translateTitle"
+              back-icon
+              required
+              @initialized="keepOpenedTranslation('title')">
+              <template #title>
+                <v-label for="name">
+                  {{ $t('processes.works.form.label.title') }}
+                </v-label>
+              </template>
+              <v-text-field
+                :rules="[rules.required, rules.maxLength(titleMaxLength)]"
+                class="mt-n3 mb-1"
+                name="name"
+                dense
+                outlined
+                v-model="workflow.title"
+                :placeholder="$t('processes.works.form.placeholder.addTitle')" />
+            </translation-text-field>
             <custom-counter
               :max-length="titleMaxLength"
               :value="workflow.title" />
-            <v-label for="description">
-              {{ $t('processes.works.form.label.presentation') }}
-            </v-label>
-            <v-textarea
-              class="mt-n3 mb-1"
-              dense
-              :rules="[rules.required, rules.maxLength(descriptionMaxLength)]"
-              name="description"
-              v-model="workflow.description"
-              rows="10"
-              outlined
-              auto-grow
-              row-height="8"
-              :placeholder="$t('processes.works.form.placeholder.addPresentation')" />
+            <translation-text-field
+              ref="descriptionTranslation"
+              :key="`description-${formKey}`"
+              v-model="translations.description"
+              :field-value.sync="workflow.description"
+              :object-id="translationObjectId"
+              :maxlength="descriptionMaxLength"
+              object-type="process"
+              field-name="description"
+              drawer-title="processes.workflow.form.translateDescription"
+              back-icon
+              required
+              @initialized="keepOpenedTranslation('description')">
+              <template #title>
+                <v-label for="description">
+                  {{ $t('processes.works.form.label.presentation') }}
+                </v-label>
+              </template>
+              <v-textarea
+                class="mt-n3 mb-1"
+                dense
+                :rules="[rules.required, rules.maxLength(descriptionMaxLength)]"
+                name="description"
+                v-model="workflow.description"
+                rows="10"
+                outlined
+                auto-grow
+                row-height="8"
+                :placeholder="$t('processes.works.form.placeholder.addPresentation')" />
+            </translation-text-field>
             <custom-counter
               :max-length="descriptionMaxLength"
               :value="workflow.description" />
-            <v-label for="summary">
-              {{ $t('processes.works.form.label.summary') }}
-            </v-label>
-            <v-textarea
-              :rules="[rules.required, rules.maxLength(summaryMaxLength)]"
-              class="mt-n3 mb-1"
-              v-model="workflow.summary"
-              name="summary"
-              rows="12"
-              outlined
-              auto-grow
-              row-height="10"
-              :placeholder="$t('processes.works.form.placeholder.addSummary')" />
+            <translation-text-field
+              ref="summaryTranslation"
+              :key="`summary-${formKey}`"
+              v-model="translations.summary"
+              :field-value.sync="workflow.summary"
+              :object-id="translationObjectId"
+              :maxlength="summaryMaxLength"
+              object-type="process"
+              field-name="summary"
+              drawer-title="processes.workflow.form.translateSummary"
+              back-icon
+              required
+              @initialized="keepOpenedTranslation('summary')">
+              <template #title>
+                <v-label for="summary">
+                  {{ $t('processes.works.form.label.summary') }}
+                </v-label>
+              </template>
+              <v-textarea
+                :rules="[rules.required, rules.maxLength(summaryMaxLength)]"
+                class="mt-n3 mb-1"
+                v-model="workflow.summary"
+                name="summary"
+                rows="12"
+                outlined
+                auto-grow
+                row-height="10"
+                :placeholder="$t('processes.works.form.placeholder.addSummary')" />
+            </translation-text-field>
             <custom-counter
               :max-length="summaryMaxLength"
               :value="workflow.summary" />
@@ -382,6 +430,10 @@ export default {
       titleMaxLength: 50,
       descriptionMaxLength: 250,
       summaryMaxLength: 250,
+      // The title, description and summary per language, as the translation
+      // fields edit them, and as they were when the drawer opened
+      translations: {title: {}, description: {}, summary: {}},
+      openedTranslations: {},
       rules: {
         maxLength: len => v => (v || '').length <= len || this.$t('processes.work.form.description.maxLength.message', {0: len}),
         required: v => !!v || this.$t('processes.work.form.required.error.message'),
@@ -422,6 +474,9 @@ export default {
     infoManage() {
       return this.$t('processes.works.form.label.associate.process');
     },
+    translationObjectId() {
+      return this.workflow && this.workflow.id && String(this.workflow.id) || null;
+    },
     workflowParentSpace() {
       return this.workflow && this.workflow.parentSpace;
     },
@@ -445,6 +500,17 @@ export default {
   watch: {
     workflowEnabled(value) {
       this.workflow.enabled = value;
+    },
+    // A translation field showing its own input in its slot is told when the
+    // default-language value is typed there
+    'workflow.title'(value) {
+      this.$refs.titleTranslation?.setValue(value);
+    },
+    'workflow.description'(value) {
+      this.$refs.descriptionTranslation?.setValue(value);
+    },
+    'workflow.summary'(value) {
+      this.$refs.summaryTranslation?.setValue(value);
     },
     illustrativeInput(value) {
       this.handleUpload(value);
@@ -521,14 +587,18 @@ export default {
      * @returns {void}
      */
     open(workflow, mode) {
+      this.translations = {title: {}, description: {}, summary: {}};
+      this.openedTranslations = {};
       if (workflow && workflow.id && mode === 'edit_workflow') {
-        this.$processesService.getWorkflowById(workflow.id, '')
+        // The editor edits the stored default-language texts: the list object
+        // carries them in the user's language, so it is never edited
+        this.$processesService.getWorkflowById(workflow.id, '', false)
           // The read by id names the illustration by its id only, so the list
           // object's illustration is kept, or the save would drop it
           .then(storedWorkflow => this.openWorkflow(Object.assign({}, storedWorkflow, {
             illustrativeAttachment: workflow.illustrativeAttachment,
           }), mode))
-          .catch(() => this.openWorkflow(workflow, mode));
+          .catch(() => this.$root.$emit('show-alert', {type: 'error', message: this.$t('processes.workflow.open.error.message')}));
       } else {
         this.openWorkflow(workflow, mode);
       }
@@ -686,7 +756,7 @@ export default {
      */
     addNewWorkFlow() {
       this.saving = true;
-      this.$root.$emit('add-workflow', this.buildSavePayload());
+      this.$root.$emit('add-workflow', this.buildSavePayload(), this.translationsToSave());
     },
     /**
      * Asks the application to update the process from the form.
@@ -695,7 +765,33 @@ export default {
      */
     updateWorkFlow() {
       this.saving = true;
-      this.$root.$emit('update-workflow', this.buildSavePayload());
+      this.$root.$emit('update-workflow', this.buildSavePayload(), this.translationsToSave());
+    },
+    /**
+     * Keeps a translation field's values as the drawer opened with them.
+     *
+     * @param {String} fieldName the translated field
+     * @returns {void}
+     */
+    keepOpenedTranslation(fieldName) {
+      this.openedTranslations[fieldName] = JSON.stringify(this.translations[fieldName] || {});
+    },
+    /**
+     * Gives the title, description and summary per language to save with the
+     * process, and whether any of them changed since the drawer opened. A new
+     * process written in one language only has none to save.
+     *
+     * @return {Object} the values per language of each field, and `changed`
+     */
+    translationsToSave() {
+      const fieldNames = Object.keys(this.translations);
+      const changed = fieldNames.some(fieldName => this.editMode
+        ? JSON.stringify(this.translations[fieldName] || {}) !== this.openedTranslations[fieldName]
+        : Object.values(this.translations[fieldName] || {}).filter(value => value).length > 1);
+      return {
+        values: JSON.parse(JSON.stringify(this.translations)),
+        changed,
+      };
     },
     deleteIllustrative(){
       this.illustrativeInput = null;

@@ -10,6 +10,8 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -125,6 +127,9 @@ public class ProcessesServiceImplTest {
   @Mock
   private StatusService          statusService;
 
+  @Mock
+  private ProcessTranslationService processTranslationService;
+
   private ProcessesServiceImpl   processesService;
 
   private WorkFlow               disabledWorkFlow, enabledWorkFlow;
@@ -154,7 +159,8 @@ public class ProcessesServiceImplTest {
                                                      processesAttachmentService,
                                                      statusService,
                                                      labelService,
-                                                     listenerService));
+                                                     listenerService,
+                                                     processTranslationService));
     // The save of a process's rows runs in a transaction the platform aspect
     // begins; the unit tests call the storage's save directly
     doAnswer(invocation -> processesStorage.saveWorkFlow(invocation.getArgument(0),
@@ -295,9 +301,14 @@ public class ProcessesServiceImplTest {
     Throwable exception4 = assertThrows(IllegalArgumentException.class, () -> this.processesService.updateWorkFlow(workFlow, 1l));
     assertEquals("there are no changes to save", exception4.getMessage());
 
+    // A refused update leaves the translations as they are
+    verify(processTranslationService, never()).keepDefaultLanguage(nullable(WorkFlow.class));
+
     when(processesStorage.getWorkFlowById(workFlow.getId(), 1L)).thenReturn(updatedWorkflow);
     this.processesService.updateWorkFlow(workFlow, 1l);
     verify(processesStorage, times(1)).saveWorkFlow(workFlow, 1L);
+    // The saved process's default-language translations follow its columns
+    verify(processTranslationService, times(1)).keepDefaultLanguage(nullable(WorkFlow.class));
   }
 
   /**
@@ -658,9 +669,15 @@ public class ProcessesServiceImplTest {
     assertThrows(ObjectNotFoundException.class, () -> processesService.deleteWorkflowById(UNKNOWN_ID, PROCESSES_ADMIN_ID));
     assertThrows(IllegalAccessException.class, () -> processesService.deleteWorkflowById(WORKFLOW_ID, PROJECT_MANAGER_ID));
     verify(processesStorage, never()).deleteWorkflowById(anyLong());
+    // A refused delete keeps the process's translations
+    verify(processTranslationService, never()).deleteTranslations(anyLong());
 
     processesService.deleteWorkflowById(WORKFLOW_ID, PROCESSES_ADMIN_ID);
     verify(processesStorage, times(1)).deleteWorkflowById(WORKFLOW_ID);
+    // The translations go once the process is deleted
+    org.mockito.InOrder order = inOrder(processesStorage, processTranslationService);
+    order.verify(processesStorage).deleteWorkflowById(WORKFLOW_ID);
+    order.verify(processTranslationService).deleteTranslations(WORKFLOW_ID);
   }
 
   @Test
@@ -756,8 +773,10 @@ public class ProcessesServiceImplTest {
   /**
    * A request is named by the fixed rule from its stored process's title, the
    * creation date and the requester's full name, whatever title the client
-   * sent: the REST path gives no agent title. Mutation: keep the client's
-   * title and this test fails.
+   * sent: the REST path gives no agent title. The process title is its stored
+   * one, in the default language, so every approver reads the same request
+   * title whatever their language. Mutations: keep the client's title, or
+   * name the request by a translated process title, and this test fails.
    *
    * @throws Exception on an unexpected refusal
    */
@@ -780,6 +799,7 @@ public class ProcessesServiceImplTest {
     String title = saved.getValue().getTitle();
     assertTrue(title, title.equals("Leave request - " + before + " - Jean Martin")
         || title.equals("Leave request - " + after + " - Jean Martin"));
+    verify(processTranslationService, never()).getTitle(any(), any());
   }
 
   /**

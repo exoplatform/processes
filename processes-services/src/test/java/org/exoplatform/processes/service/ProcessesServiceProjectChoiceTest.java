@@ -136,6 +136,9 @@ public class ProcessesServiceProjectChoiceTest {
   @Mock
   private StatusService              statusService;
 
+  @Mock
+  private ProcessTranslationService processTranslationService;
+
   private ProcessesServiceImpl       processesService;
 
   private Space                      space;
@@ -158,7 +161,8 @@ public class ProcessesServiceProjectChoiceTest {
                                                 processesAttachmentService,
                                                 statusService,
                                                 labelService,
-                                                listenerService));
+                                                listenerService,
+                                                processTranslationService));
     // The save of a process's rows runs in a transaction the platform aspect
     // begins; the unit tests call the storage's save directly
     doAnswer(invocation -> processesStorage.saveWorkFlow(invocation.getArgument(0),
