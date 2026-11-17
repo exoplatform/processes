@@ -12,18 +12,16 @@ You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 -->
 <template>
-  <div
+  <v-progress-linear
     v-if="variant === 'bar' && fill.total"
     id="requestFillBar"
-    class="d-flex align-center text-caption text-light-color mb-2">
-    <span class="text-no-wrap me-2">{{ $t('processes.request.fill.count', {0: fill.filled, 1: fill.total}) }}</span>
-    <v-progress-linear
-      :value="filledPercent"
-      color="primary"
-      background-color="grey lighten-3"
-      height="4"
-      rounded />
-  </div>
+    :value="filledPercent"
+    :aria-label="$t('processes.request.fill.count', {0: fill.filled, 1: fill.total})"
+    class="mb-2"
+    color="primary"
+    background-color="grey lighten-3"
+    height="4"
+    rounded />
   <div
     v-else-if="variant === 'line' && fill.total"
     id="requestMissingLine"
@@ -43,9 +41,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 <script>
 /**
  * Shows how far the request's form is filled, from the fill state the
- * drawer's sections report ({total, filled, missing}): the bar counts the
- * fields holding a value, the line names the required values still missing,
- * or says the request is ready. Renders nothing when the request has no form.
+ * drawer's sections report ({total, filled, missing}): the bar is a track of
+ * the fields holding a value, with no text since the form's own header
+ * already says « x of y filled »; the line names the required values still
+ * missing, or says the request is ready. Renders nothing when the request has
+ * no form.
  */
 export default {
   props: {
