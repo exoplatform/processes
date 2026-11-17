@@ -159,11 +159,11 @@ export default {
     this.$root.$on('add-work', work => {
       this.addWork(work);
     });
-    this.$root.$on('add-workflow', workflow => {
-      this.addNewWorkFlow(workflow);
+    this.$root.$on('add-workflow', (workflow, translations) => {
+      this.addNewWorkFlow(this.withTranslations(workflow, translations));
     });
-    this.$root.$on('update-workflow', workflow => {
-      this.updateWorkFlow(workflow);
+    this.$root.$on('update-workflow', (workflow, translations) => {
+      this.updateWorkFlow(this.withTranslations(workflow, translations));
     });
     this.$root.$on('refresh-works', () => {
       this.getWorks();
@@ -675,6 +675,26 @@ export default {
       }).catch(e => {
         this.$root.$emit('workflow-save-failed');
         this.displayMessage({type: 'error', message: this.saveErrorMessage(e, 'update')});
+      });
+    },
+    /**
+     * Adds to a process to save the title, description and summary per
+     * language that changed, so that the process and its translations are
+     * saved together.
+     *
+     * @param {Object} workflow the process to save
+     * @param {Object} translations the values per language of each changed
+     *          field, and whether there is any
+     * @return {Object} the process to send
+     */
+    withTranslations(workflow, translations) {
+      if (!translations || !translations.changed) {
+        return workflow;
+      }
+      return Object.assign({}, workflow, {
+        titleTranslations: translations.values.title,
+        descriptionTranslations: translations.values.description,
+        summaryTranslations: translations.values.summary,
       });
     },
     onDialogClosed() {

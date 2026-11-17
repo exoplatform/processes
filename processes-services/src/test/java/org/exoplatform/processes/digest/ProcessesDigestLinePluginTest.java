@@ -42,7 +42,10 @@ import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.container.xml.ValuesParam;
 import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFlow;
+import org.exoplatform.processes.service.ProcessTranslationService;
 import org.exoplatform.processes.service.ProcessesService;
+import org.exoplatform.services.resources.LocaleConfig;
+import org.exoplatform.services.resources.LocaleConfigService;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.model.Profile;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
@@ -51,6 +54,7 @@ import org.exoplatform.social.core.manager.IdentityManager;
 import io.meeds.commons.digest.model.DigestItem;
 import io.meeds.commons.digest.model.DigestLine;
 import io.meeds.commons.digest.plugin.DigestLineContext;
+import io.meeds.social.translation.service.TranslationService;
 
 @RunWith(MockitoJUnitRunner.class)
 public class ProcessesDigestLinePluginTest {
@@ -63,6 +67,15 @@ public class ProcessesDigestLinePluginTest {
   @Mock
   private IdentityManager                identityManager;
 
+  @Mock
+  private TranslationService             translationService;
+
+  @Mock
+  private LocaleConfigService            localeConfigService;
+
+  @Mock
+  private LocaleConfig                   defaultLocaleConfig;
+
   private ProcessesDigestLinePlugin      plugin;
 
   @Before
@@ -74,7 +87,10 @@ public class ProcessesDigestLinePluginTest {
                                                 ProcessesDigestLinePlugin.REQUEST_COMMENT_PLUGIN)));
     params.addParameter(pluginIds);
     // The request links need the running platform: plain markers here
-    plugin = new ProcessesDigestLinePlugin(params, processesService, identityManager) {
+    lenient().when(localeConfigService.getDefaultLocaleConfig()).thenReturn(defaultLocaleConfig);
+    lenient().when(defaultLocaleConfig.getLocale()).thenReturn(Locale.ENGLISH);
+    ProcessTranslationService processTranslationService = new ProcessTranslationService(translationService, localeConfigService);
+    plugin = new ProcessesDigestLinePlugin(params, processesService, identityManager, processTranslationService) {
       @Override
       protected String requestUrl(Work work) {
         return "request:" + work.getId();
@@ -88,6 +104,7 @@ public class ProcessesDigestLinePluginTest {
     lenient().when(identityManager.getOrCreateUserIdentity("john")).thenReturn(identity("john", "15", "John Smith"));
 
     WorkFlow workFlow = new WorkFlow();
+    workFlow.setId(3);
     workFlow.setTitle("Leave request");
     Work work = new Work();
     work.setId(7);
@@ -106,6 +123,25 @@ public class ProcessesDigestLinePluginTest {
     assertEquals("digest.line.CreateRequestPlugin", line.getLabelKey());
     assertEquals(List.of("Two weeks in October", "Leave request"), line.getArgs());
     assertEquals("request:7", line.getUrl());
+  }
+
+  /**
+   * A recipient reading the platform in another language gets the process's
+   * title in that language when it is translated, and its stored title when it
+   * is not.
+   * Mutants: the line reading the stored title, or the recipient's language
+   * replaced by the default one.
+   */
+  @Test
+  public void testNewRequestLineNamesTheProcessInTheRecipientsLanguage() {
+    DigestLineContext french = new DigestLineContext("ayoub", Locale.FRENCH, ZoneId.of("Europe/Paris"));
+    when(translationService.getTranslationLabel("process", "3", "title", Locale.FRENCH)).thenReturn("Demande de congés");
+    DigestItem newRequest = item(ProcessesDigestLinePlugin.CREATE_REQUEST_PLUGIN, "REQUEST_ID", "7", "REQUEST_CREATOR", "john");
+
+    assertEquals(List.of("Two weeks in October", "Demande de congés"), plugin.buildLine(newRequest, french).getArgs());
+
+    when(translationService.getTranslationLabel("process", "3", "title", Locale.FRENCH)).thenReturn(null);
+    assertEquals(List.of("Two weeks in October", "Leave request"), plugin.buildLine(newRequest, french).getArgs());
   }
 
   @Test

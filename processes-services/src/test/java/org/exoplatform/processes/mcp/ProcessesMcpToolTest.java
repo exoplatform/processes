@@ -28,11 +28,14 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
@@ -50,7 +53,10 @@ import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFilter;
 import org.exoplatform.processes.model.ProcessPermission;
 import org.exoplatform.processes.model.WorkFlow;
+import org.exoplatform.processes.service.ProcessTranslationService;
 import org.exoplatform.processes.service.ProcessesService;
+import org.exoplatform.services.resources.LocaleConfig;
+import org.exoplatform.services.resources.LocaleConfigService;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
@@ -59,6 +65,8 @@ import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.service.TaskService;
+
+import io.meeds.social.translation.service.TranslationService;
 
 /**
  * Exercises the real {@code ProcessesMcpTool} (only its collaborators are
@@ -79,6 +87,10 @@ public class ProcessesMcpToolTest {
 
   private ProcessSpaceScopeResolver processSpaceScopeResolver;
 
+  private TranslationService translationService;
+
+  private ProcessTranslationService processTranslationService;
+
   private ProcessesMcpTool tool;
 
   @Before
@@ -88,7 +100,20 @@ public class ProcessesMcpToolTest {
     identityManager = mock(IdentityManager.class);
     spaceService = mock(SpaceService.class);
     processSpaceScopeResolver = mock(ProcessSpaceScopeResolver.class);
-    tool = new ProcessesMcpTool(processesService, taskService, identityManager, spaceService, processSpaceScopeResolver);
+    translationService = mock(TranslationService.class);
+    LocaleConfigService localeConfigService = mock(LocaleConfigService.class);
+    LocaleConfig defaultLocaleConfig = mock(LocaleConfig.class);
+    when(localeConfigService.getDefaultLocaleConfig()).thenReturn(defaultLocaleConfig);
+    when(defaultLocaleConfig.getLocale()).thenReturn(Locale.ENGLISH);
+    processTranslationService = new ProcessTranslationService(translationService, localeConfigService);
+    tool = spy(new ProcessesMcpTool(processesService,
+                                    taskService,
+                                    identityManager,
+                                    spaceService,
+                                    processSpaceScopeResolver,
+                                    processTranslationService));
+    // The user reads the platform in its default language unless a test says otherwise
+    doReturn(Locale.ENGLISH).when(tool).getCurrentUserLocale();
 
     Identity socialIdentity = mock(Identity.class);
     when(socialIdentity.getId()).thenReturn("1");
@@ -182,6 +207,40 @@ public class ProcessesMcpToolTest {
     assertEquals(Long.valueOf(150L), ids.get(149));
     assertEquals(Long.valueOf(250L), ids.get(199));
     verify(processesService, never()).getWorkFlows(any(ProcessesFilter.class), eq(400), eq(200), anyLong());
+  }
+
+  /**
+   * A user reading the platform in another language than the default one
+   * gets each process text in that language where a translation is written,
+   * and the stored text otherwise; the refusal of a disabled process names it
+   * the same way.
+   * Mutants: the listing or the refusal reading the stored title, or a blank
+   * translation replacing the stored text.
+   *
+   * @throws Exception never, the services are mocks
+   */
+  @Test
+  public void listProcessesAndRefusalsNameAProcessInTheUsersLanguage() throws Exception {
+    doReturn(Locale.FRENCH).when(tool).getCurrentUserLocale();
+    WorkFlow workFlow = workFlow(5, 50);
+    workFlow.setTitle("Leave");
+    workFlow.setDescription("Ask for leave");
+    workFlow.setSummary("<p>Leave rules</p>");
+    when(processesService.getWorkFlows(any(ProcessesFilter.class), anyInt(), anyInt(), anyLong())).thenReturn(List.of(workFlow));
+    when(translationService.getTranslationLabel("process", "5", "title", Locale.FRENCH)).thenReturn("Congés");
+    when(translationService.getTranslationLabel("process", "5", "description", Locale.FRENCH)).thenReturn(" ");
+    when(translationService.getTranslationLabel("process", "5", "summary", Locale.FRENCH)).thenReturn("<p>Règles</p>");
+
+    ProcessModel model = tool.listProcesses(null).get(0);
+
+    assertEquals("Congés", model.title());
+    assertEquals("Ask for leave", model.description());
+    assertEquals("<p>Règles</p>", model.summary());
+
+    workFlow.setEnabled(false);
+    when(processesService.getWorkFlow(5L, 1L)).thenReturn(workFlow);
+    IllegalArgumentException refusal = assertThrows(IllegalArgumentException.class, () -> tool.submitWorkRequest(5L, null, null));
+    assertTrue(refusal.getMessage().contains("'Congés'"));
   }
 
   /**
