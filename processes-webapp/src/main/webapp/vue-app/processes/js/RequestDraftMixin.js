@@ -64,6 +64,7 @@ export default {
     this.$root.$on('work-add-failed', this.refuseSubmit);
   },
   methods: {
+    /** @returns {Object} the drawer's sections host, null before it renders */
     requestSections() {
       return this.$refs.requestSections || null;
     },
@@ -140,6 +141,13 @@ export default {
         }
       });
     },
+    /**
+     * Builds the body of a draft save from what the drawer holds, with the
+     * sections' values as a JSON string when they give any.
+     *
+     * @param {Boolean} creating true for the draft's creation
+     * @returns {Object} the draft to send
+     */
     draftBody(creating) {
       const values = this.requestSections() && this.requestSections().values() || {};
       return {
@@ -170,12 +178,25 @@ export default {
       }
       this.$root.$emit('init-list-attachments', {entityId: draft.id, entityType: this.entityType});
     },
+    /**
+     * Settles the draft save in flight with its success.
+     *
+     * @param {Object} draft the created draft, null for an update
+     * @returns {void}
+     */
     settleDraftSave(draft) {
       if (this.pendingDraftSave) {
         this.pendingDraftSave.resolve(draft);
         this.pendingDraftSave = null;
       }
     },
+    /**
+     * Settles the draft save in flight with its refusal, after marking the
+     * field it names.
+     *
+     * @param {Object} refusal the refusal's code and field key
+     * @returns {void}
+     */
     refuseDraftSave(refusal) {
       this.markRefused(refusal);
       if (this.pendingDraftSave) {
@@ -198,9 +219,19 @@ export default {
       }
       this.markRefused(refusal);
     },
+    /**
+     * @param {Object} refusal the refusal's code and field key
+     * @returns {Error} an error carrying the refusal's code and field key
+     */
     refusalError(refusal) {
       return Object.assign(new Error(refusal && refusal.code || 'refused'), {code: null, fieldKey: null}, refusal);
     },
+    /**
+     * Shows the field a refusal names in the sections that hold it.
+     *
+     * @param {Object} refusal the refusal's code and field key
+     * @returns {void}
+     */
     markRefused(refusal) {
       if (refusal && refusal.fieldKey && this.requestSections()) {
         this.requestSections().markRefused(refusal.fieldKey, refusal.code);

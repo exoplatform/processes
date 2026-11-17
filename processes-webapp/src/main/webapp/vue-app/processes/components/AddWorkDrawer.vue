@@ -321,8 +321,9 @@ export default {
     /**
      * Closes the drawer after saving the draft. A drawer still open is closed
      * first, and its closed event comes back here. When a section holds
-     * changes, the close waits for the save: a refused one opens the drawer
-     * again with what was typed and the refused field marked.
+     * changes, the close waits for the save, and a refused one is answered by
+     * afterRefusedClose, which opens the drawer again only on a refusal the
+     * user can act on.
      *
      * @returns {void}
      */
@@ -365,12 +366,17 @@ export default {
         this.showEditor = true;
         this.$root.$emit('show-alert', {type: 'error', message: this.$t('processes.work.form.description.maxLength.message', {0: this.maxLength})});
       }
-      if (this.hasDraft) {
-        // The draft may have been created while the drawer was closed, which left the address unchanged
-        this.$root.$emit('update-url-path', 'draftDetails', `/myRequests/draftDetails/${this.work.id}`);
+      const draftPath = `/myRequests/draftDetails/${this.work.id}`;
+      if (this.hasDraft && !document.location.pathname.includes(draftPath)) {
+        // The draft was created while the drawer was closed, which left the address unchanged
+        this.$root.$emit('update-url-path', 'draftDetails', draftPath);
       }
       this.$refs.work.open();
     },
+    /**
+     * Ends a close: the attachments are reset and the address names the list the drawer was opened from.
+     * @returns {void}
+     */
     finishClose() {
       this.$root.$emit('add-work-drawer-closed');
       this.$root.$emit('reset-list-attachments');

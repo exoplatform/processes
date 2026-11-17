@@ -61,8 +61,9 @@ export default {
     },
   },
   created() {
-    // Not reactive: the section instances already watched
+    // Not reactive: the section instances already watched, and the latest registration of each id
     this.watched = new WeakSet();
+    this.latestRegistrations = new Map();
     document.addEventListener(this.eventName(), this.addRegistered);
     extensionRegistry.loadComponents(this.name)
       .filter(component => component.componentName === this.type)
@@ -72,9 +73,17 @@ export default {
     document.removeEventListener(this.eventName(), this.addRegistered);
   },
   methods: {
+    /** @returns {String} the event the extension registry sends when a component registers on this extension point */
     eventName() {
       return `component-${this.name}-${this.type}-updated`;
     },
+    /**
+     * Adds the section a registration event carries, when it is of this
+     * extension point's type.
+     *
+     * @param {CustomEvent} event the registration event
+     * @returns {void}
+     */
     addRegistered(event) {
       if (event?.detail?.componentName === this.type) {
         this.addComponent(event.detail);
@@ -82,21 +91,28 @@ export default {
     },
     /**
      * Adds a registered section, unless its isEnabled, given the params,
-     * answers false. Its init option is not read.
+     * answers false, or a later registration of its id superseded it while
+     * isEnabled was answering. Its init option is not read.
      *
      * @param {Object} component the registered component
      * @returns {Promise<void>} settled once the section is added or skipped
      */
     async addComponent(component) {
+      const id = component.componentOptions.id;
+      this.latestRegistrations.set(id, component);
       const isEnabled = component.componentOptions.isEnabled;
       if (isEnabled && !(await Promise.resolve(isEnabled(this.params)))) {
         return;
       }
-      const components = this.components.filter(existing => existing.componentOptions.id !== component.componentOptions.id);
+      if (this.latestRegistrations.get(id) !== component) {
+        return;
+      }
+      const components = this.components.filter(existing => existing.componentOptions.id !== id);
       components.push(component);
       components.sort((first, second) => (first.componentOptions.rank || 0) - (second.componentOptions.rank || 0));
       this.components = components;
     },
+    /** @returns {Array} the rendered section instances */
     sections() {
       return this.$refs.sections || [];
     },
@@ -126,29 +142,55 @@ export default {
         this.$watch(() => this.sectionChanged(section), () => this.$emit('changed', this.hasChanges()));
       });
     },
+    /**
+     * Calls a method on every section that has it.
+     *
+     * @param {String} method the method's name
+     * @param {...*} args its arguments
+     * @returns {Array} what each section answered
+     */
     call(method, ...args) {
       return this.sections()
         .filter(section => typeof section[method] === 'function')
         .map(section => section[method](...args));
     },
+    /** @returns {Promise<Boolean>} true when every section's check passes */
     validate() {
       return Promise.all(this.call('validate')).then(results => results.every(Boolean));
     },
+    /** @returns {Object} the sections' values, form id to field key to values */
     values() {
       return Object.assign({}, ...this.call('values'));
     },
+    /** @returns {Object} the fields the sections add to the process save */
     fields() {
       return Object.assign({}, ...this.call('fields'));
     },
+    /** @returns {Boolean} true when a section holds a change */
     hasChanges() {
       return this.sections().some(this.sectionChanged);
     },
+    /**
+     * Tells the sections that the values they last gave were saved.
+     * @returns {void}
+     */
     saved() {
       this.call('saved');
     },
+    /**
+     * Shows a field the server refused, in the sections that hold it.
+     *
+     * @param {String} fieldKey the refused field's key
+     * @param {String} code the refusal's code
+     * @returns {void}
+     */
     markRefused(fieldKey, code) {
       this.call('markRefused', fieldKey, code);
     },
+    /**
+     * Makes the sections forget what was typed.
+     * @returns {void}
+     */
     reset() {
       this.call('reset');
     },
