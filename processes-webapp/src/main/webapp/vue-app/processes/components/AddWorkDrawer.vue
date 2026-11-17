@@ -78,7 +78,8 @@
               name="ProcessRequestDrawer"
               type="request-drawer-section"
               class="mt-5"
-              @changed="onSectionsChanged" />
+              @changed="onSectionsChanged"
+              @filled="sectionsFilled = $event" />
             <div class="work-message">
               <p class="mt-5 font-weight-bold">{{ $t('processes.work.message.to.manager') }}</p>
               <p
@@ -163,7 +164,7 @@
       <v-btn
         :loading="saving"
         @click="addWork"
-        :disabled="!validWorkDescription && !attachmentsChanged && !sectionsChanged"
+        :disabled="!validWorkDescription && !attachmentsChanged && !sectionsChanged && !(sectionsFilled && hasDraft)"
         id="sendRequestButton"
         class="btn btn-primary float-e">
         {{ $t('processes.work.sendWork.label') }}

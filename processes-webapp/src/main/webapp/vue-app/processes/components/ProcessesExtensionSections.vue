@@ -28,9 +28,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
  * Renders the sections other add-ons register on an extension point of a
  * processes drawer, and calls their methods for the drawer: each section may
  * expose validate(), values(), hasChanges(), saved(), markRefused(fieldKey,
- * code), reset() and fields(). A section that lacks a method is skipped for
- * it. Emits changed with true once a section holds a change, false when none
- * does.
+ * code), reset(), fields() and fillState(). A section that lacks a method
+ * is skipped for it. Emits changed with true once a section holds a change,
+ * false when none does, and filled with true while a section holds a value.
  */
 export default {
   props: {
@@ -51,9 +51,7 @@ export default {
       default: null,
     },
   },
-  data: () => ({
-    components: [],
-  }),
+  data: () => ({components: []}),
   watch: {
     components() {
       // The sections render on the next flush, and only then have instances to watch
@@ -80,7 +78,6 @@ export default {
     /**
      * Adds the section a registration event carries, when it is of this
      * extension point's type.
-     *
      * @param {CustomEvent} event the registration event
      * @returns {void}
      */
@@ -93,7 +90,6 @@ export default {
      * Adds a registered section, unless its isEnabled, given the params,
      * answers false, or a later registration of its id superseded it while
      * isEnabled was answering. Its init option is not read.
-     *
      * @param {Object} component the registered component
      * @returns {Promise<void>} settled once the section is added or skipped
      */
@@ -119,7 +115,6 @@ export default {
     /**
      * Tells whether one section holds a change: its hasChanges(), or a
      * non-empty fields() for a section that has no hasChanges().
-     *
      * @param {Object} section a section instance
      * @returns {Boolean} true when the section holds a change
      */
@@ -130,21 +125,27 @@ export default {
       return typeof section.fields === 'function' && Object.keys(section.fields() || {}).length > 0;
     },
     /**
-     * Watches each new section's change state. The getter reads the
-     * section's reactive data through its methods, so the watcher fires on
-     * the section's own input.
-     *
+     * @param {Object} section a section instance
+     * @returns {Boolean} true when the section's optional fillState() counts a filled field
+     */
+    sectionFilled(section) {
+      return typeof section.fillState === 'function' && (section.fillState() || {}).filled > 0;
+    },
+    /**
+     * Watches each new section's change and fill states, emitting changed and
+     * filled. The getters read the section's reactive data through its
+     * methods, so the watchers fire on the section's own input.
      * @returns {void}
      */
     watchSections() {
       this.sections().filter(section => !this.watched.has(section)).forEach(section => {
         this.watched.add(section);
         this.$watch(() => this.sectionChanged(section), () => this.$emit('changed', this.hasChanges()));
+        this.$watch(() => this.sectionFilled(section), () => this.$emit('filled', this.sections().some(this.sectionFilled)), {immediate: true});
       });
     },
     /**
      * Calls a method on every section that has it.
-     *
      * @param {String} method the method's name
      * @param {...*} args its arguments
      * @returns {Array} what each section answered
@@ -179,7 +180,6 @@ export default {
     },
     /**
      * Shows a field the server refused, in the sections that hold it.
-     *
      * @param {String} fieldKey the refused field's key
      * @param {String} code the refusal's code
      * @returns {void}

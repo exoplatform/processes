@@ -38,6 +38,9 @@ export default {
     pendingSubmit: null,
     savedDescription: '',
     sectionsChanged: false,
+    // True while a section holds a value, a default included: it lets the request be sent once a draft exists,
+    // which only an input or a reopening gives, so untouched defaults alone never do
+    sectionsFilled: false,
     submitted: false,
   }),
   computed: {
@@ -78,6 +81,7 @@ export default {
     initDraftState() {
       this.savedDescription = this.work && this.work.description || '';
       this.sectionsChanged = false;
+      this.sectionsFilled = false;
       this.submitted = false;
       // A submit sent from an earlier opening is answered for its own request, never this one
       this.saving = false;
