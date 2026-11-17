@@ -213,7 +213,11 @@ export default {
   created(){
     // Loads the modules whose name contains ProcessRequestExtension, which register their sections
     this.$utils.includeExtensions('ProcessRequestExtension');
-    this.$root.$on('work-added', () => {
+    this.$root.$on('work-added', event => {
+      if (event && event.sent && event.sent !== this.work) {
+        // The request sent was an earlier opening's: the drawer now shows another one
+        return;
+      }
       this.resetAfterSubmit();
       this.resetInputs();
       this.close();
@@ -273,6 +277,16 @@ export default {
     showRequestEditor() {
       this.showEditor = !this.showEditor;
     },
+    /**
+     * Opens the drawer on a new request of a process, a draft to edit, or a
+     * request or draft to view.
+     *
+     * @param {Object} object the process, the draft or the request
+     * @param {String} mode create_work, edit_work_draft, or a view mode
+     * @param {Boolean} isDraft true when the request viewed is a draft
+     * @param {Boolean} allowSave true when the attachments may be saved
+     * @returns {void}
+     */
     open(object, mode, isDraft, allowSave) {
       // A new key mounts the sections afresh, with the draft id this opening knows
       this.openKey++;
@@ -396,9 +410,19 @@ export default {
         this.$refs.requestEditor.initCKEditorData('');
       }
     },
+    /**
+     * Sends the request.
+     *
+     * @returns {void}
+     */
     addWork() {
       this.submitWork();
     },
+    /**
+     * Saves the draft when the message editor loses the focus, and hides it.
+     *
+     * @returns {void}
+     */
     blurOnDescriptionComposer() {
       if (!this.viewMode && this.hasDraft) {
         this.saveDraft().catch(() => null);

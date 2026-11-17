@@ -232,20 +232,29 @@ export default {
         }
       });
     },
+    /**
+     * Opens the drawer that adds a document to the entity, once it exists.
+     *
+     * @returns {void}
+     */
     openAddDocumentDrawer() {
       this.withEntity(() => document.dispatchEvent(new CustomEvent('open-attachments-app-drawer', {detail: this.attachmentDrawerParams})));
     },
+    /**
+     * Opens the list of the entity's documents, or the drawer that adds one
+     * when it has none. The choice waits for the entity, whose creation may
+     * give it documents.
+     *
+     * @returns {void}
+     */
     openAttachmentDrawer() {
-      if (this.attachments.length === 0) {
-        this.openAddDocumentDrawer();
-      } else {
-        this.withEntity(() => document.dispatchEvent(new CustomEvent('open-attachments-list-drawer', {detail: this.attachmentDrawerParams})));
-      }
+      this.withEntity(() => document.dispatchEvent(new CustomEvent(this.attachments.length === 0 ? 'open-attachments-app-drawer'
+        : 'open-attachments-list-drawer', {detail: this.attachmentDrawerParams})));
     },
     /**
      * Runs an action once the attachments have an entity: at once when there
-     * is one or nothing prepares it, else after prepareEntity resolved and the
-     * new entity reached the props.
+     * is one or nothing prepares it, else after prepareEntity resolved, the
+     * new entity reached the props and its documents were listed.
      *
      * @param {Function} action the action
      * @returns {void}
@@ -257,6 +266,7 @@ export default {
       }
       this.prepareEntity()
         .then(() => this.$nextTick())
+        .then(() => this.attachmentsLoaded && this.attachmentsLoaded.catch(() => null))
         .then(action)
         .catch(() => {
           // The preparation was refused, and its caller shows why
@@ -265,7 +275,8 @@ export default {
     initEntityAttachmentsList() {
       if (this.entityTypeVal && this.entityIdVal) {
         this.isLoading = true;
-        this.$processesAttachmentService.getEntityAttachments(this.entityTypeVal, this.entityIdVal).then(attachments => {
+        // Not reactive: settled once the documents are listed, which withEntity waits for
+        this.attachmentsLoaded = this.$processesAttachmentService.getEntityAttachments(this.entityTypeVal, this.entityIdVal).then(attachments => {
           attachments.forEach(attachment => {
             attachment.name = attachment.title;
             this.subscribeDocument(attachment.id);

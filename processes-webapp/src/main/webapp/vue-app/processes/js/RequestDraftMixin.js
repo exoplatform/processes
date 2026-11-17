@@ -78,6 +78,8 @@ export default {
       this.savedDescription = this.work && this.work.description || '';
       this.sectionsChanged = false;
       this.submitted = false;
+      // A submit sent from an earlier opening is answered for its own request, never this one
+      this.saving = false;
     },
     /**
      * Records whether a section holds a change; the first one creates the
@@ -125,7 +127,7 @@ export default {
       }
       const draft = this.draftBody(creating);
       const openKey = this.openKey;
-      const answer = new Promise((resolve, reject) => this.pendingDraftSave = {resolve, reject});
+      const answer = new Promise((resolve, reject) => this.pendingDraftSave = {resolve, reject, openKey});
       this.$root.$emit(creating ? 'create-work-draft' : 'update-work-draft', creating ? {draft} : draft);
       return answer.then(created => {
         if (openKey !== this.openKey) {
@@ -192,13 +194,15 @@ export default {
     },
     /**
      * Settles the draft save in flight with its refusal, after marking the
-     * field it names.
+     * field it names when the save is the current opening's.
      *
      * @param {Object} refusal the refusal's code and field key
      * @returns {void}
      */
     refuseDraftSave(refusal) {
-      this.markRefused(refusal);
+      if (this.pendingDraftSave && this.pendingDraftSave.openKey === this.openKey) {
+        this.markRefused(refusal);
+      }
       if (this.pendingDraftSave) {
         this.pendingDraftSave.reject(this.refusalError(refusal));
         this.pendingDraftSave = null;
@@ -206,12 +210,16 @@ export default {
     },
     /**
      * Keeps the drawer as it was before a refused submit: its draft is named
-     * again by its id, and the refused field is marked.
+     * again by its id, and the refused field is marked. A refusal of a submit
+     * from an earlier opening changes nothing in the current one.
      *
-     * @param {Object} refusal the refusal's code and field key
+     * @param {Object} refusal the refusal's code and field key, and the request sent
      * @returns {void}
      */
     refuseSubmit(refusal) {
+      if (refusal && refusal.sent && refusal.sent !== this.work) {
+        return;
+      }
       this.saving = false;
       if (this.work.draftId) {
         this.work.id = this.work.draftId;

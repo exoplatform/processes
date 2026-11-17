@@ -492,6 +492,10 @@ export default {
     workflowParentSpace() {
       return this.workflow && this.workflow.parentSpace;
     },
+    /**
+     * @returns {Boolean} true when closing asks for confirmation: the form
+     *          changed, the project choice changed, or a section holds a change
+     */
     confirmClose() {
       return this.valid && (JSON.stringify(this.workflow) !== JSON.stringify(this.oldWorkflow)
         || this.projectChoiceString() !== this.originalProjectChoice || this.sectionsChanged);

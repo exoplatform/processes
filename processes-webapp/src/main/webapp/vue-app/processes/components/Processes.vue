@@ -561,10 +561,17 @@ export default {
         && this.$t('processes.workflow.updateError.processes.project.notEligible')
         || this.$t(`processes.workflow.saveError.${code}`);
     },
+    /**
+     * Sends a request, then tells the drawer: work-added, or work-add-failed
+     * with the refusal's code and field key, each naming the request sent.
+     *
+     * @param {Object} work the request to send
+     * @returns {void}
+     */
     addWork(work) {
       this.$processesService.addWork(work).then(newWork => {
         if (newWork) {
-          this.$root.$emit('work-added', {work: newWork, draftId: work.draftId});
+          this.$root.$emit('work-added', {work: newWork, draftId: work.draftId, sent: work});
           this.works.unshift(newWork);
           if (work.draftId) {
             const index = this.workDrafts.findIndex(draft => draft.id === work.draftId);
@@ -574,7 +581,7 @@ export default {
           this.requestSubmitted = true;
         }
       }).catch(e => {
-        this.$root.$emit('work-add-failed', this.refusal(e));
+        this.$root.$emit('work-add-failed', Object.assign(this.refusal(e), {sent: work}));
         this.displayMessage({type: 'error', message: this.requestRefusalMessage(e, 'processes.work.add.error.message')});
       });
     },
@@ -596,6 +603,13 @@ export default {
         this.displayMessage({type: 'error', message: this.requestRefusalMessage(e, 'processes.workDraft.save.error.message')});
       });
     },
+    /**
+     * Updates a draft, then tells the drawer: work-draft-updated, or
+     * work-draft-save-failed with the refusal's code and field key.
+     *
+     * @param {Object} workDraft the draft to update
+     * @returns {Promise} settled once the drawer is told
+     */
     updateWorkDraft(workDraft) {
       return this.$processesService.updateWorkDraft(workDraft).then(draft => {
         if (draft) {

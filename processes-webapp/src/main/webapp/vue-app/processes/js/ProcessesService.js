@@ -99,6 +99,12 @@ export function addNewWorkFlow(workflow) {
   });
 }
 
+/**
+ * Sends a request; a refusal rejects with the body of a 400 as its message.
+ *
+ * @param {Object} work the request
+ * @return {Promise} the created request
+ */
 export function addWork(work) {
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/works`, {
     method: 'POST',
@@ -343,6 +349,13 @@ export function getWorkDrafts(itemsFilter, offset, limit, expand) {
   });
 }
 
+/**
+ * Creates a request draft; a refusal rejects with the body of a 400 as its
+ * message.
+ *
+ * @param {Object} workDraft the draft
+ * @return {Promise} the created draft
+ */
 export function createWorkDraft(workDraft) {
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workDraft`, {
     method: 'POST',
@@ -362,6 +375,13 @@ export function createWorkDraft(workDraft) {
   });
 }
 
+/**
+ * Updates a request draft; a refusal rejects with the body of a 400 as its
+ * message.
+ *
+ * @param {Object} workDraft the draft
+ * @return {Promise} the updated draft, as text
+ */
 export function updateWorkDraft(workDraft) {
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workDraft`, {
     method: 'PUT',
