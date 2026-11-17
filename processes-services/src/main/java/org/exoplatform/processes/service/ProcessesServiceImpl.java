@@ -262,7 +262,8 @@ public class ProcessesServiceImpl implements ProcessesService {
    * @param workFlow the process, its labels resolved to labels of its project
    * @param userId the saving user's identity id
    * @return the saved process
-   * @throws IllegalAccessException when a write of the save is refused
+   * @throws IllegalAccessException declared for a write joining the save that
+   *           refuses the editor's choice; none of the writes here refuses
    */
   WorkFlow writeWorkFlowRows(WorkFlow workFlow, long userId) throws IllegalAccessException {
     WorkFlow savedWorkFlow = processesStorage.saveWorkFlow(workFlow, userId);
