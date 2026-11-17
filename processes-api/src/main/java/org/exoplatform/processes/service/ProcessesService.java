@@ -93,6 +93,24 @@ public interface ProcessesService {
   WorkFlow createWorkFlow(WorkFlow workFlow, long userId) throws IllegalAccessException;
 
   /**
+   * Lists the labels of a task project a process of a space may feed, for the
+   * process editor, by id order.
+   *
+   * @param spaceId the managing space id
+   * @param projectId the project id
+   * @param userIdentityId the reading user's identity id
+   * @return the project's labels
+   * @throws ObjectNotFoundException when the space does not exist
+   * @throws IllegalAccessException when the user is neither a processes
+   *           administrator nor a manager of the space
+   * @throws IllegalArgumentException processes.project.notEligible or
+   *           processes.project.statusNameConflict when a process of the space
+   *           may not feed the project
+   */
+  List<WorkFlowLabel> listProjectLabels(String spaceId, long projectId, long userIdentityId) throws ObjectNotFoundException,
+                                                                                            IllegalAccessException;
+
+  /**
    * Lists the task projects a process of a space may feed: the projects
    * attached to the space, whose managers hold the space's manager membership
    * and whose managers and participants hold no group membership but the

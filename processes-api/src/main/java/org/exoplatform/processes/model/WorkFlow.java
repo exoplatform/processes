@@ -73,6 +73,13 @@ public class WorkFlow {
   private List<CreatorIdentityEntity> requestsCreators;
 
   /**
+   * The labels the process applies to each request it creates, all of its task
+   * project. Null when the caller does not state them: an update then keeps
+   * the stored ones.
+   */
+  private List<WorkFlowLabel>         labels;
+
+  /**
    * How a save chooses the process's task project: a new one, or the existing
    * one {@link #projectId} names. It is an instruction of the save, not a state
    * of the process, so it is left out of the comparison of two processes. Null

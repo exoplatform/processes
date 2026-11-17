@@ -28,6 +28,13 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.junit.Assert.assertNull;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
@@ -38,6 +45,9 @@ import java.util.Map;
 import java.util.Set;
 
 import org.junit.Before;
+import org.exoplatform.processes.model.WorkFlowLabel;
+import org.exoplatform.task.dto.LabelDto;
+import org.mockito.InOrder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
@@ -45,6 +55,8 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.services.listener.ListenerService;
+import org.exoplatform.task.service.LabelService;
 import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.processes.constant.ProjectMode;
 import org.exoplatform.processes.model.EligibleProject;
@@ -98,6 +110,12 @@ public class ProcessesServiceProjectChoiceTest {
   private static final long          OTHER_GROUP_ID   = 14L;
 
   @Mock
+  private LabelService labelService;
+
+  @Mock
+  private ListenerService listenerService;
+
+  @Mock
   private ProcessesStorage           processesStorage;
 
   @Mock
@@ -132,13 +150,21 @@ public class ProcessesServiceProjectChoiceTest {
    */
   @Before
   public void setUp() throws Exception {
-    processesService = new ProcessesServiceImpl(processesStorage,
+    processesService = spy(new ProcessesServiceImpl(processesStorage,
                                                 projectService,
                                                 identityManager,
                                                 userACL,
                                                 spaceService,
                                                 processesAttachmentService,
-                                                statusService);
+                                                statusService,
+                                                labelService,
+                                                listenerService));
+    // The save of a process's rows runs in a transaction the platform aspect
+    // begins; the unit tests call the storage's save directly
+    doAnswer(invocation -> processesStorage.saveWorkFlow(invocation.getArgument(0),
+                                                         invocation.getArgument(1))).when(processesService)
+                                                                                    .saveWorkFlowRows(any(), anyLong());
+    when(processesStorage.createProject(any())).thenAnswer(invocation -> invocation.getArgument(0));
     space = new Space();
     space.setId(SPACE_ID);
     space.setGroupId(SPACE_GROUP);
@@ -341,6 +367,213 @@ public class ProcessesServiceProjectChoiceTest {
                  () -> processesService.createWorkFlow(newWorkFlow(ProjectMode.EXISTING, ATTACHED_ID), SPACE_MANAGER_ID));
     verify(statusService, never()).createStatus(any(), anyString());
     verify(processesStorage, never()).saveWorkFlow(any(), anyLong());
+  }
+
+  /**
+   * An existing project gives the process its labels: a label sent with an id
+   * is the project's stored label, whatever name the client sent; a name the
+   * project has already, case and spaces aside, reuses that label; a name it
+   * lacks is created there once, by the saving user, with no color, after the
+   * project's missing statuses and before the process's rows are saved, and
+   * the creation is broadcast after the save. Mutation: trust the client's
+   * name, compare names with their case, create the label twice, or
+   * broadcast before the save or after the links, and this test fails.
+   *
+   * @throws Exception on an unexpected refusal
+   */
+  @Test
+  public void anExistingProjectGivesItsLabelsAndGetsTheMissingOnes() throws Exception {
+    LabelDto holiday = label(101L, "Holiday", ATTACHED_ID);
+    LabelDto urgent = label(102L, "Urgent", ATTACHED_ID);
+    when(labelService.getLabel(101L)).thenReturn(holiday);
+    when(labelService.findLabelsByProject(eq(ATTACHED_ID), any(), eq(0), eq(0))).thenReturn(List.of(urgent, holiday));
+    when(labelService.createLabel(any(LabelDto.class))).thenAnswer(invocation -> {
+      LabelDto created = invocation.getArgument(0);
+      created.setId(103L);
+      return created;
+    });
+    WorkFlow workFlow = newWorkFlow(ProjectMode.EXISTING, ATTACHED_ID);
+    workFlow.setLabels(List.of(new WorkFlowLabel(101L, "renamed by the client"),
+                               new WorkFlowLabel(0L, " urgent "),
+                               new WorkFlowLabel(0L, "New one"),
+                               new WorkFlowLabel(0L, "new ONE")));
+
+    processesService.createWorkFlow(workFlow, ADMIN_ID);
+
+    ArgumentCaptor<LabelDto> created = ArgumentCaptor.forClass(LabelDto.class);
+    verify(labelService, times(1)).createLabel(created.capture());
+    assertEquals("New one", created.getValue().getName());
+    assertEquals("admin", created.getValue().getUsername());
+    assertEquals(ATTACHED_ID, created.getValue().getProject().getId());
+    assertNull(created.getValue().getColor());
+    ArgumentCaptor<WorkFlow> saved = ArgumentCaptor.forClass(WorkFlow.class);
+    verify(processesStorage).saveWorkFlow(saved.capture(), eq(ADMIN_ID));
+    assertEquals(List.of(new WorkFlowLabel(101L, "Holiday"), new WorkFlowLabel(102L, "Urgent"), new WorkFlowLabel(103L, "New one")),
+                 saved.getValue().getLabels());
+    InOrder order = inOrder(statusService, labelService, processesService, listenerService, processesStorage);
+    order.verify(statusService, atLeastOnce()).createStatus(any(), any());
+    order.verify(labelService).createLabel(any());
+    order.verify(processesService).saveWorkFlowRows(any(), eq(ADMIN_ID));
+    // Broadcast once the rows are committed, before the attachments' links,
+    // which a failure must not keep from being announced
+    order.verify(listenerService).broadcast(eq("exo.process.created"), any(), any());
+    order.verify(processesStorage).linkWorkFlowAttachments(any(), any(), eq(ADMIN_ID));
+  }
+
+  /**
+   * Every label is checked before the first write: a label of another
+   * project, a label deleted in Tasks, a blank name and a name longer than a
+   * Task label are refused with their code, and neither a status, nor a label,
+   * nor the process is written. Mutation: check the labels after the
+   * project's statuses, drop the project check or the length check, and this
+   * test fails.
+   */
+  @Test
+  public void aLabelIsCheckedBeforeAnyWrite() throws Exception {
+    when(labelService.getLabel(201L)).thenReturn(label(201L, "Elsewhere", ATTACHED_2_ID));
+    assertRefused(new WorkFlowLabel(201L, "Elsewhere"), "processes.label.notInProject");
+    assertRefused(new WorkFlowLabel(202L, "Deleted"), "processes.label.notInProject");
+    assertRefused(new WorkFlowLabel(0L, "   "), "processes.label.invalidName");
+    assertRefused(new WorkFlowLabel(0L, "x".repeat(51)), "processes.label.invalidName");
+
+    verify(statusService, never()).createStatus(any(), any());
+    verify(labelService, never()).createLabel(any());
+    verify(processesStorage, never()).saveWorkFlow(any(), anyLong());
+    verify(listenerService, never()).broadcast(any(String.class), any(), any());
+  }
+
+  /**
+   * A new project has no label to choose: an id is refused before the project
+   * is created, and the names are created in the new project once it exists.
+   * A name of 50 characters is accepted. Mutation: accept an id in NEW mode,
+   * or create the labels before the project, and this test fails.
+   *
+   * @throws Exception on an unexpected refusal
+   */
+  @Test
+  public void aNewProjectGetsTheNamedLabelsOnceCreated() throws Exception {
+    when(labelService.getLabel(101L)).thenReturn(label(101L, "Holiday", ATTACHED_ID));
+    WorkFlow withId = newWorkFlow(ProjectMode.NEW, 0);
+    withId.setLabels(List.of(new WorkFlowLabel(101L, "Holiday")));
+    IllegalArgumentException refusal = assertThrows(IllegalArgumentException.class,
+                                                    () -> processesService.createWorkFlow(withId, ADMIN_ID));
+    assertEquals("processes.label.notInProject", refusal.getMessage());
+    verify(processesStorage, never()).createProject(any());
+
+    ProjectDto newProject = project(30L, "Leave request", Set.of(SPACE_MANAGER), Set.of(SPACE_MEMBER));
+    when(projectService.getProject(30L)).thenReturn(newProject);
+    when(processesStorage.createProject(any())).thenAnswer(invocation -> {
+      WorkFlow created = invocation.getArgument(0);
+      created.setProjectId(30L);
+      return created;
+    });
+    when(labelService.createLabel(any(LabelDto.class))).thenAnswer(invocation -> {
+      LabelDto created = invocation.getArgument(0);
+      created.setId(301L);
+      return created;
+    });
+    String name = "y".repeat(50);
+    WorkFlow named = newWorkFlow(ProjectMode.NEW, 0);
+    named.setLabels(List.of(new WorkFlowLabel(0L, name)));
+
+    processesService.createWorkFlow(named, ADMIN_ID);
+
+    ArgumentCaptor<LabelDto> created = ArgumentCaptor.forClass(LabelDto.class);
+    InOrder order = inOrder(processesStorage, labelService);
+    order.verify(processesStorage).createProject(any());
+    order.verify(labelService).createLabel(created.capture());
+    assertEquals(30L, created.getValue().getProject().getId());
+    ArgumentCaptor<WorkFlow> saved = ArgumentCaptor.forClass(WorkFlow.class);
+    verify(processesStorage).saveWorkFlow(saved.capture(), eq(ADMIN_ID));
+    assertEquals(List.of(new WorkFlowLabel(301L, name)), saved.getValue().getLabels());
+  }
+
+  /**
+   * A save that fails once Task created a new process's project propagates
+   * its failure, after logging the project it leaves, and neither links
+   * attachments nor broadcasts the creation. Mutation: swallow the failure or
+   * broadcast before the save and this test fails.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void aFailingSaveAfterANewProjectPropagatesAndBroadcastsNothing() throws Exception {
+    doThrow(new IllegalStateException("the rows fail")).when(processesService).saveWorkFlowRows(any(), anyLong());
+
+    assertThrows(IllegalStateException.class, () -> processesService.createWorkFlow(newWorkFlow(ProjectMode.NEW, 0), ADMIN_ID));
+
+    verify(processesStorage).createProject(any());
+    verify(processesStorage, never()).linkWorkFlowAttachments(any(), any(), anyLong());
+    verify(listenerService, never()).broadcast(any(String.class), any(), any());
+  }
+
+  /**
+   * Lists the labels of an eligible project of the space, by id, to a
+   * processes administrator or a manager of the space only; a project the
+   * space's processes may not feed is refused. Mutation: drop the gate or the
+   * eligibility check and this test fails.
+   *
+   * @throws Exception on an unexpected refusal
+   */
+  @Test
+  public void theEditorListsTheLabelsOfAnEligibleProjectOnly() throws Exception {
+    when(labelService.findLabelsByProject(eq(ATTACHED_ID), any(), eq(0), eq(0))).thenReturn(List.of(label(102L, "Urgent", ATTACHED_ID),
+                                                                                                    label(101L, "Holiday", ATTACHED_ID)));
+
+    assertEquals(List.of(new WorkFlowLabel(101L, "Holiday"), new WorkFlowLabel(102L, "Urgent")),
+                 processesService.listProjectLabels(SPACE_ID, ATTACHED_ID, SPACE_MANAGER_ID));
+    assertThrows(IllegalAccessException.class, () -> processesService.listProjectLabels(SPACE_ID, ATTACHED_ID, MEMBER_ID));
+    assertThrows(ObjectNotFoundException.class, () -> processesService.listProjectLabels("99", ATTACHED_ID, ADMIN_ID));
+    IllegalArgumentException refusal = assertThrows(IllegalArgumentException.class,
+                                                    () -> processesService.listProjectLabels(SPACE_ID, TASKS_APP_ID, ADMIN_ID));
+    assertEquals("processes.project.notEligible", refusal.getMessage());
+  }
+
+  /**
+   * The save of a process's rows is the one atomic method of a process save,
+   * which the edit's move state and the Forms binding join later. Mutation:
+   * drop atomic = true and this test fails.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void theSaveOfAProcessRowsIsAtomic() throws Exception {
+    io.meeds.common.ContainerTransactional transactional =
+                                                         ProcessesServiceImpl.class.getMethod("saveWorkFlowRows", WorkFlow.class, long.class)
+                                                                                   .getAnnotation(io.meeds.common.ContainerTransactional.class);
+    assertTrue(transactional != null && transactional.atomic());
+  }
+
+  /**
+   * Asserts a process with one label is refused with a code.
+   *
+   * @param label the label
+   * @param code the expected code
+   */
+  private void assertRefused(WorkFlowLabel label, String code) {
+    WorkFlow workFlow = newWorkFlow(ProjectMode.EXISTING, ATTACHED_ID);
+    workFlow.setLabels(List.of(label));
+    IllegalArgumentException refusal = assertThrows(IllegalArgumentException.class,
+                                                    () -> processesService.createWorkFlow(workFlow, ADMIN_ID));
+    assertEquals(code, refusal.getMessage());
+  }
+
+  /**
+   * Builds a Task label of a project.
+   *
+   * @param id its id
+   * @param name its name
+   * @param projectId its project id
+   * @return the label
+   */
+  private static LabelDto label(long id, String name, long projectId) {
+    ProjectDto project = new ProjectDto();
+    project.setId(projectId);
+    LabelDto label = new LabelDto();
+    label.setId(id);
+    label.setName(name);
+    label.setProject(project);
+    return label;
   }
 
   /**
