@@ -123,7 +123,7 @@ class ProcessTranslationServiceTest {
    * @throws Exception never, the services are mocks
    */
   @Test
-  void aSaveRewritesAStaleDefaultLanguageTranslationOnly() throws Exception {
+  void aSaveRemovesAStaleDefaultLanguageTranslationOnly() throws Exception {
     when(translationService.getTranslationLabel("process", "9", "title", Locale.ENGLISH)).thenReturn("Old leave");
     when(translationService.getTranslationLabel("process", "9", "description", Locale.ENGLISH)).thenReturn("Ask for leave");
     when(translationService.getTranslationLabel("process", "9", "summary", Locale.ENGLISH)).thenReturn(null);

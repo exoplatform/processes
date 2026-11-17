@@ -188,8 +188,8 @@ public class ProcessTranslationService {
    * Removes, after a process is saved, each default-language translation that
    * no longer equals the column, so that the editor, which shows that
    * translation in its default field when there is one and the column
-   * otherwise, and every reader agree with the column whoever wrote it; the
-   * editor's next save writes it again. A field with no default-language
+   * otherwise, and every reader agree with the column whoever wrote it; an
+   * editor save that changes that field writes it again. A field with no default-language
    * translation stays without one.
    *
    * @param workFlow the process as saved

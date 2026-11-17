@@ -30,6 +30,7 @@ import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.commons.utils.HTMLSanitizer;
 import org.exoplatform.processes.Utils.ProcessesUtils;
 import org.exoplatform.processes.constant.ProjectMode;
+import org.exoplatform.processes.model.EligibleProjects;
 import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.rest.model.WorkEntity;
@@ -193,6 +194,30 @@ public class EntityBuilder {
                               null,
                               null,
                               null);
+  }
+
+  /**
+   * Names the processes each eligible project feeds in a reader's language:
+   * the projects are built for the reader's request, never shared.
+   *
+   * @param projects the eligible projects
+   * @param locale the reader's language, or null to keep the stored titles
+   * @return the same projects
+   */
+  public static EligibleProjects translate(EligibleProjects projects, Locale locale) {
+    if (projects == null || locale == null || projects.getProjects() == null) {
+      return projects;
+    }
+    ProcessTranslationService processTranslationService = CommonsUtils.getService(ProcessTranslationService.class);
+    projects.getProjects()
+            .stream()
+            .filter(project -> project.getWorkflows() != null)
+            .flatMap(project -> project.getWorkflows().stream())
+            .forEach(process -> process.setTitle(processTranslationService.getLabel(process.getId(),
+                                                                                    ProcessTranslationService.TITLE_FIELD,
+                                                                                    process.getTitle(),
+                                                                                    locale)));
+    return projects;
   }
 
   /**

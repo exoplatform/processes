@@ -475,7 +475,7 @@ public class ProcessesRest implements ResourceContainer {
     }
     try {
       EligibleProjects projects = processesService.listEligibleProjects(spaceId, offset, limit, currentIdentityId);
-      return Response.ok(projects).cacheControl(PER_USER_CACHE_CONTROL).build();
+      return Response.ok(EntityBuilder.translate(projects, getLocale())).cacheControl(PER_USER_CACHE_CONTROL).build();
     } catch (ObjectNotFoundException e) {
       LOG.debug("User '{}' lists the projects of a space that does not exist", currentIdentityId, e);
       return Response.status(Response.Status.NOT_FOUND).entity("Space not found").build();

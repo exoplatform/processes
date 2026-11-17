@@ -361,6 +361,27 @@ public class EntityBuilderTest {
   }
 
   /**
+   * The editor's project choice names the processes each project feeds in the
+   * reader's language; no language keeps their stored titles.
+   * Mutants: the projects answered with the stored titles, or the locale
+   * ignored.
+   */
+  @Test
+  public void theProjectChoiceNamesItsProcessesInTheReadersLanguage() {
+    ProcessTranslationService processTranslationService = mockTranslations();
+    when(processTranslationService.getLabel(9L, "title", "Leave", Locale.FRENCH)).thenReturn("Congés");
+    org.exoplatform.processes.model.EligibleProjects projects =
+        new org.exoplatform.processes.model.EligibleProjects(new ArrayList<>(List.of(new org.exoplatform.processes.model.EligibleProject(50L,
+                                                                                                                                     "Shared",
+                                                                                                                                     new ArrayList<>(List.of(new org.exoplatform.processes.model.ProcessReference(9L,
+                                                                                                                                                                                                                  "Leave")))))),
+                                                             1);
+
+    assertEquals("Leave", EntityBuilder.translate(projects, null).getProjects().get(0).getWorkflows().get(0).getTitle());
+    assertEquals("Congés", EntityBuilder.translate(projects, Locale.FRENCH).getProjects().get(0).getWorkflows().get(0).getTitle());
+  }
+
+  /**
    * @return the translation reader the builder looks up, answering French
    *         texts for the process 9
    */

@@ -769,16 +769,17 @@ export default {
     },
     /**
      * Keeps a translation field's values as the drawer opened with them. A
-     * field that loaded holds at least its default-language value; one whose
-     * translations could not be read holds none, and is never saved, so that
-     * its stored translations stay.
+     * field that loaded holds at least its default-language value, which a
+     * stored process always has; one whose translations could not be read
+     * holds no value, or only the empty one a previous opening's field left,
+     * and is never saved, so that its stored translations stay.
      *
      * @param {String} fieldName the translated field
      * @returns {void}
      */
     keepOpenedTranslation(fieldName) {
       const values = this.translations[fieldName] || {};
-      if (Object.keys(values).length) {
+      if (Object.values(values).some(value => value)) {
         this.openedTranslations[fieldName] = JSON.stringify(values);
       }
     },
