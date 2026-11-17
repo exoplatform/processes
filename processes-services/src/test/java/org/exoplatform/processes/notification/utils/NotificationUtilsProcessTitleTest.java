@@ -18,7 +18,7 @@ package org.exoplatform.processes.notification.utils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -66,9 +66,9 @@ class NotificationUtilsProcessTitleTest {
 
     NotificationUtils.appendProcess(ctx, processesService, 9L, "Shared project");
 
-    verify(ctx).append(NotificationArguments.REQUEST_PROCESS, "Leave");
-    verify(ctx).append(NotificationArguments.WORKFLOW_ID, "9");
-    verify(ctx, never()).append(NotificationArguments.REQUEST_PROCESS, "Shared project");
+    verify(ctx).append(argument(NotificationArguments.REQUEST_PROCESS), argThat("Leave"::equals));
+    verify(ctx).append(argument(NotificationArguments.WORKFLOW_ID), argThat("9"::equals));
+    verify(ctx, never()).append(argument(NotificationArguments.REQUEST_PROCESS), argThat("Shared project"::equals));
   }
 
   /**
@@ -82,9 +82,9 @@ class NotificationUtilsProcessTitleTest {
     NotificationUtils.appendProcess(ctx, processesService, 404L, "Shared project");
     NotificationUtils.appendProcess(ctx, processesService, null, "Old project");
 
-    verify(ctx).append(NotificationArguments.REQUEST_PROCESS, "Shared project");
-    verify(ctx).append(NotificationArguments.REQUEST_PROCESS, "Old project");
-    verify(ctx, never()).append(eq(NotificationArguments.WORKFLOW_ID), any());
+    verify(ctx).append(argument(NotificationArguments.REQUEST_PROCESS), argThat("Shared project"::equals));
+    verify(ctx).append(argument(NotificationArguments.REQUEST_PROCESS), argThat("Old project"::equals));
+    verify(ctx, never()).append(argument(NotificationArguments.WORKFLOW_ID), any());
   }
 
   /**
@@ -121,6 +121,17 @@ class NotificationUtilsProcessTitleTest {
       assertEquals("Old leave", NotificationUtils.getProcessTitle(oldNotification, "fr"));
       assertEquals("Gone", NotificationUtils.getProcessTitle(goneProcess, "fr"));
     }
+  }
+
+  /**
+   * Matches a notification argument by its key: two arguments of one type
+   * compare equal whatever their key.
+   *
+   * @param literal the expected argument
+   * @return the matcher
+   */
+  private static org.exoplatform.commons.api.notification.model.ArgumentLiteral<String> argument(org.exoplatform.commons.api.notification.model.ArgumentLiteral<String> literal) {
+    return argThat(actual -> actual != null && literal.getKey().equals(actual.getKey()));
   }
 
   /**
