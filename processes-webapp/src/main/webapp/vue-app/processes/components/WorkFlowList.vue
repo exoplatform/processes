@@ -38,7 +38,7 @@
     </v-container>
     <empty-or-loading
       v-else
-      :loading="loading">
+      :loading="loading || checkingDisabled">
       <template #empty>
         <workflow-empty-state
           :can-add="isProcessesManager"
@@ -67,6 +67,8 @@ export default {
     filter: null,
     isFiltered: false,
     allDisabled: false,
+    checkingDisabled: false,
+    checkId: 0,
   }),
   computed: {
     workflowList() {
@@ -144,14 +146,28 @@ export default {
     },
     /**
      * Tells whether the processes an administrator does not see on the default view, which lists
-     * the enabled ones, all exist as disabled processes.
+     * the enabled ones, all exist as disabled processes. The empty state waits for the answer, so it
+     * never says « No process yet » before knowing. An answer that a newer check replaced changes
+     * nothing; one that fails ends the wait and keeps the previous answer, « No process yet » on a
+     * first check.
      *
      * @returns {Promise} resolved once the answer is read
      */
     checkAllDisabled() {
-      return this.$processesService.getWorkFlows({enabled: false, manager: false}, 0, 1).then(workflows => {
-        this.allDisabled = !!(workflows && workflows.length);
-      });
+      const checkId = ++this.checkId;
+      this.checkingDisabled = true;
+      return this.$processesService.getWorkFlows({enabled: false, manager: false}, 0, 1)
+        .then(workflows => {
+          if (checkId === this.checkId) {
+            this.allDisabled = !!(workflows && workflows.length);
+          }
+        })
+        .catch(() => null)
+        .finally(() => {
+          if (checkId === this.checkId) {
+            this.checkingDisabled = false;
+          }
+        });
     },
     /**
      * Keeps the status the toolbar selected, which decides whether an updated process stays listed.
