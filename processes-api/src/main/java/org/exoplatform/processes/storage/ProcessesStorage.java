@@ -153,11 +153,14 @@ public interface ProcessesStorage {
   Work saveWork(Work work, long userId) throws IllegalArgumentException;
 
   /**
-   * Delete a workflow by its given Id.
+   * Deletes a process, its drafts and its request records, in one
+   * transaction. The request tasks stay as plain tasks.
    *
-   * @param workflowId : workflow id
+   * @param workflowId the process id
+   * @return the task ids its request records held
+   * @throws EntityNotFoundException when the process does not exist
    */
-  void deleteWorkflowById(Long workflowId) throws EntityNotFoundException;
+  List<Long> deleteWorkflowById(Long workflowId) throws EntityNotFoundException;
 
   /**
    * Retrieves a Work by its given id

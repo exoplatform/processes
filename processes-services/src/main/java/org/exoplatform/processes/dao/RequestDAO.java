@@ -61,6 +61,19 @@ public class RequestDAO extends GenericDAOJPAImpl<RequestEntity, Long> {
   }
 
   /**
+   * Reads the task ids of every request record of a process, whether the task
+   * still exists or not.
+   *
+   * @param workFlowId the process id
+   * @return the task ids, ascending
+   */
+  public List<Long> findTaskIdsByWorkFlowId(long workFlowId) {
+    return getEntityManager().createNamedQuery("ProcessesRequest.findTaskIdsByWorkFlowId", Long.class)
+                             .setParameter("workFlowId", workFlowId)
+                             .getResultList();
+  }
+
+  /**
    * Builds the restriction of a query to the tasks that are requests of some
    * processes: an EXISTS on the request records of those processes, correlated
    * by the task id, which the index on (WORK_FLOW_ID, TASK_ID) serves. It needs

@@ -797,8 +797,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    */
   @Override
   @ContainerTransactional(atomic = true)
-  public void deleteWorkflowById(Long workflowId) throws jakarta.persistence.EntityNotFoundException {
-    deleteWorkflowRows(workflowId);
+  public List<Long> deleteWorkflowById(Long workflowId) throws jakarta.persistence.EntityNotFoundException {
+    return deleteWorkflowRows(workflowId);
   }
 
   /**
@@ -809,10 +809,12 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    * the process and its request records as they were.
    *
    * @param workflowId the process id
+   * @return the task ids the process's request records held, read in the
+   *         same transaction as their deletion
    * @throws jakarta.persistence.EntityNotFoundException when the process does
    *           not exist
    */
-  void deleteWorkflowRows(Long workflowId) {
+  List<Long> deleteWorkflowRows(Long workflowId) {
     WorkFlowEntity workFlowEntity = this.workFlowDAO.find(workflowId);
     if (workFlowEntity == null) {
       throw new jakarta.persistence.EntityNotFoundException("Workflow not found");
@@ -821,8 +823,10 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     if (!drafts.isEmpty()) {
       workDraftDAO.deleteAll(drafts);
     }
+    List<Long> requestTaskIds = requestDAO.findTaskIdsByWorkFlowId(workflowId);
     requestDAO.deleteByWorkFlowId(workflowId);
     this.workFlowDAO.delete(workFlowEntity);
+    return requestTaskIds;
   }
 
   /**

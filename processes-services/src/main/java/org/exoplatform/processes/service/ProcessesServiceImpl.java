@@ -65,6 +65,7 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
 import java.util.Objects;
+import org.exoplatform.processes.constant.ProcessesEvents;
 
 public class ProcessesServiceImpl implements ProcessesService {
 
@@ -883,7 +884,7 @@ public class ProcessesServiceImpl implements ProcessesService {
   @Override
   @Deprecated(forRemoval = true)
   public void deleteWorkflowById(Long workflowId) {
-    this.processesStorage.deleteWorkflowById(workflowId);
+    broadcastProcessDeleted(workflowId, this.processesStorage.deleteWorkflowById(workflowId));
   }
 
   /**
@@ -901,8 +902,22 @@ public class ProcessesServiceImpl implements ProcessesService {
     if (workFlow.getAcl() == null || !workFlow.getAcl().isCanDelete()) {
       throw new IllegalAccessException("User " + userIdentityId + " isn't allowed to delete the process " + workflowId);
     }
-    this.processesStorage.deleteWorkflowById(workflowId);
+    broadcastProcessDeleted(workflowId, this.processesStorage.deleteWorkflowById(workflowId));
     processTranslationService.deleteTranslations(workflowId);
+  }
+
+  /**
+   * Announces a committed process deletion, with the tasks its requests had,
+   * which stay as plain tasks.
+   *
+   * @param workflowId the deleted process id
+   * @param requestTaskIds the task ids its request records held
+   */
+  private void broadcastProcessDeleted(Long workflowId, List<Long> requestTaskIds) {
+    ProcessesUtils.broadcast(listenerService,
+                             ProcessesEvents.PROCESS_DELETED,
+                             workflowId,
+                             requestTaskIds == null ? List.<Long> of() : List.copyOf(requestTaskIds));
   }
 
   /**

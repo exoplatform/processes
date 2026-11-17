@@ -67,14 +67,20 @@ public class ProcessesStorageRequestReadsTest {
   private RequestDAO           requestDAO;
 
   @Mock
+  private org.exoplatform.processes.dao.WorkFlowDAO  workFlowDAO;
+
+  @Mock
+  private org.exoplatform.processes.dao.WorkDraftDAO workDraftDAO;
+
+  @Mock
   private TaskService          taskService;
 
   private ProcessesStorageImpl processesStorage;
 
   @Before
   public void setUp() {
-    processesStorage = new ProcessesStorageImpl(null,
-                                                null,
+    processesStorage = new ProcessesStorageImpl(workFlowDAO,
+                                                workDraftDAO,
                                                 requestDAO,
                                                 taskService,
                                                 null,
@@ -186,6 +192,27 @@ public class ProcessesStorageRequestReadsTest {
     List<Condition> conditions = conditions(query.getValue());
     assertEquals(1, conditions.size());
     assertFalse(conditions.get(0) instanceof AggregateCondition);
+  }
+
+  /**
+   * A process's deletion answers the task ids its request records held, read
+   * before the records are deleted, in the same transaction. Mutation: read
+   * them after the deletion and the answer is empty.
+   */
+  @Test
+  public void aDeletionAnswersTheRequestTasksReadBeforeTheRecordsGo() {
+    org.exoplatform.processes.entity.WorkFlowEntity workFlow = new org.exoplatform.processes.entity.WorkFlowEntity();
+    workFlow.setId(7L);
+    when(workFlowDAO.find(7L)).thenReturn(workFlow);
+    when(workDraftDAO.getDraftsByWorkflowId(7L)).thenReturn(List.of());
+    when(requestDAO.findTaskIdsByWorkFlowId(7L)).thenReturn(List.of(100L, 101L));
+
+    assertEquals(List.of(100L, 101L), processesStorage.deleteWorkflowRows(7L));
+
+    org.mockito.InOrder order = org.mockito.Mockito.inOrder(requestDAO, workFlowDAO);
+    order.verify(requestDAO).findTaskIdsByWorkFlowId(7L);
+    order.verify(requestDAO).deleteByWorkFlowId(7L);
+    order.verify(workFlowDAO).delete(workFlow);
   }
 
   private TaskQuery capturedFindQuery(int limit) throws Exception {

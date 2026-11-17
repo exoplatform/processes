@@ -208,6 +208,17 @@ public class RequestDAOTest {
     assertEquals(null, workFlowIds.get(5L));
   }
 
+  /**
+   * The task ids of a process's request records are read whether the task
+   * still exists or not, in ascending order, and only for that process.
+   * Mutation: drop the process restriction and this test fails.
+   */
+  @Test
+  public void findTaskIdsByWorkFlowIdReadsEveryRecordOfTheProcess() {
+    assertEquals(List.of(1L, 2L, 3L, 6L), requestDAO.findTaskIdsByWorkFlowId(PROCESS));
+    assertEquals(List.of(4L), requestDAO.findTaskIdsByWorkFlowId(OTHER_PROCESS));
+  }
+
   private Set<Long> tasksOf(Collection<Long> workFlowIds) {
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
     CriteriaQuery<TestTaskEntity> query = cb.createQuery(TestTaskEntity.class);
