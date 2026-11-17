@@ -283,6 +283,13 @@ export default {
           this.work.attachments = this.editDraft ? this.attachments : [];
           this.work.formValues = Object.keys(values).length ? JSON.stringify(values) : null;
           this.$root.$emit('add-work', this.work);
+        })
+        .catch(() => {
+          // A section whose check failed to answer stops the submit as a failed check does
+          if (openKey === this.openKey) {
+            this.saving = false;
+            this.settleSubmit(false, {code: 'processes.request.sectionsInvalid', fieldKey: null});
+          }
         });
     },
     /**
