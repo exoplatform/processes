@@ -636,14 +636,20 @@ export default {
         : {code: message.substring(0, index), fieldKey: message.substring(index + 1)};
     },
     /**
-     * Gives the label Forms registers for one of its codes.
+     * Gives the label Forms registers for one of its codes: the one worded
+     * for the object kind first, under the key Forms' own sections read
+     * (formsObject.error.<kind>.<code>), then the general one.
      *
      * @param {String} code the refusal's code
+     * @param {String} [kind] the Forms object kind, processes.requestDraft for a request or its draft
      * @returns {String} the label, null for another code or none registered
      */
-    formsRefusalMessage(code) {
-      const key = `formsObject.error.${code}`;
-      return code && code.startsWith('forms.') && this.$te(key) && this.$t(key) || null;
+    formsRefusalMessage(code, kind) {
+      if (!code || !code.startsWith('forms.')) {
+        return null;
+      }
+      const key = [kind && `formsObject.error.${kind}.${code}`, `formsObject.error.${code}`].find(candidate => candidate && this.$te(candidate));
+      return key && this.$t(key) || null;
     },
     /**
      * Words a refused request or draft save: the label of the code the server
@@ -658,7 +664,7 @@ export default {
       if (this.requestSaveErrorCodes.includes(code)) {
         return this.$t(`processes.request.saveError.${code}`);
       }
-      return this.formsRefusalMessage(code) || this.$t(genericKey);
+      return this.formsRefusalMessage(code, 'processes.requestDraft') || this.$t(genericKey);
     },
     showConfirmDialog(model, reason){
       this.dialogAction = reason;
