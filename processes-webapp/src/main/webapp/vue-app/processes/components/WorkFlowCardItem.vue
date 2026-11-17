@@ -17,7 +17,7 @@
         @click.native="openRequest"
         @keydown.native.enter.self="openRequest"
         @keydown.native.space.self.prevent="openRequest">
-        <div class="d-flex align-center ps-3 pe-2 pt-3">
+        <div class="workflow-card-head d-flex align-center text-start ps-3 pe-2 pt-3">
           <v-avatar
             :class="!showIllustration && 'workflow-card-avatar-placeholder primary--text'"
             class="workflow-card-avatar flex-shrink-0 me-3"
@@ -171,13 +171,14 @@ export default {
       }
     },
     /**
-     * Reads the number of uncompleted requests of the process's task project.
+     * Reads the number of uncompleted requests of the process's task project; the endpoint answers it as text.
      *
      * @returns {Promise} resolved once the count is read
      */
     countOpenRequests() {
       return this.$processesService.countWorksByWorkflow(this.workflow.projectId, false).then(value => {
-        this.openRequestsCount = value;
+        const count = Number(value);
+        this.openRequestsCount = Number.isFinite(count) ? count : null;
       });
     },
   },
