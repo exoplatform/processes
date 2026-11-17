@@ -12,6 +12,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -31,7 +32,10 @@ import java.util.Set;
 import javax.ws.rs.ext.RuntimeDelegate;
 
 import org.apache.commons.lang3.StringUtils;
+import org.exoplatform.task.dto.LabelDto;
+import org.mockito.InOrder;
 import org.exoplatform.portal.config.UserACL;
+import org.exoplatform.task.service.LabelService;
 import org.exoplatform.services.security.MembershipEntry;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -108,6 +112,9 @@ public class ProcessesStorageImplTest {
   private static final MockedStatic<ProjectUtil>    PROJECT_UTIL    = mockStatic(ProjectUtil.class);
 
   @Mock
+  private LabelService labelService;
+
+  @Mock
   private WorkFlowDAO                workFlowDAO;
 
   @Mock
@@ -172,7 +179,8 @@ public class ProcessesStorageImplTest {
                                                      listenerService,
                                                      processesAttachmentService,
                                                      fileService,
-                                                     userACL);
+                                                     userACL,
+                                                     labelService);
 
   }
 
@@ -299,12 +307,23 @@ public class ProcessesStorageImplTest {
     when(workFlowDAO.create(workFlowEntity)).thenReturn(newWorkFlowEntity);
     when(workFlowDAO.update(workFlowEntity)).thenReturn(newWorkFlowEntity);
     when(workFlow.getIllustrativeAttachment()).thenReturn(illustrativeAttachment);
+    // The Service creates a new process's project first: the storage's save
+    // writes nothing through Task, so it may run in one transaction
+    Throwable exception3 = assertThrows(IllegalArgumentException.class, () -> this.processesStorage.saveWorkFlow(workFlow, 1L));
+    assertEquals("processes.project.required", exception3.getMessage());
+    verify(projectService, never()).createProject(any());
+    when(workFlow.getProjectId()).thenReturn(1L);
     this.processesStorage.saveWorkFlow(workFlow, 1L);
     verify(workFlowDAO, times(1)).create(workFlowEntity);
-    PROCESSES_UTILS.verify(() -> ProcessesUtils.broadcast(listenerService,
-                                                          "exo.process.created",
-                                                          1L,
-                                                          EntityMapper.fromEntity(workFlowEntity, illustrativeAttachment, memberships)), times(1));
+    // The Service broadcasts the creation and links the attachments, after
+    // the transaction of the save
+    PROCESSES_UTILS.verify(() -> ProcessesUtils.broadcast(any(ListenerService.class), eq("exo.process.created"), any(), any()),
+                           never());
+    verify(processesAttachmentService, never()).linkAttachmentsToEntity(any(), anyLong(), anyLong(), any(), anyLong());
+    WorkFlow saved = new WorkFlow();
+    saved.setId(1L);
+    saved.setProjectId(1L);
+    this.processesStorage.linkWorkFlowAttachments(saved, attachments.toArray(new Attachment[0]), 1L);
     verify(processesAttachmentService,
            times(1)).linkAttachmentsToEntity(attachments.toArray(new Attachment[0]), 1L, 1L, "workflow", 1L);
     when(workFlow.getId()).thenReturn(1L);
@@ -439,6 +458,57 @@ public class ProcessesStorageImplTest {
     verify(requestDAO).create(new RequestEntity(40L, 3L, 1L));
     assertEquals("the created request names its process, which its answer shows", 3L, created.getWorkFlowId());
     verify(statusService, never()).getDefaultStatus(anyLong());
+  }
+
+  /**
+   * A new request gets the labels its process applies, once its task and its
+   * record exist: each one that still exists and belongs to the task's
+   * project, on its own; a label that can't be applied is logged and the
+   * request is still created. Mutation: skip the labels, apply one of another
+   * project, or let a failing label fail the request, and this test fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  public void aNewRequestGetsTheLabelsOfItsProcess() throws Exception {
+    Work work = newRequest();
+    when(statusService.getStatuses(9L)).thenReturn(Arrays.asList(status(7L, "Request")));
+    WorkFlowEntity process = new WorkFlowEntity();
+    process.setId(3L);
+    process.setProjectId(9L);
+    process.setLabelIds(new HashSet<>(Arrays.asList(11L, 12L, 13L, 14L)));
+    when(workFlowDAO.find(3L)).thenReturn(process);
+    when(labelService.getLabel(11L)).thenReturn(projectLabel(11L, 9L));
+    when(labelService.getLabel(12L)).thenReturn(projectLabel(12L, 8L));
+    when(labelService.getLabel(14L)).thenReturn(projectLabel(14L, 9L));
+    doThrow(new RuntimeException("Task refuses the label")).when(labelService).addTaskToLabel(any(TaskDto.class), eq(11L));
+
+    Work created = processesStorage.saveWork(work, 1L);
+
+    assertNotNull(created);
+    InOrder order = inOrder(requestDAO, labelService);
+    order.verify(requestDAO).create(new RequestEntity(40L, 3L, 1L));
+    order.verify(labelService).addTaskToLabel(any(TaskDto.class), eq(11L));
+    order.verify(labelService).addTaskToLabel(any(TaskDto.class), eq(14L));
+    verify(labelService, never()).addTaskToLabel(any(TaskDto.class), eq(12L));
+    verify(labelService, never()).addTaskToLabel(any(TaskDto.class), eq(13L));
+  }
+
+  /**
+   * Builds a Task label of a project.
+   *
+   * @param id its id
+   * @param projectId its project id
+   * @return the label
+   */
+  private static LabelDto projectLabel(long id, long projectId) {
+    ProjectDto project = new ProjectDto();
+    project.setId(projectId);
+    LabelDto label = new LabelDto();
+    label.setId(id);
+    label.setName("label " + id);
+    label.setProject(project);
+    return label;
   }
 
   /**
@@ -793,6 +863,8 @@ public class ProcessesStorageImplTest {
     assertNotNull(user);
     COMMONS_UTILS.when(() -> CommonsUtils.getService(ProjectService.class)).thenReturn(projectService);
     when(projectService.getProject(1l)).thenReturn(projectDto);
+    // The class-wide static mock may hold a stub of another test for project 1
+    PROCESSES_UTILS.when(() -> ProcessesUtils.getProjectParentSpace(1l)).thenCallRealMethod();
     Space space = ProcessesUtils.getProjectParentSpace(1l);
     assertNull(space);
     when(processesStorage.findWorkFlows(any(), anyLong(), anyInt(), anyInt())).thenReturn(workFlows);
@@ -873,7 +945,7 @@ public class ProcessesStorageImplTest {
     WorkFlowEntity workFlowEntity = new WorkFlowEntity();
     ENTITY_MAPPER.when(() -> EntityMapper.toEntity(workFlow)).thenReturn(workFlowEntity);
     when(workFlow.getId()).thenReturn(0L);
-    when(workFlow.getProjectId()).thenReturn(0L);
+    when(workFlow.getProjectId()).thenReturn(1L);
     when(workFlow.getSpaceId()).thenReturn("1");
 
     when(identityManager.getIdentity(1)).thenReturn(identity);
@@ -984,7 +1056,7 @@ public class ProcessesStorageImplTest {
     WorkFlowEntity workFlowEntity = new WorkFlowEntity();
     ENTITY_MAPPER.when(() -> EntityMapper.toEntity(workFlow)).thenReturn(workFlowEntity);
     when(workFlow.getId()).thenReturn(0L);
-    when(workFlow.getProjectId()).thenReturn(0L);
+    when(workFlow.getProjectId()).thenReturn(1L);
     when(workFlow.getSpaceId()).thenReturn("1");
 
     when(identityManager.getIdentity(1)).thenReturn(identity);
