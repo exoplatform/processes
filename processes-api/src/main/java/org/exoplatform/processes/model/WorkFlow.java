@@ -84,7 +84,9 @@ public class WorkFlow {
    * The title, description and summary per language a save writes with the
    * process, by field name (title, description, summary), then by language
    * tag. The default language's value is the field itself. Null when the
-   * caller does not state them: the stored translations then stay.
+   * caller does not state them: the stored translations then stay. It is part
+   * of the comparison of two processes, so that a save changing translations
+   * only is a change: a process read from storage never carries them.
    */
   private Map<String, Map<String, String>> translations;
 

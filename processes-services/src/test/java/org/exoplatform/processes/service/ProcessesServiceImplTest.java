@@ -687,6 +687,33 @@ public class ProcessesServiceImplTest {
     order.verify(processTranslationService).saveTranslations(saved, translations);
   }
 
+  /**
+   * An update that changes the process's translations only is a change: it is
+   * saved with them, not refused as an update with no change.
+   * Mutant: the translations left out of the comparison of two processes.
+   *
+   * @throws Exception never, the services are mocks
+   */
+  @Test
+  public void updateWorkflowChangingOnlyTranslationsIsSaved() throws Exception {
+    ProcessPermission acl = new ProcessPermission(true, true, false, false);
+    WorkFlow stored = new WorkFlow();
+    stored.setId(1L);
+    stored.setTitle("Leave");
+    stored.setAcl(acl);
+    when(processesStorage.getWorkFlowById(1L, 1L)).thenReturn(stored);
+    WorkFlow update = new WorkFlow();
+    update.setId(1L);
+    update.setTitle("Leave");
+    update.setAcl(acl);
+    Map<String, Map<String, String>> translations = Map.of("title", Map.of("fr", "Congés"));
+    update.setTranslations(translations);
+
+    processesService.updateWorkFlow(update, 1L);
+
+    verify(processTranslationService).saveTranslations(nullable(WorkFlow.class), eq(translations));
+  }
+
   @Test
   public void deleteWorkflowByIdWithUser() throws Exception {
     WorkFlow deletable = new WorkFlow();
