@@ -231,13 +231,13 @@ public class ProcessesServiceImpl implements ProcessesService {
     }
     ProcessesUtils.broadcast(listenerService, "exo.process.created", userId, savedWorkFlow);
     processesStorage.linkWorkFlowAttachments(savedWorkFlow, workFlow.getAttachments(), userId);
+    saveTranslations(savedWorkFlow, workFlow);
     return savedWorkFlow;
   }
 
   /**
    * Saves a process's own rows in one transaction: the process, its
-   * illustration, its label ids and the translations the save states. It
-   * writes nothing through Task, whose
+   * illustration and its label ids. It writes nothing through Task, whose
    * labels it only reads back, so every write that must commit with the
    * process's rows can join it; each Task write runs
    * before it, committed by Task, and the process's creation is broadcast
@@ -255,9 +255,8 @@ public class ProcessesServiceImpl implements ProcessesService {
   }
 
   /**
-   * Writes a process's own rows, then the translations its save states, once
-   * the row has its id, so that they commit or roll back with the rows. The
-   * un-advised body of {@link #saveWorkFlowRows(WorkFlow, long)}.
+   * Writes a process's own rows: the un-advised body of
+   * {@link #saveWorkFlowRows(WorkFlow, long)}.
    *
    * @param workFlow the process, its labels resolved to labels of its project
    * @param userId the saving user's identity id
@@ -266,13 +265,15 @@ public class ProcessesServiceImpl implements ProcessesService {
    *           refuses the editor's choice; none of the writes here refuses
    */
   WorkFlow writeWorkFlowRows(WorkFlow workFlow, long userId) throws IllegalAccessException {
-    WorkFlow savedWorkFlow = processesStorage.saveWorkFlow(workFlow, userId);
-    saveTranslations(savedWorkFlow, workFlow);
-    return savedWorkFlow;
+    return processesStorage.saveWorkFlow(workFlow, userId);
   }
 
   /**
-   * Writes the translations a process save states for the saved process.
+   * Writes the translations a process save states for the saved process,
+   * once its rows are committed: social's translation write ends the
+   * container transaction it runs in, so it can't join the rows' atomic
+   * save. A failure answers the save with an error, the process saved; saving
+   * again writes them.
    *
    * @param savedWorkFlow the process as saved, with its id
    * @param workFlow the process as the save states it
@@ -458,6 +459,7 @@ public class ProcessesServiceImpl implements ProcessesService {
     }
     WorkFlow savedWorkFlow = saveWorkFlowRows(workFlow, userId, labelChoices);
     processesStorage.linkWorkFlowAttachments(savedWorkFlow, workFlow.getAttachments(), userId);
+    saveTranslations(savedWorkFlow, workFlow);
     processTranslationService.keepDefaultLanguage(savedWorkFlow);
     return savedWorkFlow;
   }

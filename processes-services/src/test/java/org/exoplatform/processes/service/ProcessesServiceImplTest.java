@@ -657,8 +657,8 @@ public class ProcessesServiceImplTest {
 
   /**
    * A process update states its translations with the process: they are
-   * written for the saved process after its rows, in the save's transaction
-   * body; an update that states none writes none.
+   * written for the saved process once its rows are saved, social's translation
+   * write ending the transaction it runs in; an update that states none writes none.
    * Mutants: the translations not written, written before the rows, or
    * written from the client's process instead of the saved one.
    *
@@ -712,6 +712,24 @@ public class ProcessesServiceImplTest {
     processesService.updateWorkFlow(update, 1L);
 
     verify(processTranslationService).saveTranslations(nullable(WorkFlow.class), eq(translations));
+  }
+
+  /**
+   * The rows' atomic save writes no translation: social's translation write
+   * ends the container transaction it runs in, which then fails to commit.
+   * Mutant: the translations written inside the rows' save body.
+   *
+   * @throws Exception never, the services are mocks
+   */
+  @Test
+  public void theRowsAtomicSaveWritesNoTranslation() throws Exception {
+    WorkFlow update = new WorkFlow();
+    update.setId(1L);
+    update.setTitleTranslations(Map.of("fr", "Congés"));
+
+    processesService.writeWorkFlowRows(update, 1L);
+
+    verify(processTranslationService, never()).saveTranslations(nullable(WorkFlow.class), any());
   }
 
   @Test

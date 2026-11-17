@@ -141,8 +141,8 @@ public class ProcessTranslationService {
    * the field's own value, whatever was sent for it; a blank label is no
    * label, a field left with no label loses all its translations, and a
    * field not stated keeps its translations. The caller has
-   * checked the right to save the process, and runs it in the process save's
-   * transaction, so that a failure leaves neither saved.
+   * checked the right to save the process, and calls it once the process is
+   * saved.
    *
    * @param workFlow the process as saved
    * @param translations the labels by field name, then by language tag, or

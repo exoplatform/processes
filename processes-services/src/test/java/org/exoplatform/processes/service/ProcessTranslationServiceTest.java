@@ -196,7 +196,7 @@ class ProcessTranslationServiceTest {
 
   /**
    * A translation that can't be written fails the save it belongs to, so
-   * that its transaction saves neither the process nor its translations.
+   * that the editor is told and can save again.
    * Mutant: the failure swallowed.
    *
    * @throws Exception never, the services are mocks
