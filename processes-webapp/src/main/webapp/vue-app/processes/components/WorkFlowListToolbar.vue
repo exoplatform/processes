@@ -28,7 +28,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         v-if="isProcessesManager"
         id="addProcessButton"
         :aria-label="$t('processes.works.label.addRequestType')"
-        :title="$t('processes.works.label.addRequestType')"
+        :title="isMobile && $t('processes.works.label.addRequestType') || null"
         :class="isMobile && 'px-0'"
         class="btn btn-primary text-none"
         @click="$emit('add')">
