@@ -80,7 +80,18 @@ export default {
         this.addComponent(event.detail);
       }
     },
-    addComponent(component) {
+    /**
+     * Adds a registered section, unless its isEnabled, given the params,
+     * answers false. Its init option is not read.
+     *
+     * @param {Object} component the registered component
+     * @returns {Promise<void>} settled once the section is added or skipped
+     */
+    async addComponent(component) {
+      const isEnabled = component.componentOptions.isEnabled;
+      if (isEnabled && !(await Promise.resolve(isEnabled(this.params)))) {
+        return;
+      }
       const components = this.components.filter(existing => existing.componentOptions.id !== component.componentOptions.id);
       components.push(component);
       components.sort((first, second) => (first.componentOptions.rank || 0) - (second.componentOptions.rank || 0));

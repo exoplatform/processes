@@ -115,7 +115,6 @@ export default {
       initializing: true,
       messageActionLabel: '',
       messageAction: null,
-      messageTargetModel: null,
       messageTimer: null,
       draftId: null,
       updated: false,
@@ -221,9 +220,6 @@ export default {
       this.showConfirmDialog(event.model, event.reason);
     });
     this.$root.$on('open-add-work-drawer', event => {
-      if (this.alert) {
-        this.handleMessageClose();
-      }
       this.work = event.object;
       this.workComments = event.object.comments;
       this.$refs.addWork.open(event.object, event.mode, event.isDraft,event.allowSave);
@@ -284,10 +280,6 @@ export default {
       this.updateWorkCompleted(work, !work.completed);
     });
     this.$root.$on('update-url-path',  this.handleUpdateUrlPath);
-    this.$root.$on('keep-work-draft', () => {
-      this.closeAlert();
-    });
-    document.addEventListener('alert-message-dismissed', this.handleMessageClose);
   },
   mounted() {
     window.setTimeout(() => {
@@ -319,12 +311,6 @@ export default {
     }
   },
   methods: {
-    handleMessageClose() {
-      if (this.messageTargetModel && this.messageTargetModel.id) {
-        this.deleteWorkDraftById(this.messageTargetModel);
-        this.messageTargetModel = null;
-      }
-    },
     handleMessageAction() {
       if (this.messageAction) {
         this.$root.$emit(this.messageAction);
@@ -522,7 +508,6 @@ export default {
     },
     displayMessage(alert) {
       this.messageAction = alert.messageAction || null;
-      this.messageTargetModel = alert.messageTargetModel || null;
       document.dispatchEvent(new CustomEvent('alert-message', {
         detail: {
           alertMessage: alert?.message,
@@ -605,7 +590,6 @@ export default {
         if (draft) {
           this.$root.$emit('pre-save-work-draft-added', draft);
           this.workDrafts.unshift(draft);
-          this.$root.$emit('update-url-path', 'draftDetails', `/myRequests/draftDetails/${draft.id}`);
         }
       }).catch(e => {
         this.$root.$emit('work-draft-save-failed', this.refusal(e));

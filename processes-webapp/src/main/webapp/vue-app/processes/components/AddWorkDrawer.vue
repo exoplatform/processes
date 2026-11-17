@@ -193,12 +193,19 @@ export default {
       maxLength: 1250,
       valid: false,
       saving: false,
-      savingDraft: false,
       rules: {
         maxLength: len => v => (v || '').length <= len || this.$t('processes.work.form.description.maxLength.message', {0: len}),
       },
       showEditor: false,
       openKey: 0,
+      // Codes refusing what the drawer sent for a field, not a value the user typed
+      unfixableFieldCodes: [
+        'forms.value.unknownField',
+        'forms.value.unknownReferenceKind',
+        'forms.value.nullNotAllowed',
+        'forms.value.numberAsString',
+        'forms.value.invalidType',
+      ],
       attachmentsUpdated: false,
       updatedAttachments: []
     };
@@ -329,11 +336,40 @@ export default {
       const save = this.viewMode ? Promise.resolve() : this.saveDraft();
       if (waits) {
         save.then(() => openKey === this.openKey && this.finishClose())
-          .catch(() => openKey === this.openKey && this.$refs.work.open());
+          .catch(refusal => openKey === this.openKey && this.afterRefusedClose(refusal));
       } else {
         save.catch(() => null);
         this.finishClose();
       }
+    },
+    /**
+     * Answers a close whose save was refused: a refusal the user can act on
+     * opens the drawer again with what was typed, any other closes it, since
+     * neither typing nor sending again changes it. The user can act on a
+     * refusal that names a field whose value they can change, a message over
+     * its length limit, and a concurrent update, which the next save sends
+     * again. A field refused for the shape the drawer sent, rather than for
+     * its value, closes the drawer.
+     *
+     * @param {Object} refusal the refusal's code and field key
+     * @returns {void}
+     */
+    afterRefusedClose(refusal) {
+      const code = refusal && refusal.code || '';
+      const fieldFixable = refusal && refusal.fieldKey && !this.unfixableFieldCodes.includes(code);
+      if (!fieldFixable && !['processes.request.draftInvalid', 'forms.value.concurrentUpdate'].includes(code)) {
+        this.finishClose();
+        return;
+      }
+      if (code === 'processes.request.draftInvalid') {
+        this.showEditor = true;
+        this.$root.$emit('show-alert', {type: 'error', message: this.$t('processes.work.form.description.maxLength.message', {0: this.maxLength})});
+      }
+      if (this.hasDraft) {
+        // The draft may have been created while the drawer was closed, which left the address unchanged
+        this.$root.$emit('update-url-path', 'draftDetails', `/myRequests/draftDetails/${this.work.id}`);
+      }
+      this.$refs.work.open();
     },
     finishClose() {
       this.$root.$emit('add-work-drawer-closed');
@@ -364,8 +400,8 @@ export default {
       this.showEditor = false;
     },
     /**
-     * Creates the draft an attachment needs, the user's first input being
-     * that attachment.
+     * Creates the draft the attachments need, the user's first input being
+     * opening them.
      *
      * @returns {Promise} settled once the draft exists
      */

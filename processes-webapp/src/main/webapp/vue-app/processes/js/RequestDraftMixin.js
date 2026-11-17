@@ -17,16 +17,19 @@
 
 /**
  * The request drawer's draft: created by the user's first input (a
- * description character, a change in an add-on's section, an attachment),
+ * description character, a change in an add-on's section, opening the
+ * attachments),
  * never by the drawer's opening, then saved on the description's blur and on
  * close. Saves run one at a time: each one waits for the previous, reads what
  * to send when it runs, and sends nothing when nothing changed, so two queued
  * saves send once and a refused one never blocks the next. The add-on
  * sections (ref requestSections) send their values with each save and are
  * told when a save succeeded or which field a refusal names. The drawer
- * provides work, editDraft, viewMode, saving, savingDraft,
- * emptyOrValidWorkDescription, entityType, attachments and openKey, which
- * each opening increments.
+ * provides work, editDraft, viewMode, saving, emptyOrValidWorkDescription,
+ * entityType, attachments and openKey, which each opening increments. A
+ * refused save rejects with an error carrying the refusal: its code and the
+ * refused field's key, the code being the generic message for a refusal the
+ * user cannot act on (403, 404, 500).
  */
 export default {
   data: () => ({
@@ -117,12 +120,11 @@ export default {
       if (!creating && !this.emptyOrValidWorkDescription) {
         // A description over its limit refuses the update, so a close waiting for it keeps the drawer. The form's
         // validity is not asked: a section's field marked refused is invalid, and a draft keeps it
-        return Promise.reject(new Error('processes.request.draftInvalid'));
+        return Promise.reject(this.refusalError({code: 'processes.request.draftInvalid', fieldKey: null}));
       }
       const draft = this.draftBody(creating);
       const openKey = this.openKey;
       const answer = new Promise((resolve, reject) => this.pendingDraftSave = {resolve, reject});
-      this.savingDraft = true;
       this.$root.$emit(creating ? 'create-work-draft' : 'update-work-draft', creating ? {draft} : draft);
       return answer.then(created => {
         if (openKey !== this.openKey) {
@@ -136,7 +138,7 @@ export default {
         if (this.requestSections()) {
           this.requestSections().saved();
         }
-      }).finally(() => this.savingDraft = false);
+      });
     },
     draftBody(creating) {
       const values = this.requestSections() && this.requestSections().values() || {};
@@ -162,6 +164,10 @@ export default {
     bindCreatedDraft(draft) {
       this.$set(this.work, 'id', draft.id);
       this.editDraft = true;
+      if (this.$refs.work && this.$refs.work.drawer) {
+        // A drawer already closed keeps the address its close set
+        this.$root.$emit('update-url-path', 'draftDetails', `/myRequests/draftDetails/${draft.id}`);
+      }
       this.$root.$emit('init-list-attachments', {entityId: draft.id, entityType: this.entityType});
     },
     settleDraftSave(draft) {
@@ -173,7 +179,7 @@ export default {
     refuseDraftSave(refusal) {
       this.markRefused(refusal);
       if (this.pendingDraftSave) {
-        this.pendingDraftSave.reject(refusal);
+        this.pendingDraftSave.reject(this.refusalError(refusal));
         this.pendingDraftSave = null;
       }
     },
@@ -191,6 +197,9 @@ export default {
         this.work.draftId = null;
       }
       this.markRefused(refusal);
+    },
+    refusalError(refusal) {
+      return Object.assign(new Error(refusal && refusal.code || 'refused'), {code: null, fieldKey: null}, refusal);
     },
     markRefused(refusal) {
       if (refusal && refusal.fieldKey && this.requestSections()) {
