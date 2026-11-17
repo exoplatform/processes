@@ -192,20 +192,27 @@ public class ProcessesMcpTool implements McpToolPlugin {
     return toRequestModel(work);
   }
 
-  // Submits a new work request under a given process type. The process_id is a
-  // WorkFlow id from list_processes; the request is created as a task in the
-  // process project, in the initial 'Request' status, on behalf of the current
-  // user. There is no structured field map: put any request data in the
-  // description (structured data belongs to the process's document form / UI).
-  // WRITE (approval-gated).
+  /**
+   * Submits a new work request under a given process type, on behalf of the
+   * current user: a task in the process's project, in the initial 'Request'
+   * status, named by the fixed rule « Process name - yyyy/MM/dd - Requester
+   * name », followed by the agent's title when it sends one. There is no
+   * structured field map: any request data goes in the description. WRITE
+   * (approval-gated).
+   *
+   * @param processId a process id from list_processes
+   * @param title the agent's optional title, added after the fixed rule
+   * @param description the optional details for the approver
+   * @return the created request
+   * @throws IllegalAccessException when the user can't add a request to the
+   *           process
+   * @throws ObjectNotFoundException when the process does not exist
+   */
   public RequestModel submitWorkRequest(long processId,
                                         String title,
                                         String description) throws IllegalAccessException, ObjectNotFoundException {
     if (processId <= 0) {
       throw new IllegalArgumentException("The 'process_id' parameter is mandatory (a process id from list_processes).");
-    }
-    if (StringUtils.isBlank(title)) {
-      throw new IllegalArgumentException("The 'title' parameter is mandatory (a short title for the request).");
     }
     long userIdentityId = getCurrentUserIdentityId();
     WorkFlow workFlow;
@@ -230,10 +237,10 @@ public class ProcessesMcpTool implements McpToolPlugin {
           + "the process types available to you.").formatted(workFlow.getTitle()));
     }
     Work work = new Work();
-    work.setTitle(title);
     work.setDescription(StringUtils.trimToEmpty(description));
     work.setWorkFlowId(workFlow.getId());
-    Work created = processesService.createWork(work, userIdentityId);
+    // The agent's title goes after the fixed rule: only this tool sends one
+    Work created = processesService.createWork(work, userIdentityId, title);
     return toRequestModel(created);
   }
 

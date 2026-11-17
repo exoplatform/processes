@@ -3,7 +3,6 @@ package org.exoplatform.processes.storage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
-import java.text.SimpleDateFormat;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -91,8 +90,6 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   private final ProcessesAttachmentService processesAttachmentService;
   private final FileService                fileService;
   private final UserACL                    userACL;
-  private final String                     DATE_FORMAT              = "yyyy/MM/dd";
-  private final SimpleDateFormat           formatter                = new SimpleDateFormat(DATE_FORMAT);
 
   /**
    * Builds the processes storage.
@@ -422,10 +419,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     } catch (EntityNotFoundException e) {
       throw new IllegalArgumentException("Task's project not found");
     }
+    // The Service names every request by the fixed rule (RequestTitle)
     taskDto = EntityMapper.workToTask(work);
-    if (StringUtils.isEmpty(taskDto.getTitle())) {
-      taskDto.setTitle(formatter.format(new Date()) + " - " + identity.getProfile().getFullName());
-    }
     taskDto.setStatus(getRequestStatus(work.getProjectId()));
     taskDto.setCreatedBy(identity.getRemoteId());
     taskDto.setCreatedTime(new Date());

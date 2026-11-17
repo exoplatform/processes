@@ -285,9 +285,25 @@ public class ProcessesMcpToolTest {
     tool.submitWorkRequest(0L, "title", "description");
   }
 
-  @Test(expected = IllegalArgumentException.class)
-  public void submitWorkRequestRejectsBlankTitle() throws Exception {
-    tool.submitWorkRequest(1L, "  ", "description");
+  /**
+   * The agent's title is optional: a request without one is created, named by
+   * the fixed rule only. Mutation: refuse a blank title again and this test
+   * fails.
+   */
+  @Test
+  public void submitWorkRequestTakesNoTitle() throws Exception {
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setId(5L);
+    workFlow.setEnabled(true);
+    workFlow.setAcl(new ProcessPermission(false, false, false, true));
+    when(processesService.getWorkFlow(5L, 1L)).thenReturn(workFlow);
+    Work created = new Work();
+    created.setId(12L);
+    when(processesService.createWork(any(Work.class), eq(1L), any())).thenReturn(created);
+
+    assertEquals(12L, tool.submitWorkRequest(5L, null, "description").id());
+
+    verify(processesService).createWork(any(Work.class), eq(1L), isNull());
   }
 
   @Test(expected = ObjectNotFoundException.class)
@@ -311,7 +327,7 @@ public class ProcessesMcpToolTest {
 
     assertEquals("You are not allowed to submit a request under the process 5. Call list_processes to see the process types "
         + "available to you.", exception.getMessage());
-    verify(processesService, never()).createWork(any(Work.class), anyLong());
+    verify(processesService, never()).createWork(any(Work.class), anyLong(), any());
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -337,14 +353,17 @@ public class ProcessesMcpToolTest {
     Work created = new Work();
     created.setId(11L);
     created.setTitle("New request");
-    when(processesService.createWork(any(Work.class), eq(1L))).thenReturn(created);
+    when(processesService.createWork(any(Work.class), eq(1L), any())).thenReturn(created);
 
     RequestModel request = tool.submitWorkRequest(5L, "New request", null);
 
     assertEquals(11L, request.id());
     ArgumentCaptor<Work> captor = ArgumentCaptor.forClass(Work.class);
-    verify(processesService).createWork(captor.capture(), eq(1L));
-    assertEquals("New request", captor.getValue().getTitle());
+    // The agent's title goes as the agent title, never as the work's own
+    // title, which the Service ignores
+    verify(processesService).createWork(captor.capture(), eq(1L), eq("New request"));
+    verify(processesService, never()).createWork(any(Work.class), anyLong());
+    assertNull(captor.getValue().getTitle());
     assertEquals("the request names its process, which decides its project", 5L, captor.getValue().getWorkFlowId());
     assertEquals("", captor.getValue().getDescription());
   }
@@ -361,7 +380,7 @@ public class ProcessesMcpToolTest {
 
     assertThrows(IllegalAccessException.class, () -> tool.submitWorkRequest(5L, "title", "description"));
 
-    verify(processesService, never()).createWork(any(Work.class), anyLong());
+    verify(processesService, never()).createWork(any(Work.class), anyLong(), any());
   }
 
   @Test
@@ -375,7 +394,7 @@ public class ProcessesMcpToolTest {
 
     assertThrows(IllegalAccessException.class, () -> tool.submitWorkRequest(5L, "title", "description"));
 
-    verify(processesService, never()).createWork(any(Work.class), anyLong());
+    verify(processesService, never()).createWork(any(Work.class), anyLong(), any());
   }
 
   @Test(expected = IllegalArgumentException.class)
