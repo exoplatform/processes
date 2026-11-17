@@ -894,6 +894,8 @@ public class ProcessesRestTest {
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
     EligibleProjects projects = new EligibleProjects(new ArrayList<>(), 0);
     when(processesService.listEligibleProjects("3", 0, 20, 1L)).thenReturn(projects);
+    // The builder, mocked here, names the projects' processes in the user's language
+    ENTITY_BUILDER.when(() -> EntityBuilder.translate(projects, null)).thenReturn(projects);
     Response ok = processesRest.getSpaceProjects("3", 0, 20);
     assertEquals(Response.Status.OK.getStatusCode(), ok.getStatus());
     assertEquals(projects, ok.getEntity());
