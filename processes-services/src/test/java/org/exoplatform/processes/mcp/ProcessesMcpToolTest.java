@@ -122,10 +122,8 @@ public class ProcessesMcpToolTest {
     List<WorkFlow> secondPage = List.of(workFlow(201, 7));
     when(processesService.getWorkFlows(any(ProcessesFilter.class), eq(0), eq(200), anyLong())).thenReturn(firstPage);
     when(processesService.getWorkFlows(any(ProcessesFilter.class), eq(200), eq(200), anyLong())).thenReturn(secondPage);
-    when(processSpaceScopeResolver.spaceOfProject(101L)).thenReturn(12L);
-    when(processSpaceScopeResolver.spaceOfProject(102L)).thenReturn(13L);
-    when(processSpaceScopeResolver.spaceOfProject(7L)).thenReturn(12L);
-    when(processSpaceScopeResolver.spaceOfProject(103L)).thenReturn(14L);
+    java.util.Map<Long, Long> spaceOfProject = java.util.Map.of(101L, 12L, 102L, 13L, 7L, 12L, 103L, 14L);
+    when(processSpaceScopeResolver.spaceOfWorkFlow(any(WorkFlow.class))).thenAnswer(invocation -> spaceOfProject.get(((WorkFlow) invocation.getArgument(0)).getProjectId()));
     // An unknown space is refused by its own check, whatever a membership
     // lookup on a null space would answer.
     when(spaceService.isMember(isNull(Space.class), eq("testuser"))).thenReturn(true);
@@ -169,8 +167,8 @@ public class ProcessesMcpToolTest {
     when(processesService.getWorkFlows(any(ProcessesFilter.class), eq(200), eq(200), anyLong())).thenReturn(secondPage);
     lenient().when(processesService.getWorkFlows(any(ProcessesFilter.class), eq(400), eq(200), anyLong()))
              .thenReturn(List.of(workFlow(401, 401)));
-    when(processSpaceScopeResolver.spaceOfProject(anyLong())).thenAnswer(invocation -> {
-      long projectId = invocation.getArgument(0);
+    when(processSpaceScopeResolver.spaceOfWorkFlow(any(WorkFlow.class))).thenAnswer(invocation -> {
+      long projectId = ((WorkFlow) invocation.getArgument(0)).getProjectId();
       return projectId < 10000 ? 12L : 13L;
     });
     Space space = mock(Space.class);
