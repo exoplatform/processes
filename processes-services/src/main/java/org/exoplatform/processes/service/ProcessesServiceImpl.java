@@ -422,6 +422,38 @@ public class ProcessesServiceImpl implements ProcessesService {
   }
 
   @Override
+  public Work getWorkDraft(long draftId, long userIdentityId) throws ObjectNotFoundException, IllegalAccessException {
+    return getOwnWorkDraft(draftId, userIdentityId);
+  }
+
+  @Override
+  public Long getWorkDraftWorkFlowId(long draftId) {
+    WorkDraftRef ref = processesStorage.getWorkDraftRefs(List.of(draftId)).get(draftId);
+    return ref == null ? null : ref.workFlowId();
+  }
+
+  @Override
+  public Long getWorkDraftOwnerId(long draftId) {
+    WorkDraftRef ref = processesStorage.getWorkDraftRefs(List.of(draftId)).get(draftId);
+    return ref == null ? null : ref.ownerId();
+  }
+
+  @Override
+  public Map<Long, WorkDraftRef> getWorkDraftRefs(Collection<Long> draftIds) {
+    return processesStorage.getWorkDraftRefs(draftIds);
+  }
+
+  @Override
+  public List<Long> getWorkDraftIds(long workFlowId, Long afterDraftId, int limit) {
+    return processesStorage.getWorkDraftIds(workFlowId, afterDraftId, limit);
+  }
+
+  @Override
+  public long countWorkDrafts(long workFlowId) {
+    return processesStorage.countWorkDrafts(workFlowId);
+  }
+
+  @Override
   public List<Long> getProcessFormIds(long workFlowId, long userIdentityId) throws ObjectNotFoundException,
                                                                               IllegalAccessException {
     WorkFlow workFlow = processesStorage.getWorkFlowById(workFlowId, userIdentityId);
@@ -1269,7 +1301,7 @@ public class ProcessesServiceImpl implements ProcessesService {
 
   private Work getOwnWorkDraft(long draftId, long userIdentityId) throws ObjectNotFoundException, IllegalAccessException {
     Work draft = processesStorage.getWorkDraftyId(draftId);
-    if (draft == null) {
+    if (draft == null || !Boolean.TRUE.equals(draft.getIsDraft())) {
       throw new ObjectNotFoundException("oldWorkDraft is not exist");
     }
     if (draft.getCreatorId() != userIdentityId) {

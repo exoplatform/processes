@@ -78,6 +78,7 @@ import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
 import org.exoplatform.task.dao.condition.PredicateCondition;
 import org.exoplatform.task.domain.Task;
+import org.exoplatform.processes.model.WorkDraftRef;
 
 public class ProcessesStorageImpl implements ProcessesStorage {
 
@@ -269,6 +270,36 @@ public class ProcessesStorageImpl implements ProcessesStorage {
                              Expression<Long> taskId,
                              Collection<Long> workFlowIds) {
     return RequestDAO.requestOf(cb, query, taskId, workFlowIds);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Map<Long, WorkDraftRef> getWorkDraftRefs(Collection<Long> draftIds) {
+    if (draftIds == null || draftIds.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    return workDraftDAO.findDraftRefs(draftIds);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<Long> getWorkDraftIds(long workFlowId, Long afterDraftId, int limit) {
+    if (limit <= 0) {
+      throw new IllegalArgumentException("A page of drafts needs a strictly positive limit");
+    }
+    return workDraftDAO.findDraftIdsByWorkflowId(workFlowId, afterDraftId, limit);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public long countWorkDrafts(long workFlowId) {
+    return workDraftDAO.countDraftsByWorkflowId(workFlowId);
   }
 
   /**

@@ -328,4 +328,34 @@ public interface ProcessesStorage {
    * @return the restriction; one that no task meets when no process is given
    */
   Predicate requestOf(CriteriaBuilder cb, CommonAbstractCriteria query, Expression<Long> taskId, Collection<Long> workFlowIds);
+
+  /**
+   * Reads what describes some request drafts, one query per page of 1,000 ids.
+   * The platform's own read, with no user's permission.
+   *
+   * @param draftIds the draft ids
+   * @return draft id → its owner, process, title and dates, for the ids that
+   *         are drafts
+   */
+  Map<Long, WorkDraftRef> getWorkDraftRefs(Collection<Long> draftIds);
+
+  /**
+   * Reads one page of a process's draft ids, by ascending id. The platform's
+   * own read, with no user's permission.
+   *
+   * @param workFlowId the process id
+   * @param afterDraftId the last id of the previous page, or null
+   * @param limit the page size, strictly positive
+   * @return the draft ids of the page
+   */
+  List<Long> getWorkDraftIds(long workFlowId, Long afterDraftId, int limit);
+
+  /**
+   * Counts a process's drafts. The platform's own read, with no user's
+   * permission.
+   *
+   * @param workFlowId the process id
+   * @return the number of drafts
+   */
+  long countWorkDrafts(long workFlowId);
 }

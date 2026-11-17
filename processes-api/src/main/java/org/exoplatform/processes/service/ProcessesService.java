@@ -517,6 +517,77 @@ public interface ProcessesService {
   void addRequestValuesPlugin(RequestValuesPlugin plugin);
 
   /**
+   * Reads one of the user's own request drafts.
+   *
+   * @param draftId the draft id
+   * @param userIdentityId the user's identity id
+   * @return the draft
+   * @throws ObjectNotFoundException when no such draft exists
+   * @throws IllegalAccessException when the draft is not the user's
+   */
+  Work getWorkDraft(long draftId, long userIdentityId) throws ObjectNotFoundException, IllegalAccessException;
+
+  /**
+   * Reads the process of a request draft. It is the platform's own read, with no user's permission: a caller that serves a user checks that the
+   * draft's owner is that user ({@link #getWorkDraft(long, long)}, or the owner id against the viewer), never only
+   * the user's right on the process, which would show one requester's drafts to every user who may add a request
+   * to it.
+   *
+   * @param draftId the draft id
+   * @return the process id, or null when no such draft exists
+   */
+  Long getWorkDraftWorkFlowId(long draftId);
+
+  /**
+   * Reads the owner of a request draft. It is the platform's own read, with no user's permission: a caller that serves a user checks that the
+   * draft's owner is that user ({@link #getWorkDraft(long, long)}, or the owner id against the viewer), never only
+   * the user's right on the process, which would show one requester's drafts to every user who may add a request
+   * to it.
+   *
+   * @param draftId the draft id
+   * @return the owner's identity id, or null when no such draft exists
+   */
+  Long getWorkDraftOwnerId(long draftId);
+
+  /**
+   * Reads what describes some request drafts, one query per page of
+   * {@code 1000} ids. It is the platform's own read, with no user's permission: a caller that serves a user checks that the
+   * draft's owner is that user ({@link #getWorkDraft(long, long)}, or the owner id against the viewer), never only
+   * the user's right on the process, which would show one requester's drafts to every user who may add a request
+   * to it.
+   *
+   * @param draftIds the draft ids
+   * @return draft id → its owner, process, title and dates, for the ids that
+   *         are drafts
+   */
+  Map<Long, WorkDraftRef> getWorkDraftRefs(Collection<Long> draftIds);
+
+  /**
+   * Reads one page of a process's draft ids, by ascending id. It is the platform's own read, with no user's permission: a caller that serves a user checks that the
+   * draft's owner is that user ({@link #getWorkDraft(long, long)}, or the owner id against the viewer), never only
+   * the user's right on the process, which would show one requester's drafts to every user who may add a request
+   * to it.
+   *
+   * @param workFlowId the process id
+   * @param afterDraftId the last id of the previous page, or null for the
+   *          first page
+   * @param limit the page size, strictly positive
+   * @return the draft ids of the page
+   */
+  List<Long> getWorkDraftIds(long workFlowId, Long afterDraftId, int limit);
+
+  /**
+   * Counts a process's drafts. It is the platform's own read, with no user's permission: a caller that serves a user checks that the
+   * draft's owner is that user ({@link #getWorkDraft(long, long)}, or the owner id against the viewer), never only
+   * the user's right on the process, which would show one requester's drafts to every user who may add a request
+   * to it.
+   *
+   * @param workFlowId the process id
+   * @return the number of drafts
+   */
+  long countWorkDrafts(long workFlowId);
+
+  /**
    * Reads the forms bound to a process itself, for a user who can edit it.
    *
    * @param workFlowId the process id
