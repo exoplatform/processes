@@ -277,7 +277,28 @@ public class ProcessesServiceImpl implements ProcessesService {
    * @param workFlow the process as the save states it
    */
   private void saveTranslations(WorkFlow savedWorkFlow, WorkFlow workFlow) {
-    processTranslationService.saveTranslations(savedWorkFlow, workFlow.getTranslations());
+    Map<String, Map<String, String>> translations = new LinkedHashMap<>();
+    putTranslations(translations, ProcessTranslationService.TITLE_FIELD, workFlow.getTitleTranslations());
+    putTranslations(translations, ProcessTranslationService.DESCRIPTION_FIELD, workFlow.getDescriptionTranslations());
+    putTranslations(translations, ProcessTranslationService.SUMMARY_FIELD, workFlow.getSummaryTranslations());
+    if (!translations.isEmpty()) {
+      processTranslationService.saveTranslations(savedWorkFlow, translations);
+    }
+  }
+
+  /**
+   * Adds a field's translations to those a save writes, when it states them.
+   *
+   * @param translations the translations of the save, by field name
+   * @param fieldName the translated field
+   * @param labels the field's labels by language tag, or null when not stated
+   */
+  private static void putTranslations(Map<String, Map<String, String>> translations,
+                                      String fieldName,
+                                      Map<String, String> labels) {
+    if (labels != null) {
+      translations.put(fieldName, labels);
+    }
   }
 
   /**

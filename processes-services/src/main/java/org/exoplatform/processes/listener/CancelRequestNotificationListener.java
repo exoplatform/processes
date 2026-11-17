@@ -32,6 +32,19 @@ public class CancelRequestNotificationListener extends Listener<TaskDto, Project
    */
   @Override
   public void onEvent(Event<TaskDto, ProjectDto> event) {
+    NotificationContext ctx = buildContext(event);
+    if (ctx != null) {
+      ctx.getNotificationExecutor().with(ctx.makeCommand(PluginKey.key(CancelRequestPlugin.ID))).execute(ctx);
+    }
+  }
+
+  /**
+   * Builds the notification of a canceled request.
+   *
+   * @param event the canceled request's task and its project
+   * @return the notification context, or null when nothing is notified
+   */
+  NotificationContext buildContext(Event<TaskDto, ProjectDto> event) {
     TaskDto taskDto = event.getSource();
     ProjectDto projectDto = event.getData();
     NotificationContext ctx = NotificationContextImpl.cloneInstance();
@@ -44,7 +57,6 @@ public class CancelRequestNotificationListener extends Listener<TaskDto, Project
     ctx.append(NotificationArguments.PROCESS_URL, NotificationUtils.getProcessLink(projectDto.getId()));
     ctx.append(NotificationArguments.REQUEST_URL, NotificationUtils.getRequestLink(taskDto.getId()));
     ctx.append(NotificationArguments.WORKFLOW_PROJECT_ID, String.valueOf(projectDto.getId()));
-    ctx.getNotificationExecutor()
-            .with(ctx.makeCommand(PluginKey.key(CancelRequestPlugin.ID))).execute(ctx);
+    return ctx;
   }
 }

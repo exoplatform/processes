@@ -90,14 +90,28 @@ public class WorkFlow {
   private ProjectMode                 projectMode;
 
   /**
-   * The title, description and summary per language a save writes with the
-   * process, by field name (title, description, summary), then by language
-   * tag. The default language's value is the field itself. Null when the
-   * caller does not state them: the stored translations then stay. It is part
-   * of the comparison of two processes, so that a save changing translations
-   * only is a change: a process read from storage never carries them.
+   * The title per language a save writes with the process, by language tag;
+   * the default language's value is the title itself. Null when the caller
+   * does not state it: the stored translations then stay. The three
+   * translation maps are part of the comparison of two processes, so that a
+   * save changing translations only is a change: a process read from
+   * storage never carries them.
    */
-  private Map<String, Map<String, String>> translations;
+  private Map<String, String>         titleTranslations;
+
+  /**
+   * The description per language a save writes with the process.
+   *
+   * @see #titleTranslations
+   */
+  private Map<String, String>         descriptionTranslations;
+
+  /**
+   * The summary per language a save writes with the process.
+   *
+   * @see #titleTranslations
+   */
+  private Map<String, String>         summaryTranslations;
 
   /**
    * Builds a process with every field but the save's project mode.

@@ -768,32 +768,45 @@ export default {
       this.$root.$emit('update-workflow', this.buildSavePayload(), this.translationsToSave());
     },
     /**
-     * Keeps a translation field's values as the drawer opened with them.
+     * Keeps a translation field's values as the drawer opened with them. A
+     * field that loaded holds at least its default-language value; one whose
+     * translations could not be read holds none, and is never saved, so that
+     * its stored translations stay.
      *
      * @param {String} fieldName the translated field
      * @returns {void}
      */
     keepOpenedTranslation(fieldName) {
-      this.openedTranslations[fieldName] = JSON.stringify(this.translations[fieldName] || {});
+      const values = this.translations[fieldName] || {};
+      if (Object.keys(values).length) {
+        this.openedTranslations[fieldName] = JSON.stringify(values);
+      }
     },
     /**
      * Gives the title, description and summary per language to save with the
-     * process, and whether any of them changed since the drawer opened. A new
-     * process written in one language only has none to save.
+     * process: only the fields whose translations changed since the drawer
+     * opened, each read from the server first, so that a save never replaces
+     * translations it did not load. A new process written in one language
+     * only has none to save.
      *
-     * @return {Object} the values per language of each field, and `changed`
+     * @return {Object} the values per language of each changed field, by
+     *          field name, and whether there is any
      */
     translationsToSave() {
-      const fieldNames = Object.keys(this.translations);
-      const changed = fieldNames.some(fieldName => {
-        const values = this.translations[fieldName] || {};
-        return this.editMode
-          ? JSON.stringify(values) !== this.openedTranslations[fieldName]
-          : Object.values(values).filter(value => value).length > 1;
+      const values = {};
+      Object.keys(this.translations).forEach(fieldName => {
+        const fieldValues = this.translations[fieldName] || {};
+        const opened = this.openedTranslations[fieldName];
+        const changed = this.editMode
+          ? opened !== undefined && JSON.stringify(fieldValues) !== opened
+          : Object.values(fieldValues).filter(value => value).length > 1;
+        if (changed) {
+          values[fieldName] = JSON.parse(JSON.stringify(fieldValues));
+        }
       });
       return {
-        values: JSON.parse(JSON.stringify(this.translations)),
-        changed,
+        values,
+        changed: Object.keys(values).length > 0,
       };
     },
     deleteIllustrative(){

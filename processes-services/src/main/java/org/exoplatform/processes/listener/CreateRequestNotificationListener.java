@@ -32,6 +32,19 @@ public class CreateRequestNotificationListener extends Listener<Work, ProjectDto
    */
   @Override
   public void onEvent(Event<Work, ProjectDto> event) {
+    NotificationContext ctx = buildContext(event);
+    if (ctx != null) {
+      ctx.getNotificationExecutor().with(ctx.makeCommand(PluginKey.key(CreateRequestPlugin.ID))).execute(ctx);
+    }
+  }
+
+  /**
+   * Builds the notification of a created request.
+   *
+   * @param event the created request and its task project
+   * @return the notification context, or null when nothing is notified
+   */
+  NotificationContext buildContext(Event<Work, ProjectDto> event) {
     Work work = event.getSource();
     ProjectDto projectDto = event.getData();
     NotificationContext ctx = NotificationContextImpl.cloneInstance();
@@ -43,7 +56,6 @@ public class CreateRequestNotificationListener extends Listener<Work, ProjectDto
     ctx.append(NotificationArguments.REQUEST_URL, NotificationUtils.getRequestLink(work.getId()));
     ctx.append(NotificationArguments.REQUEST_ID, String.valueOf(work.getId()));
     ctx.append(NotificationArguments.WORKFLOW_PROJECT_ID, String.valueOf(work.getProjectId()));
-    ctx.getNotificationExecutor()
-            .with(ctx.makeCommand(PluginKey.key(CreateRequestPlugin.ID))).execute(ctx);
+    return ctx;
   }
 }

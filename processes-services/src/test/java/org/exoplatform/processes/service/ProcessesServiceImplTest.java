@@ -676,8 +676,8 @@ public class ProcessesServiceImplTest {
     WorkFlow update = new WorkFlow();
     update.setId(1L);
     update.setTitle("Leave");
+    update.setTitleTranslations(Map.of("fr", "Congés"));
     Map<String, Map<String, String>> translations = Map.of("title", Map.of("fr", "Congés"));
-    update.setTranslations(translations);
     when(processesStorage.saveWorkFlow(update, 1L)).thenReturn(saved);
 
     processesService.updateWorkFlow(update, 1L);
@@ -706,8 +706,8 @@ public class ProcessesServiceImplTest {
     update.setId(1L);
     update.setTitle("Leave");
     update.setAcl(acl);
+    update.setTitleTranslations(Map.of("fr", "Congés"));
     Map<String, Map<String, String>> translations = Map.of("title", Map.of("fr", "Congés"));
-    update.setTranslations(translations);
 
     processesService.updateWorkFlow(update, 1L);
 

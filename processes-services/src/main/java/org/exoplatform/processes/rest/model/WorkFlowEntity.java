@@ -90,11 +90,25 @@ public class WorkFlowEntity {
   private List<WorkFlowLabel>         labels;
 
   /**
-   * The title, description and summary per language to save with the
-   * process: {title: {fr: …}, description: {…}, summary: {…}}, by language
-   * tag. Null when not sent: the stored translations then stay. Never
-   * answered: a read gives the texts in the reader's language instead.
+   * The title per language to save with the process, {fr: …, pt-BR: …} by
+   * language tag: a flat map, the shape the REST JSON reader binds. Null when
+   * not sent: the stored translations then stay. Never answered: a read gives
+   * the texts in the reader's language instead.
    */
-  private Map<String, Map<String, String>> translations;
+  private Map<String, String>         titleTranslations;
+
+  /**
+   * The description per language to save with the process.
+   *
+   * @see #titleTranslations
+   */
+  private Map<String, String>         descriptionTranslations;
+
+  /**
+   * The summary per language to save with the process.
+   *
+   * @see #titleTranslations
+   */
+  private Map<String, String>         summaryTranslations;
 
 }

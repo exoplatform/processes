@@ -44,6 +44,7 @@ import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.services.resources.LocaleConfig;
 import org.exoplatform.services.resources.LocaleConfigService;
 
+import io.meeds.social.translation.model.TranslationField;
 import io.meeds.social.translation.service.TranslationService;
 
 @ExtendWith(MockitoExtension.class)
@@ -168,6 +169,27 @@ class ProcessTranslationServiceTest {
     unsaved.setId(0);
     processTranslationService.saveTranslations(unsaved, translations);
     verify(translationService).saveTranslationLabels(anyString(), anyString(), anyString(), anyMap(), anyBoolean());
+  }
+
+  /**
+   * A stated field left with no label, its column blank and every sent label
+   * blank, loses its stored translations instead of failing the save.
+   * Mutant: the empty labels written, which the translation service refuses.
+   *
+   * @throws Exception never, the services are mocks
+   */
+  @Test
+  void aFieldLeftWithNoLabelLosesItsTranslations() throws Exception {
+    WorkFlow workFlow = workFlow();
+    workFlow.setSummary("");
+    TranslationField stored = new TranslationField();
+    stored.setLabels(Map.of(Locale.FRENCH, "Règles"));
+    when(translationService.getTranslationField("process", "9", "summary")).thenReturn(stored);
+
+    processTranslationService.saveTranslations(workFlow, Map.of("summary", Map.of("fr", " ")));
+
+    verify(translationService).deleteTranslationLabel("process", "9", "summary", Locale.FRENCH);
+    verify(translationService, never()).saveTranslationLabels(eq("process"), eq("9"), eq("summary"), anyMap(), anyBoolean());
   }
 
   /**

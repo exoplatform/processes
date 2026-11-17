@@ -84,7 +84,9 @@ public class EntityBuilder {
     workFlow.setProjectMode(toProjectMode(workFlowEntity.getProjectMode()));
     // The Service checks every label against the process's project
     workFlow.setLabels(workFlowEntity.getLabels());
-    workFlow.setTranslations(workFlowEntity.getTranslations());
+    workFlow.setTitleTranslations(workFlowEntity.getTitleTranslations());
+    workFlow.setDescriptionTranslations(workFlowEntity.getDescriptionTranslations());
+    workFlow.setSummaryTranslations(workFlowEntity.getSummaryTranslations());
     return workFlow;
   }
 
@@ -188,6 +190,8 @@ public class EntityBuilder {
                               workFlow.getRequestsCreators(),
                               null,
                               workFlow.getLabels(),
+                              null,
+                              null,
                               null);
   }
 

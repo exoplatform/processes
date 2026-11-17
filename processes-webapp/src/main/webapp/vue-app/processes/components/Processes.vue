@@ -678,19 +678,24 @@ export default {
       });
     },
     /**
-     * Adds to a process to save its title, description and summary per
-     * language, when they changed, so that the process and its translations
-     * are saved together.
+     * Adds to a process to save the title, description and summary per
+     * language that changed, so that the process and its translations are
+     * saved together.
      *
      * @param {Object} workflow the process to save
-     * @param {Object} translations its texts per language, and whether they
-     *          changed
+     * @param {Object} translations the values per language of each changed
+     *          field, and whether there is any
      * @return {Object} the process to send
      */
     withTranslations(workflow, translations) {
-      return translations && translations.changed
-        ? Object.assign({}, workflow, {translations: translations.values})
-        : workflow;
+      if (!translations || !translations.changed) {
+        return workflow;
+      }
+      return Object.assign({}, workflow, {
+        titleTranslations: translations.values.title,
+        descriptionTranslations: translations.values.description,
+        summaryTranslations: translations.values.summary,
+      });
     },
     onDialogClosed() {
       this.dialogAction = null;

@@ -29,6 +29,7 @@ import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.resources.LocaleConfigService;
 
+import io.meeds.social.translation.model.TranslationField;
 import io.meeds.social.translation.service.TranslationService;
 
 /**
@@ -138,7 +139,8 @@ public class ProcessTranslationService {
    * Writes the translations a save states for a saved process, each field's
    * labels replacing the stored ones. The default language's label is always
    * the field's own value, whatever was sent for it; a blank label is no
-   * label, and a field not stated keeps its translations. The caller has
+   * label, a field left with no label loses all its translations, and a
+   * field not stated keeps its translations. The caller has
    * checked the right to save the process, and runs it in the process save's
    * transaction, so that a failure leaves neither saved.
    *
@@ -171,6 +173,10 @@ public class ProcessTranslationService {
         labels.put(defaultLocale, storedValue);
       }
       try {
+        if (labels.isEmpty()) {
+          deleteTranslations(objectId, fieldName);
+          continue;
+        }
         translationService.saveTranslationLabels(OBJECT_TYPE, objectId, fieldName, labels, false);
       } catch (ObjectNotFoundException e) {
         throw new IllegalStateException("The process " + objectId + " can't be found to save its translations", e);
@@ -242,6 +248,23 @@ public class ProcessTranslationService {
                fieldName,
                objectId,
                e);
+    }
+  }
+
+  /**
+   * Deletes every label of one translated field.
+   *
+   * @param objectId the process's id
+   * @param fieldName the translated field
+   * @throws ObjectNotFoundException when the process can't be found
+   */
+  private void deleteTranslations(String objectId, String fieldName) throws ObjectNotFoundException {
+    TranslationField translationField = translationService.getTranslationField(OBJECT_TYPE, objectId, fieldName);
+    if (translationField == null || translationField.getLabels() == null) {
+      return;
+    }
+    for (Locale locale : List.copyOf(translationField.getLabels().keySet())) {
+      translationService.deleteTranslationLabel(OBJECT_TYPE, objectId, fieldName, locale);
     }
   }
 
