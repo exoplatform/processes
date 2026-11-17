@@ -42,6 +42,7 @@ import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.service.StatusService;
+import org.exoplatform.processes.Utils.RequestFormValues;
 
 public class EntityBuilder {
   private static final Log LOG = ExoLogger.getExoLogger(EntityBuilder.class);
@@ -373,6 +374,26 @@ public class EntityBuilder {
     work.setAttachments(workEntity.getAttachments());
     if (workEntity.getWorkFlow() != null) {
       work.setWorkFlowId(workEntity.getWorkFlow().getId());
+    }
+    return work;
+  }
+
+  /**
+   * Builds a new request from its REST body, as {@link #toWork} does, with the
+   * form values it sends. Only the creation path reads them; an update builds
+   * its request with {@link #toWork}, which leaves them out.
+   *
+   * @param processesService the processes service, unused
+   * @param workEntity the REST body
+   * @return the request, or null when no body is given
+   * @throws IllegalArgumentException with
+   *           {@code processes.request.formValuesInvalid} when the form values
+   *           cannot be read
+   */
+  public static Work toNewWork(ProcessesService processesService, WorkEntity workEntity) {
+    Work work = toWork(processesService, workEntity);
+    if (work != null) {
+      work.setFormValues(RequestFormValues.parse(workEntity.getFormValues()));
     }
     return work;
   }

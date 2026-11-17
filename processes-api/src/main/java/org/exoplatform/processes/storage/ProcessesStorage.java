@@ -153,6 +153,40 @@ public interface ProcessesStorage {
   Work saveWork(Work work, long userId) throws IllegalArgumentException;
 
   /**
+   * Creates a new request's task, its request record and its process's
+   * labels: the first steps of {@link #saveWork(Work, long)} for a new
+   * request, before its values are written.
+   *
+   * @param work the new request, its project set
+   * @param userId the requester's identity id
+   * @return the request, its id being its task's
+   * @throws IllegalStateException when the record cannot be saved, the task
+   *           being removed
+   */
+  Work createRequest(Work work, long userId);
+
+  /**
+   * Ends a new request's creation once its values are written: moves its
+   * draft's attachments, deletes its draft and announces it, then announces
+   * the request.
+   *
+   * @param request the request {@link #createRequest(Work, long)} answered
+   * @param work the new request as submitted, with its draft id
+   * @param userId the requester's identity id
+   * @return the created request
+   */
+  Work completeRequest(Work request, Work work, long userId);
+
+  /**
+   * Removes a request whose values were refused after its task was created:
+   * its task, then its record. A failure of either is logged, so the caller
+   * answers the refusal that made it remove the request.
+   *
+   * @param taskId the request's task id
+   */
+  void removeRequest(long taskId);
+
+  /**
    * Deletes a process, its drafts and its request records, in one
    * transaction. The request tasks stay as plain tasks.
    *

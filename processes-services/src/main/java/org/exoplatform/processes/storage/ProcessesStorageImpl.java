@@ -719,30 +719,106 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       throw new IllegalArgumentException("identity is not exist");
     }
     if (work.getId() == 0) {
-      TaskDto taskDto = createWorkTask(work, identity);
-      recordRequest(taskDto, work.getWorkFlowId(), userId);
-      applyLabels(taskDto, work.getWorkFlowId());
-      ProjectDto projectDto = taskDto.getStatus().getProject();
-      if (work.getDraftId() != null) {
-        processesAttachmentService.moveAttachmentsToEntity(work.getAttachments(),
-                                                           userId,
-                                                           work.getDraftId(),
-                                                           WORK_DRAFT_ENTITY_TYPE,
-                                                           taskDto.getId(),
-                                                           TASK_ENTITY_TYPE,
-                                                           projectDto.getId());
-        deleteWorkDraftById(work.getDraftId());
-        ProcessesUtils.broadcast(listenerService, ProcessesEvents.REQUEST_DRAFT_DELETED, work.getDraftId(), work.getWorkFlowId());
-      }
-      Work newWork = EntityMapper.taskToWork(taskDto);
-      newWork.setCreatorId(userId);
-      newWork.setWorkFlowId(work.getWorkFlowId());
-      ProcessesUtils.broadcast(listenerService, "exo.process.request.created", newWork, projectDto);
-      return newWork;
+      TaskDto taskDto = createRequestTask(work, identity, userId);
+      return completeRequest(taskDto, work, userId);
     } else {
       TaskDto taskDto = updateWorkTask(work);
       return EntityMapper.taskToWork(taskDto);
     }
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Work createRequest(Work work, long userId) {
+    Identity identity = identityManager.getIdentity(userId);
+    if (identity == null) {
+      throw new IllegalArgumentException("identity is not exist");
+    }
+    TaskDto taskDto = createRequestTask(work, identity, userId);
+    Work request = EntityMapper.taskToWork(taskDto);
+    request.setCreatorId(userId);
+    request.setWorkFlowId(work.getWorkFlowId());
+    return request;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void removeRequest(long taskId) {
+    try {
+      taskService.removeTask(taskId);
+    } catch (Exception e) {
+      LOG.warn("The task {} of a request whose values were refused could not be removed", taskId, e);
+    }
+    try {
+      RequestEntity request = requestDAO.find(taskId);
+      if (request != null) {
+        requestDAO.delete(request);
+      }
+    } catch (RuntimeException e) {
+      LOG.warn("The record of the request {} whose values were refused could not be removed", taskId, e);
+    }
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Work completeRequest(Work request, Work work, long userId) {
+    TaskDto taskDto;
+    try {
+      taskDto = taskService.getTask(request.getId());
+    } catch (EntityNotFoundException e) {
+      throw new IllegalStateException("The task of the request " + request.getId() + " is gone", e);
+    }
+    return completeRequest(taskDto, work, userId);
+  }
+
+  /**
+   * Creates a new request's task, its record and its labels.
+   *
+   * @param work the new request
+   * @param identity the requester's identity
+   * @param userId the requester's identity id
+   * @return the created task
+   */
+  private TaskDto createRequestTask(Work work, Identity identity, long userId) {
+    TaskDto taskDto = createWorkTask(work, identity);
+    recordRequest(taskDto, work.getWorkFlowId(), userId);
+    applyLabels(taskDto, work.getWorkFlowId());
+    return taskDto;
+  }
+
+  /**
+   * Ends a new request's creation on its task: moves its draft's attachments,
+   * deletes its draft and announces it, then announces the request.
+   *
+   * @param taskDto the request's task
+   * @param work the new request as submitted
+   * @param userId the requester's identity id
+   * @return the created request
+   */
+  private Work completeRequest(TaskDto taskDto, Work work, long userId) {
+    ProjectDto projectDto = taskDto.getStatus().getProject();
+    if (work.getDraftId() != null) {
+      processesAttachmentService.moveAttachmentsToEntity(work.getAttachments(),
+                                                         userId,
+                                                         work.getDraftId(),
+                                                         WORK_DRAFT_ENTITY_TYPE,
+                                                         taskDto.getId(),
+                                                         TASK_ENTITY_TYPE,
+                                                         projectDto.getId());
+      deleteWorkDraftById(work.getDraftId());
+      ProcessesUtils.broadcast(listenerService, ProcessesEvents.REQUEST_DRAFT_DELETED, work.getDraftId(), work.getWorkFlowId());
+    }
+    Work newWork = EntityMapper.taskToWork(taskDto);
+    newWork.setCreatorId(userId);
+    newWork.setWorkFlowId(work.getWorkFlowId());
+    ProcessesUtils.broadcast(listenerService, "exo.process.request.created", newWork, projectDto);
+    return newWork;
   }
 
   /**

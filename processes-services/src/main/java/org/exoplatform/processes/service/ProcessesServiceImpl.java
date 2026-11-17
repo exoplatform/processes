@@ -88,6 +88,8 @@ public class ProcessesServiceImpl implements ProcessesService {
 
   private static final String      FORM_UNSUPPORTED     = "processes.workflow.formUnsupported";
 
+  private static final String      FORM_VALUES_UNSUPPORTED = "processes.request.formValuesUnsupported";
+
   /** The size of a Task label name (TASK_LABELS.NAME). */
   private static final int         LABEL_NAME_MAX_LENGTH = 50;
 
@@ -873,7 +875,30 @@ public class ProcessesServiceImpl implements ProcessesService {
                                   LocalDate.now(ZoneId.systemDefault()),
                                   getRequesterName(userId),
                                   agentTitle));
-    return processesStorage.saveWork(work, userId);
+    Map<Long, Map<String, List<Object>>> formValues = work.getFormValues() == null ? new LinkedHashMap<>()
+                                                                                  : work.getFormValues();
+    RequestValuesPlugin plugin = requestValuesPlugin;
+    if (plugin == null) {
+      if (!formValues.isEmpty()) {
+        throw new IllegalArgumentException(FORM_VALUES_UNSUPPORTED);
+      }
+      return processesStorage.saveWork(work, userId);
+    }
+    // The values are checked before the task exists, so a refused value
+    // creates nothing; the draft's own values are checked with them
+    org.exoplatform.services.security.Identity requester = getAclIdentity(userId);
+    plugin.checkRequestValues(workFlow.getId(), work.getDraftId(), formValues, requester);
+    Work request = processesStorage.createRequest(work, userId);
+    try {
+      plugin.writeRequestValues(workFlow.getId(), work.getDraftId(), request.getId(), formValues, requester);
+    } catch (IllegalAccessException | RuntimeException e) {
+      // The values were refused once the task existed, after a change of the
+      // process's form: the request is removed, its draft and the draft's
+      // values are kept, and the refusal is answered
+      processesStorage.removeRequest(request.getId());
+      throw e;
+    }
+    return processesStorage.completeRequest(request, work, userId);
   }
 
   /**

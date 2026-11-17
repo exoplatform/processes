@@ -378,7 +378,7 @@ public class ProcessesRest implements ResourceContainer {
       return Response.status(Response.Status.UNAUTHORIZED).build();
     }
     try {
-      Work newWork = processesService.createWork(EntityBuilder.toWork(processesService,workEntity),currentIdentityId);
+      Work newWork = processesService.createWork(EntityBuilder.toNewWork(processesService, workEntity), currentIdentityId);
       return Response.ok(EntityBuilder.toWorkEntity(processesService, newWork, "workFlow", getLocale())).build();
     } catch (ObjectNotFoundException e) {
       LOG.debug("User '{}' attempts to create a request on a not existing workflow", currentIdentityId, e);
