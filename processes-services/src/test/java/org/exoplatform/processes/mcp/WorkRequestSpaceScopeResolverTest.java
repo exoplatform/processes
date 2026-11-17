@@ -18,7 +18,10 @@ package org.exoplatform.processes.mcp;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import org.junit.Before;
@@ -27,14 +30,12 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import org.exoplatform.processes.model.Work;
-import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.service.ProcessesService;
 
 /**
  * Pins which space a work request belongs to for the space scope of the
- * processes tools: the space of its process's project, and none for a task
- * that is no request.
+ * processes tools: the space of the process its request record names, and
+ * none for a task with no record.
  */
 public class WorkRequestSpaceScopeResolverTest {
 
@@ -45,8 +46,8 @@ public class WorkRequestSpaceScopeResolverTest {
   private WorkRequestSpaceScopeResolver resolver;
 
   /**
-   * Builds the resolver on mocks: project 7 is the project of a process, in
-   * space 12; project 8 is a plain task project, though in space 12 too.
+   * Builds the resolver on mocks: process 70 is in space 12 and process 71 in
+   * space 13, both feeding one task project.
    */
   @Before
   public void setUp() {
@@ -55,9 +56,8 @@ public class WorkRequestSpaceScopeResolverTest {
     resolver = new WorkRequestSpaceScopeResolver();
     ReflectionTestUtils.setField(resolver, "processesService", processesService);
     ReflectionTestUtils.setField(resolver, "processSpaceScopeResolver", processResolver);
-    when(processesService.getWorkFlowByProjectId(7L)).thenReturn(new WorkFlow());
-    when(processResolver.spaceOfProject(7L)).thenReturn(12L);
-    when(processResolver.spaceOfProject(8L)).thenReturn(12L);
+    when(processResolver.spaceOf("70")).thenReturn(12L);
+    when(processResolver.spaceOf("71")).thenReturn(13L);
   }
 
   /**
@@ -72,35 +72,28 @@ public class WorkRequestSpaceScopeResolverTest {
   }
 
   /**
-   * A request belongs to the space of its process's project; a task of a
-   * project that is no process's project is no request and belongs to no
-   * space, nor do a missing request, a request with no project, an id that
-   * isn't one and a lookup that fails.
-   * Mutants: the process check removed, the project id not read, or a guard
-   * removed.
+   * A request belongs to the space of the process its request record names:
+   * two requests of one shared task project, of two processes, go to their
+   * own processes' spaces, and a plain task of that project, which has no
+   * record, belongs to no space, nor do an id that isn't one and a lookup
+   * that fails. The project of the task is never read. Mutants: the record
+   * not read, the project's first process read instead, or a guard removed.
    */
   @Test
-  public void aRequestBelongsToTheSpaceOfItsProcessOnly() {
-    when(processesService.getWorkById(5L)).thenReturn(work(7L));
-    when(processesService.getWorkById(6L)).thenReturn(work(8L));
-    when(processesService.getWorkById(4L)).thenReturn(work(0L));
-    when(processesService.getWorkById(3L)).thenReturn(null);
-    when(processesService.getWorkById(2L)).thenThrow(new IllegalStateException("broken"));
+  @SuppressWarnings("removal")
+  public void aRequestBelongsToTheSpaceOfTheProcessItsRecordNames() {
+    when(processesService.getRequestWorkFlowId(5L)).thenReturn(70L);
+    when(processesService.getRequestWorkFlowId(6L)).thenReturn(71L);
+    when(processesService.getRequestWorkFlowId(7L)).thenReturn(null);
+    when(processesService.getRequestWorkFlowId(2L)).thenThrow(new IllegalStateException("broken"));
 
     assertEquals(Long.valueOf(12L), resolver.spaceOf("5"));
-    for (String id : new String[] { "6", "4", "3", "2", "abc", "", null }) {
+    assertEquals(Long.valueOf(13L), resolver.spaceOf("6"));
+    for (String id : new String[] { "7", "2", "abc", "", null }) {
       assertNull(id, resolver.spaceOf(id));
     }
-  }
-
-  /**
-   * @param projectId the request's project id
-   * @return a request of that project
-   */
-  private static Work work(long projectId) {
-    Work work = new Work();
-    work.setProjectId(projectId);
-    return work;
+    verify(processesService, never()).getWorkFlowByProjectId(anyLong());
+    verify(processesService, never()).getWorkById(anyLong());
   }
 
 }
