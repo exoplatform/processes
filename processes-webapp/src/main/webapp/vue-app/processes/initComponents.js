@@ -3,6 +3,7 @@ import WorkFlowList from './components/WorkFlowList.vue';
 import WorkFlowCardItem from './components/WorkFlowCardItem.vue';
 import WorkFlowListToolbar from './components/WorkFlowListToolbar.vue';
 import WorkFlowCardMenu from './components/WorkFlowCardMenu.vue';
+import WorkFlowEnableToggle from './components/WorkFlowEnableToggle.vue';
 import WorkFlowEmptyState from './components/WorkFlowEmptyState.vue';
 import MyWorkList from './components/MyWorkList.vue';
 import Work from './components/Work.vue';
@@ -45,6 +46,7 @@ const components = {
   'workflow-card-item': WorkFlowCardItem,
   'workflow-list-toolbar': WorkFlowListToolbar,
   'workflow-card-menu': WorkFlowCardMenu,
+  'workflow-enable-toggle': WorkFlowEnableToggle,
   'workflow-empty-state': WorkFlowEmptyState,
   'my-work-list': MyWorkList,
   'work': Work,
