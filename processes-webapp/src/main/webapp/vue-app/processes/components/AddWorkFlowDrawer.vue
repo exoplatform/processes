@@ -798,7 +798,7 @@ export default {
         const fieldValues = this.translations[fieldName] || {};
         const opened = this.openedTranslations[fieldName];
         const changed = this.editMode
-          ? opened !== undefined && JSON.stringify(fieldValues) !== opened
+          ? !!opened && JSON.stringify(fieldValues) !== opened
           : Object.values(fieldValues).filter(value => value).length > 1;
         if (changed) {
           values[fieldName] = JSON.parse(JSON.stringify(fieldValues));
