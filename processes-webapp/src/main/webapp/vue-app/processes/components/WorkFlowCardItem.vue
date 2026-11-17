@@ -6,12 +6,13 @@
     outlined>
     <div class="d-flex align-start ps-3 pe-2 pt-3">
       <v-avatar
-        :class="!avatarUrl && 'workflow-card-avatar-placeholder primary--text'"
+        :class="!showIllustration && 'workflow-card-avatar-placeholder primary--text'"
         class="workflow-card-avatar flex-shrink-0 me-3"
         size="40">
         <v-img
-          v-if="avatarUrl"
-          :src="avatarUrl" />
+          v-if="showIllustration"
+          :src="avatarUrl"
+          @error="illustrationFailed = true" />
         <span
           v-else
           class="font-weight-bold">
@@ -104,12 +105,16 @@ export default {
   },
   data: () => ({
     openRequestsCount: null,
+    illustrationFailed: false,
   }),
   computed: {
     avatarUrl() {
       return this.workflow && this.workflow.illustrativeAttachment
                            && this.workflow.illustrativeAttachment.id
                            && `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/illustration/${this.workflow.id}?v=${this.workflow.illustrativeAttachment.lastUpdated}`;
+    },
+    showIllustration() {
+      return this.avatarUrl && !this.illustrationFailed;
     },
     initial() {
       return (this.workflow.title || '').trim().charAt(0).toUpperCase();
@@ -136,6 +141,11 @@ export default {
     },
     projectLink() {
       return `${eXo.env.portal.context}/${eXo.env.portal.portalName}/tasks/projectDetail/${this.workflow.projectId}`;
+    },
+  },
+  watch: {
+    avatarUrl() {
+      this.illustrationFailed = false;
     },
   },
   created() {
