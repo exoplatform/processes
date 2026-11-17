@@ -269,7 +269,7 @@ public interface ProcessesStorage {
    * @param workFlow the draft's stored process
    * @param userId the owner's identity id
    */
-  void copyProcessAttachmentsToDraft(long draftId, WorkFlow workFlow, long userId);
+  void copyProcessAttachmentsToDraft(Long draftId, WorkFlow workFlow, long userId);
 
   /**
    * Retrieves a work draft by its given id

@@ -992,12 +992,11 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     if (identity == null) {
       throw new IllegalArgumentException("identity is not exist");
     }
-    boolean creation = work.getId() == 0;
-    Work saved = saveWorkDraftRow(work, userId);
-    if (creation) {
-      copyProcessAttachmentsToDraft(saved.getId(), work.getWorkFlow(), userId);
+    WorkEntity workEntity = saveWorkDraftEntity(work, userId);
+    if (work.getId() == 0) {
+      copyProcessAttachmentsToDraft(workEntity.getId(), work.getWorkFlow(), userId);
     }
-    return saved;
+    return EntityMapper.fromEntity(workEntity);
   }
 
   /**
@@ -1005,6 +1004,17 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    */
   @Override
   public Work saveWorkDraftRow(Work work, long userId) {
+    return EntityMapper.fromEntity(saveWorkDraftEntity(work, userId));
+  }
+
+  /**
+   * Saves a request draft's row, the server setting its draft state.
+   *
+   * @param work the draft
+   * @param userId the owner's identity id
+   * @return the saved row
+   */
+  private WorkEntity saveWorkDraftEntity(Work work, long userId) {
     Identity identity = identityManager.getIdentity(userId);
     if (identity == null) {
       throw new IllegalArgumentException("identity is not exist");
@@ -1021,14 +1031,14 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     } else {
       workEntity = workDraftDAO.update(workEntity);
     }
-    return EntityMapper.fromEntity(workEntity);
+    return workEntity;
   }
 
   /**
    * {@inheritDoc}
    */
   @Override
-  public void copyProcessAttachmentsToDraft(long draftId, WorkFlow workFlow, long userId) {
+  public void copyProcessAttachmentsToDraft(Long draftId, WorkFlow workFlow, long userId) {
     processesAttachmentService.copyAttachmentsToEntity(userId,
                                                        workFlow.getId(),
                                                        WORKFLOW_ENTITY_TYPE,

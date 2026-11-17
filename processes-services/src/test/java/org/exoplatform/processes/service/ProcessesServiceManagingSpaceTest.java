@@ -18,6 +18,7 @@ package org.exoplatform.processes.service;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -104,7 +105,7 @@ public class ProcessesServiceManagingSpaceTest {
       assertNull(service().getManagingSpaceId(8L));
     }
     // The platform's own read: no user's memberships
-    verify(processesStorage).getWorkFlowById(7L, isNull());
+    verify(processesStorage).getWorkFlowById(eq(7L), isNull());
   }
 
   private ProcessesServiceImpl service() {
