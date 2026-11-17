@@ -168,6 +168,11 @@
     }
   }
 
+  #processesToolbar .v-toolbar__content {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
   .workflow-empty-description {
     max-width: 420px;
   }
@@ -212,8 +217,16 @@
       text-decoration: none;
     }
 
-    .workflow-card-request-wrapper {
-      display: inline-block;
+    // role="button" carries a global pointer cursor; only a card that opens a request keeps it
+    cursor: default;
+
+    &.workflow-card-requestable {
+      cursor: pointer;
+    }
+
+    &:focus-visible {
+      outline: 2px solid @primaryColor;
+      outline-offset: 2px;
     }
 
     &.workflow-card-disabled .workflow-card-avatar {
