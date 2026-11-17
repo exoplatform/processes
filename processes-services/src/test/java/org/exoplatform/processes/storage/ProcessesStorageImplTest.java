@@ -371,6 +371,17 @@ public class ProcessesStorageImplTest {
 
     processesStorage.saveWorkFlow(workFlow, 1L);
     assertEquals("the stored space keeps the stored participants", stored.getParticipator(), sentWithTheStoredSpace.getParticipator());
+
+    // A process stored before it had a space takes one with its participants
+    stored.setSpaceId(null);
+    WorkFlowEntity sentToALegacyProcess = new WorkFlowEntity();
+    sentToALegacyProcess.setId(5L);
+    sentToALegacyProcess.setProjectId(9L);
+    sentToALegacyProcess.setSpaceId(8L);
+    ENTITY_MAPPER.when(() -> EntityMapper.toEntity(workFlow)).thenReturn(sentToALegacyProcess);
+
+    processesStorage.saveWorkFlow(workFlow, 1L);
+    assertEquals(new HashSet<>(Arrays.asList("manager:/spaces/sales", "member:/spaces/sales")), sentToALegacyProcess.getParticipator());
     verify(projectService, never()).updateProjectNoReturn(any());
   }
 

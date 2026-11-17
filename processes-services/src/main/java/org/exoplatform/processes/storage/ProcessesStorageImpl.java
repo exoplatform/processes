@@ -175,6 +175,15 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    * {@inheritDoc}
    */
   @Override
+  public Long getRequestWorkFlowId(long taskId) {
+    RequestEntity request = requestDAO.find(taskId);
+    return request == null ? null : request.getWorkFlowId();
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
   public Map<Long, List<ProcessReference>> findProcessesOfProjects(List<Long> projectIds, long spaceId) {
     Map<Long, List<ProcessReference>> processes = new LinkedHashMap<>();
     if (projectIds == null) {
@@ -236,9 +245,9 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       WorkFlow newWorkflow = EntityMapper.fromEntity(workFlowEntity, illustrativeAttachment, null);
       ProcessesUtils.broadcast(listenerService, "exo.process.created", userId, newWorkflow);
     } else {
-      // An update keeps the process's space, which the Service checked, and so
-      // its participants; it never rewrites the members of its task project,
-      // which other processes may feed
+      // An update keeps the process's space and its participants, unless the
+      // Service let it take a new space; it never rewrites the members of its
+      // task project, which other processes may feed
       WorkFlowEntity storedWorkFlowEntity = workFlowDAO.find(workFlowEntity.getId());
       if (storedWorkFlowEntity != null) {
         if (workFlowEntity.getSpaceId() == null) {
