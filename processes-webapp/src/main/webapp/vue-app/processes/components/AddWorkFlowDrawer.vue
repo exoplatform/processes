@@ -785,9 +785,12 @@ export default {
      */
     translationsToSave() {
       const fieldNames = Object.keys(this.translations);
-      const changed = fieldNames.some(fieldName => this.editMode
-        ? JSON.stringify(this.translations[fieldName] || {}) !== this.openedTranslations[fieldName]
-        : Object.values(this.translations[fieldName] || {}).filter(value => value).length > 1);
+      const changed = fieldNames.some(fieldName => {
+        const values = this.translations[fieldName] || {};
+        return this.editMode
+          ? JSON.stringify(values) !== this.openedTranslations[fieldName]
+          : Object.values(values).filter(value => value).length > 1;
+      });
       return {
         values: JSON.parse(JSON.stringify(this.translations)),
         changed,
