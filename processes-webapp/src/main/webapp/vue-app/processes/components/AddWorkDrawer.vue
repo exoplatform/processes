@@ -70,6 +70,15 @@
             v-model="valid"
             ref="form"
             id="add-work-form">
+            <processes-extension-sections
+              ref="requestSections"
+              :key="`requestSections${openKey}`"
+              :params="{workflowId: work.workFlow && work.workFlow.id || null, draftId: hasDraft && work.id || null}"
+              hook-id="requestDrawerSections"
+              name="ProcessRequestDrawer"
+              type="request-drawer-section"
+              class="mt-5"
+              @changed="onSectionsChanged" />
             <div class="work-message">
               <p class="mt-5 font-weight-bold">{{ $t('processes.work.message.to.manager') }}</p>
               <p
@@ -106,7 +115,8 @@
                 :workflow-parent-space="workflowParentSpace"
                 :edit-mode="this.editDraft"
                 :entity-id="work.id"
-                :entity-type="entityType" />
+                :entity-type="entityType"
+                :prepare-entity="createDraftForAttachment" />
             </div>
           </v-form>
         </div>
@@ -152,7 +162,8 @@
       <v-btn
         :loading="saving"
         @click="addWork"
-        :disabled="!validWorkDescription && !attachmentsChanged"
+        :disabled="!validWorkDescription && !attachmentsChanged && !sectionsChanged"
+        id="sendRequestButton"
         class="btn btn-primary float-e">
         {{ $t('processes.work.sendWork.label') }}
       </v-btn>
@@ -161,8 +172,10 @@
 </template>
 
 <script>
+import RequestDraftMixin from '../js/RequestDraftMixin.js';
 
 export default {
+  mixins: [RequestDraftMixin],
 
   data () {
     return {
@@ -173,10 +186,7 @@ export default {
         isDraft: false,
         attachments: []
       },
-      preSaving: false,
       attachments: [],
-      oldWork: {},
-      workDraft: {},
       viewMode: false,
       viewDraft: false,
       editDraft: false,
@@ -188,39 +198,18 @@ export default {
         maxLength: len => v => (v || '').length <= len || this.$t('processes.work.form.description.maxLength.message', {0: len}),
       },
       showEditor: false,
-      firstCreation: false,
+      openKey: 0,
       attachmentsUpdated: false,
       updatedAttachments: []
     };
   },
   created(){
+    // Loads the modules whose name contains ProcessRequestExtension, which register their sections
+    this.$utils.includeExtensions('ProcessRequestExtension');
     this.$root.$on('work-added', () => {
-      this.saving = false;
+      this.resetAfterSubmit();
       this.resetInputs();
       this.close();
-    });
-    this.$root.$on('work-draft-added', () => {
-      this.savingDraft = false;
-      this.resetInputs();
-      this.close();
-    });
-    this.$root.$on('work-draft-updated', (draft) => {
-      this.savingDraft = false;
-      const draftObject = JSON.parse(draft);
-      this.work.description = draftObject.description;
-      this.oldWork = Object.assign({}, this.work);
-    });
-    this.$root.$on('pre-save-work-draft-added', (draft) => {
-      this.work = draft;
-      this.work.attachments = draft.attachments || [];
-      this.oldWork = Object.assign({}, this.work);
-      this.editDraft = true;
-      this.$root.$emit('init-list-attachments', {
-        entityId: draft.id,
-        entityType: this.entityType
-      });
-      this.preSaving = false;
-      this.firstCreation = true;
     });
     this.$root.$on('close-work-drawer', () => {
       this.close();
@@ -237,23 +226,14 @@ export default {
     });
   },
   computed: {
-    hasChanges() {
-      return JSON.stringify(this.work) !== JSON.stringify(this.oldWork);
-    },
     attachmentsChanged() {
       return this.attachmentsUpdated && JSON.stringify(this.updatedAttachments) !== JSON.stringify(this.attachments);
     },
     workDescription() {
       return this.work && this.work.description || '';
     },
-    isMobile() {
-      return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
-    },
     entityType() {
       return this.editDraft || this.viewDraft ? 'workdraft' : 'task';
-    },
-    canUpdateDraft() {
-      return this.valid && this.emptyOrValidWorkDescription && this.hasChanges;
     },
     validWorkDescription() {
       return this.work?.description?.length > 0 && this.$utils.htmlToText(this.work.description).length <= this.maxLength;
@@ -287,20 +267,18 @@ export default {
       this.showEditor = !this.showEditor;
     },
     open(object, mode, isDraft, allowSave) {
+      // A new key mounts the sections afresh, with the draft id this opening knows
+      this.openKey++;
       if (mode === 'create_work') {
-        this.work = {};
-        this.work.workFlow = object;
+        this.work = {description: '', workFlow: object};
         this.editDraft = false;
         this.viewMode = false;
         this.$root.$emit('update-url-path', 'createRequest', `/${this.work.workFlow.id}/createRequest` );
-        this.preSaveWork();
       } else if (mode === 'edit_work_draft') {
         object.attachments = [];
         this.work = Object.assign({}, object);
-        this.oldWork = Object.assign({}, this.work);
         this.viewMode = false;
         this.editDraft = true;
-        this.firstCreation = false;
         this.$root.$emit('update-url-path', 'draftDetails', `/myRequests/draftDetails/${this.work.id}`);
         this.$root.$on('can-show-request-editor',() => {
           this.showEditor = true;
@@ -317,6 +295,7 @@ export default {
           this.$root.$emit('update-url-path', 'requestDetails', `/myRequests/requestDetails/${this.work.id}`);
         }
       }
+      this.initDraftState();
       this.$root.$emit('init-list-attachments', {
         entityId: this.work && this.work.id || null,
         entityType: this.entityType
@@ -332,9 +311,31 @@ export default {
         }
       });
     },
+    /**
+     * Closes the drawer after saving the draft. A drawer still open is closed
+     * first, and its closed event comes back here. When a section holds
+     * changes, the close waits for the save: a refused one opens the drawer
+     * again with what was typed and the refused field marked.
+     *
+     * @returns {void}
+     */
     close() {
-      this.updateDraft();
-      this.$refs.work.close();
+      if (this.$refs.work.drawer) {
+        this.$refs.work.close();
+        return;
+      }
+      const openKey = this.openKey;
+      const waits = !this.viewMode && !this.submitted && this.sectionsChanged;
+      const save = this.viewMode ? Promise.resolve() : this.saveDraft();
+      if (waits) {
+        save.then(() => openKey === this.openKey && this.finishClose())
+          .catch(() => openKey === this.openKey && this.$refs.work.open());
+      } else {
+        save.catch(() => null);
+        this.finishClose();
+      }
+    },
+    finishClose() {
       this.$root.$emit('add-work-drawer-closed');
       this.$root.$emit('reset-list-attachments');
       if (document.location.pathname.includes('myRequests')) {
@@ -354,64 +355,26 @@ export default {
       }
     },
     addWork() {
-      this.saving = true;
-      if (this.editDraft) {
-        this.work.draftId = this.work.id;
-        this.work.id = 0;
-      }
-      this.work.attachments=this.attachments;
-      this.$root.$emit('add-work', this.work);
-    },
-    toWorkDraft(work) {
-      this.workDraft.id = this.work.id || 0;
-      this.workDraft.title = work.title || '';
-      this.workDraft.createdTime = work.createdTime;
-      this.workDraft.creatorId = work.creatorId;
-      this.workDraft.description = work.description || '';
-      this.workDraft.workFlow = work.workFlow;
-      this.workDraft.isDraft = true;
+      this.submitWork();
     },
     blurOnDescriptionComposer() {
-      if (!this.viewMode && this.canUpdateDraft) {
-        this.savingDraft = true;
-        this.toWorkDraft(this.work);
-        if (this.workDraft.id && this.workDraft.id !== 0) {
-          this.$root.$emit('update-work-draft', this.workDraft);
-          this.firstCreation = false;
-        }
+      if (!this.viewMode && this.hasDraft) {
+        this.saveDraft().catch(() => null);
       }
       this.showEditor = false;
     },
-    updateDraft() {
-      if (!this.viewMode && this.canUpdateDraft) {
-        this.savingDraft = true;
-        this.toWorkDraft(this.work);
-        if (this.workDraft.id && this.workDraft.id !== 0) {
-          this.$root.$emit('update-work-draft', this.workDraft);
-          this.firstCreation = false;
-        } else if (this.workDraft && this.workDraft.workflow) {
-          this.$root.$emit('create-work-draft', {draft: this.workDraft});
+    /**
+     * Creates the draft an attachment needs, the user's first input being
+     * that attachment.
+     *
+     * @returns {Promise} settled once the draft exists
+     */
+    createDraftForAttachment() {
+      return this.saveDraft(true).then(() => {
+        if (!this.hasDraft) {
+          throw new Error('No draft to attach to');
         }
-      } else if (this.firstCreation && !this.hasChanges && !this.attachmentsChanged) {
-        this.toWorkDraft(this.work);
-        this.$root.$emit('show-alert', {
-          type: 'warning',
-          messageTargetModel: this.workDraft,
-          messageAction: 'keep-work-draft',
-          messageActionLabel: this.$t('processes.work.keep.draft.label'),
-          message: this.isMobile ? this.$t('processes.work.keep.draft.warn.message.question')
-            : this.$t('processes.work.keep.draft.warn.message')
-        });
-      }
-    },
-    preSaveWork() {
-      this.preSaving = true;
-      this.toWorkDraft(this.work);
-      if (this.workDraft.id === 0) {
-        this.$root.$emit('create-work-draft', {draft: this.workDraft, preSave: true});
-      } else {
-        this.preSaving = false;
-      }
+      });
     }
   }
 };

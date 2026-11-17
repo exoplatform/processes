@@ -110,6 +110,15 @@ export default {
       default: () => {
         return [];
       }
+    },
+    /**
+     * Called before the attachments drawer opens while there is no entity:
+     * it resolves once the entity exists, the drawer then attaching to it,
+     * and rejects to keep the drawer closed.
+     */
+    prepareEntity: {
+      type: Function,
+      default: null
     }
   },
   model: {
@@ -224,14 +233,34 @@ export default {
       });
     },
     openAddDocumentDrawer() {
-      document.dispatchEvent(new CustomEvent('open-attachments-app-drawer', {detail: this.attachmentDrawerParams}));
+      this.withEntity(() => document.dispatchEvent(new CustomEvent('open-attachments-app-drawer', {detail: this.attachmentDrawerParams})));
     },
     openAttachmentDrawer() {
       if (this.attachments.length === 0) {
         this.openAddDocumentDrawer();
       } else {
-        document.dispatchEvent(new CustomEvent('open-attachments-list-drawer', {detail: this.attachmentDrawerParams}));
+        this.withEntity(() => document.dispatchEvent(new CustomEvent('open-attachments-list-drawer', {detail: this.attachmentDrawerParams})));
       }
+    },
+    /**
+     * Runs an action once the attachments have an entity: at once when there
+     * is one or nothing prepares it, else after prepareEntity resolved and the
+     * new entity reached the props.
+     *
+     * @param {Function} action the action
+     * @returns {void}
+     */
+    withEntity(action) {
+      if (this.entityId || !this.prepareEntity) {
+        action();
+        return;
+      }
+      this.prepareEntity()
+        .then(() => this.$nextTick())
+        .then(action)
+        .catch(() => {
+          // The preparation was refused, and its caller shows why
+        });
     },
     initEntityAttachmentsList() {
       if (this.entityTypeVal && this.entityIdVal) {
