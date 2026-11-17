@@ -136,6 +136,9 @@ public class ProcessesServiceProjectChoiceTest {
   @Mock
   private StatusService              statusService;
 
+  @Mock
+  private ProcessTranslationService processTranslationService;
+
   private ProcessesServiceImpl       processesService;
 
   private Space                      space;
@@ -158,12 +161,13 @@ public class ProcessesServiceProjectChoiceTest {
                                                 processesAttachmentService,
                                                 statusService,
                                                 labelService,
-                                                listenerService));
+                                                listenerService,
+                                                processTranslationService));
     // The save of a process's rows runs in a transaction the platform aspect
-    // begins; the unit tests call the storage's save directly
-    doAnswer(invocation -> processesStorage.saveWorkFlow(invocation.getArgument(0),
-                                                         invocation.getArgument(1))).when(processesService)
-                                                                                    .saveWorkFlowRows(any(), anyLong());
+    // begins; the unit tests call its body directly
+    doAnswer(invocation -> processesService.writeWorkFlowRows(invocation.getArgument(0),
+                                                              invocation.getArgument(1))).when(processesService)
+                                                                                         .saveWorkFlowRows(any(), anyLong());
     when(processesStorage.createProject(any())).thenAnswer(invocation -> invocation.getArgument(0));
     space = new Space();
     space.setId(SPACE_ID);

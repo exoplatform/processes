@@ -16,12 +16,17 @@
  */
 package org.exoplatform.processes.notification.utils;
 
+import org.apache.commons.lang3.StringUtils;
+
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.portal.webui.util.Util;
 import org.exoplatform.processes.Utils.ProcessesUtils;
 import org.exoplatform.processes.model.WorkFlow;
+import org.exoplatform.commons.api.notification.NotificationContext;
+import org.exoplatform.commons.api.notification.model.NotificationInfo;
+import org.exoplatform.processes.service.ProcessTranslationService;
 import org.exoplatform.processes.service.ProcessesService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -144,6 +149,88 @@ public class NotificationUtils {
     receivers = receivers.stream().distinct().collect(Collectors.toList());
     receivers.remove(requester);
     return receivers;
+  }
+
+  /**
+   * Names a request's process in a notification: its id, from which each
+   * recipient reads its title in their own language, and its stored title, in
+   * the default language, for the readers of the stored value. A process that
+   * can't be read is named by the given title only.
+   *
+   * @param ctx the notification context
+   * @param processesService the processes service
+   * @param workflowId the request's process id, or null when unknown
+   * @param fallbackTitle the title to store when the process can't be read
+   */
+  public static void appendProcess(NotificationContext ctx,
+                                   ProcessesService processesService,
+                                   Long workflowId,
+                                   String fallbackTitle) {
+    WorkFlow workFlow = null;
+    if (workflowId != null && workflowId > 0) {
+      try {
+        workFlow = processesService.getWorkFlow(workflowId, null);
+      } catch (Exception e) {
+        LOG.debug("Can't read the process {} of a notification", workflowId, e);
+      }
+    }
+    if (workFlow == null) {
+      ctx.append(NotificationArguments.REQUEST_PROCESS, fallbackTitle);
+    } else {
+      ctx.append(NotificationArguments.REQUEST_PROCESS, workFlow.getTitle());
+      ctx.append(NotificationArguments.WORKFLOW_ID, String.valueOf(workFlow.getId()));
+    }
+  }
+
+  /**
+   * Returns the title of a notification's process in a recipient's language:
+   * the process the notification names by its id, read as the platform, its
+   * title translated, or the title stored in the notification when it names
+   * no process or its process is gone.
+   *
+   * @param notification the notification
+   * @param language the recipient's language, as the notification channel
+   *          names it, or null for the stored title
+   * @return the process title
+   */
+  public static String getProcessTitle(NotificationInfo notification, String language) {
+    return getProcessTitle(notification, toLocale(language));
+  }
+
+  /**
+   * Returns the title of a notification's process in a recipient's language.
+   *
+   * @param notification the notification
+   * @param locale the recipient's language, or null for the stored title
+   * @return the process title
+   * @see #getProcessTitle(NotificationInfo, String)
+   */
+  public static String getProcessTitle(NotificationInfo notification, Locale locale) {
+    String storedTitle = notification.getValueOwnerParameter(NotificationArguments.REQUEST_PROCESS.getKey());
+    String workflowId = notification.getValueOwnerParameter(NotificationArguments.WORKFLOW_ID.getKey());
+    if (locale == null || StringUtils.isBlank(workflowId)) {
+      return storedTitle;
+    }
+    try {
+      WorkFlow workFlow = CommonsUtils.getService(ProcessesService.class).getWorkFlow(Long.parseLong(workflowId), null);
+      if (workFlow == null) {
+        return storedTitle;
+      }
+      return CommonsUtils.getService(ProcessTranslationService.class).getTitle(workFlow, locale);
+    } catch (Exception e) {
+      LOG.debug("Can't read the process {} of a notification, its stored title is used", workflowId, e);
+      return storedTitle;
+    }
+  }
+
+  /**
+   * Reads a language as a notification channel names it.
+   *
+   * @param language a language tag, with a dash or an underscore
+   * @return the locale, or null for a blank language
+   */
+  private static Locale toLocale(String language) {
+    return StringUtils.isBlank(language) ? null : Locale.forLanguageTag(language.replace('_', '-'));
   }
 
   public static String formatMention(String comment){

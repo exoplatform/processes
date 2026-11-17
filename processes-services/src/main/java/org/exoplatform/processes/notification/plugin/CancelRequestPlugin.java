@@ -30,6 +30,13 @@ public class CancelRequestPlugin extends BaseNotificationPlugin {
     return true;
   }
 
+  /**
+   * Builds the notification of a canceled request, naming its process by its stored
+   * title and, when known, by its id.
+   *
+   * @param notificationContext the notification context
+   * @return the notification
+   */
   @Override
   protected NotificationInfo makeNotification(NotificationContext notificationContext) {
     String requester = notificationContext.value(NotificationArguments.REQUEST_CREATOR);
@@ -39,7 +46,7 @@ public class CancelRequestPlugin extends BaseNotificationPlugin {
     String requestTitle = notificationContext.value(NotificationArguments.REQUEST_TITLE);
     String workflowProjectId = notificationContext.value(NotificationArguments.WORKFLOW_PROJECT_ID);
     List<String> receivers = NotificationUtils.getReceivers(Long.parseLong(workflowProjectId), requester, true);
-    return NotificationInfo.instance()
+    NotificationInfo notificationInfo = NotificationInfo.instance()
                            .setFrom(requester)
                            .to(receivers)
                            .with(NotificationArguments.REQUEST_CREATOR.getKey(), requester)
@@ -49,5 +56,12 @@ public class CancelRequestPlugin extends BaseNotificationPlugin {
                            .with(NotificationArguments.REQUEST_URL.getKey(), requestUrl)
                            .key(getKey())
                            .end();
+    // The process id, from which each recipient reads the process's title in
+    // their own language; a notification of an unknown process has none
+    String workflowId = notificationContext.value(NotificationArguments.WORKFLOW_ID);
+    if (workflowId != null) {
+      notificationInfo.with(NotificationArguments.WORKFLOW_ID.getKey(), workflowId);
+    }
+    return notificationInfo;
   }
 }

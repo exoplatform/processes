@@ -39,7 +39,7 @@ public class PushTemplateProvider extends TemplateProvider {
       String language = getLanguage(notificationInfo);
       TemplateContext templateContext = TemplateContext.newChannelInstance(getChannelKey(), pluginId, language);
       String requester = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_CREATOR.getKey());
-      String processTitle = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_PROCESS.getKey());
+      String processTitle = NotificationUtils.getProcessTitle(notificationInfo, language);
 
       if (pluginId.equals(RequestCommentPlugin.ID)) {
         String requestTitle = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_TITLE.getKey());

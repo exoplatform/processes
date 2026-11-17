@@ -19,6 +19,7 @@ package org.exoplatform.processes.rest;
 import java.io.InputStream;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import javax.annotation.security.RolesAllowed;
@@ -37,6 +38,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.apache.commons.lang3.StringUtils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.portal.application.localization.LocalizationFilter;
 import org.exoplatform.processes.model.*;
 import org.exoplatform.processes.rest.model.WorkEntity;
 import org.exoplatform.processes.rest.model.WorkFlowEntity;
@@ -98,6 +100,19 @@ public class ProcessesRest implements ResourceContainer {
     this.processesAttachmentService = processesAttachmentService;
   }
 
+  /**
+   * Lists the processes the current user sees, their texts in the user's
+   * language.
+   *
+   * @param userId the current user's identity id, or null
+   * @param enabled whether to list the enabled or the disabled processes
+   * @param manager whether to list the processes the user manages
+   * @param query a search on the process title
+   * @param expand the properties to expand
+   * @param offset the offset of the first process
+   * @param limit the number of processes
+   * @return the processes, or the refusal status
+   */
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
@@ -155,7 +170,7 @@ public class ProcessesRest implements ResourceContainer {
       }
       long userIdentityId = currentIdentityId;
       List<WorkFlow> workFlows = processesService.getWorkFlows(filter, offset, limit, userIdentityId);
-      return Response.ok(EntityBuilder.toRestEntities(workFlows, expand)).cacheControl(PER_USER_CACHE_CONTROL).build();
+      return Response.ok(EntityBuilder.toRestEntities(workFlows, expand, getLocale())).cacheControl(PER_USER_CACHE_CONTROL).build();
     } catch (IllegalAccessException e) {
       LOG.debug("User '{}' isn't allowed to list the workflows", currentIdentityId, e);
       return Response.status(Response.Status.FORBIDDEN).build();
@@ -165,6 +180,12 @@ public class ProcessesRest implements ResourceContainer {
     }
   }
 
+  /**
+   * Creates a process, answered with its texts in the user's language.
+   *
+   * @param workFlowEntity the process to create
+   * @return the created process, or the refusal status
+   */
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
@@ -191,7 +212,7 @@ public class ProcessesRest implements ResourceContainer {
     try {
       WorkFlow newWorkFlow = processesService.createWorkFlow(EntityBuilder.fromEntity(workFlowEntity),
                                                                       currentIdentityId);
-      return Response.ok(EntityBuilder.toEntity(newWorkFlow, "")).build();
+      return Response.ok(EntityBuilder.toEntity(newWorkFlow, "", getLocale())).build();
     } catch (IllegalAccessException e) {
       LOG.debug("User '{}' isn't allowed to create a workflow", currentIdentityId, e);
       return Response.status(Response.Status.FORBIDDEN).entity("Not allowed to create a workflow").build();
@@ -203,6 +224,12 @@ public class ProcessesRest implements ResourceContainer {
     }
   }
 
+  /**
+   * Updates a process, answered with its texts in the user's language.
+   *
+   * @param workFlowEntity the process to update
+   * @return the updated process, or the refusal status
+   */
   @PUT
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
@@ -230,7 +257,7 @@ public class ProcessesRest implements ResourceContainer {
     try {
       WorkFlow newWorkFlow = processesService.updateWorkFlow(EntityBuilder.fromEntity(workFlowEntity),
                                                                       currentIdentityId);
-      return Response.ok(EntityBuilder.toEntity(newWorkFlow, "")).build();
+      return Response.ok(EntityBuilder.toEntity(newWorkFlow, "", getLocale())).build();
     } catch (ObjectNotFoundException e) {
       LOG.debug("User '{}' attempts to update a not existing work workFlow '{}'", currentIdentityId, e);
       return Response.status(Response.Status.NOT_FOUND).entity("Work workFlow not found").build();
@@ -245,6 +272,19 @@ public class ProcessesRest implements ResourceContainer {
     }
   }
 
+  /**
+   * Lists the current user's requests, their expanded process in the user's
+   * language.
+   *
+   * @param userId the current user's identity id
+   * @param expand the properties to expand
+   * @param completed whether to list the completed requests
+   * @param status the status of the requests to list
+   * @param query a search on the request
+   * @param offset the offset of the first request
+   * @param limit the number of requests
+   * @return the requests, or the refusal status
+   */
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
@@ -296,7 +336,7 @@ public class ProcessesRest implements ResourceContainer {
         workFilter.setCompleted(completed);
       }
       List<Work> works = processesService.getWorks(userIdentityId, workFilter, offset, limit);
-      return Response.ok(EntityBuilder.toWorkEntityList(processesService, works, expand)).build();
+      return Response.ok(EntityBuilder.toWorkEntityList(processesService, works, expand, getLocale())).build();
     } catch (Exception e) {
       LOG.warn("Error retrieving list of works", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -304,6 +344,12 @@ public class ProcessesRest implements ResourceContainer {
   }
 
 
+  /**
+   * Creates a request, answered with its process in the user's language.
+   *
+   * @param workEntity the request to create
+   * @return the created request, or the refusal status
+   */
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
@@ -333,7 +379,7 @@ public class ProcessesRest implements ResourceContainer {
     }
     try {
       Work newWork = processesService.createWork(EntityBuilder.toWork(processesService,workEntity),currentIdentityId);
-      return Response.ok(EntityBuilder.toWorkEntity(processesService, newWork, "workFlow")).build();
+      return Response.ok(EntityBuilder.toWorkEntity(processesService, newWork, "workFlow", getLocale())).build();
     } catch (ObjectNotFoundException e) {
       LOG.debug("User '{}' attempts to create a request on a not existing workflow", currentIdentityId, e);
       return Response.status(Response.Status.NOT_FOUND).entity(WORKFLOW_NOT_FOUND_MESSAGE).build();
@@ -348,6 +394,12 @@ public class ProcessesRest implements ResourceContainer {
     }
   }
 
+  /**
+   * Updates a request, answered with its process in the user's language.
+   *
+   * @param workEntity the request to update
+   * @return the updated request, or the refusal status
+   */
   @PUT
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
@@ -374,7 +426,7 @@ public class ProcessesRest implements ResourceContainer {
     }
     try {
       Work newWork = processesService.updateWork(EntityBuilder.toWork(processesService, workEntity), currentIdentityId);
-      return Response.ok(EntityBuilder.toWorkEntity(processesService, newWork, "workFlow")).build();
+      return Response.ok(EntityBuilder.toWorkEntity(processesService, newWork, "workFlow", getLocale())).build();
     } catch (ObjectNotFoundException e) {
       LOG.debug("User '{}' attempts to update a not existing work workFlow '{}'", currentIdentityId, e);
       return Response.status(Response.Status.NOT_FOUND).entity("Work workFlow not found").build();
@@ -423,7 +475,7 @@ public class ProcessesRest implements ResourceContainer {
     }
     try {
       EligibleProjects projects = processesService.listEligibleProjects(spaceId, offset, limit, currentIdentityId);
-      return Response.ok(projects).cacheControl(PER_USER_CACHE_CONTROL).build();
+      return Response.ok(EntityBuilder.translate(projects, getLocale())).cacheControl(PER_USER_CACHE_CONTROL).build();
     } catch (ObjectNotFoundException e) {
       LOG.debug("User '{}' lists the projects of a space that does not exist", currentIdentityId, e);
       return Response.status(Response.Status.NOT_FOUND).entity("Space not found").build();
@@ -629,6 +681,15 @@ public class ProcessesRest implements ResourceContainer {
     }
   }
 
+  /**
+   * Completes or reopens a request, answered with its process in the user's
+   * language.
+   *
+   * @param completed whether the request is completed, under the key
+   *          "value"
+   * @param workId the request id
+   * @return the updated request, or the refusal status
+   */
   @PATCH
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
@@ -663,7 +724,7 @@ public class ProcessesRest implements ResourceContainer {
     }
     try {
       Work newWork = processesService.updateWorkCompleted(workId, completedValue, currentIdentityId);
-      return Response.ok(EntityBuilder.toWorkEntity(processesService, newWork, "workFlow")).build();
+      return Response.ok(EntityBuilder.toWorkEntity(processesService, newWork, "workFlow", getLocale())).build();
     } catch (ObjectNotFoundException | EntityNotFoundException e) {
       return Response.status(Response.Status.NOT_FOUND).build();
     } catch (IllegalAccessException e) {
@@ -675,6 +736,13 @@ public class ProcessesRest implements ResourceContainer {
     }
   }
 
+  /**
+   * Creates a request draft, answered with its process in the user's
+   * language.
+   *
+   * @param workEntity the draft to create
+   * @return the created draft, or the refusal status
+   */
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
@@ -701,7 +769,7 @@ public class ProcessesRest implements ResourceContainer {
     }
     try {
       Work newWork = processesService.createWorkDraft(EntityBuilder.fromEntity(workEntity), currentIdentityId);
-      return Response.ok(EntityBuilder.toEntity(newWork)).build();
+      return Response.ok(EntityBuilder.toEntity(newWork, getLocale())).build();
     } catch (ObjectNotFoundException e) {
       return Response.status(Response.Status.NOT_FOUND).entity(WORKFLOW_NOT_FOUND_MESSAGE).build();
     } catch (IllegalAccessException e) {
@@ -715,6 +783,13 @@ public class ProcessesRest implements ResourceContainer {
     }
   }
 
+  /**
+   * Updates a request draft, answered with its process in the user's
+   * language.
+   *
+   * @param workEntity the draft to update
+   * @return the updated draft, or the refusal status
+   */
   @PUT
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
@@ -741,7 +816,7 @@ public class ProcessesRest implements ResourceContainer {
     }
     try {
       Work newWork = processesService.updateWorkDraft(EntityBuilder.fromEntity(workEntity), currentIdentityId);
-      return Response.ok(EntityBuilder.toEntity(newWork)).build();
+      return Response.ok(EntityBuilder.toEntity(newWork, getLocale())).build();
     } catch (ObjectNotFoundException e) {
       LOG.debug("User '{}' attempts to update a not existing Work draft '{}'", currentIdentityId, e);
       return Response.status(Response.Status.NOT_FOUND).entity("Work draft not found").build();
@@ -756,6 +831,17 @@ public class ProcessesRest implements ResourceContainer {
     }
   }
 
+  /**
+   * Lists the current user's request drafts, their processes in the user's
+   * language.
+   *
+   * @param userId the current user's identity id
+   * @param expand the properties to expand
+   * @param query a search on the draft
+   * @param offset the offset of the first draft
+   * @param limit the number of drafts
+   * @return the drafts, or the refusal status
+   */
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
@@ -796,7 +882,7 @@ public class ProcessesRest implements ResourceContainer {
       }
       workFilter.setIsDraft(true);
       List<Work> works = processesService.getWorkDrafts(userIdentityId, workFilter, offset, limit);
-      return Response.ok(EntityBuilder.toWorkEntityList(works)).build();
+      return Response.ok(EntityBuilder.toWorkEntityList(works, getLocale())).build();
     } catch (Exception e) {
       LOG.warn("Error retrieving list of work drafts", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -865,6 +951,14 @@ public class ProcessesRest implements ResourceContainer {
     }
   }
 
+  /**
+   * Reads one of the current user's requests, its expanded process in the
+   * user's language.
+   *
+   * @param workId the request id
+   * @param expand the properties to expand
+   * @return the request, or the refusal status
+   */
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
@@ -891,7 +985,7 @@ public class ProcessesRest implements ResourceContainer {
         return Response.status(Response.Status.BAD_REQUEST).build();
       }
       Work work = processesService.getWorkById(currentIdentityId, workId);
-      return Response.ok(EntityBuilder.toWorkEntity(processesService, work, expand)).build();
+      return Response.ok(EntityBuilder.toWorkEntity(processesService, work, expand, getLocale())).build();
     } catch (EntityNotFoundException e) {
       return Response.status(Response.Status.NOT_FOUND).build();
     } catch (Exception e) {
@@ -900,6 +994,15 @@ public class ProcessesRest implements ResourceContainer {
     }
   }
 
+  /**
+   * Reads a process the current user sees, its texts in the user's language,
+   * or as stored, in the default language, for the process editor.
+   *
+   * @param workflowId the process id
+   * @param expand the properties to expand
+   * @param translate whether the texts are in the user's language
+   * @return the process, or the refusal status
+   */
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
@@ -917,7 +1020,9 @@ public class ProcessesRest implements ResourceContainer {
   public Response getWorkFlowById(@Parameter(description = "workflow id", required = true)
                                @PathParam("workflowId") Long workflowId,
                                @Parameter(description = "Processes properties to expand")
-                               @QueryParam("expand") String expand) {
+                               @QueryParam("expand") String expand,
+                               @Parameter(description = "Whether the title, description and summary are in the user's language, true by default; false returns their stored default-language values, which the process editor edits")
+                               @QueryParam("translate") @DefaultValue("true") boolean translate) {
     try {
       long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
       if (currentIdentityId == 0) {
@@ -930,7 +1035,9 @@ public class ProcessesRest implements ResourceContainer {
       if (workFlow == null) {
         return Response.status(Response.Status.NOT_FOUND).build();
       }
-      return Response.ok(EntityBuilder.toEntity(workFlow, expand)).cacheControl(PER_USER_CACHE_CONTROL).build();
+      return Response.ok(EntityBuilder.toEntity(workFlow, expand, translate ? getLocale() : null))
+                     .cacheControl(PER_USER_CACHE_CONTROL)
+                     .build();
     } catch (IllegalAccessException e) {
       LOG.debug("User isn't allowed to see the workflow '{}'", workflowId, e);
       return Response.status(Response.Status.FORBIDDEN).build();
@@ -1053,4 +1160,15 @@ public class ProcessesRest implements ResourceContainer {
       return Response.serverError().build();
     }
   }
+
+  /**
+   * Returns the current user's language, which the portal's localization
+   * filter resolves for every REST request.
+   *
+   * @return the user's locale, or null outside a localized request
+   */
+  protected Locale getLocale() {
+    return LocalizationFilter.getCurrentLocale();
+  }
+
 }

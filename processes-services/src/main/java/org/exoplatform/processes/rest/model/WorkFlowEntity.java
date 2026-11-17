@@ -18,6 +18,7 @@ package org.exoplatform.processes.rest.model;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 import org.exoplatform.processes.model.CreatorIdentityEntity;
 import org.exoplatform.processes.model.IllustrativeAttachment;
@@ -87,5 +88,27 @@ public class WorkFlowEntity {
    * when not sent: an update then keeps the stored labels.
    */
   private List<WorkFlowLabel>         labels;
+
+  /**
+   * The title per language to save with the process, {fr: …, pt-BR: …} by
+   * language tag: a flat map, the shape the REST JSON reader binds. Null when
+   * not sent: the stored translations then stay. Never answered: a read gives
+   * the texts in the reader's language instead.
+   */
+  private Map<String, String>         titleTranslations;
+
+  /**
+   * The description per language to save with the process.
+   *
+   * @see #titleTranslations
+   */
+  private Map<String, String>         descriptionTranslations;
+
+  /**
+   * The summary per language to save with the process.
+   *
+   * @see #titleTranslations
+   */
+  private Map<String, String>         summaryTranslations;
 
 }

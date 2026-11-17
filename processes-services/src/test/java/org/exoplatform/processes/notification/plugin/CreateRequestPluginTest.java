@@ -1,6 +1,7 @@
 package org.exoplatform.processes.notification.plugin;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.mockStatic;
 
 import java.util.ArrayList;
@@ -80,5 +81,11 @@ public class CreateRequestPluginTest {
     assertEquals("my request", notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_TITLE.getKey()));
     assertEquals("root", notificationInfo.getFrom());
     assertEquals(receivers, notificationInfo.getSendToUserIds());
+    assertNull(notificationInfo.getValueOwnerParameter(NotificationArguments.WORKFLOW_ID.getKey()));
+
+    // The process id goes with the notification, so that each recipient
+    // reads the process title in their own language
+    ctx.append(NotificationArguments.WORKFLOW_ID, "5");
+    assertEquals("5", createRequestPlugin.makeNotification(ctx).getValueOwnerParameter(NotificationArguments.WORKFLOW_ID.getKey()));
   }
 }

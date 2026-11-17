@@ -327,6 +327,9 @@ public class ProcessesRestTest {
                                                         null,
                                                         null,
                                                         null,
+                                                        null,
+                                                        null,
+                                                        null,
                                                         null);
   }
 
@@ -664,21 +667,21 @@ public class ProcessesRestTest {
     WorkFlow workFlow = mock(WorkFlow.class);
     WorkFlowEntity workFlowEntity = mock(WorkFlowEntity.class);
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
-    Response response = processesRest.getWorkFlowById(null, "");
+    Response response = processesRest.getWorkFlowById(null, "", true);
     assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response.getStatus());
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
-    Response response1 = processesRest.getWorkFlowById(null, "");
+    Response response1 = processesRest.getWorkFlowById(null, "", true);
     assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response1.getStatus());
     when(processesService.getWorkFlow(anyLong(), anyLong())).thenReturn(null);
-    Response response2 = processesRest.getWorkFlowById(1L, "");
+    Response response2 = processesRest.getWorkFlowById(1L, "", true);
     assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response2.getStatus());
     when(processesService.getWorkFlow(anyLong(), anyLong())).thenReturn(workFlow);
     ENTITY_BUILDER.when(() -> EntityBuilder.toEntity(workFlow, "")).thenReturn(workFlowEntity);
-    Response response3 = processesRest.getWorkFlowById(1L, "");
+    Response response3 = processesRest.getWorkFlowById(1L, "", true);
     assertEquals(Response.Status.OK.getStatusCode(), response3.getStatus());
     assertNeitherSharedNorStored(response3);
     doThrow(new RuntimeException()).when(processesService).getWorkFlow(anyLong(), anyLong());
-    Response response4 = processesRest.getWorkFlowById(1L, "");
+    Response response4 = processesRest.getWorkFlowById(1L, "", true);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response4.getStatus());
   }
 
@@ -691,7 +694,7 @@ public class ProcessesRestTest {
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
     when(processesService.getWorkFlow(anyLong(), anyLong())).thenThrow(IllegalAccessException.class);
 
-    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), processesRest.getWorkFlowById(1L, "").getStatus());
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), processesRest.getWorkFlowById(1L, "", true).getStatus());
   }
 
   @Test
@@ -891,6 +894,8 @@ public class ProcessesRestTest {
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
     EligibleProjects projects = new EligibleProjects(new ArrayList<>(), 0);
     when(processesService.listEligibleProjects("3", 0, 20, 1L)).thenReturn(projects);
+    // The builder, mocked here, names the projects' processes in the user's language
+    ENTITY_BUILDER.when(() -> EntityBuilder.translate(projects, null)).thenReturn(projects);
     Response ok = processesRest.getSpaceProjects("3", 0, 20);
     assertEquals(Response.Status.OK.getStatusCode(), ok.getStatus());
     assertEquals(projects, ok.getEntity());

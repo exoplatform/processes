@@ -41,6 +41,13 @@ public class RequestCommentPlugin extends BaseNotificationPlugin {
                                .equals(notificationContext.value(NotificationArguments.REQUEST_CREATOR));
   }
 
+  /**
+   * Builds the notification of a comment on a request, naming its process by its stored
+   * title and, when known, by its id.
+   *
+   * @param notificationContext the notification context
+   * @return the notification
+   */
   @Override
   protected NotificationInfo makeNotification(NotificationContext notificationContext) {
     String requester = notificationContext.value(NotificationArguments.REQUEST_CREATOR);
@@ -51,7 +58,7 @@ public class RequestCommentPlugin extends BaseNotificationPlugin {
     String comment = notificationContext.value(NotificationArguments.REQUEST_COMMENT);
     String requestCommentUrl = notificationContext.value(NotificationArguments.REQUEST_COMMENT_URL);
     String requestId = notificationContext.value(NotificationArguments.REQUEST_ID);
-    return NotificationInfo.instance()
+    NotificationInfo notificationInfo = NotificationInfo.instance()
                            .setFrom(commentAuthor)
                            .to(requester)
                            .with(NotificationArguments.REQUEST_CREATOR.getKey(), requester)
@@ -64,5 +71,12 @@ public class RequestCommentPlugin extends BaseNotificationPlugin {
                            .with(NotificationArguments.REQUEST_ID.getKey(), requestId)
                            .key(getKey())
                            .end();
+    // The process id, from which each recipient reads the process's title in
+    // their own language; a notification of an unknown process has none
+    String workflowId = notificationContext.value(NotificationArguments.WORKFLOW_ID);
+    if (workflowId != null) {
+      notificationInfo.with(NotificationArguments.WORKFLOW_ID.getKey(), workflowId);
+    }
+    return notificationInfo;
   }
 }

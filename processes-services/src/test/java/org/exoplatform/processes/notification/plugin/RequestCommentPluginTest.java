@@ -81,6 +81,10 @@ public class RequestCommentPluginTest extends TestCase {
     List<String> receivers = new ArrayList<>();
     receivers.add("root");
     NotificationInfo notificationInfo = requestCommentPlugin.makeNotification(ctx);
+    // The process id goes with the notification, so that each recipient
+    // reads the process title in their own language
+    ctx.append(NotificationArguments.WORKFLOW_ID, "5");
+    assertEquals("5", requestCommentPlugin.makeNotification(ctx).getValueOwnerParameter(NotificationArguments.WORKFLOW_ID.getKey()));
     assertEquals("root", notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_CREATOR.getKey()));
     assertEquals("http://exoplatfrom.com/dw/tasks/projectDetail/1",
                  notificationInfo.getValueOwnerParameter(NotificationArguments.PROCESS_URL.getKey()));

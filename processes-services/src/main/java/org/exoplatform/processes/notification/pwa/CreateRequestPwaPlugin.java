@@ -22,6 +22,7 @@ import io.meeds.pwa.plugin.PwaNotificationPlugin;
 import org.exoplatform.commons.api.notification.model.NotificationInfo;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.processes.notification.utils.NotificationArguments;
+import org.exoplatform.processes.notification.utils.NotificationUtils;
 import org.exoplatform.services.resources.LocaleConfig;
 import org.exoplatform.services.resources.ResourceBundleService;
 import org.exoplatform.social.core.manager.IdentityManager;
@@ -51,6 +52,14 @@ public class CreateRequestPwaPlugin implements PwaNotificationPlugin {
     return ID;
   }
 
+  /**
+   * Builds the mobile push message of a notification, the process named in
+   * the recipient's language.
+   *
+   * @param notification the notification
+   * @param localeConfig the recipient's language
+   * @return the message
+   */
   @Override
   public PwaNotificationMessage process(NotificationInfo notification, LocaleConfig localeConfig) {
     PwaNotificationMessage notificationMessage = new PwaNotificationMessage();
@@ -59,7 +68,7 @@ public class CreateRequestPwaPlugin implements PwaNotificationPlugin {
 
     String title = resourceBundleService.getSharedString(TITLE_LABEL_KEY, localeConfig.getLocale())
                                         .replace("{0}",userFullName)
-                                        .replace("{1}",notification.getValueOwnerParameter(NotificationArguments.REQUEST_PROCESS.getKey()));
+                                        .replace("{1}",NotificationUtils.getProcessTitle(notification, localeConfig.getLocale()));
     notificationMessage.setTitle(title);
     String url = notification.getValueOwnerParameter(NotificationArguments.REQUEST_URL.getKey());
     url = url.replace(CommonsUtils.getCurrentDomain(), "");

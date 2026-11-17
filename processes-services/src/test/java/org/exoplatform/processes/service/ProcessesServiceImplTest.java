@@ -10,6 +10,8 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -27,6 +29,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -125,6 +128,9 @@ public class ProcessesServiceImplTest {
   @Mock
   private StatusService          statusService;
 
+  @Mock
+  private ProcessTranslationService processTranslationService;
+
   private ProcessesServiceImpl   processesService;
 
   private WorkFlow               disabledWorkFlow, enabledWorkFlow;
@@ -154,12 +160,13 @@ public class ProcessesServiceImplTest {
                                                      processesAttachmentService,
                                                      statusService,
                                                      labelService,
-                                                     listenerService));
+                                                     listenerService,
+                                                     processTranslationService));
     // The save of a process's rows runs in a transaction the platform aspect
-    // begins; the unit tests call the storage's save directly
-    doAnswer(invocation -> processesStorage.saveWorkFlow(invocation.getArgument(0),
-                                                         invocation.getArgument(1))).when(processesService)
-                                                                                    .saveWorkFlowRows(any(), anyLong());
+    // begins; the unit tests call its body directly
+    doAnswer(invocation -> processesService.writeWorkFlowRows(invocation.getArgument(0),
+                                                              invocation.getArgument(1))).when(processesService)
+                                                                                         .saveWorkFlowRows(any(), anyLong());
     when(processesStorage.createProject(any())).thenAnswer(invocation -> invocation.getArgument(0));
     disabledWorkFlow = new WorkFlow();
     disabledWorkFlow.setEnabled(false);
@@ -295,9 +302,14 @@ public class ProcessesServiceImplTest {
     Throwable exception4 = assertThrows(IllegalArgumentException.class, () -> this.processesService.updateWorkFlow(workFlow, 1l));
     assertEquals("there are no changes to save", exception4.getMessage());
 
+    // A refused update leaves the translations as they are
+    verify(processTranslationService, never()).keepDefaultLanguage(nullable(WorkFlow.class));
+
     when(processesStorage.getWorkFlowById(workFlow.getId(), 1L)).thenReturn(updatedWorkflow);
     this.processesService.updateWorkFlow(workFlow, 1l);
     verify(processesStorage, times(1)).saveWorkFlow(workFlow, 1L);
+    // The saved process's default-language translations follow its columns
+    verify(processTranslationService, times(1)).keepDefaultLanguage(nullable(WorkFlow.class));
   }
 
   /**
@@ -643,6 +655,83 @@ public class ProcessesServiceImplTest {
     assertThrows(IllegalAccessException.class, () -> processesService.isProcessesAdministrator(DISABLED_USER_ID));
   }
 
+  /**
+   * A process update states its translations with the process: they are
+   * written for the saved process once its rows are saved, social's translation
+   * write ending the transaction it runs in; an update that states none writes none.
+   * Mutants: the translations not written, written before the rows, or
+   * written from the client's process instead of the saved one.
+   *
+   * @throws Exception never, the services are mocks
+   */
+  @Test
+  public void updateWorkflowSavesItsTranslationsWithTheProcess() throws Exception {
+    WorkFlow stored = new WorkFlow();
+    stored.setId(1L);
+    stored.setTitle("Leave");
+    stored.setAcl(new ProcessPermission(true, true, false, false));
+    when(processesStorage.getWorkFlowById(1L, 1L)).thenReturn(stored);
+    WorkFlow saved = new WorkFlow();
+    saved.setId(1L);
+    WorkFlow update = new WorkFlow();
+    update.setId(1L);
+    update.setTitle("Leave");
+    update.setTitleTranslations(Map.of("fr", "Congés"));
+    Map<String, Map<String, String>> translations = Map.of("title", Map.of("fr", "Congés"));
+    when(processesStorage.saveWorkFlow(update, 1L)).thenReturn(saved);
+
+    processesService.updateWorkFlow(update, 1L);
+
+    org.mockito.InOrder order = inOrder(processesStorage, processTranslationService);
+    order.verify(processesStorage).saveWorkFlow(update, 1L);
+    order.verify(processTranslationService).saveTranslations(saved, translations);
+  }
+
+  /**
+   * An update that changes the process's translations only is a change: it is
+   * saved with them, not refused as an update with no change.
+   * Mutant: the translations left out of the comparison of two processes.
+   *
+   * @throws Exception never, the services are mocks
+   */
+  @Test
+  public void updateWorkflowChangingOnlyTranslationsIsSaved() throws Exception {
+    ProcessPermission acl = new ProcessPermission(true, true, false, false);
+    WorkFlow stored = new WorkFlow();
+    stored.setId(1L);
+    stored.setTitle("Leave");
+    stored.setAcl(acl);
+    when(processesStorage.getWorkFlowById(1L, 1L)).thenReturn(stored);
+    WorkFlow update = new WorkFlow();
+    update.setId(1L);
+    update.setTitle("Leave");
+    update.setAcl(acl);
+    update.setTitleTranslations(Map.of("fr", "Congés"));
+    Map<String, Map<String, String>> translations = Map.of("title", Map.of("fr", "Congés"));
+
+    processesService.updateWorkFlow(update, 1L);
+
+    verify(processTranslationService).saveTranslations(nullable(WorkFlow.class), eq(translations));
+  }
+
+  /**
+   * The rows' atomic save writes no translation: social's translation write
+   * ends the container transaction it runs in, which then fails to commit.
+   * Mutant: the translations written inside the rows' save body.
+   *
+   * @throws Exception never, the services are mocks
+   */
+  @Test
+  public void theRowsAtomicSaveWritesNoTranslation() throws Exception {
+    WorkFlow update = new WorkFlow();
+    update.setId(1L);
+    update.setTitleTranslations(Map.of("fr", "Congés"));
+
+    processesService.writeWorkFlowRows(update, 1L);
+
+    verify(processTranslationService, never()).saveTranslations(nullable(WorkFlow.class), any());
+  }
+
   @Test
   public void deleteWorkflowByIdWithUser() throws Exception {
     WorkFlow deletable = new WorkFlow();
@@ -658,9 +747,15 @@ public class ProcessesServiceImplTest {
     assertThrows(ObjectNotFoundException.class, () -> processesService.deleteWorkflowById(UNKNOWN_ID, PROCESSES_ADMIN_ID));
     assertThrows(IllegalAccessException.class, () -> processesService.deleteWorkflowById(WORKFLOW_ID, PROJECT_MANAGER_ID));
     verify(processesStorage, never()).deleteWorkflowById(anyLong());
+    // A refused delete keeps the process's translations
+    verify(processTranslationService, never()).deleteTranslations(anyLong());
 
     processesService.deleteWorkflowById(WORKFLOW_ID, PROCESSES_ADMIN_ID);
     verify(processesStorage, times(1)).deleteWorkflowById(WORKFLOW_ID);
+    // The translations go once the process is deleted
+    org.mockito.InOrder order = inOrder(processesStorage, processTranslationService);
+    order.verify(processesStorage).deleteWorkflowById(WORKFLOW_ID);
+    order.verify(processTranslationService).deleteTranslations(WORKFLOW_ID);
   }
 
   @Test
@@ -756,8 +851,10 @@ public class ProcessesServiceImplTest {
   /**
    * A request is named by the fixed rule from its stored process's title, the
    * creation date and the requester's full name, whatever title the client
-   * sent: the REST path gives no agent title. Mutation: keep the client's
-   * title and this test fails.
+   * sent: the REST path gives no agent title. The process title is its stored
+   * one, in the default language, so every approver reads the same request
+   * title whatever their language. Mutations: keep the client's title, or
+   * name the request by a translated process title, and this test fails.
    *
    * @throws Exception on an unexpected refusal
    */
@@ -780,6 +877,7 @@ public class ProcessesServiceImplTest {
     String title = saved.getValue().getTitle();
     assertTrue(title, title.equals("Leave request - " + before + " - Jean Martin")
         || title.equals("Leave request - " + after + " - Jean Martin"));
+    verify(processTranslationService, never()).getTitle(any(), any());
   }
 
   /**

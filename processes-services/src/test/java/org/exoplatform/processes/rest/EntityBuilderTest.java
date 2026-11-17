@@ -4,14 +4,21 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
+import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.RuntimeDelegate;
 
 import org.junit.AfterClass;
@@ -35,6 +42,7 @@ import org.exoplatform.processes.rest.model.WorkFlowEntity;
 import org.exoplatform.processes.rest.util.EntityBuilder;
 import org.exoplatform.processes.rest.util.RestUtils;
 import org.exoplatform.processes.service.ProcessesAttachmentService;
+import org.exoplatform.processes.service.ProcessTranslationService;
 import org.exoplatform.processes.service.ProcessesService;
 import org.exoplatform.services.rest.impl.RuntimeDelegateImpl;
 import org.exoplatform.services.security.ConversationState;
@@ -289,5 +297,135 @@ public class EntityBuilderTest {
     workFlow.setSpaceId("");
     workFlow.setLabels(List.of(new WorkFlowLabel(101L, "Holiday")));
     assertEquals(List.of(new WorkFlowLabel(101L, "Holiday")), EntityBuilder.toEntity(workFlow, "").getLabels());
+  }
+
+  /**
+   * A reader's language puts the process's translated texts on its REST view,
+   * the stored process untouched, and on the process a request expands; no
+   * language keeps the stored texts and reads no translation.
+   * Mutants: the locale ignored by the view or by the request's expansion, the
+   * stored process overwritten, or the translations read without a locale.
+   *
+   * @throws Exception never, the services are mocks
+   */
+  @Test
+  public void toEntityPutsTheProcessTextsInTheReadersLanguage() throws Exception {
+    ProcessTranslationService processTranslationService = mockTranslations();
+    WorkFlow workFlow = translatedWorkFlow();
+
+    WorkFlowEntity french = EntityBuilder.toEntity(workFlow, "", Locale.FRENCH);
+    assertEquals("Congés", french.getTitle());
+    assertEquals("Demander un congé", french.getDescription());
+    assertEquals("<p>Règles</p>", french.getSummary());
+    assertEquals("Leave", workFlow.getTitle());
+    assertEquals("Congés", EntityBuilder.toRestEntities(List.of(workFlow), "", Locale.FRENCH).get(0).getTitle());
+    assertEquals("Congés", EntityBuilder.toEntity(workFlow, Locale.FRENCH).getTitle());
+
+    Work work = new Work();
+    work.setId(4L);
+    work.setWorkFlowId(9L);
+    when(processesService.getWorkFlow(9L, null)).thenReturn(workFlow);
+    assertEquals("Congés", EntityBuilder.toWorkEntity(processesService, work, "workFlow", Locale.FRENCH).getWorkFlow().getTitle());
+
+    WorkFlowEntity stored = EntityBuilder.toEntity(workFlow, "");
+    assertEquals("Leave", stored.getTitle());
+    assertEquals("Ask for leave", stored.getDescription());
+    assertEquals("Leave rules", stored.getSummary());
+    assertEquals("Leave", EntityBuilder.toWorkEntity(processesService, work, "workFlow").getWorkFlow().getTitle());
+    verify(processTranslationService, never()).getTitle(any(), org.mockito.ArgumentMatchers.isNull());
+  }
+
+  /**
+   * The process read by id is in the user's language, unless the editor asks
+   * for its stored texts; the process list and the editor's project choice
+   * are in the user's language.
+   * Mutants: the translate flag ignored, or the list or the project choice
+   * built without the user's locale.
+   *
+   * @throws Exception never, the services are mocks
+   */
+  @Test
+  public void restReadsAnswerInTheUsersLanguageButTheEditorsRead() throws Exception {
+    mockTranslations();
+    WorkFlow workFlow = translatedWorkFlow();
+    REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    when(processesService.getWorkFlow(9L, 1L)).thenReturn(workFlow);
+    when(processesService.getWorkFlows(any(ProcessesFilter.class), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyLong()))
+        .thenReturn(List.of(workFlow));
+    ProcessesRest frenchRest = spy(processesRest);
+    doReturn(Locale.FRENCH).when(frenchRest).getLocale();
+
+    assertEquals("Congés", ((WorkFlowEntity) frenchRest.getWorkFlowById(9L, "", true).getEntity()).getTitle());
+    assertEquals("Leave", ((WorkFlowEntity) frenchRest.getWorkFlowById(9L, "", false).getEntity()).getTitle());
+    Response list = frenchRest.getWorkFlows(null, true, null, null, "", 0, 10);
+    assertEquals("Congés", ((List<?>) list.getEntity()).stream().map(WorkFlowEntity.class::cast).findFirst().orElseThrow().getTitle());
+
+    // The editor's project choice names the processes a project feeds in the user's language
+    ProcessTranslationService processTranslationService = CommonsUtils.getService(ProcessTranslationService.class);
+    when(processTranslationService.getLabel(9L, "title", "Leave", Locale.FRENCH)).thenReturn("Congés");
+    org.exoplatform.processes.model.EligibleProject project =
+        new org.exoplatform.processes.model.EligibleProject(50L,
+                                                           "Shared",
+                                                           new ArrayList<>(List.of(new org.exoplatform.processes.model.ProcessReference(9L,
+                                                                                                                                        "Leave"))));
+    when(processesService.listEligibleProjects("3", 0, 20, 1L))
+        .thenReturn(new org.exoplatform.processes.model.EligibleProjects(new ArrayList<>(List.of(project)), 1));
+    Response projects = frenchRest.getSpaceProjects("3", 0, 20);
+    assertEquals("Congés",
+                 ((org.exoplatform.processes.model.EligibleProjects) projects.getEntity()).getProjects()
+                                                                                         .get(0)
+                                                                                         .getWorkflows()
+                                                                                         .get(0)
+                                                                                         .getTitle());
+  }
+
+  /**
+   * The editor's project choice names the processes each project feeds in the
+   * reader's language; no language keeps their stored titles.
+   * Mutants: the projects answered with the stored titles, or the locale
+   * ignored.
+   */
+  @Test
+  public void theProjectChoiceNamesItsProcessesInTheReadersLanguage() {
+    ProcessTranslationService processTranslationService = mockTranslations();
+    when(processTranslationService.getLabel(9L, "title", "Leave", Locale.FRENCH)).thenReturn("Congés");
+    org.exoplatform.processes.model.EligibleProjects projects =
+        new org.exoplatform.processes.model.EligibleProjects(new ArrayList<>(List.of(new org.exoplatform.processes.model.EligibleProject(50L,
+                                                                                                                                     "Shared",
+                                                                                                                                     new ArrayList<>(List.of(new org.exoplatform.processes.model.ProcessReference(9L,
+                                                                                                                                                                                                                  "Leave")))))),
+                                                             1);
+
+    assertEquals("Leave", EntityBuilder.translate(projects, null).getProjects().get(0).getWorkflows().get(0).getTitle());
+    assertEquals("Congés", EntityBuilder.translate(projects, Locale.FRENCH).getProjects().get(0).getWorkflows().get(0).getTitle());
+  }
+
+  /**
+   * @return the translation reader the builder looks up, answering French
+   *         texts for the process 9
+   */
+  private ProcessTranslationService mockTranslations() {
+    StatusService statusService = mock(StatusService.class);
+    ProcessTranslationService processTranslationService = mock(ProcessTranslationService.class);
+    COMMONS_UTILS.when(() -> CommonsUtils.getService(StatusService.class)).thenReturn(statusService);
+    COMMONS_UTILS.when(() -> CommonsUtils.getService(ProcessTranslationService.class)).thenReturn(processTranslationService);
+    when(processTranslationService.getTitle(any(WorkFlow.class), any(Locale.class)))
+        .thenAnswer(invocation -> Locale.FRENCH.equals(invocation.getArgument(1)) ? "Congés" : ((WorkFlow) invocation.getArgument(0)).getTitle());
+    when(processTranslationService.getDescription(any(WorkFlow.class), any(Locale.class))).thenReturn("Demander un congé");
+    when(processTranslationService.getSummary(any(WorkFlow.class), any(Locale.class))).thenReturn("<p>Règles</p>");
+    return processTranslationService;
+  }
+
+  /**
+   * @return a process with its stored texts in the default language
+   */
+  private WorkFlow translatedWorkFlow() {
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setId(9L);
+    workFlow.setTitle("Leave");
+    workFlow.setDescription("Ask for leave");
+    workFlow.setSummary("Leave rules");
+    workFlow.setSpaceId("");
+    return workFlow;
   }
 }
