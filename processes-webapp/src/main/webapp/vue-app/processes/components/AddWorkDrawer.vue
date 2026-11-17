@@ -353,6 +353,11 @@ export default {
         return;
       }
       const openKey = this.openKey;
+      if (this.saving && this.pendingSubmit) {
+        // A sent request closes the drawer itself on work-added; a refused one is answered as a refused save
+        this.pendingSubmit.catch(refusal => openKey === this.openKey && this.afterRefusedClose(refusal));
+        return;
+      }
       const waits = !this.viewMode && !this.submitted && this.sectionsChanged;
       const save = this.viewMode ? Promise.resolve() : this.saveDraft();
       if (waits) {
@@ -368,8 +373,8 @@ export default {
      * opens the drawer again with what was typed, any other closes it, since
      * neither typing nor sending again changes it. The user can act on a
      * refusal that names a field whose value they can change, a message over
-     * its length limit, and a concurrent update, which the next save sends
-     * again. A field refused for the shape the drawer sent, rather than for
+     * its length limit, a submit the sections' own check stopped, and a
+     * concurrent update, which the next save sends again. A field refused for the shape the drawer sent, rather than for
      * its value, closes the drawer.
      *
      * @param {Object} refusal the refusal's code and field key
@@ -378,7 +383,7 @@ export default {
     afterRefusedClose(refusal) {
       const code = refusal && refusal.code || '';
       const fieldFixable = refusal && refusal.fieldKey && !this.unfixableFieldCodes.includes(code);
-      if (!fieldFixable && !['processes.request.draftInvalid', 'forms.value.concurrentUpdate'].includes(code)) {
+      if (!fieldFixable && !['processes.request.draftInvalid', 'processes.request.sectionsInvalid', 'forms.value.concurrentUpdate'].includes(code)) {
         this.finishClose();
         return;
       }

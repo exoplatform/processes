@@ -295,6 +295,15 @@ export default {
           // The preparation was refused, and its caller shows why
         });
     },
+    /**
+     * Lists the entity's documents. Only the latest read is applied, with the
+     * preview state it was asked with: a preview keeps the readable documents
+     * only and follows no editor change, since they are another entity's.
+     * attachmentsLoaded settles once the list is applied, which withEntity
+     * waits for.
+     *
+     * @returns {void}
+     */
     initEntityAttachmentsList() {
       if (this.entityTypeVal && this.entityIdVal) {
         this.isLoading = true;
@@ -311,7 +320,9 @@ export default {
           }
           attachments.forEach(attachment => {
             attachment.name = attachment.title;
-            this.subscribeDocument(attachment.id);
+            if (!preview) {
+              this.subscribeDocument(attachment.id);
+            }
           });
           this.attachments = attachments;
           this.isLoading = false;

@@ -35,6 +35,7 @@ export default {
   data: () => ({
     draftChain: Promise.resolve(),
     pendingDraftSave: null,
+    pendingSubmit: null,
     savedDescription: '',
     sectionsChanged: false,
     submitted: false,
@@ -80,6 +81,8 @@ export default {
       this.submitted = false;
       // A submit sent from an earlier opening is answered for its own request, never this one
       this.saving = false;
+      this.submitAnswer = null;
+      this.pendingSubmit = null;
     },
     /**
      * Records whether a section holds a change; the first one creates the
@@ -220,6 +223,7 @@ export default {
       if (refusal && refusal.sent && refusal.sent !== this.work) {
         return;
       }
+      this.settleSubmit(false, refusal);
       this.saving = false;
       if (this.work.draftId) {
         this.work.id = this.work.draftId;
@@ -247,18 +251,27 @@ export default {
     },
     /**
      * Sends the request once the sections' check passed and the draft save
-     * in flight, if any, is answered; the draft is named by its id.
+     * in flight, if any, is answered; the draft is named by its id. A submit
+     * whose drawer was opened again meanwhile, on any request, is not sent.
      *
      * @returns {Promise} settled once the request is sent or the check failed
      */
     submitWork() {
       this.saving = true;
+      // From the click on, a close waits for this submit's answer
+      this.pendingSubmit = this.awaitSubmit();
+      const openKey = this.openKey;
       const sections = this.requestSections();
       return this.draftChain.catch(() => null)
         .then(() => (sections ? sections.validate() : true))
         .then(valid => {
+          if (openKey !== this.openKey) {
+            // The drawer was opened again meanwhile: this submit is dropped, and the request stays its draft, if any
+            return;
+          }
           if (!valid) {
             this.saving = false;
+            this.settleSubmit(false, {code: 'processes.request.sectionsInvalid', fieldKey: null});
             return;
           }
           const values = sections && sections.values() || {};
@@ -273,12 +286,43 @@ export default {
         });
     },
     /**
+     * Gives the answer of the submit about to be sent, which a close made
+     * while it is in flight waits for.
+     *
+     * @returns {Promise} resolved when the request is sent, rejected with the refusal otherwise
+     */
+    awaitSubmit() {
+      const answer = new Promise((resolve, reject) => this.submitAnswer = {resolve, reject});
+      // A submit no close waits for is answered through work-added and work-add-failed alone
+      answer.catch(() => null);
+      return answer;
+    },
+    /**
+     * Settles the submit in flight.
+     *
+     * @param {Boolean} sent true when the request was sent
+     * @param {Object} refusal the refusal's code and field key, when it was not
+     * @returns {void}
+     */
+    settleSubmit(sent, refusal) {
+      if (this.submitAnswer) {
+        if (sent) {
+          this.submitAnswer.resolve();
+        } else {
+          this.submitAnswer.reject(this.refusalError(refusal));
+        }
+        this.submitAnswer = null;
+        this.pendingSubmit = null;
+      }
+    },
+    /**
      * Forgets what was typed once the request is sent, so no draft save
      * follows the close.
      *
      * @returns {void}
      */
     resetAfterSubmit() {
+      this.settleSubmit(true);
       this.submitted = true;
       this.saving = false;
       if (this.requestSections()) {
