@@ -81,7 +81,7 @@ public class RequestCommentNotificationListener extends TaskCommentNotificationL
     Long requestWorkFlowId = processesService.getRequestWorkFlowId(task.getId());
     NotificationUtils.appendProcess(ctx,
                                     processesService,
-                                    requestWorkFlowId == null ? workFlow.getId() : requestWorkFlowId,
+                                    requestWorkFlowId == null || requestWorkFlowId <= 0 ? workFlow.getId() : requestWorkFlowId,
                                     workFlow.getTitle());
     ctx.append(NotificationArguments.REQUEST_COMMENT_AUTHOR, comment.getAuthor());
     ctx.append(NotificationArguments.REQUEST_COMMENT, MentionUtils.substituteUsernames(getPortalOwner(), comment.getComment()));

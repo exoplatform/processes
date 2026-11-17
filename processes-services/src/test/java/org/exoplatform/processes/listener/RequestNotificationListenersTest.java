@@ -111,6 +111,9 @@ class RequestNotificationListenersTest {
     work.setId(3L);
     work.setWorkFlowId(7L);
     work.setProjectId(50L);
+    work.setCreatedBy("john");
+    work.setTitle("A request");
+    work.setDescription("Two weeks");
 
     NotificationContext ctx = new CreateRequestNotificationListener(processesService).buildContext(new Event<>("created",
                                                                                                                 work,
@@ -129,6 +132,8 @@ class RequestNotificationListenersTest {
   @Test
   void aCanceledRequestNamesItsOwnProcess() {
     when(processesService.getRequestWorkFlowId(3L)).thenReturn(8L);
+    // A task with no request record: the record lookup answers null
+    when(processesService.getRequestWorkFlowId(4L)).thenReturn(null);
 
     NotificationContext ctx = new CancelRequestNotificationListener(processesService).buildContext(new Event<>("canceled",
                                                                                                                task(3L),
@@ -157,6 +162,7 @@ class RequestNotificationListenersTest {
   void aCommentNamesTheRequestsOwnProcess() throws Exception {
     when(processesService.getWorkFlowByProjectId(50L)).thenReturn(workFlow(7L, "Leave"));
     when(processesService.getRequestWorkFlowId(3L)).thenReturn(8L);
+    when(processesService.getRequestWorkFlowId(4L)).thenReturn(null);
     CommentDto comment = new CommentDto();
     comment.setAuthor("mary");
     comment.setComment("Approved");
