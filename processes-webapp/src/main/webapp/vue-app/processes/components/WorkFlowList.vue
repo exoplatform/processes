@@ -2,7 +2,7 @@
   <div id="workflows">
     <workflow-list-toolbar
       :is-processes-manager="isProcessesManager"
-      :show-filter="showWorkflowFilter"
+      :show-filter="showWorkflowFilter || allDisabled"
       :loading="loading || loadingMore"
       @add="open"
       @change="applyFilter" />
@@ -43,6 +43,7 @@
         <workflow-empty-state
           :can-add="isProcessesManager"
           :filtered="isFiltered"
+          :all-disabled="allDisabled"
           @add="open" />
       </template>
     </empty-or-loading>
@@ -65,10 +66,24 @@ export default {
   data: () => ({
     filter: null,
     isFiltered: false,
+    allDisabled: false,
   }),
   computed: {
     workflowList() {
       return this.workflows || [];
+    },
+    showsEmptyDefaultView() {
+      return this.isProcessesManager && !this.loading && !this.workflowList.length && !this.isFiltered;
+    },
+  },
+  watch: {
+    showsEmptyDefaultView: {
+      immediate: true,
+      handler(value) {
+        if (value) {
+          this.checkAllDisabled();
+        }
+      },
     },
   },
   created() {
@@ -126,6 +141,17 @@ export default {
      */
     loadMore() {
       this.$root.$emit('load-more-workflows');
+    },
+    /**
+     * Tells whether the processes an administrator does not see on the default view, which lists
+     * the enabled ones, all exist as disabled processes.
+     *
+     * @returns {Promise} resolved once the answer is read
+     */
+    checkAllDisabled() {
+      return this.$processesService.getWorkFlows({enabled: false, manager: false}, 0, 1).then(workflows => {
+        this.allDisabled = !!(workflows && workflows.length);
+      });
     },
     /**
      * Keeps the status the toolbar selected, which decides whether an updated process stays listed.

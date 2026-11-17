@@ -25,6 +25,14 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         {{ $t('processes.workflow.empty.noResult') }}
       </p>
     </template>
+    <template v-else-if="allDisabled">
+      <p class="text-header-title text-color font-weight-bold mb-1">
+        {{ $t('processes.workflow.empty.allDisabled') }}
+      </p>
+      <p class="workflow-empty-description mb-0">
+        {{ $t('processes.workflow.empty.allDisabledHint') }}
+      </p>
+    </template>
     <template v-else-if="canAdd">
       <p class="text-header-title text-color font-weight-bold mb-1">
         {{ $t('processes.workflow.empty.title') }}
@@ -61,6 +69,10 @@ export default {
       default: false,
     },
     filtered: {
+      type: Boolean,
+      default: false,
+    },
+    allDisabled: {
       type: Boolean,
       default: false,
     },
