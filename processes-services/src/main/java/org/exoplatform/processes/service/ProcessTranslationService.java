@@ -185,11 +185,12 @@ public class ProcessTranslationService {
   }
 
   /**
-   * Rewrites, after a process is saved, each default-language translation that
+   * Removes, after a process is saved, each default-language translation that
    * no longer equals the column, so that the editor, which shows that
-   * translation in its default field, and every reader agree with the column
-   * whoever wrote it. A field with no default-language translation stays
-   * without one.
+   * translation in its default field when there is one and the column
+   * otherwise, and every reader agree with the column whoever wrote it; the
+   * editor's next save writes it again. A field with no default-language
+   * translation stays without one.
    *
    * @param workFlow the process as saved
    */
@@ -229,7 +230,7 @@ public class ProcessTranslationService {
   }
 
   /**
-   * Rewrites one field's default-language translation when it exists and
+   * Removes one field's default-language translation when it exists and
    * differs from the column.
    *
    * @param objectId the process's id
@@ -241,7 +242,9 @@ public class ProcessTranslationService {
     try {
       String label = translationService.getTranslationLabel(OBJECT_TYPE, objectId, fieldName, defaultLocale);
       if (label != null && !label.equals(storedValue)) {
-        translationService.saveTranslationLabel(OBJECT_TYPE, objectId, fieldName, defaultLocale, storedValue);
+        // Deleted, not rewritten: a single label's save sanitizes its text,
+        // which would store an encoded copy of the column
+        translationService.deleteTranslationLabel(OBJECT_TYPE, objectId, fieldName, defaultLocale);
       }
     } catch (Exception e) {
       LOG.warn("Can't align the default-language {} translation of the process {} with its stored value",

@@ -114,10 +114,11 @@ class ProcessTranslationServiceTest {
 
   /**
    * After a save, a default-language translation that differs from the column
-   * is rewritten to it; one that equals it is left, and a field with none
-   * stays without one.
-   * Mutants: the rewrite removed, the existence check removed (writing a
-   * translation for every field), or the equality check removed.
+   * is removed, so that the column stands, and never rewritten through the
+   * single-label save, which sanitizes it into an encoded copy; one that
+   * equals the column is left, and a field with none stays without one.
+   * Mutants: the removal dropped, the existence check removed, the equality
+   * check removed, or the label rewritten instead.
    *
    * @throws Exception never, the services are mocks
    */
@@ -129,9 +130,10 @@ class ProcessTranslationServiceTest {
 
     processTranslationService.keepDefaultLanguage(workFlow());
 
-    verify(translationService).saveTranslationLabel("process", "9", "title", Locale.ENGLISH, "Leave");
-    verify(translationService, never()).saveTranslationLabel("process", "9", "description", Locale.ENGLISH, "Ask for leave");
-    verify(translationService, never()).saveTranslationLabel("process", "9", "summary", Locale.ENGLISH, "Leave rules");
+    verify(translationService).deleteTranslationLabel("process", "9", "title", Locale.ENGLISH);
+    verify(translationService, never()).deleteTranslationLabel("process", "9", "description", Locale.ENGLISH);
+    verify(translationService, never()).deleteTranslationLabel("process", "9", "summary", Locale.ENGLISH);
+    verify(translationService, never()).saveTranslationLabel(anyString(), anyString(), anyString(), any(Locale.class), anyString());
   }
 
   /**
