@@ -6,6 +6,9 @@ import Work from './components/Work.vue';
 import AddWorkFlowDrawer from './components/AddWorkFlowDrawer.vue';
 import WorkFlowSuggesterSpace from './components/WorkFlowSuggesterSpace.vue';
 import WorkFlowSuggesterRequest from './components/WorkFlowSuggesterRequest.vue';
+import WorkFlowProjectChoice from './components/WorkFlowProjectChoice.vue';
+import WorkFlowLabelsField from './components/WorkFlowLabelsField.vue';
+import WorkFlowProjectItem from './components/WorkFlowProjectItem.vue';
 import WorkflowFormAttendeeItem from './components/WorkflowFormAttendeeItem.vue';
 import AddWorkDrawer from './components/AddWorkDrawer.vue';
 import RequestEditor from './components/RequestEditor.vue';
@@ -36,6 +39,9 @@ const components = {
   'add-workflow-drawer': AddWorkFlowDrawer,
   'workflow-suggester-space': WorkFlowSuggesterSpace,
   'workflow-suggester-request': WorkFlowSuggesterRequest,
+  'workflow-project-choice': WorkFlowProjectChoice,
+  'workflow-labels-field': WorkFlowLabelsField,
+  'workflow-project-item': WorkFlowProjectItem,
   'workflow-form-attendee-item': WorkflowFormAttendeeItem,
   'add-work-drawer': AddWorkDrawer,
   'request-editor': RequestEditor,

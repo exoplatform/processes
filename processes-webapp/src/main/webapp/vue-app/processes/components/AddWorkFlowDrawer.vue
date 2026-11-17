@@ -198,8 +198,24 @@
               ref="workFLowOwner"
               :workflow="workflow"
               class="ms-1 pe-1"
-              @initialized="formInitialized" />
+              @initialized="formInitialized"
+              @space-changed="changeSpace" />
           </div>
+          <workflow-project-choice
+            :key="`projectChoice${formKey}`"
+            class="mt-4"
+            :mode="projectMode"
+            :project-id="projectId"
+            :space-id="managingSpaceId"
+            :workflow-id="workflow.id || null"
+            :read-only="editMode"
+            @update:mode="changeProjectMode"
+            @update:projectId="changeProject" />
+          <workflow-labels-field
+            :key="`labelsField${formKey}`"
+            v-model="labels"
+            :project-id="projectMode === 'EXISTING' && projectId || null"
+            :space-id="managingSpaceId" />
           <v-card-actions class="d-flex flex-row mt-4 ms-2 px-0">
             <v-btn class="btn" @click="previousStep">
               <v-icon size="18" class="me-2">
@@ -211,7 +227,7 @@
             <v-btn
               class="btn btn-primary me-4"
               outlined
-              :disabled="!workflowChanged || !validSpace"
+              :disabled="!workflowChanged || !validSpace || !projectChosen"
               @click="setCreators(); nextStep()">
               {{ $t('processes.works.form.label.continue') }}
               <v-icon size="18" class="ms-2">
@@ -346,6 +362,7 @@ export default {
         illustrativeAttachment: null,
         requests: [],
         space: {},
+        parentSpace: null,
         projectId: null,
         permissions: null,
       },
@@ -372,6 +389,12 @@ export default {
       originalWorkflowString: null,
       validSpace: false,
       showSpaceAlertMessage: false,
+      projectMode: 'NEW',
+      projectId: null,
+      labels: [],
+      labelsRead: false,
+      formKey: 0,
+      originalProjectChoice: null,
     };
   },
   created(){
@@ -384,6 +407,9 @@ export default {
       this.saving = false;
       this.resetInputs();
       this.close();
+    });
+    this.$root.$on('workflow-save-failed', () => {
+      this.saving = false;
     });
   },
   computed: {
@@ -400,14 +426,21 @@ export default {
       return this.workflow && this.workflow.parentSpace;
     },
     confirmClose() {
-      return this.valid && JSON.stringify(this.workflow) !== JSON.stringify(this.oldWorkflow);
+      return this.valid && (JSON.stringify(this.workflow) !== JSON.stringify(this.oldWorkflow)
+        || this.projectChoiceString() !== this.originalProjectChoice);
     },
     workflowChanged() {
       return  this.workflow && this.originalWorkflowString && this.workflow.parentSpace;
     },
     workflowRequestChanged(){
       return  this.workflow && this.originalWorkflowString && this.workflowRequest.length;
-    }
+    },
+    managingSpaceId() {
+      return this.workflow && this.workflow.parentSpace && this.workflow.parentSpace.id || null;
+    },
+    projectChosen() {
+      return this.editMode || this.projectMode === 'NEW' || !!this.projectId;
+    },
   },
   watch: {
     workflowEnabled(value) {
@@ -479,7 +512,45 @@ export default {
         type: object.mimeType,
       });
     },
+    /**
+     * Opens the drawer: on edit, from the process as read by its id, which
+     * carries its labels, rather than from the list object, which does not.
+     *
+     * @param {Object} workflow the process to edit, or null to add one
+     * @param {String} mode the drawer mode
+     * @returns {void}
+     */
     open(workflow, mode) {
+      if (workflow && workflow.id && mode === 'edit_workflow') {
+        this.$processesService.getWorkflowById(workflow.id, '')
+          // The read by id names the illustration by its id only, so the list
+          // object's illustration is kept, or the save would drop it
+          .then(storedWorkflow => this.openWorkflow(Object.assign({}, storedWorkflow, {
+            illustrativeAttachment: workflow.illustrativeAttachment,
+          }), mode))
+          .catch(() => this.openWorkflow(workflow, mode));
+      } else {
+        this.openWorkflow(workflow, mode);
+      }
+    },
+    /**
+     * Fills the form with a process, or empties it, and opens the drawer.
+     * Labels are taken only from a process read with them, so a process
+     * opened without them sends none back and keeps its stored labels.
+     *
+     * @param {Object} workflow the process, or null
+     * @param {String} mode the drawer mode
+     * @returns {void}
+     */
+    openWorkflow(workflow, mode) {
+      this.labels = workflow && Array.isArray(workflow.labels) && workflow.labels.slice() || [];
+      this.labelsRead = !!workflow && Array.isArray(workflow.labels);
+      this.projectMode = workflow && workflow.id ? 'EXISTING' : 'NEW';
+      this.projectId = workflow && workflow.projectId || null;
+      this.originalProjectChoice = this.projectChoiceString();
+      // A new key recreates the project choice and the labels field, so each
+      // opening lists the projects and labels afresh
+      this.formKey++;
       if (workflow) {
         this.workflow = Object.assign({}, workflow);
         this.workflowEnabled = workflow.enabled;
@@ -518,23 +589,113 @@ export default {
       this.stp--;
     },
     resetInputs() {
-      this.workflow = {};
-      this.workflow.enabled = true;
+      // parentSpace is declared here so the space the suggester sets later is
+      // reactive and reaches the project choice
+      this.workflow = {enabled: true, parentSpace: null};
       this.illustrativeInput = null;
       this.workflowRequest = [];
+      this.projectMode = 'NEW';
+      this.projectId = null;
+      this.labels = [];
+      this.labelsRead = false;
     },
+    /**
+     * Switches between a new and an existing project, which resets the
+     * project and the labels.
+     *
+     * @param {String} mode NEW or EXISTING
+     * @returns {void}
+     */
+    changeProjectMode(mode) {
+      if (mode !== this.projectMode) {
+        this.projectMode = mode;
+        this.resetProjectChoice();
+      }
+    },
+    /**
+     * Chooses an existing project, which resets the labels of the former one.
+     *
+     * @param {Number} projectId the project id
+     * @returns {void}
+     */
+    changeProject(projectId) {
+      if (projectId !== this.projectId) {
+        this.projectId = projectId;
+        this.labels = [];
+      }
+    },
+    /**
+     * Follows a change of managing space. On create it resets the project and
+     * the labels; on edit the project stays read-only and the server refuses
+     * the change with its own message, so nothing is reset.
+     *
+     * @returns {void}
+     */
+    changeSpace() {
+      if (!this.editMode) {
+        this.resetProjectChoice();
+      }
+    },
+    /**
+     * Gives the project choice and the labels as text, to tell whether the
+     * form changed since it was opened.
+     *
+     * @return {String} the project mode, the project and the labels
+     */
+    projectChoiceString() {
+      return JSON.stringify({mode: this.projectMode, projectId: this.projectId, labels: this.labels});
+    },
+    /**
+     * Empties the project and the labels chosen.
+     *
+     * @returns {void}
+     */
+    resetProjectChoice() {
+      this.projectId = null;
+      this.labels = [];
+    },
+    /**
+     * Builds the body of a save, the one place the form's fields are put
+     * together. On create it states the project mode, the project and the
+     * labels; on edit it states no project mode, so the process keeps its
+     * project, and labels only when they were read.
+     *
+     * @return {Object} the process to save
+     */
+    buildSavePayload() {
+      const payload = Object.assign({}, this.workflow, {
+        requestsCreators: this.workflowRequest,
+        illustrativeAttachment: this.illustrativeImage,
+      });
+      delete payload.labels;
+      delete payload.projectMode;
+      if (!this.editMode) {
+        payload.attachments = this.attachments;
+        payload.projectMode = this.projectMode;
+        payload.projectId = this.projectMode === 'EXISTING' && this.projectId || null;
+        payload.labels = this.labels;
+      } else if (this.labelsRead) {
+        payload.labels = this.labels;
+      }
+      return payload;
+    },
+    /**
+     * Asks the application to create the process from the form.
+     *
+     * @returns {void}
+     */
     addNewWorkFlow() {
       this.saving = true;
-      this.workflow.requestsCreators = this.workflowRequest;
-      this.workflow.attachments = this.attachments;
-      this.workflow.illustrativeAttachment = this.illustrativeImage;
-      this.$root.$emit('add-workflow',this.workflow);
+      this.$root.$emit('add-workflow', this.buildSavePayload());
     },
+    /**
+     * Asks the application to update the process from the form.
+     *
+     * @returns {void}
+     */
     updateWorkFlow() {
       this.saving = true;
-      this.workflow.requestsCreators = this.workflowRequest;
-      this.workflow.illustrativeAttachment = this.illustrativeImage;
-      this.$root.$emit('update-workflow',this.workflow);
+      this.$root.$emit('update-workflow', this.buildSavePayload());
     },
     deleteIllustrative(){
       this.illustrativeInput = null;

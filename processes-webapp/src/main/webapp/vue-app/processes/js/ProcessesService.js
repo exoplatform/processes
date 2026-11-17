@@ -73,6 +73,13 @@ export function getWorks(itemsFilter, offset, limit, expand) {
   });
 }
 
+/**
+ * Creates a process.
+ *
+ * @param {Object} workflow the process, its null fields left out of the body
+ * @return {Promise} the created process, or an error whose message is the
+ *          code of a 400 refusal
+ */
 export function addNewWorkFlow(workflow) {
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workflows`, {
     method: 'POST',
@@ -85,7 +92,7 @@ export function addNewWorkFlow(workflow) {
     }),
   }).then(resp => {
     if (!resp || !resp.ok) {
-      throw new Error('Error while adding a new workflow');
+      return readSaveError(resp);
     } else {
       return resp.json();
     }
@@ -156,6 +163,13 @@ export function deleteWorkflowById(workflowId) {
   });
 }
 
+/**
+ * Updates a process.
+ *
+ * @param {Object} workflow the process, its null fields left out of the body
+ * @return {Promise} the updated process as text, or an error whose message is
+ *          the code of a 400 refusal
+ */
 export function updateWorkflow(workflow) {
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workflows`, {
     method: 'PUT',
@@ -170,9 +184,69 @@ export function updateWorkflow(workflow) {
     }),
   }).then(resp => {
     if (!resp || !resp.ok) {
-      throw new Error('Error while updating a workflow');
+      return readSaveError(resp);
     } else {
       return resp.text();
+    }
+  });
+}
+
+/**
+ * Throws the error of a refused process save, its message being the code the
+ * server answers with a 400, or a generic message otherwise.
+ *
+ * @param {Response} resp the response of the save
+ * @return {Promise} a promise rejected with the error
+ */
+function readSaveError(resp) {
+  if (!resp || resp.status !== 400) {
+    return Promise.reject(new Error('Error while saving a workflow'));
+  }
+  return resp.text().then(code => {
+    throw new Error(code || 'Error while saving a workflow');
+  });
+}
+
+/**
+ * Lists the task projects a process of a managing space may feed, each with
+ * the processes of that space that already feed it.
+ *
+ * @param {String} spaceId the managing space id
+ * @param {Number} offset the offset
+ * @param {Number} limit the page size
+ * @return {Promise} the page, {projects: [{id, name, workflows: [{id, title}]}], size}
+ */
+export function getSpaceProjects(spaceId, offset, limit) {
+  const params = new URLSearchParams({spaceId, offset: offset || 0, limit: limit || 0}).toString();
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/projects?${params}`, {
+    method: 'GET',
+    credentials: 'include',
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error while listing the projects of a space');
+    } else {
+      return resp.json();
+    }
+  });
+}
+
+/**
+ * Lists the labels of a task project a process of a managing space may feed.
+ *
+ * @param {Number} projectId the project id
+ * @param {String} spaceId the managing space id
+ * @return {Promise} the labels, [{id, name}] sorted by id
+ */
+export function getProjectLabels(projectId, spaceId) {
+  const params = new URLSearchParams({spaceId}).toString();
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/projects/${projectId}/labels?${params}`, {
+    method: 'GET',
+    credentials: 'include',
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error while listing the labels of a project');
+    } else {
+      return resp.json();
     }
   });
 }
