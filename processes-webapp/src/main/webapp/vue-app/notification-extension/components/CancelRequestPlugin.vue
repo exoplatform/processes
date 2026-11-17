@@ -34,6 +34,8 @@
   </user-notification-template>
 </template>
 <script>
+import {getProcessTitle} from '../js/ProcessTitle.js';
+
 export default {
   props: {
     notification: {
@@ -41,6 +43,9 @@ export default {
       default: null,
     },
   },
+  data: () => ({
+    translatedProcessTitle: null,
+  }),
   computed: {
     profileAvatarUrl() {
       return this.notification?.from?.avatar;
@@ -49,7 +54,7 @@ export default {
       return this.notification?.from?.fullname;
     },
     processTitle() {
-      return this.notification?.parameters?.REQUEST_PROCESS;
+      return this.translatedProcessTitle || this.notification?.parameters?.REQUEST_PROCESS;
     },
     requestTitle() {
       return this.notification?.parameters?.REQUEST_TITLE;
@@ -64,6 +69,9 @@ export default {
       || this.$t('Notification.process.request.cancelled.oldMessage', {
         0: `<a class="user-name font-weight-bold">${this.profileFullName}</a>`});
     }
-  }
+  },
+  created() {
+    getProcessTitle(this.notification).then(title => this.translatedProcessTitle = title);
+  },
 };
 </script>

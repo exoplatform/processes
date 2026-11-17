@@ -38,6 +38,10 @@
     </component>
 
     <component>
+        <type>org.exoplatform.processes.service.ProcessTranslationService</type>
+    </component>
+
+    <component>
         <key>org.exoplatform.processes.service.ProcessesAttachmentService</key>
         <type>org.exoplatform.processes.service.ProcessesAttachmentServiceImpl</type>
     </component>
@@ -87,6 +91,15 @@
             <name>exo.task.taskCommentCreation</name>
             <set-method>addListener</set-method>
             <type>org.exoplatform.processes.listener.RequestCommentNotificationListener</type>
+        </component-plugin>
+    </external-component-plugins>
+
+    <external-component-plugins>
+        <target-component>io.meeds.social.translation.service.TranslationService</target-component>
+        <component-plugin>
+            <name>process</name>
+            <set-method>addPlugin</set-method>
+            <type>org.exoplatform.processes.plugin.ProcessTranslationPlugin</type>
         </component-plugin>
     </external-component-plugins>
 

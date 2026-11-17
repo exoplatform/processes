@@ -27,4 +27,7 @@ public class NotificationArguments {
   /** The request (work) id, the same as its task id: stored for the digest */
   public static final ArgumentLiteral<String> REQUEST_ID             = new ArgumentLiteral<>(String.class, "REQUEST_ID");
 
+  /** The id of the request's process, whose title each recipient reads in their own language */
+  public static final ArgumentLiteral<String> WORKFLOW_ID            = new ArgumentLiteral<>(String.class, "WORKFLOW_ID");
+
 }

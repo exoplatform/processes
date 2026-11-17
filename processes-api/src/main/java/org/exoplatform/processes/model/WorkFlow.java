@@ -19,6 +19,7 @@ package org.exoplatform.processes.model;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.exoplatform.processes.constant.ProjectMode;
@@ -87,6 +88,30 @@ public class WorkFlow {
    */
   @EqualsAndHashCode.Exclude
   private ProjectMode                 projectMode;
+
+  /**
+   * The title per language a save writes with the process, by language tag;
+   * the default language's value is the title itself. Null when the caller
+   * does not state it: the stored translations then stay. The three
+   * translation maps are part of the comparison of two processes, so that a
+   * save changing translations only is a change: a process read from
+   * storage never carries them.
+   */
+  private Map<String, String>         titleTranslations;
+
+  /**
+   * The description per language a save writes with the process.
+   *
+   * @see #titleTranslations
+   */
+  private Map<String, String>         descriptionTranslations;
+
+  /**
+   * The summary per language a save writes with the process.
+   *
+   * @see #titleTranslations
+   */
+  private Map<String, String>         summaryTranslations;
 
   /**
    * Builds a process with every field but the save's project mode.
