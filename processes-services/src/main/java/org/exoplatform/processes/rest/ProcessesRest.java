@@ -1035,9 +1035,12 @@ public class ProcessesRest implements ResourceContainer {
       if (workFlow == null) {
         return Response.status(Response.Status.NOT_FOUND).build();
       }
-      return Response.ok(EntityBuilder.toEntity(workFlow, expand, translate ? getLocale() : null))
-                     .cacheControl(PER_USER_CACHE_CONTROL)
-                     .build();
+      WorkFlowEntity workFlowEntity = EntityBuilder.toEntity(workFlow, expand, translate ? getLocale() : null);
+      if (workFlow.getAcl() != null && workFlow.getAcl().isCanEdit()) {
+        // The editor shows the process's own forms; the Service checks the right
+        workFlowEntity.setRequestFormIds(processesService.getProcessFormIds(workflowId, currentIdentityId));
+      }
+      return Response.ok(workFlowEntity).cacheControl(PER_USER_CACHE_CONTROL).build();
     } catch (IllegalAccessException e) {
       LOG.debug("User isn't allowed to see the workflow '{}'", workflowId, e);
       return Response.status(Response.Status.FORBIDDEN).build();

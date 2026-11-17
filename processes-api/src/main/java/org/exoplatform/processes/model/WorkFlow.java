@@ -114,6 +114,16 @@ public class WorkFlow {
   private Map<String, String>         summaryTranslations;
 
   /**
+   * The form a save chooses for the process's requests: null when the save
+   * does not state it, the stored form being kept; 0 for no form; else the id
+   * of the form. It is an instruction of the save, not a state of the process:
+   * the process stores no form id, and it is left out of the comparison of two
+   * processes.
+   */
+  @EqualsAndHashCode.Exclude
+  private Long                        requestFormId;
+
+  /**
    * Builds a process with every field but the save's project mode.
    *
    * @param id the process id, 0 for a new process

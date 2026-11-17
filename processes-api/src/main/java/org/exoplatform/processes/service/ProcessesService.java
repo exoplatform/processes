@@ -517,6 +517,18 @@ public interface ProcessesService {
   void addRequestValuesPlugin(RequestValuesPlugin plugin);
 
   /**
+   * Reads the forms bound to a process itself, for a user who can edit it.
+   *
+   * @param workFlowId the process id
+   * @param userIdentityId the user's identity id
+   * @return the ids of the process's own forms, empty when it has none or when
+   *         no add-on registered a request values plugin
+   * @throws ObjectNotFoundException when the process does not exist
+   * @throws IllegalAccessException when the user may not edit the process
+   */
+  List<Long> getProcessFormIds(long workFlowId, long userIdentityId) throws ObjectNotFoundException, IllegalAccessException;
+
+  /**
    * Unregisters a plugin registered by
    * {@link #addRequestValuesPlugin(RequestValuesPlugin)}. A plugin that is not
    * the registered one leaves the registration as it is.

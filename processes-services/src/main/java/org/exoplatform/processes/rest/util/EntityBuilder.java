@@ -88,6 +88,8 @@ public class EntityBuilder {
     workFlow.setTitleTranslations(workFlowEntity.getTitleTranslations());
     workFlow.setDescriptionTranslations(workFlowEntity.getDescriptionTranslations());
     workFlow.setSummaryTranslations(workFlowEntity.getSummaryTranslations());
+    // The Service checks the chosen form before any write
+    workFlow.setRequestFormId(workFlowEntity.getRequestFormId());
     return workFlow;
   }
 
@@ -191,6 +193,8 @@ public class EntityBuilder {
                               workFlow.getRequestsCreators(),
                               null,
                               workFlow.getLabels(),
+                              null,
+                              null,
                               null,
                               null,
                               null);

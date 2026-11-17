@@ -64,6 +64,7 @@ import jakarta.persistence.criteria.CommonAbstractCriteria;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
+import java.util.Objects;
 
 public class ProcessesServiceImpl implements ProcessesService {
 
@@ -83,6 +84,8 @@ public class ProcessesServiceImpl implements ProcessesService {
   private static final String      LABEL_NOT_IN_PROJECT = "processes.label.notInProject";
 
   private static final String      LABEL_INVALID_NAME   = "processes.label.invalidName";
+
+  private static final String      FORM_UNSUPPORTED     = "processes.workflow.formUnsupported";
 
   /** The size of a Task label name (TASK_LABELS.NAME). */
   private static final int         LABEL_NAME_MAX_LENGTH = 50;
@@ -216,6 +219,12 @@ public class ProcessesServiceImpl implements ProcessesService {
     // Every label is checked before the first write; a new project has no
     // label to choose yet
     List<LabelChoice> labelChoices = checkLabels(workFlow.getLabels(), existingProject, existingProject == null, aclIdentity);
+    // The chosen form is checked before the first write, so a refused form
+    // writes nothing; its binding is written with the process's rows
+    workFlow.setRequestFormId(checkProcessForm(null,
+                                               StringUtils.trimToNull(workFlow.getSpaceId()),
+                                               workFlow.getRequestFormId(),
+                                               aclIdentity));
     // Task commits each project, status and label it creates, before the
     // process's own rows are saved
     ProjectDto project = existingProject;
@@ -264,17 +273,25 @@ public class ProcessesServiceImpl implements ProcessesService {
   }
 
   /**
-   * Writes a process's own rows: the un-advised body of
+   * Writes a process's own rows, then the form its save chose, which the
+   * request values plugin binds once the row exists, so the binding commits
+   * or rolls back with the rows. The un-advised body of
    * {@link #saveWorkFlowRows(WorkFlow, long)}.
    *
-   * @param workFlow the process, its labels resolved to labels of its project
+   * @param workFlow the process, its labels resolved and its form choice
+   *          checked: null to keep the stored form, 0 for no form
    * @param userId the saving user's identity id
    * @return the saved process
-   * @throws IllegalAccessException declared for a write joining the save that
-   *           refuses the editor's choice; none of the writes here refuses
+   * @throws IllegalAccessException when the plugin refuses the editor's choice
    */
   WorkFlow writeWorkFlowRows(WorkFlow workFlow, long userId) throws IllegalAccessException {
-    return processesStorage.saveWorkFlow(workFlow, userId);
+    WorkFlow savedWorkFlow = processesStorage.saveWorkFlow(workFlow, userId);
+    Long requestFormId = workFlow.getRequestFormId();
+    RequestValuesPlugin plugin = requestValuesPlugin;
+    if (requestFormId != null && plugin != null) {
+      plugin.setProcessForm(savedWorkFlow.getId(), requestFormId == 0 ? null : requestFormId, getAclIdentity(userId));
+    }
+    return savedWorkFlow;
   }
 
   /**
@@ -403,6 +420,72 @@ public class ProcessesServiceImpl implements ProcessesService {
     }
   }
 
+  @Override
+  public List<Long> getProcessFormIds(long workFlowId, long userIdentityId) throws ObjectNotFoundException,
+                                                                              IllegalAccessException {
+    WorkFlow workFlow = processesStorage.getWorkFlowById(workFlowId, userIdentityId);
+    if (workFlow == null) {
+      throw new ObjectNotFoundException("The process " + workFlowId + " does not exist");
+    }
+    if (workFlow.getAcl() == null || !workFlow.getAcl().isCanEdit()) {
+      throw new IllegalAccessException("User " + userIdentityId + " isn't allowed to edit the process " + workFlowId);
+    }
+    RequestValuesPlugin plugin = requestValuesPlugin;
+    return plugin == null ? Collections.emptyList() : plugin.getProcessFormIds(workFlowId);
+  }
+
+  /**
+   * Checks the form a process's save chooses, before any write of the save.
+   *
+   * @param workFlowId the process id, or null for a new process
+   * @param spaceId the space that manages the process, or null when unknown
+   * @param requestFormId the form the save sends: null to keep the stored
+   *          one, 0 for no form, else the form id
+   * @param editor the editor's identity
+   * @return the choice to write inside the save: null when there is nothing
+   *         to write, 0 for no form, else the form id
+   * @throws IllegalAccessException when the plugin refuses the editor's right
+   */
+  private Long checkProcessForm(Long workFlowId,
+                                String spaceId,
+                                Long requestFormId,
+                                org.exoplatform.services.security.Identity editor) throws IllegalAccessException {
+    if (requestFormId == null) {
+      return null;
+    }
+    RequestValuesPlugin plugin = requestValuesPlugin;
+    if (plugin == null) {
+      if (requestFormId == 0) {
+        // No add-on gives a process a form: it has none
+        return null;
+      }
+      throw new IllegalArgumentException(FORM_UNSUPPORTED);
+    }
+    Long formId = requestFormId == 0 ? null : requestFormId;
+    if (workFlowId == null) {
+      if (formId == null) {
+        // A new process has no form to remove
+        return null;
+      }
+    } else {
+      List<Long> ownFormIds = plugin.getProcessFormIds(workFlowId);
+      if (ownFormIds.size() <= 1 && Objects.equals(formId, ownFormIds.isEmpty() ? null : ownFormIds.get(0))) {
+        // The process already has exactly that form, or none: no change
+        return null;
+      }
+    }
+    plugin.checkProcessForm(workFlowId, spaceId, formId, editor);
+    return requestFormId;
+  }
+
+  /**
+   * @param space a space, or null
+   * @return its id, or null
+   */
+  private static String toSpaceId(Space space) {
+    return space == null ? null : space.getId();
+  }
+
   /**
    * @return the registered request values plugin, or null when no add-on
    *         registered one
@@ -522,7 +605,14 @@ public class ProcessesServiceImpl implements ProcessesService {
       labelChoices = checkLabels(workFlow.getLabels(), project, false, getAclIdentity(userId));
       workFlow.setLabels(toLabels(labelChoices));
     }
-    if (oldWorkFlow.equals(workFlow)) {
+    // The chosen form is checked before the first write; a form already the
+    // process's own is no change
+    String formSpaceId = StringUtils.isNotBlank(workFlow.getSpaceId()) ? workFlow.getSpaceId() : toSpaceId(getCurrentSpace(oldWorkFlow));
+    workFlow.setRequestFormId(checkProcessForm(oldWorkFlow.getId(),
+                                               formSpaceId,
+                                               workFlow.getRequestFormId(),
+                                               getAclIdentity(userId)));
+    if (oldWorkFlow.equals(workFlow) && workFlow.getRequestFormId() == null) {
       throw new IllegalArgumentException("there are no changes to save");
     }
     workFlow.setAttachments(processesAttachmentService.selectProcessAttachments(userId,
