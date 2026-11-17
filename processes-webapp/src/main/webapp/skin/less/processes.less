@@ -14,14 +14,6 @@
     cursor: default;
   }
 
-  .no-pending-requests {
-    color: @baseColorLight;
-  }
-
-  .pending-requests {
-    color: @colorIconOrange;
-  }
-
   .work-card-actions {
     width: 100%;
   }
@@ -57,10 +49,6 @@
 
   .text-align-start {
     text-align: start !important;
-  }
-  
-  .image-height {
-    height: 50px;
   }
   
   .title-size {
@@ -180,38 +168,58 @@
     }
   }
 
-  .card-footer-request {
-    position:absolute;
-    bottom:0;
-    left:0;
- }
- .three-dots {
-    position: absolute;
-    top: 0;
-    right: 0;
-    color: @mediumGrey;
-  }
-  .process-img{
-    position: absolute;
-    top: 0;
-    left: 0;
-  }
-  .card-content {
-    height: 115px;
-    color:@baseColorLight;
+  .workflow-empty-description {
+    max-width: 420px;
   }
 
   .workflow-card {
-    &:hover {
-      box-shadow: 0 5px 5px -3px rgba(0,0,0,0.2),
-                  0px 8px 10px 1px rgba(0,0,0,0.14),
-                  0px 3px 14px 2px rgba(0,0,0,0.12);
-      transition: box-shadow .4s cubic-bezier(0.25,0.8,0.25,1);
-    }
-  }
+    height: 180px;
+    transition: box-shadow .4s cubic-bezier(0.25,0.8,0.25,1);
 
-  .workflow-card-desc {
-    min-height: 80px;
+    &:hover {
+      box-shadow: 0 2px 8px rgba(0,0,0,0.14);
+    }
+
+    .workflow-card-avatar-placeholder {
+      background-color: @greyColorLighten1Opacity2;
+      font-size: 17px;
+    }
+
+    .workflow-card-title,
+    .workflow-card-description {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      word-break: break-word;
+    }
+
+    .workflow-card-title {
+      font-size: 15px;
+      line-height: 1.3;
+    }
+
+    .workflow-card-description {
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .workflow-card-footer {
+      border-top: 1px solid @borderColor;
+    }
+
+    .workflow-card-open-requests {
+      text-decoration: none;
+    }
+
+    .workflow-card-request-wrapper {
+      display: inline-block;
+    }
+
+    &.workflow-card-disabled .workflow-card-avatar {
+      filter: grayscale(1);
+      opacity: .7;
+    }
   }
 
   .work-filter {
@@ -220,20 +228,6 @@
     .v-input__control {
       height: 20px;
     }
-  }
-
-  .workflow-filter {
-    margin-right: 50px ~'; /** orientation=lt */ ';
-    margin-left: 50px ~'; /** orientation=rt */ ';
-    width: 130px;
-
-    .v-input__control {
-      height: 20px;
-    }
-  }
-
-  .add-process-btn {
-    min-width: 20px !important;
   }
 
   .work-controls {
@@ -264,17 +258,9 @@
     margin-right: 25px ~'; /** orientation=rt */ ';
   }
 
-  .workflow-controls {
-    max-width: inherit;
-  }
-
   .filter-icon-button {
     color: @iconColor !important;
     caret-color: @greyColorLighten1Default !important;
-  }
-
-  .filter-query-width {
-    max-width: 200px;
   }
 
   .workflow-filter-query {
