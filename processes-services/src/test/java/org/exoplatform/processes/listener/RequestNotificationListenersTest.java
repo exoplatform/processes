@@ -18,9 +18,9 @@ package org.exoplatform.processes.listener;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -80,7 +80,7 @@ class RequestNotificationListenersTest {
     notificationUtils.when(() -> NotificationUtils.getRequestCommentsLink(anyLong())).thenReturn("comments-link");
     UserPortalConfigService portalConfigService = mock(UserPortalConfigService.class);
     commonsUtils.when(() -> CommonsUtils.getService(UserPortalConfigService.class)).thenReturn(portalConfigService);
-    mentionUtils.when(() -> MentionUtils.substituteUsernames(any(), anyString())).thenAnswer(invocation -> invocation.getArgument(1));
+    mentionUtils.when(() -> MentionUtils.substituteUsernames(nullable(String.class), anyString())).thenAnswer(invocation -> invocation.getArgument(1));
   }
 
   @AfterAll
