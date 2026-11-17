@@ -217,17 +217,12 @@
       text-decoration: none;
     }
 
-    // role="button" carries a global pointer cursor; only a card that opens a request keeps it
-    cursor: default;
-
-    &.workflow-card-requestable {
-      cursor: pointer;
+    // vuetify-all's .v-application [role="button"]:not(.ignore-vuetify-classes) and .v-card--link
+    // (set by the tabindex) give every card a pointer; a card that opens no request drops it
+    &.v-card:not(.workflow-card-requestable) {
+      cursor: default;
     }
 
-    &:focus-visible {
-      outline: 2px solid @primaryColor;
-      outline-offset: 2px;
-    }
 
     &.workflow-card-disabled .workflow-card-avatar {
       filter: grayscale(1);

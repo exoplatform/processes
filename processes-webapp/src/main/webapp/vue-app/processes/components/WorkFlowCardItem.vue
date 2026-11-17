@@ -8,6 +8,7 @@
         :class="cardClass"
         :aria-label="cardAriaLabel"
         :aria-disabled="requestDisabledReason ? 'true' : null"
+        :ripple="!requestDisabledReason"
         class="workflow-card d-flex flex-column"
         role="button"
         tabindex="0"
