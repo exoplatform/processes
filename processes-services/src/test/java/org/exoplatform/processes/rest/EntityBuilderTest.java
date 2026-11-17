@@ -337,9 +337,10 @@ public class EntityBuilderTest {
 
   /**
    * The process read by id is in the user's language, unless the editor asks
-   * for its stored texts; the process list is in the user's language.
-   * Mutants: the translate flag ignored, or the list built without the
-   * user's locale.
+   * for its stored texts; the process list and the editor's project choice
+   * are in the user's language.
+   * Mutants: the translate flag ignored, or the list or the project choice
+   * built without the user's locale.
    *
    * @throws Exception never, the services are mocks
    */
@@ -358,6 +359,24 @@ public class EntityBuilderTest {
     assertEquals("Leave", ((WorkFlowEntity) frenchRest.getWorkFlowById(9L, "", false).getEntity()).getTitle());
     Response list = frenchRest.getWorkFlows(null, true, null, null, "", 0, 10);
     assertEquals("Congés", ((List<?>) list.getEntity()).stream().map(WorkFlowEntity.class::cast).findFirst().orElseThrow().getTitle());
+
+    // The editor's project choice names the processes a project feeds in the user's language
+    ProcessTranslationService processTranslationService = CommonsUtils.getService(ProcessTranslationService.class);
+    when(processTranslationService.getLabel(9L, "title", "Leave", Locale.FRENCH)).thenReturn("Congés");
+    org.exoplatform.processes.model.EligibleProject project =
+        new org.exoplatform.processes.model.EligibleProject(50L,
+                                                           "Shared",
+                                                           new ArrayList<>(List.of(new org.exoplatform.processes.model.ProcessReference(9L,
+                                                                                                                                        "Leave"))));
+    when(processesService.listEligibleProjects("3", 0, 20, 1L))
+        .thenReturn(new org.exoplatform.processes.model.EligibleProjects(new ArrayList<>(List.of(project)), 1));
+    Response projects = frenchRest.getSpaceProjects("3", 0, 20);
+    assertEquals("Congés",
+                 ((org.exoplatform.processes.model.EligibleProjects) projects.getEntity()).getProjects()
+                                                                                         .get(0)
+                                                                                         .getWorkflows()
+                                                                                         .get(0)
+                                                                                         .getTitle());
   }
 
   /**
