@@ -102,7 +102,7 @@ export default {
       type: String,
       default: null,
     },
-    // The row's button is the mockup's small one (30px); the drawer header's keeps the default size
+    // Vuetify's small icon button (28px), the nearest to the mockup's 30px row button; the drawer header keeps the default 36px
     small: {
       type: Boolean,
       default: false,

@@ -63,6 +63,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         <div class="work-detail-documents my-5">
           <div class="subtitle-1 font-weight-bold mb-2">{{ $t('processes.works.form.label.documents') }}</div>
           <processes-attachments
+            ref="attachments"
             :entity-id="work.id"
             edit-mode
             entity-type="task" />
@@ -119,7 +120,8 @@ export default {
   methods: {
     /**
      * Opens the drawer on a sent request, names it in the address bar, and lists its documents:
-     * the documents list stays mounted once the drawer opened, so it is told which request to read.
+     * the documents list stays mounted once the drawer opened, so a later opening tells it which
+     * request to read.
      *
      * @param {Object} event the request and its comments, {work, comments}
      * @returns {void}
@@ -130,8 +132,10 @@ export default {
       this.taskLink = null;
       this.checkTaskAccess(this.work);
       this.$root.$emit('update-url-path', 'requestDetails', `/myRequests/requestDetails/${this.work.id}`);
-      // After the flush, so a first opening has mounted the documents list that listens to it
-      this.$nextTick(() => this.$root.$emit('init-list-attachments', {entityId: this.work.id, entityType: 'task'}));
+      // A first opening mounts the list, which reads its request when created
+      if (this.$refs.attachments) {
+        this.$root.$emit('init-list-attachments', {entityId: this.work.id, entityType: 'task'});
+      }
       this.$refs.drawer.open();
     },
     /**
