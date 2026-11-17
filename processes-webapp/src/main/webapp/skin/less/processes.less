@@ -559,3 +559,56 @@
     margin-bottom: 0 !important;
   }
 }
+// « My requests »: rows grouped by status, and the request detail drawer
+.ProcessesApplication {
+  .my-request-row {
+    min-height: 56px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: box-shadow .4s cubic-bezier(0.25,0.8,0.25,1);
+
+    &:hover {
+      box-shadow: 0 2px 8px rgba(0,0,0,0.14);
+    }
+
+    .indicator {
+      top: 0;
+    }
+
+    .my-request-row-process {
+      flex-basis: 0;
+      min-width: 0;
+    }
+
+    .my-request-row-summary {
+      flex-basis: 0;
+      min-width: 0;
+    }
+
+    .my-request-row-comments {
+      min-width: 56px;
+    }
+  }
+
+  .my-request-draft-badge {
+    font-size: 10.5px;
+    font-weight: bold;
+    letter-spacing: .04em;
+    line-height: 18px;
+    border-radius: 3px;
+    color: @textLightColor;
+    background-color: @greyColorLighten1Opacity2;
+  }
+
+  .my-requests-empty-icon {
+    background-color: fade(@primaryColor, 10%);
+  }
+
+  .my-requests-empty-description {
+    max-width: 420px;
+  }
+
+  .work-detail-subtitle {
+    margin-top: 2px;
+  }
+}
