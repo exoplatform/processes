@@ -79,6 +79,9 @@ import jakarta.persistence.criteria.Predicate;
 import org.exoplatform.task.dao.condition.PredicateCondition;
 import org.exoplatform.task.domain.Task;
 import org.exoplatform.processes.model.WorkDraftRef;
+import org.exoplatform.processes.constant.ProcessesEvents;
+import org.exoplatform.processes.model.ProcessDeletion;
+import java.util.Objects;
 
 public class ProcessesStorageImpl implements ProcessesStorage {
 
@@ -729,6 +732,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
                                                            TASK_ENTITY_TYPE,
                                                            projectDto.getId());
         deleteWorkDraftById(work.getDraftId());
+        ProcessesUtils.broadcast(listenerService, ProcessesEvents.REQUEST_DRAFT_DELETED, work.getDraftId(), work.getWorkFlowId());
       }
       Work newWork = EntityMapper.taskToWork(taskDto);
       newWork.setCreatorId(userId);
@@ -828,7 +832,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    */
   @Override
   @ContainerTransactional(atomic = true)
-  public List<Long> deleteWorkflowById(Long workflowId) throws jakarta.persistence.EntityNotFoundException {
+  public ProcessDeletion deleteWorkflowById(Long workflowId) throws jakarta.persistence.EntityNotFoundException {
     return deleteWorkflowRows(workflowId);
   }
 
@@ -840,12 +844,12 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    * the process and its request records as they were.
    *
    * @param workflowId the process id
-   * @return the task ids the process's request records held, read in the
-   *         same transaction as their deletion
+   * @return the task ids the process's request records held and the ids of
+   *         its drafts, read in the same transaction as their deletion
    * @throws jakarta.persistence.EntityNotFoundException when the process does
    *           not exist
    */
-  List<Long> deleteWorkflowRows(Long workflowId) {
+  ProcessDeletion deleteWorkflowRows(Long workflowId) {
     WorkFlowEntity workFlowEntity = this.workFlowDAO.find(workflowId);
     if (workFlowEntity == null) {
       throw new jakarta.persistence.EntityNotFoundException("Workflow not found");
@@ -857,7 +861,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     List<Long> requestTaskIds = requestDAO.findTaskIdsByWorkFlowId(workflowId);
     requestDAO.deleteByWorkFlowId(workflowId);
     this.workFlowDAO.delete(workFlowEntity);
-    return requestTaskIds;
+    return new ProcessDeletion(requestTaskIds, drafts.stream().map(WorkEntity::getId).filter(Objects::nonNull).toList());
   }
 
   /**

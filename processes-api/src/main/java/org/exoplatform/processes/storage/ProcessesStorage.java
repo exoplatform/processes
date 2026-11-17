@@ -157,10 +157,10 @@ public interface ProcessesStorage {
    * transaction. The request tasks stay as plain tasks.
    *
    * @param workflowId the process id
-   * @return the task ids its request records held
+   * @return the task ids its request records held and the ids of its drafts
    * @throws EntityNotFoundException when the process does not exist
    */
-  List<Long> deleteWorkflowById(Long workflowId) throws EntityNotFoundException;
+  ProcessDeletion deleteWorkflowById(Long workflowId) throws EntityNotFoundException;
 
   /**
    * Retrieves a Work by its given id

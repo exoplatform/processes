@@ -940,16 +940,18 @@ public class ProcessesServiceImpl implements ProcessesService {
 
   /**
    * Announces a committed process deletion, with the tasks its requests had,
-   * which stay as plain tasks.
+   * which stay as plain tasks, then the deletion of each of its drafts.
    *
    * @param workflowId the deleted process id
-   * @param requestTaskIds the task ids its request records held
+   * @param deletion what the deletion removed, or null
    */
-  private void broadcastProcessDeleted(Long workflowId, List<Long> requestTaskIds) {
-    ProcessesUtils.broadcast(listenerService,
-                             ProcessesEvents.PROCESS_DELETED,
-                             workflowId,
-                             requestTaskIds == null ? List.<Long> of() : List.copyOf(requestTaskIds));
+  private void broadcastProcessDeleted(Long workflowId, ProcessDeletion deletion) {
+    ProcessDeletion deleted = deletion == null ? new ProcessDeletion(null, null) : deletion;
+    ProcessesUtils.broadcast(listenerService, ProcessesEvents.PROCESS_DELETED, workflowId, deleted.requestTaskIds());
+    // Each of its drafts was deleted with it
+    for (Long draftId : deleted.draftIds()) {
+      ProcessesUtils.broadcast(listenerService, ProcessesEvents.REQUEST_DRAFT_DELETED, draftId, workflowId);
+    }
   }
 
   /**
@@ -1078,7 +1080,9 @@ public class ProcessesServiceImpl implements ProcessesService {
     if (draftId == null) {
       throw new IllegalArgumentException("WorkDraft id is mandatory");
     }
+    Work draft = processesStorage.getWorkDraftyId(draftId);
     processesStorage.deleteWorkDraftById(draftId);
+    broadcastDraftDeleted(draftId, draft);
   }
 
   /**
@@ -1089,8 +1093,20 @@ public class ProcessesServiceImpl implements ProcessesService {
     if (draftId == null) {
       throw new IllegalArgumentException("WorkDraft id is mandatory");
     }
-    getOwnWorkDraft(draftId, userIdentityId);
+    Work draft = getOwnWorkDraft(draftId, userIdentityId);
     processesStorage.deleteWorkDraftById(draftId);
+    broadcastDraftDeleted(draftId, draft);
+  }
+
+  /**
+   * Announces a committed draft deletion, with the draft's process.
+   *
+   * @param draftId the deleted draft id
+   * @param draft the draft as read before its deletion, or null
+   */
+  private void broadcastDraftDeleted(Long draftId, Work draft) {
+    Long workFlowId = draft == null || draft.getWorkFlow() == null ? null : draft.getWorkFlow().getId();
+    ProcessesUtils.broadcast(listenerService, ProcessesEvents.REQUEST_DRAFT_DELETED, draftId, workFlowId);
   }
 
   /**

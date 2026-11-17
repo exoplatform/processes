@@ -204,10 +204,14 @@ public class ProcessesStorageRequestReadsTest {
     org.exoplatform.processes.entity.WorkFlowEntity workFlow = new org.exoplatform.processes.entity.WorkFlowEntity();
     workFlow.setId(7L);
     when(workFlowDAO.find(7L)).thenReturn(workFlow);
-    when(workDraftDAO.getDraftsByWorkflowId(7L)).thenReturn(List.of());
+    org.exoplatform.processes.entity.WorkEntity draft = new org.exoplatform.processes.entity.WorkEntity();
+    draft.setId(50L);
+    when(workDraftDAO.getDraftsByWorkflowId(7L)).thenReturn(List.of(draft));
     when(requestDAO.findTaskIdsByWorkFlowId(7L)).thenReturn(List.of(100L, 101L));
 
-    assertEquals(List.of(100L, 101L), processesStorage.deleteWorkflowRows(7L));
+    org.exoplatform.processes.model.ProcessDeletion deletion = processesStorage.deleteWorkflowRows(7L);
+    assertEquals(List.of(100L, 101L), deletion.requestTaskIds());
+    assertEquals(List.of(50L), deletion.draftIds());
 
     org.mockito.InOrder order = org.mockito.Mockito.inOrder(requestDAO, workFlowDAO);
     order.verify(requestDAO).findTaskIdsByWorkFlowId(7L);

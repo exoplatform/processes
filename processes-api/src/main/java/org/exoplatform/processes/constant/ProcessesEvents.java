@@ -28,6 +28,13 @@ public final class ProcessesEvents {
    */
   public static final String PROCESS_DELETED = "exo.process.deleted";
 
+  /**
+   * A request draft was deleted, its deletion committed: by its owner, at the
+   * submit of the request made from it, or with its process. The source is the
+   * draft id, the data the id of its process.
+   */
+  public static final String REQUEST_DRAFT_DELETED = "exo.process.requestDraft.deleted";
+
   private ProcessesEvents() {
   }
 }

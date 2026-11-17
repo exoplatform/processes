@@ -35,6 +35,7 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import org.exoplatform.processes.constant.ProcessesEvents;
+import org.exoplatform.processes.model.ProcessDeletion;
 import org.exoplatform.processes.model.ProcessPermission;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.storage.ProcessesStorage;
@@ -70,13 +71,48 @@ public class ProcessesServiceProcessDeletedTest {
   @Test
   public void aDeletionIsBroadcastAfterItCommitsWithTheRequestTasks() throws Exception {
     when(processesStorage.getWorkFlowById(WORKFLOW_ID, USER_ID)).thenReturn(workFlow(true));
-    when(processesStorage.deleteWorkflowById(WORKFLOW_ID)).thenReturn(List.of(100L, 101L));
+    when(processesStorage.deleteWorkflowById(WORKFLOW_ID)).thenReturn(new ProcessDeletion(List.of(100L, 101L), List.of(50L, 51L)));
 
     service().deleteWorkflowById(WORKFLOW_ID, USER_ID);
 
     InOrder order = inOrder(processesStorage, listenerService);
     order.verify(processesStorage).deleteWorkflowById(WORKFLOW_ID);
     order.verify(listenerService).broadcast(ProcessesEvents.PROCESS_DELETED, Long.valueOf(WORKFLOW_ID), List.of(100L, 101L));
+    // Each draft of the process was deleted with it, announced after the process
+    order.verify(listenerService).broadcast(ProcessesEvents.REQUEST_DRAFT_DELETED, Long.valueOf(50L), Long.valueOf(WORKFLOW_ID));
+    order.verify(listenerService).broadcast(ProcessesEvents.REQUEST_DRAFT_DELETED, Long.valueOf(51L), Long.valueOf(WORKFLOW_ID));
+  }
+
+  /**
+   * A draft's deletion by its owner, and the platform's own deletion of one,
+   * is announced after it with the draft's process; a refused one is not.
+   * Mutation: drop either broadcast, or broadcast before the deletion, and
+   * this test fails.
+   *
+   * @throws Exception on an unexpected refusal
+   */
+  @Test
+  @SuppressWarnings("deprecation")
+  public void aDraftDeletionIsBroadcastWithItsProcess() throws Exception {
+    when(processesStorage.getWorkDraftyId(50L)).thenReturn(draft(50L, USER_ID));
+    when(processesStorage.getWorkDraftyId(51L)).thenReturn(draft(51L, 2L));
+
+    service().deleteWorkDraftById(50L, USER_ID);
+    assertThrows(IllegalAccessException.class, () -> service().deleteWorkDraftById(51L, USER_ID));
+    service().deleteWorkDraftById(51L);
+
+    InOrder order = inOrder(processesStorage, listenerService);
+    order.verify(processesStorage).deleteWorkDraftById(50L);
+    order.verify(listenerService).broadcast(ProcessesEvents.REQUEST_DRAFT_DELETED, Long.valueOf(50L), Long.valueOf(WORKFLOW_ID));
+    order.verify(processesStorage).deleteWorkDraftById(51L);
+    order.verify(listenerService).broadcast(ProcessesEvents.REQUEST_DRAFT_DELETED, Long.valueOf(51L), Long.valueOf(WORKFLOW_ID));
+    verify(listenerService, org.mockito.Mockito.times(2)).broadcast(eq(ProcessesEvents.REQUEST_DRAFT_DELETED), any(), any());
+  }
+
+  private static org.exoplatform.processes.model.Work draft(long id, long ownerId) {
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setId(WORKFLOW_ID);
+    return new org.exoplatform.processes.model.Work(id, "draft", "description", ownerId, null, null, null, true, workFlow);
   }
 
   /**
@@ -105,7 +141,7 @@ public class ProcessesServiceProcessDeletedTest {
   @Test
   @SuppressWarnings("deprecation")
   public void thePlatformDeletionIsBroadcastToo() throws Exception {
-    when(processesStorage.deleteWorkflowById(WORKFLOW_ID)).thenReturn(List.of());
+    when(processesStorage.deleteWorkflowById(WORKFLOW_ID)).thenReturn(new ProcessDeletion(List.of(), List.of()));
 
     service().deleteWorkflowById(WORKFLOW_ID);
 
