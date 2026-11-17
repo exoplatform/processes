@@ -11,6 +11,15 @@
         {{ work.workFlow.title }}
       </div>
     </template>
+    <template v-if="!viewMode && !$vuetify.breakpoint.smAndDown" #expandAction>
+      <v-btn
+        id="requestExpandButton"
+        :title="$t(expanded ? 'label.collapse' : 'label.expand')"
+        icon
+        @click="$refs.work.toogleExpand()">
+        <v-icon size="20">{{ expanded ? 'fas fa-compress-alt' : 'fas fa-expand-alt' }}</v-icon>
+      </v-btn>
+    </template>
     <template v-if="expanded && !viewMode" #fullAppLeftContent>
       <div id="requestProcessAbout" class="pa-4">
         <p class="text-subtitle-2 text-uppercase text-light-color mb-2">{{ $t('processes.request.about') }}</p>
