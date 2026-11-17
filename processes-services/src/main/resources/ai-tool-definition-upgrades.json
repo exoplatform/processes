@@ -3,7 +3,8 @@
     {
       "name": "submit_work_request",
       "replaced_definitions": [
-        "2410f9f21bddc010b503710ce33e78b4945ebf40c5e4c29daad80d9b249af7c0"
+        "2410f9f21bddc010b503710ce33e78b4945ebf40c5e4c29daad80d9b249af7c0",
+        "b44da91deb5c3a16baa1f1aa4682058a93906d57ecb019897ee8cedd446c712f"
       ]
     }
   ]

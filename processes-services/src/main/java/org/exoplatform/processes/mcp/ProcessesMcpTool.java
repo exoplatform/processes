@@ -30,6 +30,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.processes.Utils.RequestFormValues;
 import org.exoplatform.processes.mcp.model.PendingApprovalModel;
 import org.exoplatform.processes.mcp.model.ProcessModel;
 import org.exoplatform.processes.mcp.model.RequestModel;
@@ -205,21 +206,28 @@ public class ProcessesMcpTool implements McpToolPlugin {
    * Submits a new work request under a given process type, on behalf of the
    * current user: a task in the process's project, in the initial 'Request'
    * status, named by the fixed rule « Process name - yyyy/MM/dd - Requester
-   * name », followed by the agent's title when it sends one. There is no
-   * structured field map: any request data goes in the description. WRITE
-   * (approval-gated).
+   * name », followed by the agent's title when it sends one. The values of
+   * the process's forms go in formValues, checked before the request is
+   * created and written to its task; a refusal names a Forms or processes
+   * code. WRITE (approval-gated).
    *
    * @param processId a process id from list_processes
    * @param title the agent's optional title, added after the fixed rule
    * @param description the optional details for the approver
+   * @param formValues the optional form values, form id → field key → array of
+   *          values, as the agent sent them, nulls kept
    * @return the created request
    * @throws IllegalAccessException when the user can't add a request to the
    *           process
    * @throws ObjectNotFoundException when the process does not exist
+   * @throws IllegalArgumentException with a refusal code when the values are
+   *           not such a map, or are refused
    */
   public RequestModel submitWorkRequest(long processId,
                                         String title,
-                                        String description) throws IllegalAccessException, ObjectNotFoundException {
+                                        String description,
+                                        Map<String, Object> formValues) throws IllegalAccessException,
+                                                                        ObjectNotFoundException {
     if (processId <= 0) {
       throw new IllegalArgumentException("The 'process_id' parameter is mandatory (a process id from list_processes).");
     }
@@ -249,6 +257,10 @@ public class ProcessesMcpTool implements McpToolPlugin {
     Work work = new Work();
     work.setDescription(StringUtils.trimToEmpty(description));
     work.setWorkFlowId(workFlow.getId());
+    if (formValues != null) {
+      // Copied with its nulls, so that Forms refuses a null instead of it being dropped
+      work.setFormValues(RequestFormValues.fromObject(formValues));
+    }
     // The agent's title goes after the fixed rule: only this tool sends one
     Work created = processesService.createWork(work, userIdentityId, title);
     return toRequestModel(created);

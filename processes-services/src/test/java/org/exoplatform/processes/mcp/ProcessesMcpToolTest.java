@@ -33,9 +33,12 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
@@ -46,6 +49,7 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.processes.Utils.RequestFormValues;
 import org.exoplatform.processes.mcp.model.PendingApprovalModel;
 import org.exoplatform.processes.mcp.model.RequestModel;
 import org.exoplatform.processes.model.ProcessesFilter;
@@ -239,7 +243,7 @@ public class ProcessesMcpToolTest {
 
     workFlow.setEnabled(false);
     when(processesService.getWorkFlow(5L, 1L)).thenReturn(workFlow);
-    IllegalArgumentException refusal = assertThrows(IllegalArgumentException.class, () -> tool.submitWorkRequest(5L, null, null));
+    IllegalArgumentException refusal = assertThrows(IllegalArgumentException.class, () -> tool.submitWorkRequest(5L, null, null, null));
     assertTrue(refusal.getMessage().contains("'Congés'"));
   }
 
@@ -341,7 +345,7 @@ public class ProcessesMcpToolTest {
 
   @Test(expected = IllegalArgumentException.class)
   public void submitWorkRequestRejectsNonPositiveProcessId() throws Exception {
-    tool.submitWorkRequest(0L, "title", "description");
+    tool.submitWorkRequest(0L, "title", "description", null);
   }
 
   /**
@@ -360,7 +364,7 @@ public class ProcessesMcpToolTest {
     created.setId(12L);
     when(processesService.createWork(any(Work.class), eq(1L), any())).thenReturn(created);
 
-    assertEquals(12L, tool.submitWorkRequest(5L, null, "description").id());
+    assertEquals(12L, tool.submitWorkRequest(5L, null, "description", null).id());
 
     verify(processesService).createWork(any(Work.class), eq(1L), isNull());
   }
@@ -369,7 +373,7 @@ public class ProcessesMcpToolTest {
   public void submitWorkRequestThrowsWhenProcessNotFound() throws Exception {
     when(processesService.getWorkFlow(5L, 1L)).thenReturn(null);
 
-    tool.submitWorkRequest(5L, "title", "description");
+    tool.submitWorkRequest(5L, "title", "description", null);
   }
 
   /**
@@ -382,7 +386,7 @@ public class ProcessesMcpToolTest {
     when(processesService.getWorkFlow(5L, 1L)).thenThrow(new IllegalAccessException("User 1 can't see the process 5"));
 
     IllegalAccessException exception = assertThrows(IllegalAccessException.class,
-                                                    () -> tool.submitWorkRequest(5L, "title", "description"));
+                                                    () -> tool.submitWorkRequest(5L, "title", "description", null));
 
     assertEquals("You are not allowed to submit a request under the process 5. Call list_processes to see the process types "
         + "available to you.", exception.getMessage());
@@ -397,7 +401,7 @@ public class ProcessesMcpToolTest {
     workFlow.setEnabled(false);
     when(processesService.getWorkFlow(5L, 1L)).thenReturn(workFlow);
 
-    tool.submitWorkRequest(5L, "title", "description");
+    tool.submitWorkRequest(5L, "title", "description", null);
   }
 
   @Test
@@ -414,7 +418,7 @@ public class ProcessesMcpToolTest {
     created.setTitle("New request");
     when(processesService.createWork(any(Work.class), eq(1L), any())).thenReturn(created);
 
-    RequestModel request = tool.submitWorkRequest(5L, "New request", null);
+    RequestModel request = tool.submitWorkRequest(5L, "New request", null, null);
 
     assertEquals(11L, request.id());
     ArgumentCaptor<Work> captor = ArgumentCaptor.forClass(Work.class);
@@ -427,6 +431,72 @@ public class ProcessesMcpToolTest {
     assertEquals("", captor.getValue().getDescription());
   }
 
+  /**
+   * The agent's form values reach createWork as sent, a field sent null and a
+   * null inside a field's values kept, so that Forms refuses them
+   * (forms.value.nullNotAllowed) rather than processes dropping them, and the
+   * refusal reaches the agent with its code and field key (spec 55633 §3.3,
+   * P16). Mutation: drop the null entries in the copy, or catch the refusal,
+   * and this test fails.
+   */
+  @Test
+  public void submitWorkRequestPassesTheFormValuesWithTheirNulls() throws Exception {
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setId(5L);
+    workFlow.setEnabled(true);
+    workFlow.setAcl(new ProcessPermission(false, false, false, true));
+    when(processesService.getWorkFlow(5L, 1L)).thenReturn(workFlow);
+    when(processesService.createWork(any(Work.class), eq(1L), any()))
+        .thenThrow(new IllegalArgumentException("forms.value.nullNotAllowed:reason"));
+    Map<String, Object> fields = new LinkedHashMap<>();
+    fields.put("amount", List.of(150));
+    fields.put("reason", null);
+    fields.put("note", Arrays.asList((Object) null));
+    Map<String, Object> formValues = new LinkedHashMap<>();
+    formValues.put("12", fields);
+
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                                                      () -> tool.submitWorkRequest(5L, null, "description", formValues));
+
+    assertEquals("forms.value.nullNotAllowed:reason", exception.getMessage());
+    ArgumentCaptor<Work> captor = ArgumentCaptor.forClass(Work.class);
+    verify(processesService).createWork(captor.capture(), eq(1L), isNull());
+    Map<String, List<Object>> sent = captor.getValue().getFormValues().get(12L);
+    assertEquals(List.of("amount", "reason", "note"), List.copyOf(sent.keySet()));
+    assertEquals(1, sent.get("amount").size());
+    assertNull(sent.get("reason"));
+    assertEquals(Arrays.asList((Object) null), sent.get("note"));
+  }
+
+  /**
+   * Form values that are not form id → field key → array are refused before
+   * any request is created; no form values leave the work's map unset.
+   * Mutation: skip the parse, or set an empty map when none is sent, and this
+   * test fails.
+   */
+  @Test
+  public void submitWorkRequestRefusesUnreadableFormValues() throws Exception {
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setId(5L);
+    workFlow.setEnabled(true);
+    workFlow.setAcl(new ProcessPermission(false, false, false, true));
+    when(processesService.getWorkFlow(5L, 1L)).thenReturn(workFlow);
+    Work created = new Work();
+    created.setId(12L);
+    when(processesService.createWork(any(Work.class), eq(1L), any())).thenReturn(created);
+
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                                                      () -> tool.submitWorkRequest(5L, null, null, Map.of("form", Map.of())));
+
+    assertEquals(RequestFormValues.FORM_VALUES_INVALID, exception.getMessage());
+    verify(processesService, never()).createWork(any(Work.class), anyLong(), any());
+
+    tool.submitWorkRequest(5L, null, null, null);
+    ArgumentCaptor<Work> captor = ArgumentCaptor.forClass(Work.class);
+    verify(processesService).createWork(captor.capture(), eq(1L), isNull());
+    assertNull(captor.getValue().getFormValues());
+  }
+
   @Test
   public void submitWorkRequestRejectsProcessWithoutAddRequestAcl() throws Exception {
     WorkFlow workFlow = new WorkFlow();
@@ -437,7 +507,7 @@ public class ProcessesMcpToolTest {
     workFlow.setAcl(new ProcessPermission(true, false, false, false));
     when(processesService.getWorkFlow(5L, 1L)).thenReturn(workFlow);
 
-    assertThrows(IllegalAccessException.class, () -> tool.submitWorkRequest(5L, "title", "description"));
+    assertThrows(IllegalAccessException.class, () -> tool.submitWorkRequest(5L, "title", "description", null));
 
     verify(processesService, never()).createWork(any(Work.class), anyLong(), any());
   }
@@ -451,7 +521,7 @@ public class ProcessesMcpToolTest {
     workFlow.setProjectId(42L);
     when(processesService.getWorkFlow(5L, 1L)).thenReturn(workFlow);
 
-    assertThrows(IllegalAccessException.class, () -> tool.submitWorkRequest(5L, "title", "description"));
+    assertThrows(IllegalAccessException.class, () -> tool.submitWorkRequest(5L, "title", "description", null));
 
     verify(processesService, never()).createWork(any(Work.class), anyLong(), any());
   }

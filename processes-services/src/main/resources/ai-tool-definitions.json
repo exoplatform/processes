@@ -68,7 +68,7 @@
     {
       "name": "submit_work_request",
       "title": "Submit a new work request",
-      "description": "Submits a new work request under a process type, on behalf of the current user. The request is created in the initial 'Request' status, and the platform names it '<process> - <yyyy/MM/dd> - <requester>'. Get 'process_id' from list_processes. There is NO structured field map: put any details the approver needs into the 'description' (structured data belongs to the process's own document form / UI, not this tool).",
+      "description": "Submits a new work request under a process type, on behalf of the current user. The request is created in the initial 'Request' status, and the platform names it '<process> - <yyyy/MM/dd> - <requester>'. Get 'process_id' from list_processes. A process may carry a form. Before submitting, read it: get_form_places with the place {kind 'task', place_type 'processes.process', place_id the process id} lists the forms the process shows, then get_form with each form_id, place_type 'processes.process' and place_id the process id gives its fields. Send their values in 'form_values', filling every required field, and put any other details the approver needs into the 'description'. A refusal names a code, followed by ':' and a field key when it is about one field (such as forms.value.required:<key>): fix that field and submit again. In a call limited to a space, 'form_values' is refused.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -83,6 +83,16 @@
           "description": {
             "type": "string",
             "description": "Optional free-text description / details of the request for the approver."
+          },
+          "form_values": {
+            "type": "object",
+            "description": "Optional. The values of the process's forms: form id (as a string key) -> field key -> array of values, such as {\"12\": {\"amount\": [150], \"reason\": [\"Training\"]}}. Each value is written as get_form describes its field's type, and a field with one value still takes an array. Never send null.",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "array"
+              }
+            }
           }
         },
         "required": [
