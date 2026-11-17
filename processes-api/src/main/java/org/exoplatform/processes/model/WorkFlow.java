@@ -81,6 +81,15 @@ public class WorkFlow {
   private List<WorkFlowLabel>         labels;
 
   /**
+   * How a save chooses the process's task project: a new one, or the existing
+   * one {@link #projectId} names. It is an instruction of the save, not a state
+   * of the process, so it is left out of the comparison of two processes. Null
+   * when the caller does not state it.
+   */
+  @EqualsAndHashCode.Exclude
+  private ProjectMode                 projectMode;
+
+  /**
    * The title, description and summary per language a save writes with the
    * process, by field name (title, description, summary), then by language
    * tag. The default language's value is the field itself. Null when the
@@ -89,15 +98,6 @@ public class WorkFlow {
    * only is a change: a process read from storage never carries them.
    */
   private Map<String, Map<String, String>> translations;
-
-  /**
-   * How a save chooses the process's task project: a new one, or the existing
-   * one {@link #projectId} names. It is an instruction of the save, not a state
-   * of the process, so it is left out of the comparison of two processes. Null
-   * when the caller does not state it.
-   */
-  @EqualsAndHashCode.Exclude
-  private ProjectMode                 projectMode;
 
   /**
    * Builds a process with every field but the save's project mode.

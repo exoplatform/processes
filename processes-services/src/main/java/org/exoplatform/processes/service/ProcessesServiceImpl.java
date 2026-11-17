@@ -222,7 +222,7 @@ public class ProcessesServiceImpl implements ProcessesService {
       }
       workFlow.setLabels(createLabels(labelChoices, project, aclIdentity.getUserId()));
       savedWorkFlow = saveWorkFlowRows(workFlow, userId, labelChoices);
-    } catch (RuntimeException e) {
+    } catch (RuntimeException | IllegalAccessException e) {
       if (existingProject == null) {
         // Task committed the new project: it stays, empty
         LOG.warn("The project {} was created for a process whose save failed", workFlow.getProjectId());
@@ -250,23 +250,34 @@ public class ProcessesServiceImpl implements ProcessesService {
    * @return the saved process
    */
   @ContainerTransactional(atomic = true)
-  public WorkFlow saveWorkFlowRows(WorkFlow workFlow, long userId) {
+  public WorkFlow saveWorkFlowRows(WorkFlow workFlow, long userId) throws IllegalAccessException {
     return writeWorkFlowRows(workFlow, userId);
   }
 
   /**
-   * Writes a process's own rows, then the translations the save states for
-   * it, once it has its id: the body of {@link #saveWorkFlowRows(WorkFlow,
-   * long)}, outside the transaction aspect.
+   * Writes a process's own rows, then the translations its save states, once
+   * the row has its id, so that they commit or roll back with the rows. The
+   * un-advised body of {@link #saveWorkFlowRows(WorkFlow, long)}.
    *
    * @param workFlow the process, its labels resolved to labels of its project
    * @param userId the saving user's identity id
    * @return the saved process
+   * @throws IllegalAccessException when a write of the save is refused
    */
-  WorkFlow writeWorkFlowRows(WorkFlow workFlow, long userId) {
+  WorkFlow writeWorkFlowRows(WorkFlow workFlow, long userId) throws IllegalAccessException {
     WorkFlow savedWorkFlow = processesStorage.saveWorkFlow(workFlow, userId);
-    processTranslationService.saveTranslations(savedWorkFlow, workFlow.getTranslations());
+    saveTranslations(savedWorkFlow, workFlow);
     return savedWorkFlow;
+  }
+
+  /**
+   * Writes the translations a process save states for the saved process.
+   *
+   * @param savedWorkFlow the process as saved, with its id
+   * @param workFlow the process as the save states it
+   */
+  private void saveTranslations(WorkFlow savedWorkFlow, WorkFlow workFlow) {
+    processTranslationService.saveTranslations(savedWorkFlow, workFlow.getTranslations());
   }
 
   /**
@@ -278,10 +289,10 @@ public class ProcessesServiceImpl implements ProcessesService {
    * @param labelChoices the checked labels, or null
    * @return the saved process
    */
-  private WorkFlow saveWorkFlowRows(WorkFlow workFlow, long userId, List<LabelChoice> labelChoices) {
+  private WorkFlow saveWorkFlowRows(WorkFlow workFlow, long userId, List<LabelChoice> labelChoices) throws IllegalAccessException {
     try {
       return saveWorkFlowRows(workFlow, userId);
-    } catch (RuntimeException e) {
+    } catch (RuntimeException | IllegalAccessException e) {
       if (labelChoices != null && workFlow.getLabels() != null) {
         Set<Long> keptIds = new HashSet<>();
         labelChoices.stream().filter(choice -> choice.existing() != null).forEach(choice -> keptIds.add(choice.existing().getId()));
