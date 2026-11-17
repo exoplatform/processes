@@ -45,13 +45,22 @@ public interface RequestValuesPlugin {
    * before its task exists: the forms the process asks for, the required
    * fields, the shape of every value.
    *
+   * When the request is made from a draft, the draft's stored values are
+   * checked with the sent ones, which override them field by field; the
+   * draft must be of the request's process.
+   *
    * @param workFlowId the id of the process the request is made for
+   * @param draftId the id of the requester's draft the request is made from,
+   *          or null
    * @param values the sent values, form id → field key → values, empty when
    *          none was sent
    * @param requester the requester's identity
    * @throws IllegalAccessException when the requester may not write the values
    */
-  void checkRequestValues(long workFlowId, Map<Long, Map<String, List<Object>>> values, Identity requester) throws IllegalAccessException;
+  void checkRequestValues(long workFlowId,
+                          Long draftId,
+                          Map<Long, Map<String, List<Object>>> values,
+                          Identity requester) throws IllegalAccessException;
 
   /**
    * Writes the values of a new request on its task, once the task and its
@@ -59,7 +68,12 @@ public interface RequestValuesPlugin {
    * values. It checks them again, so a refusal here, after a change of the
    * process's form, makes the caller remove the request.
    *
+   * When the request is made from a draft, the draft's stored values are
+   * written with the sent ones, which override them field by field.
+   *
    * @param workFlowId the id of the process the request was made for
+   * @param draftId the id of the requester's draft the request is made from,
+   *          or null
    * @param taskId the id of the request's task
    * @param values the sent values, form id → field key → values, empty when
    *          none was sent
@@ -67,9 +81,24 @@ public interface RequestValuesPlugin {
    * @throws IllegalAccessException when the requester may not write the values
    */
   void writeRequestValues(long workFlowId,
+                          Long draftId,
                           long taskId,
                           Map<Long, Map<String, List<Object>>> values,
                           Identity requester) throws IllegalAccessException;
+
+  /**
+   * Writes the values its owner sent with a request draft's save, with the
+   * value rules of the forms the draft's process asks for and no
+   * required-field check: required fields block a request's submit only.
+   *
+   * @param workFlowId the id of the stored draft's process, never the one the
+   *          client sent
+   * @param draftId the draft id
+   * @param values the sent values, form id → field key → values
+   * @param owner the draft owner's identity
+   * @throws IllegalAccessException when the owner may not write the values
+   */
+  void writeDraftValues(long workFlowId, long draftId, Map<Long, Map<String, List<Object>>> values, Identity owner) throws IllegalAccessException;
 
   /**
    * Reads the forms bound to a process itself, the ones its editor shows. It
