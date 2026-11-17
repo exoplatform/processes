@@ -23,6 +23,7 @@ import java.util.Map;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.file.services.FileStorageException;
 import org.exoplatform.processes.model.*;
+import org.exoplatform.services.attachments.model.Attachment;
 import org.exoplatform.social.core.identity.model.Identity;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -85,7 +86,41 @@ public interface ProcessesStorage {
    */
   Map<Long, List<ProcessReference>> findProcessesOfProjects(List<Long> projectIds, long spaceId);
 
+  /**
+   * Saves a process's own rows: the process, its illustration and its label
+   * ids. It writes nothing through Task, whose labels it only reads back, so
+   * it may run inside one transaction; a new
+   * process's project is created before it ({@link #createProject}), and its
+   * attachments are linked after it ({@link #linkWorkFlowAttachments}).
+   *
+   * @param workFlow the process, whose labels the Service resolved to labels
+   *          of its project; null labels keep the stored ones of an update
+   * @param userId the saving user's identity id
+   * @return the saved process
+   * @throws IllegalArgumentException when the process or the user is missing,
+   *           a new process has no project yet, or a label has no id
+   */
   WorkFlow saveWorkFlow(WorkFlow workFlow, long userId) throws IllegalArgumentException;
+
+  /**
+   * Creates the task project of a new process in its managing space, with the
+   * process statuses, and gives the process that project and the space's
+   * memberships. Task commits each write on its own.
+   *
+   * @param workFlow the new process
+   * @return the process, with its project id
+   * @throws IllegalArgumentException when the managing space does not exist
+   */
+  WorkFlow createProject(WorkFlow workFlow);
+
+  /**
+   * Links attachments to a saved process, in the process's project.
+   *
+   * @param savedWorkFlow the saved process
+   * @param attachments the attachments the Service selected
+   * @param userId the saving user's identity id
+   */
+  void linkWorkFlowAttachments(WorkFlow savedWorkFlow, Attachment[] attachments, long userId);
 
   /**
    * Retrieves list of filtered works

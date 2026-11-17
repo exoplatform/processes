@@ -35,6 +35,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.MockedStatic;
 
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
@@ -72,6 +73,8 @@ public class ProcessesChangelogTest {
   private static final String WORK_FLOW_TABLE        = "PROCESSES_WORK_FLOW";
 
   private static final String REQUEST_TABLE          = "PROCESSES_REQUEST";
+
+  private static final String LABELS_TABLE           = "PROCESSES_WORK_FLOW_LABELS";
 
   private String              url;
 
@@ -304,6 +307,7 @@ public class ProcessesChangelogTest {
     assertFalse("the request table must be dropped", tableExists(REQUEST_TABLE));
     assertFalse("and the space column", columnExists(WORK_FLOW_TABLE, "SPACE_ID"));
     assertFalse("and the move columns", columnExists(WORK_FLOW_TABLE, "MOVE_SEQ"));
+    assertFalse("and the label table", tableExists(LABELS_TABLE));
     insertWorkFlow(1, 10);
     assertThrows("the project is unique again", SQLException.class, () -> insertWorkFlow(2, 10));
     connection.rollback();
@@ -312,6 +316,38 @@ public class ProcessesChangelogTest {
 
     assertTrue(tableExists(REQUEST_TABLE));
     assertTrue(columnExists(WORK_FLOW_TABLE, "SPACE_ID"));
+    assertTrue(tableExists(LABELS_TABLE));
+  }
+
+  /**
+   * A process keeps a label once, and only a process that exists keeps
+   * labels; a label row needs no Task label, which Tasks may delete. Mutation:
+   * drop the primary key or the foreign key and an insert passes.
+   *
+   * @throws Exception when Liquibase or the engine fails
+   */
+  @Test
+  public void aProcessKeepsEachLabelOnce() throws Exception {
+    update(connection);
+    insertWorkFlow(1, 10);
+    try (Statement statement = connection.createStatement()) {
+      statement.executeUpdate("INSERT INTO " + LABELS_TABLE + " (WORK_FLOW_ID, LABEL_ID) VALUES (1, 7)");
+    }
+    connection.commit();
+
+    assertThrows("a label twice", SQLException.class, () -> {
+      try (Statement statement = connection.createStatement()) {
+        statement.executeUpdate("INSERT INTO " + LABELS_TABLE + " (WORK_FLOW_ID, LABEL_ID) VALUES (1, 7)");
+      }
+    });
+    connection.rollback();
+    assertThrows("a label of no process", SQLException.class, () -> {
+      try (Statement statement = connection.createStatement()) {
+        statement.executeUpdate("INSERT INTO " + LABELS_TABLE + " (WORK_FLOW_ID, LABEL_ID) VALUES (99, 7)");
+      }
+    });
+    connection.rollback();
+    assertEquals(1, count("SELECT COUNT(*) FROM " + LABELS_TABLE));
   }
 
   /**
@@ -349,7 +385,10 @@ public class ProcessesChangelogTest {
       Column column = field.getAnnotation(Column.class);
       if (column != null) {
         mapped++;
-        assertTrue(table + "." + column.name() + " must exist", columnExists(table, column.name()));
+        // An element collection's column is in its own table
+        CollectionTable collectionTable = field.getAnnotation(CollectionTable.class);
+        String columnTable = collectionTable == null ? table : collectionTable.name();
+        assertTrue(columnTable + "." + column.name() + " must exist", columnExists(columnTable, column.name()));
       }
     }
     assertTrue(table + " must map columns", mapped > 0);
