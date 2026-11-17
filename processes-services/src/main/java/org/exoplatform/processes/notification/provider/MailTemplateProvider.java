@@ -10,6 +10,7 @@ import org.exoplatform.commons.api.notification.model.MessageInfo;
 import org.exoplatform.commons.api.notification.model.NotificationInfo;
 import org.exoplatform.commons.api.notification.model.PluginKey;
 import org.exoplatform.commons.api.notification.service.template.TemplateContext;
+import org.exoplatform.commons.notification.mail.MailPalette;
 import org.exoplatform.commons.notification.template.TemplateUtils;
 import org.exoplatform.commons.utils.HTMLEntityEncoder;
 import org.exoplatform.commons.utils.TimeConvertUtils;
@@ -24,6 +25,7 @@ import org.exoplatform.social.core.identity.model.Profile;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.notification.LinkProviderUtils;
+import org.exoplatform.social.notification.plugin.SocialNotificationUtils;
 
 import java.util.Calendar;
 import java.util.Locale;
@@ -54,6 +56,8 @@ public class MailTemplateProvider extends TemplateProvider {
       String language = getLanguage(notificationInfo);
       HTMLEntityEncoder encoder = HTMLEntityEncoder.getInstance();
       TemplateContext templateContext = TemplateContext.newChannelInstance(getChannelKey(), pluginId, language);
+      // the colours and logos of the recipient's display mode, read by the shared header, footer and template
+      MailPalette.bind(templateContext, notificationInfo.getTo());
       String requester = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_CREATOR.getKey());
       String processUrl = notificationInfo.getValueOwnerParameter(NotificationArguments.PROCESS_URL.getKey());
       String requestUrl = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_URL.getKey());
@@ -64,7 +68,7 @@ public class MailTemplateProvider extends TemplateProvider {
         String processTitle = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_PROCESS.getKey());
         templateContext.put("PROCESS_TITLE", encoder.encode(processTitle));
         templateContext.put("REQUEST_TITLE", encoder.encode(requestTitle));
-        templateContext.put("REQUEST_DESCRIPTION", requestDescription);
+        templateContext.put("REQUEST_DESCRIPTION", SocialNotificationUtils.withContentColors(templateContext, requestDescription));
       }
       templateContext.put("PROCESS_URL", encoder.encode(processUrl));
       templateContext.put("REQUEST_URL", encoder.encode(requestUrl));
@@ -92,13 +96,14 @@ public class MailTemplateProvider extends TemplateProvider {
       String requestCommentUrl = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_COMMENT_URL.getKey());
       String language = getLanguage(notificationInfo);
       TemplateContext templateContext = TemplateContext.newChannelInstance(getChannelKey(), pluginId, language);
+      MailPalette.bind(templateContext, notificationInfo.getTo());
       String commentText = NotificationUtils.formatMention(comment);
 
       templateContext.put("PROCESS_TITLE", encoder.encode(processTitle));
       templateContext.put("REQUEST_TITLE", encoder.encode(requestTitle));
       templateContext.put("REQUEST_COMMENT_AUTHOR", encoder.encode(commentAuthor));
       templateContext.put("REQUEST_COMMENT_URL", encoder.encode(requestCommentUrl));
-      templateContext.put("REQUEST_COMMENT", commentText);
+      templateContext.put("REQUEST_COMMENT", SocialNotificationUtils.withContentColors(templateContext, commentText));
       buildCommonTemplateParams(templateContext, notificationInfo, language, commentAuthor, encoder);
 
       String subject = TemplateUtils.processSubject(templateContext);
