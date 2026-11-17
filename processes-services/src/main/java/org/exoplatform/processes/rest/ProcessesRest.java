@@ -438,6 +438,52 @@ public class ProcessesRest implements ResourceContainer {
     }
   }
 
+  /**
+   * Lists the labels of a task project a process of a space may feed, for the
+   * process editor.
+   *
+   * @param projectId the project id
+   * @param spaceId the managing space id
+   * @return the labels [{id, name}], 400 when a process of the space may not
+   *         feed the project, 404 when the space does not exist, 403 unless the
+   *         user is a processes administrator or a manager of the space
+   */
+  @GET
+  @Produces(MediaType.APPLICATION_JSON)
+  @RolesAllowed("users")
+  @Path("/projects/{projectId}/labels")
+  @Operation(summary = "Lists the labels of a task project a process of a space may feed", description = "Lists the labels of a task project attached to the managing space, which the process editor offers", method = "GET")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+      @ApiResponse(responseCode = "400", description = "Project not eligible"),
+      @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+      @ApiResponse(responseCode = "403", description = "Forbidden operation"),
+      @ApiResponse(responseCode = "404", description = "Space not found"),
+      @ApiResponse(responseCode = "500", description = "Internal server error"), })
+  public Response getProjectLabels(@Parameter(description = "Task project id", required = true)
+                                   @PathParam("projectId") long projectId,
+                                   @Parameter(description = "Managing space id", required = true)
+                                   @QueryParam("spaceId") String spaceId) {
+    long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    if (currentIdentityId == 0) {
+      return Response.status(Response.Status.UNAUTHORIZED).build();
+    }
+    try {
+      List<WorkFlowLabel> labels = processesService.listProjectLabels(spaceId, projectId, currentIdentityId);
+      return Response.ok(labels).cacheControl(PER_USER_CACHE_CONTROL).build();
+    } catch (ObjectNotFoundException e) {
+      LOG.debug("User '{}' lists the labels of a project of a space that does not exist", currentIdentityId, e);
+      return Response.status(Response.Status.NOT_FOUND).entity("Space not found").build();
+    } catch (IllegalAccessException e) {
+      LOG.debug("User '{}' isn't allowed to list the labels of the project '{}'", currentIdentityId, projectId, e);
+      return Response.status(Response.Status.FORBIDDEN).entity("Not allowed to list the labels of this project").build();
+    } catch (IllegalArgumentException e) {
+      return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
+    } catch (Exception e) {
+      LOG.warn("Error listing the labels of the project '{}'", projectId, e);
+      return Response.serverError().build();
+    }
+  }
+
   @GET
   @Produces(MediaType.TEXT_PLAIN)
   @RolesAllowed("users")
