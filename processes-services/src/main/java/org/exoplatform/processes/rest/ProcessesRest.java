@@ -768,7 +768,7 @@ public class ProcessesRest implements ResourceContainer {
       return Response.status(Response.Status.UNAUTHORIZED).build();
     }
     try {
-      Work newWork = processesService.createWorkDraft(EntityBuilder.fromEntity(workEntity), currentIdentityId);
+      Work newWork = processesService.createWorkDraft(EntityBuilder.toDraft(workEntity), currentIdentityId);
       return Response.ok(EntityBuilder.toEntity(newWork, getLocale())).build();
     } catch (ObjectNotFoundException e) {
       return Response.status(Response.Status.NOT_FOUND).entity(WORKFLOW_NOT_FOUND_MESSAGE).build();
@@ -815,7 +815,7 @@ public class ProcessesRest implements ResourceContainer {
       return Response.status(Response.Status.UNAUTHORIZED).build();
     }
     try {
-      Work newWork = processesService.updateWorkDraft(EntityBuilder.fromEntity(workEntity), currentIdentityId);
+      Work newWork = processesService.updateWorkDraft(EntityBuilder.toDraft(workEntity), currentIdentityId);
       return Response.ok(EntityBuilder.toEntity(newWork, getLocale())).build();
     } catch (ObjectNotFoundException e) {
       LOG.debug("User '{}' attempts to update a not existing Work draft '{}'", currentIdentityId, e);

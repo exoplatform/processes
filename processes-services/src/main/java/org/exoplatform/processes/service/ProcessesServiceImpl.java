@@ -1061,7 +1061,17 @@ public class ProcessesServiceImpl implements ProcessesService {
     }
     // The draft is attached to the stored process, never to the one the client sent
     work.setWorkFlow(checkCanAddRequest(work.getWorkFlow().getId(), userId));
-    return processesStorage.saveWorkDraft(work, userId);
+    // The server sets a request draft's state
+    work.setIsDraft(true);
+    Map<Long, Map<String, List<Object>>> formValues = draftFormValues(work);
+    if (formValues.isEmpty()) {
+      return processesStorage.saveWorkDraft(work, userId);
+    }
+    Work saved = saveWorkDraftRows(work, userId, formValues, true);
+    // The process's attachments are copied once the draft and its values are
+    // committed, so a draft refused for its values leaves no copied file
+    processesStorage.copyProcessAttachmentsToDraft(saved.getId(), work.getWorkFlow(), userId);
+    return saved;
   }
 
   /**
@@ -1082,10 +1092,81 @@ public class ProcessesServiceImpl implements ProcessesService {
     // The draft keeps its creator and its process, whatever the client sent
     work.setCreatorId(oldWork.getCreatorId());
     work.setWorkFlow(oldWork.getWorkFlow());
-    if (oldWork.equals(work)) {
+    // The server sets a request draft's state
+    work.setIsDraft(true);
+    Map<Long, Map<String, List<Object>>> formValues = draftFormValues(work);
+    boolean rowChanged = !oldWork.equals(work);
+    if (!rowChanged && formValues.isEmpty()) {
       throw new IllegalArgumentException("there are no changes to save");
     }
-    return processesStorage.saveWorkDraft(work, userId);
+    if (formValues.isEmpty()) {
+      return processesStorage.saveWorkDraft(work, userId);
+    }
+    return saveWorkDraftRows(work, userId, formValues, rowChanged);
+  }
+
+  /**
+   * Saves a request draft's row and its form values in one transaction:
+   * a refused value refuses the whole save. Forms' value write joins the
+   * transaction when this method begins it (ADR-0010), as the process save's
+   * binding does. A creation writes its row first, since its values need its
+   * id; an update writes its values first, then its row.
+   *
+   * @param draft the draft, its stored process set
+   * @param userId the owner's identity id
+   * @param formValues the sent values, not empty
+   * @param writeRow whether the draft's row changed
+   * @return the saved draft
+   * @throws IllegalAccessException when the plugin refuses the owner's right
+   */
+  @ContainerTransactional(atomic = true)
+  public Work saveWorkDraftRows(Work draft,
+                                long userId,
+                                Map<Long, Map<String, List<Object>>> formValues,
+                                boolean writeRow) throws IllegalAccessException {
+    return writeWorkDraftRows(draft, userId, formValues, writeRow);
+  }
+
+  /**
+   * The un-advised body of {@link #saveWorkDraftRows}.
+   *
+   * @param draft the draft, its stored process set
+   * @param userId the owner's identity id
+   * @param formValues the sent values, not empty
+   * @param writeRow whether the draft's row changed
+   * @return the saved draft
+   * @throws IllegalAccessException when the plugin refuses the owner's right
+   */
+  Work writeWorkDraftRows(Work draft,
+                          long userId,
+                          Map<Long, Map<String, List<Object>>> formValues,
+                          boolean writeRow) throws IllegalAccessException {
+    RequestValuesPlugin plugin = requestValuesPlugin;
+    org.exoplatform.services.security.Identity owner = getAclIdentity(userId);
+    long workFlowId = draft.getWorkFlow().getId();
+    if (draft.getId() == 0) {
+      Work saved = processesStorage.saveWorkDraftRow(draft, userId);
+      plugin.writeDraftValues(workFlowId, saved.getId(), formValues, owner);
+      return saved;
+    }
+    plugin.writeDraftValues(workFlowId, draft.getId(), formValues, owner);
+    return writeRow ? processesStorage.saveWorkDraftRow(draft, userId) : draft;
+  }
+
+  /**
+   * Reads the form values a draft's save sends, refused when no add-on takes
+   * them.
+   *
+   * @param draft the draft as sent
+   * @return the sent values, empty when none
+   */
+  private Map<Long, Map<String, List<Object>>> draftFormValues(Work draft) {
+    Map<Long, Map<String, List<Object>>> formValues = draft.getFormValues() == null ? new LinkedHashMap<>()
+                                                                                    : draft.getFormValues();
+    if (!formValues.isEmpty() && requestValuesPlugin == null) {
+      throw new IllegalArgumentException(FORM_VALUES_UNSUPPORTED);
+    }
+    return formValues;
   }
 
   /**

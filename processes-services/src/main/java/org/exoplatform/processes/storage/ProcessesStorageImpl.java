@@ -992,24 +992,49 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     if (identity == null) {
       throw new IllegalArgumentException("identity is not exist");
     }
+    boolean creation = work.getId() == 0;
+    Work saved = saveWorkDraftRow(work, userId);
+    if (creation) {
+      copyProcessAttachmentsToDraft(saved.getId(), work.getWorkFlow(), userId);
+    }
+    return saved;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Work saveWorkDraftRow(Work work, long userId) {
+    Identity identity = identityManager.getIdentity(userId);
+    if (identity == null) {
+      throw new IllegalArgumentException("identity is not exist");
+    }
     WorkEntity workEntity = EntityMapper.toEntity(work);
     workEntity.setModifiedDate(new Date());
+    // The server sets a request draft's state
+    workEntity.setIsDraft(true);
     if (work.getId() == 0) {
       workEntity.setId(null);
       workEntity.setCreatedDate(new Date());
       workEntity.setCreatorId(userId);
       workEntity = workDraftDAO.create(workEntity);
-      processesAttachmentService.copyAttachmentsToEntity(userId,
-                                                         work.getWorkFlow().getId(),
-                                                         WORKFLOW_ENTITY_TYPE,
-                                                         workEntity.getId(),
-                                                         WORK_DRAFT_ENTITY_TYPE,
-                                                         work.getWorkFlow().getProjectId());
     } else {
       workEntity = workDraftDAO.update(workEntity);
     }
-
     return EntityMapper.fromEntity(workEntity);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void copyProcessAttachmentsToDraft(long draftId, WorkFlow workFlow, long userId) {
+    processesAttachmentService.copyAttachmentsToEntity(userId,
+                                                       workFlow.getId(),
+                                                       WORKFLOW_ENTITY_TYPE,
+                                                       draftId,
+                                                       WORK_DRAFT_ENTITY_TYPE,
+                                                       workFlow.getProjectId());
   }
 
   /**

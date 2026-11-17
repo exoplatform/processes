@@ -379,6 +379,24 @@ public class EntityBuilder {
   }
 
   /**
+   * Builds a request draft from its REST body, as {@link #fromEntity(WorkEntity)}
+   * does, with the form values it sends.
+   *
+   * @param workEntity the REST body
+   * @return the draft, or null when no body is given
+   * @throws IllegalArgumentException with
+   *           {@code processes.request.formValuesInvalid} when the form values
+   *           cannot be read
+   */
+  public static Work toDraft(WorkEntity workEntity) {
+    Work draft = fromEntity(workEntity);
+    if (draft != null) {
+      draft.setFormValues(RequestFormValues.parse(workEntity.getFormValues()));
+    }
+    return draft;
+  }
+
+  /**
    * Builds a new request from its REST body, as {@link #toWork} does, with the
    * form values it sends. Only the creation path reads them; an update builds
    * its request with {@link #toWork}, which leaves them out.

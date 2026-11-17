@@ -251,6 +251,27 @@ public interface ProcessesStorage {
   Work saveWorkDraft(Work work, long userId);
 
   /**
+   * Saves a request draft's row only: what {@link #saveWorkDraft(Work, long)}
+   * does but the copy of its process's attachments into a new draft. The
+   * server sets the row's draft state.
+   *
+   * @param work the draft
+   * @param userId the owner's identity id
+   * @return the saved draft
+   */
+  Work saveWorkDraftRow(Work work, long userId);
+
+  /**
+   * Copies a process's attachments into a new request draft, as a draft's
+   * creation does.
+   *
+   * @param draftId the new draft's id
+   * @param workFlow the draft's stored process
+   * @param userId the owner's identity id
+   */
+  void copyProcessAttachmentsToDraft(long draftId, WorkFlow workFlow, long userId);
+
+  /**
    * Retrieves a work draft by its given id
    *
    * @param id Work draft id
