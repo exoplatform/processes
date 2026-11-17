@@ -27,7 +27,7 @@
         <v-chip
           v-if="!workflow.enabled"
           class="workflow-card-disabled-chip"
-          x-small
+          small
           outlined>
           {{ $t('processes.workflow.deactivated.label') }}
         </v-chip>
@@ -49,7 +49,7 @@
     </div>
     <div class="workflow-card-footer d-flex align-center mt-auto ps-3 pe-2 py-2">
       <v-tooltip
-        v-if="showPending"
+        v-if="showPending && openRequestsCount !== null"
         bottom>
         <template #activator="{ on, attrs }">
           <a
@@ -60,7 +60,7 @@
             v-bind="attrs"
             v-on="on">
             <v-icon size="14" class="icon-default-color me-1">mdi-clock-time-four-outline</v-icon>
-            {{ $t('processes.workflow.card.openRequests', {0: openRequestsCount}) }}
+            {{ openRequestsLabel }}
           </a>
         </template>
         <span>{{ $t('processes.workflow.card.openInTasks') }}</span>
@@ -103,7 +103,7 @@ export default {
     },
   },
   data: () => ({
-    openRequestsCount: 0,
+    openRequestsCount: null,
   }),
   computed: {
     avatarUrl() {
@@ -128,6 +128,11 @@ export default {
         return this.$t('processes.workflow.request.disabled.notAllowed');
       }
       return null;
+    },
+    openRequestsLabel() {
+      return this.openRequestsCount === 1
+        ? this.$t('processes.workflow.card.openRequest')
+        : this.$t('processes.workflow.card.openRequests', {0: this.openRequestsCount});
     },
     projectLink() {
       return `${eXo.env.portal.context}/${eXo.env.portal.portalName}/tasks/projectDetail/${this.workflow.projectId}`;

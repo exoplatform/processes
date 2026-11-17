@@ -46,9 +46,12 @@ export default {
   props: {
     isProcessesManager: {type: Boolean, default: false},
     showFilter: {type: Boolean, default: false},
+    loading: {type: Boolean, default: false},
   },
   data: () => ({
     ALL_FILTER: 'all',
+    RETRY_DELAY: 200,
+    retryTimer: null,
     filter: null,
     defaultFilter: null,
     filterItems: [],
@@ -87,10 +90,17 @@ export default {
     /**
      * Sends the status and the text to the application, which reloads the processes,
      * and tells the list which status is selected and whether it differs from the default view.
+     * While a load runs, it waits for its end: the application appends each answer to the list
+     * it holds when the answer arrives, so a second load started meanwhile would mix both results.
      *
      * @returns {void}
      */
     emitFilter() {
+      window.clearTimeout(this.retryTimer);
+      if (this.loading) {
+        this.retryTimer = window.setTimeout(this.emitFilter, this.RETRY_DELAY);
+        return;
+      }
       const filter = this.filter === this.ALL_FILTER ? null : this.filter;
       this.$emit('change', {filter, filtered: !!this.query || this.filter !== this.defaultFilter});
       this.$root.$emit('workflow-filter-changed', {filter, query: this.query});

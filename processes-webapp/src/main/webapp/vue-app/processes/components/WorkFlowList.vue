@@ -3,6 +3,7 @@
     <workflow-list-toolbar
       :is-processes-manager="isProcessesManager"
       :show-filter="showWorkflowFilter"
+      :loading="loading"
       @add="open"
       @change="applyFilter" />
     <v-container
