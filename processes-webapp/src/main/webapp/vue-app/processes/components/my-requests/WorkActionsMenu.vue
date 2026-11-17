@@ -22,8 +22,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       <v-btn
         :aria-label="$t('processes.myRequests.actions')"
         :title="$t('processes.myRequests.actions')"
+        :small="small"
         class="my-request-menu-button"
-        small
         icon
         v-bind="attrs"
         v-on="on"
@@ -101,6 +101,11 @@ export default {
     taskLink: {
       type: String,
       default: null,
+    },
+    // The row's button is the mockup's small one (30px); the drawer header's keeps the default size
+    small: {
+      type: Boolean,
+      default: false,
     },
   },
   data: () => ({

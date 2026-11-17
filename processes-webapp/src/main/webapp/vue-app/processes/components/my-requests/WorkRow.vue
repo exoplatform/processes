@@ -88,6 +88,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         :work="work"
         :is-draft="isDraft"
         :allow-cancel="allowCancel"
+        small
         @archive="$emit('archive')"
         @cancel="$emit('cancel')"
         @delete="$emit('delete')" />
