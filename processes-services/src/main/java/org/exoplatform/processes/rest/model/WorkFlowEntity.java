@@ -22,6 +22,7 @@ import java.util.List;
 import org.exoplatform.processes.model.CreatorIdentityEntity;
 import org.exoplatform.processes.model.IllustrativeAttachment;
 import org.exoplatform.processes.model.ProcessPermission;
+import org.exoplatform.processes.model.WorkFlowLabel;
 import org.exoplatform.services.attachments.model.Attachment;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.task.dto.StatusDto;
@@ -79,5 +80,12 @@ public class WorkFlowEntity {
    * project then being the one projectId names
    */
   private String                      projectMode;
+
+  /**
+   * The labels the process applies to each request it creates: [{id, name}],
+   * a label with no id being a name to create in the process's project. Null
+   * when not sent: an update then keeps the stored labels.
+   */
+  private List<WorkFlowLabel>         labels;
 
 }

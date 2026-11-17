@@ -14,6 +14,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
@@ -34,6 +36,10 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.processes.model.WorkFlowLabel;
+import org.exoplatform.task.dto.LabelDto;
+import org.exoplatform.services.listener.ListenerService;
+import org.exoplatform.task.service.LabelService;
 import org.exoplatform.commons.file.services.FileStorageException;
 import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.processes.model.IllustrativeAttachment;
@@ -93,6 +99,12 @@ public class ProcessesServiceImplTest {
   private static final long      DISABLED_USER_ID    = 8L;
 
   @Mock
+  private LabelService labelService;
+
+  @Mock
+  private ListenerService listenerService;
+
+  @Mock
   private ProcessesStorage       processesStorage;
 
   @Mock
@@ -113,7 +125,7 @@ public class ProcessesServiceImplTest {
   @Mock
   private StatusService          statusService;
 
-  private ProcessesService       processesService;
+  private ProcessesServiceImpl   processesService;
 
   private WorkFlow               disabledWorkFlow, enabledWorkFlow;
 
@@ -134,13 +146,21 @@ public class ProcessesServiceImplTest {
 
   @Before
   public void setUp() throws Exception {
-    this.processesService = new ProcessesServiceImpl(processesStorage,
+    this.processesService = spy(new ProcessesServiceImpl(processesStorage,
                                                      projectService,
                                                      identityManager,
                                                      userACL,
                                                      spaceService,
                                                      processesAttachmentService,
-                                                     statusService);
+                                                     statusService,
+                                                     labelService,
+                                                     listenerService));
+    // The save of a process's rows runs in a transaction the platform aspect
+    // begins; the unit tests call the storage's save directly
+    doAnswer(invocation -> processesStorage.saveWorkFlow(invocation.getArgument(0),
+                                                         invocation.getArgument(1))).when(processesService)
+                                                                                    .saveWorkFlowRows(any(), anyLong());
+    when(processesStorage.createProject(any())).thenAnswer(invocation -> invocation.getArgument(0));
     disabledWorkFlow = new WorkFlow();
     disabledWorkFlow.setEnabled(false);
     enabledWorkFlow = new WorkFlow();
@@ -330,6 +350,66 @@ public class ProcessesServiceImplTest {
     assertEquals(PROCESS_PROJECT_ID, saved.getValue().getProjectId());
     assertEquals(CREATOR_ID, saved.getValue().getCreatorId());
     assertEquals(createdDate, saved.getValue().getCreatedDate());
+  }
+
+  /**
+   * An update that sends no labels keeps the stored ones; labels sent replace
+   * them, each read back from Task as a label of the process's project, and
+   * an edit of the labels alone is a change; a label of another project is
+   * refused before anything is saved. Mutation: let absent labels clear the
+   * stored ones, save the client's labels unchecked, or leave the labels out
+   * of the comparison, and this test fails.
+   *
+   * @throws Exception on an unexpected refusal
+   */
+  @Test
+  public void anUpdateKeepsOrReplacesTheLabelsOfItsProject() throws Exception {
+    WorkFlow storedWorkFlow = new WorkFlow();
+    storedWorkFlow.setId(WORKFLOW_ID);
+    storedWorkFlow.setTitle("Leave request");
+    storedWorkFlow.setProjectId(PROCESS_PROJECT_ID);
+    storedWorkFlow.setLabels(List.of(new WorkFlowLabel(5L, "Holiday")));
+    storedWorkFlow.setAcl(new ProcessPermission(true, true, false, false));
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, PARTICIPANT_ID)).thenReturn(storedWorkFlow);
+    ProjectDto project = new ProjectDto();
+    project.setId(PROCESS_PROJECT_ID);
+    when(projectService.getProject(PROCESS_PROJECT_ID)).thenReturn(project);
+    when(labelService.getLabel(6L)).thenReturn(taskLabel(6L, "Urgent", PROCESS_PROJECT_ID));
+    when(labelService.getLabel(7L)).thenReturn(taskLabel(7L, "Elsewhere", OTHER_PROJECT_ID));
+
+    WorkFlow renamed = new WorkFlow();
+    renamed.setId(WORKFLOW_ID);
+    renamed.setTitle("Leave requests");
+    processesService.updateWorkFlow(renamed, PARTICIPANT_ID);
+    WorkFlow relabelled = new WorkFlow();
+    relabelled.setId(WORKFLOW_ID);
+    relabelled.setTitle("Leave request");
+    relabelled.setAcl(new ProcessPermission(true, true, false, false));
+    relabelled.setLabels(List.of(new WorkFlowLabel(6L, "a name the client sent")));
+    processesService.updateWorkFlow(relabelled, PARTICIPANT_ID);
+    // The same labels as stored, and nothing else, is no change
+    when(labelService.getLabel(5L)).thenReturn(taskLabel(5L, "Holiday", PROCESS_PROJECT_ID));
+    WorkFlow unchanged = new WorkFlow();
+    unchanged.setId(WORKFLOW_ID);
+    unchanged.setTitle("Leave request");
+    unchanged.setAcl(new ProcessPermission(true, true, false, false));
+    unchanged.setLabels(List.of(new WorkFlowLabel(5L, "Holiday")));
+    assertEquals("there are no changes to save",
+                 assertThrows(IllegalArgumentException.class, () -> processesService.updateWorkFlow(unchanged, PARTICIPANT_ID)).getMessage());
+
+    ArgumentCaptor<WorkFlow> saved = ArgumentCaptor.forClass(WorkFlow.class);
+    verify(processesStorage, times(2)).saveWorkFlow(saved.capture(), anyLong());
+    assertEquals(List.of(new WorkFlowLabel(5L, "Holiday")), saved.getAllValues().get(0).getLabels());
+    assertEquals(List.of(new WorkFlowLabel(6L, "Urgent")), saved.getAllValues().get(1).getLabels());
+
+    WorkFlow elsewhere = new WorkFlow();
+    elsewhere.setId(WORKFLOW_ID);
+    elsewhere.setTitle("Leave request");
+    elsewhere.setLabels(List.of(new WorkFlowLabel(7L, "Elsewhere")));
+    IllegalArgumentException refusal = assertThrows(IllegalArgumentException.class,
+                                                    () -> processesService.updateWorkFlow(elsewhere, PARTICIPANT_ID));
+    assertEquals("processes.label.notInProject", refusal.getMessage());
+    verify(processesStorage, times(2)).saveWorkFlow(any(), anyLong());
   }
 
   /**
@@ -1377,6 +1457,24 @@ public class ProcessesServiceImplTest {
     WorkFlow workFlow = new WorkFlow();
     workFlow.setId(WORKFLOW_ID);
     return new Work(DRAFT_ID, "draft", "description", creatorId, null, null, null, true, workFlow);
+  }
+
+  /**
+   * Builds a Task label of a project.
+   *
+   * @param id its id
+   * @param name its name
+   * @param projectId its project id
+   * @return the label
+   */
+  private static LabelDto taskLabel(long id, String name, long projectId) {
+    ProjectDto project = new ProjectDto();
+    project.setId(projectId);
+    LabelDto label = new LabelDto();
+    label.setId(id);
+    label.setName(name);
+    label.setProject(project);
+    return label;
   }
 
   private WorkFlow movedWorkFlow(String spaceId) {

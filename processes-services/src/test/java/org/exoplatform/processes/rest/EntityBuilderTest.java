@@ -27,6 +27,7 @@ import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.processes.Utils.ProcessesUtils;
 import org.exoplatform.processes.constant.ProjectMode;
 import org.exoplatform.processes.model.ProcessesFilter;
+import org.exoplatform.processes.model.WorkFlowLabel;
 import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.rest.model.WorkEntity;
@@ -267,5 +268,26 @@ public class EntityBuilderTest {
     assertEquals("5", EntityBuilder.toEntity(workFlow, "").getParentSpace().getId());
     workFlow.setSpaceId("");
     assertEquals("1", EntityBuilder.toEntity(workFlow, "").getParentSpace().getId());
+  }
+
+  /**
+   * The labels of a REST body reach the process for the Service to check, and
+   * a process is shown with its labels; a body without labels gives none, so
+   * an update keeps the stored ones. Mutation: drop either mapping and this
+   * test fails.
+   */
+  @Test
+  public void theLabelsGoBothWays() {
+    COMMONS_UTILS.when(() -> CommonsUtils.getService(StatusService.class)).thenReturn(mock(StatusService.class));
+    WorkFlowEntity body = new WorkFlowEntity();
+    assertNull(EntityBuilder.fromEntity(body).getLabels());
+    List<WorkFlowLabel> labels = List.of(new WorkFlowLabel(101L, "Holiday"), new WorkFlowLabel(0L, "New one"));
+    body.setLabels(labels);
+    assertEquals(labels, EntityBuilder.fromEntity(body).getLabels());
+
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setSpaceId("");
+    workFlow.setLabels(List.of(new WorkFlowLabel(101L, "Holiday")));
+    assertEquals(List.of(new WorkFlowLabel(101L, "Holiday")), EntityBuilder.toEntity(workFlow, "").getLabels());
   }
 }

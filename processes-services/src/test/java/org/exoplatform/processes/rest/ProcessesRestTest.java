@@ -46,6 +46,7 @@ import org.exoplatform.processes.model.ProcessesFilter;
 import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFilter;
 import org.exoplatform.processes.model.WorkFlow;
+import org.exoplatform.processes.model.WorkFlowLabel;
 import org.exoplatform.processes.model.WorkStatus;
 import org.exoplatform.processes.rest.model.WorkEntity;
 import org.exoplatform.processes.rest.model.WorkFlowEntity;
@@ -323,6 +324,7 @@ public class ProcessesRestTest {
                                                         null,
                                                         null,
                                                         false,
+                                                        null,
                                                         null,
                                                         null,
                                                         null);
@@ -904,5 +906,39 @@ public class ProcessesRestTest {
     Response badPage = processesRest.getSpaceProjects("3", -1, 0);
     assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), badPage.getStatus());
     assertEquals("processes.projects.invalidPage", badPage.getEntity());
+  }
+
+  /**
+   * The labels of a project answer per user, never cached, and the service's
+   * refusals answer their status: 404 for an unknown space, 403 for a user who
+   * may not list them, 400 with the code for a project the space's processes
+   * may not feed, 401 without a user. Mutation: drop the cache control or map
+   * a refusal to 500 and this test fails.
+   *
+   * @throws Exception on an unexpected failure
+   */
+  @Test
+  public void theLabelsOfAProjectAnswerPerUserAndMapTheRefusals() throws Exception {
+    REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
+    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), processesRest.getProjectLabels(10L, "3").getStatus());
+
+    REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    List<WorkFlowLabel> labels = List.of(new WorkFlowLabel(101L, "Holiday"));
+    when(processesService.listProjectLabels("3", 10L, 1L)).thenReturn(labels);
+    Response ok = processesRest.getProjectLabels(10L, "3");
+    assertEquals(Response.Status.OK.getStatusCode(), ok.getStatus());
+    assertEquals(labels, ok.getEntity());
+    javax.ws.rs.core.CacheControl cacheControl = cacheControl(ok);
+    assertTrue(cacheControl.isPrivate());
+    assertTrue(cacheControl.isNoStore());
+
+    when(processesService.listProjectLabels("99", 10L, 1L)).thenThrow(new ObjectNotFoundException("space"));
+    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), processesRest.getProjectLabels(10L, "99").getStatus());
+    when(processesService.listProjectLabels("4", 10L, 1L)).thenThrow(new IllegalAccessException("user"));
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), processesRest.getProjectLabels(10L, "4").getStatus());
+    when(processesService.listProjectLabels("3", 12L, 1L)).thenThrow(new IllegalArgumentException("processes.project.notEligible"));
+    Response notEligible = processesRest.getProjectLabels(12L, "3");
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), notEligible.getStatus());
+    assertEquals("processes.project.notEligible", notEligible.getEntity());
   }
 }

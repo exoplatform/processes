@@ -86,4 +86,15 @@ public class WorkFlowEntity implements Serializable {
           joinColumns = @JoinColumn(name = "WORK_FLOW_ID"))
   private Set<String> participator = new HashSet<>();
 
+  /**
+   * The ids of the Task labels the process applies to each request it creates,
+   * all of its task project. No foreign key: a label deleted in Tasks is left
+   * out when the process is read.
+   */
+  @ElementCollection
+  @CollectionTable(name = "PROCESSES_WORK_FLOW_LABELS",
+          joinColumns = @JoinColumn(name = "WORK_FLOW_ID"))
+  @Column(name = "LABEL_ID")
+  private Set<Long> labelIds = new HashSet<>();
+
 }

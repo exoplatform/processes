@@ -80,6 +80,8 @@ public class EntityBuilder {
                         false,
                         workFlowEntity.getRequestsCreators());
     workFlow.setProjectMode(toProjectMode(workFlowEntity.getProjectMode()));
+    // The Service checks every label against the process's project
+    workFlow.setLabels(workFlowEntity.getLabels());
     return workFlow;
   }
 
@@ -153,7 +155,8 @@ public class EntityBuilder {
                               workFlow.isCanShowPending(),
                               workFlow.getIllustrativeAttachment(),
                               workFlow.getRequestsCreators(),
-                              null);
+                              null,
+                              workFlow.getLabels());
   }
 
   /**

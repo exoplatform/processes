@@ -215,4 +215,26 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.-->
         </rollback>
     </changeSet>
 
+    <!-- The labels a process applies to each request it creates (EXO-91988):
+         ids of Task labels, with no foreign key to TASK_LABELS, since a label
+         deleted in Tasks is left out when the process is read. The primary
+         key's leading column serves the foreign key, so MySQL adds no index
+         of its own, and dropping the table drops both keys with it. -->
+    <changeSet author="processes" id="1.0.0-exo-91988-01">
+        <createTable tableName="PROCESSES_WORK_FLOW_LABELS">
+            <column name="WORK_FLOW_ID" type="BIGINT">
+                <constraints primaryKey="true" primaryKeyName="PK_PROCESSES_WF_LABELS" foreignKeyName="FK_PROCESSES_WF_LABELS_WF" references="PROCESSES_WORK_FLOW(WORK_FLOW_ID)" nullable="false"/>
+            </column>
+            <column name="LABEL_ID" type="BIGINT">
+                <constraints primaryKey="true" primaryKeyName="PK_PROCESSES_WF_LABELS" nullable="false"/>
+            </column>
+        </createTable>
+        <rollback>
+            <dropTable tableName="PROCESSES_WORK_FLOW_LABELS"/>
+        </rollback>
+        <modifySql dbms="mysql">
+            <append value=" ENGINE=INNODB CHARSET=UTF8 COLLATE utf8_general_ci"/>
+        </modifySql>
+    </changeSet>
+
 </databaseChangeLog>

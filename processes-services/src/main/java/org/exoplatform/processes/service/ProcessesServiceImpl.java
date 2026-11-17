@@ -21,11 +21,17 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
+
+import io.meeds.common.ContainerTransactional;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.file.services.FileStorageException;
@@ -35,15 +41,20 @@ import org.exoplatform.processes.model.*;
 import org.exoplatform.processes.Utils.ProcessesUtils;
 import org.exoplatform.processes.Utils.RequestTitle;
 import org.exoplatform.processes.storage.ProcessesStorage;
+import org.exoplatform.services.listener.ListenerService;
+import org.exoplatform.services.log.ExoLogger;
+import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dao.OrderBy;
+import org.exoplatform.task.dto.LabelDto;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
+import org.exoplatform.task.service.LabelService;
 import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.StatusService;
 import org.exoplatform.task.util.UserUtil;
@@ -63,6 +74,15 @@ public class ProcessesServiceImpl implements ProcessesService {
 
   private static final String      STATUS_NAME_CONFLICT = "processes.project.statusNameConflict";
 
+  private static final String      LABEL_NOT_IN_PROJECT = "processes.label.notInProject";
+
+  private static final String      LABEL_INVALID_NAME   = "processes.label.invalidName";
+
+  /** The size of a Task label name (TASK_LABELS.NAME). */
+  private static final int         LABEL_NAME_MAX_LENGTH = 50;
+
+  private static final Log         LOG                  = ExoLogger.getLogger(ProcessesServiceImpl.class);
+
   private final ProcessesStorage processesStorage;
 
   private final ProjectService   projectService;
@@ -77,6 +97,10 @@ public class ProcessesServiceImpl implements ProcessesService {
 
   private final StatusService    statusService;
 
+  private final LabelService     labelService;
+
+  private final ListenerService  listenerService;
+
   /**
    * Builds the processes service.
    *
@@ -87,6 +111,8 @@ public class ProcessesServiceImpl implements ProcessesService {
    * @param spaceService the space service
    * @param processesAttachmentService the processes attachment service
    * @param statusService the Task add-on's status service
+   * @param labelService the Task add-on's label service
+   * @param listenerService the listener service
    */
   public ProcessesServiceImpl(ProcessesStorage processesStorage,
                               ProjectService projectService,
@@ -94,7 +120,9 @@ public class ProcessesServiceImpl implements ProcessesService {
                               UserACL userACL,
                               SpaceService spaceService,
                               ProcessesAttachmentService processesAttachmentService,
-                              StatusService statusService) {
+                              StatusService statusService,
+                              LabelService labelService,
+                              ListenerService listenerService) {
     this.processesStorage = processesStorage;
     this.projectService = projectService;
     this.identityManager = identityManager;
@@ -102,6 +130,8 @@ public class ProcessesServiceImpl implements ProcessesService {
     this.spaceService = spaceService;
     this.processesAttachmentService = processesAttachmentService;
     this.statusService = statusService;
+    this.labelService = labelService;
+    this.listenerService = listenerService;
   }
 
   @Override
@@ -149,7 +179,8 @@ public class ProcessesServiceImpl implements ProcessesService {
     if (workFlow.getId() != 0) {
       throw new IllegalArgumentException("workFlow id must be equal to 0");
     }
-    if (!isProcessesAdministrator(getAclIdentity(userId))) {
+    org.exoplatform.services.security.Identity aclIdentity = getAclIdentity(userId);
+    if (!isProcessesAdministrator(aclIdentity)) {
       throw new IllegalAccessException("User " + userId + " isn't allowed to create a process");
     }
     ProjectDto existingProject = null;
@@ -168,11 +199,78 @@ public class ProcessesServiceImpl implements ProcessesService {
       workFlow.getIllustrativeAttachment().setId(null);
     }
     workFlow.setAttachments(processesAttachmentService.selectProcessAttachments(userId, 0, 0, workFlow.getAttachments()));
+    // Every label is checked before the first write; a new project has no
+    // label to choose yet
+    List<LabelChoice> labelChoices = checkLabels(workFlow.getLabels(), existingProject, existingProject == null, aclIdentity);
+    // Task commits each project, status and label it creates, before the
+    // process's own rows are saved
+    ProjectDto project = existingProject;
     if (existingProject != null) {
-      // Task commits each status it creates, before the process is saved
       ensureProcessStatuses(existingProject);
+    } else {
+      workFlow = processesStorage.createProject(workFlow);
     }
+    WorkFlow savedWorkFlow;
+    try {
+      if (existingProject == null && labelChoices != null && !labelChoices.isEmpty()) {
+        project = getProject(workFlow.getProjectId());
+      }
+      workFlow.setLabels(createLabels(labelChoices, project, aclIdentity.getUserId()));
+      savedWorkFlow = saveWorkFlowRows(workFlow, userId, labelChoices);
+    } catch (RuntimeException e) {
+      if (existingProject == null) {
+        // Task committed the new project: it stays, empty
+        LOG.warn("The project {} was created for a process whose save failed", workFlow.getProjectId());
+      }
+      throw e;
+    }
+    ProcessesUtils.broadcast(listenerService, "exo.process.created", userId, savedWorkFlow);
+    processesStorage.linkWorkFlowAttachments(savedWorkFlow, workFlow.getAttachments(), userId);
+    return savedWorkFlow;
+  }
+
+  /**
+   * Saves a process's own rows in one transaction: the process, its
+   * illustration and its label ids. It writes nothing through Task, whose
+   * labels it only reads back, so every write that must commit with the
+   * process's rows can join it; each Task write runs
+   * before it, committed by Task, and the process's creation is broadcast
+   * after it. A transaction already active when it starts is joined rather
+   * than begun, and a Spring transaction joins it only when it begins its own
+   * (ADR-0010): it is called from the REST thread, where none is active.
+   *
+   * @param workFlow the process, its labels resolved to labels of its project
+   * @param userId the saving user's identity id
+   * @return the saved process
+   */
+  @ContainerTransactional(atomic = true)
+  public WorkFlow saveWorkFlowRows(WorkFlow workFlow, long userId) {
     return processesStorage.saveWorkFlow(workFlow, userId);
+  }
+
+  /**
+   * Saves a process's own rows, logging the labels the save created in Task
+   * when the rows can't be saved: Task committed them, and they stay.
+   *
+   * @param workFlow the process, its labels resolved
+   * @param userId the saving user's identity id
+   * @param labelChoices the checked labels, or null
+   * @return the saved process
+   */
+  private WorkFlow saveWorkFlowRows(WorkFlow workFlow, long userId, List<LabelChoice> labelChoices) {
+    try {
+      return saveWorkFlowRows(workFlow, userId);
+    } catch (RuntimeException e) {
+      if (labelChoices != null && workFlow.getLabels() != null) {
+        Set<Long> keptIds = new HashSet<>();
+        labelChoices.stream().filter(choice -> choice.existing() != null).forEach(choice -> keptIds.add(choice.existing().getId()));
+        List<Long> createdIds = workFlow.getLabels().stream().map(WorkFlowLabel::getId).filter(id -> !keptIds.contains(id)).toList();
+        if (!createdIds.isEmpty()) {
+          LOG.warn("The labels {} were created in the project {} by a process save that failed", createdIds, workFlow.getProjectId());
+        }
+      }
+      throw e;
+    }
   }
 
   /**
@@ -191,14 +289,7 @@ public class ProcessesServiceImpl implements ProcessesService {
                                                int offset,
                                                int limit,
                                                long userIdentityId) throws ObjectNotFoundException, IllegalAccessException {
-    Space space = StringUtils.isBlank(spaceId) ? null : spaceService.getSpaceById(spaceId);
-    if (space == null) {
-      throw new ObjectNotFoundException("Space " + spaceId + " not found");
-    }
-    org.exoplatform.services.security.Identity aclIdentity = getAclIdentity(userIdentityId);
-    if (!isProcessesAdministrator(aclIdentity) && !spaceService.isManager(space, aclIdentity.getUserId())) {
-      throw new IllegalAccessException("User " + userIdentityId + " isn't allowed to list the projects of the space " + spaceId);
-    }
+    Space space = checkCanListProjects(spaceId, userIdentityId);
     if (offset < 0 || limit < 0) {
       throw new IllegalArgumentException("processes.projects.invalidPage");
     }
@@ -219,6 +310,44 @@ public class ProcessesServiceImpl implements ProcessesService {
                                        processes.getOrDefault(project.getId(), Collections.emptyList())));
     }
     return new EligibleProjects(projects, size);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<WorkFlowLabel> listProjectLabels(String spaceId,
+                                               long projectId,
+                                               long userIdentityId) throws ObjectNotFoundException, IllegalAccessException {
+    checkCanListProjects(spaceId, userIdentityId);
+    ProjectDto project = getEligibleProject(projectId, spaceId);
+    return labelService.findLabelsByProject(project.getId(), getAclIdentity(userIdentityId), 0, 0)
+                       .stream()
+                       .sorted(Comparator.comparingLong(LabelDto::getId))
+                       .map(label -> new WorkFlowLabel(label.getId(), label.getName()))
+                       .toList();
+  }
+
+  /**
+   * Checks the user may list the task projects of a space for a process: a
+   * processes administrator, or a manager of the space.
+   *
+   * @param spaceId the space id
+   * @param userIdentityId the user's identity id
+   * @return the space
+   * @throws ObjectNotFoundException when the space does not exist
+   * @throws IllegalAccessException when the user may not
+   */
+  private Space checkCanListProjects(String spaceId, long userIdentityId) throws ObjectNotFoundException, IllegalAccessException {
+    Space space = StringUtils.isBlank(spaceId) ? null : spaceService.getSpaceById(spaceId);
+    if (space == null) {
+      throw new ObjectNotFoundException("Space " + spaceId + " not found");
+    }
+    org.exoplatform.services.security.Identity aclIdentity = getAclIdentity(userIdentityId);
+    if (!isProcessesAdministrator(aclIdentity) && !spaceService.isManager(space, aclIdentity.getUserId())) {
+      throw new IllegalAccessException("User " + userIdentityId + " isn't allowed to list the projects of the space " + spaceId);
+    }
+    return space;
   }
 
   /**
@@ -252,6 +381,17 @@ public class ProcessesServiceImpl implements ProcessesService {
     if (workFlow.getIllustrativeAttachment() != null) {
       workFlow.getIllustrativeAttachment().setId(storedIllustration == null ? null : storedIllustration.getId());
     }
+    // Labels not sent stay as stored; labels sent replace them, each checked
+    // to be of the process's project before the first write
+    List<LabelChoice> labelChoices = null;
+    ProjectDto project = null;
+    if (workFlow.getLabels() == null) {
+      workFlow.setLabels(oldWorkFlow.getLabels());
+    } else {
+      project = findProject(oldWorkFlow.getProjectId());
+      labelChoices = checkLabels(workFlow.getLabels(), project, false, getAclIdentity(userId));
+      workFlow.setLabels(toLabels(labelChoices));
+    }
     if (oldWorkFlow.equals(workFlow)) {
       throw new IllegalArgumentException("there are no changes to save");
     }
@@ -259,7 +399,169 @@ public class ProcessesServiceImpl implements ProcessesService {
                                                                                 workFlow.getId(),
                                                                                 oldWorkFlow.getProjectId(),
                                                                                 workFlow.getAttachments()));
-    return processesStorage.saveWorkFlow(workFlow, userId);
+    if (labelChoices != null) {
+      workFlow.setLabels(createLabels(labelChoices, project, getAclIdentity(userId).getUserId()));
+    }
+    WorkFlow savedWorkFlow = saveWorkFlowRows(workFlow, userId, labelChoices);
+    processesStorage.linkWorkFlowAttachments(savedWorkFlow, workFlow.getAttachments(), userId);
+    return savedWorkFlow;
+  }
+
+  /**
+   * Checks the labels a save sends, before any write: a label with an id must
+   * be a label of the process's project; a label without one gives a name,
+   * trimmed, of 1 to {@value #LABEL_NAME_MAX_LENGTH} characters, which reuses
+   * the project's label of the same name, case aside, or is created there at
+   * save. A label sent twice counts once.
+   *
+   * @param labels the labels sent, or null
+   * @param project the process's project, null for a new project or one
+   *          deleted in Tasks
+   * @param newProject whether the save creates the project, where the new
+   *          labels go; otherwise a process with no project takes no label
+   * @param aclIdentity the saving user
+   * @return the labels to save, or null when none is sent
+   * @throws IllegalArgumentException processes.label.notInProject,
+   *           processes.label.invalidName
+   */
+  private List<LabelChoice> checkLabels(List<WorkFlowLabel> labels,
+                                        ProjectDto project,
+                                        boolean newProject,
+                                        org.exoplatform.services.security.Identity aclIdentity) {
+    if (labels == null) {
+      return null;
+    }
+    List<LabelDto> projectLabels = project == null || labels.isEmpty() ? Collections.emptyList()
+                                                                       : labelService.findLabelsByProject(project.getId(),
+                                                                                                          aclIdentity,
+                                                                                                          0,
+                                                                                                          0);
+    Map<String, LabelChoice> choices = new LinkedHashMap<>();
+    for (WorkFlowLabel label : labels) {
+      if (label == null) {
+        continue;
+      }
+      if (label.getId() > 0) {
+        LabelDto stored = labelService.getLabel(label.getId());
+        if (stored == null || project == null || stored.getProject() == null || stored.getProject().getId() != project.getId()) {
+          throw new IllegalArgumentException(LABEL_NOT_IN_PROJECT);
+        }
+        choices.putIfAbsent("id:" + stored.getId(), new LabelChoice(stored, stored.getName()));
+      } else {
+        String name = StringUtils.trimToEmpty(label.getName());
+        if (name.isEmpty() || name.length() > LABEL_NAME_MAX_LENGTH) {
+          throw new IllegalArgumentException(LABEL_INVALID_NAME);
+        }
+        if (project == null && !newProject) {
+          throw new IllegalArgumentException(LABEL_NOT_IN_PROJECT);
+        }
+        LabelDto sameName = projectLabels.stream()
+                                         .filter(projectLabel -> name.equalsIgnoreCase(StringUtils.trim(projectLabel.getName())))
+                                         .min(Comparator.comparingLong(LabelDto::getId))
+                                         .orElse(null);
+        if (sameName != null) {
+          choices.putIfAbsent("id:" + sameName.getId(), new LabelChoice(sameName, sameName.getName()));
+        } else {
+          choices.putIfAbsent("name:" + name.toLowerCase(Locale.ROOT), new LabelChoice(null, name));
+        }
+      }
+    }
+    return new ArrayList<>(choices.values());
+  }
+
+  /**
+   * Gives the labels a save compares with the stored ones: the chosen labels
+   * of the project by id order, then the names to create, with no id.
+   *
+   * @param choices the checked labels
+   * @return the labels
+   */
+  private List<WorkFlowLabel> toLabels(List<LabelChoice> choices) {
+    List<WorkFlowLabel> labels = new ArrayList<>();
+    choices.stream()
+           .filter(choice -> choice.existing() != null)
+           .sorted(Comparator.comparingLong(choice -> choice.existing().getId()))
+           .forEach(choice -> labels.add(new WorkFlowLabel(choice.existing().getId(), choice.existing().getName())));
+    choices.stream()
+           .filter(choice -> choice.existing() == null)
+           .forEach(choice -> labels.add(new WorkFlowLabel(0, choice.name())));
+    return labels;
+  }
+
+  /**
+   * Creates in the process's project the labels a save names but the project
+   * lacks, with no color, each committed by Task, and gives the labels the
+   * process saves.
+   *
+   * @param choices the checked labels, or null to keep the process's labels
+   * @param project the process's project
+   * @param userName the saving user's name, the creator of the new labels
+   * @return the labels with their ids, or null when choices is null
+   * @throws IllegalArgumentException processes.label.notInProject when a label
+   *           must be created and the process has no project
+   */
+  private List<WorkFlowLabel> createLabels(List<LabelChoice> choices, ProjectDto project, String userName) {
+    if (choices == null) {
+      return null;
+    }
+    List<WorkFlowLabel> labels = new ArrayList<>();
+    List<Long> createdIds = new ArrayList<>();
+    try {
+      for (LabelChoice choice : choices) {
+        LabelDto label = choice.existing();
+        if (label == null) {
+          if (project == null) {
+            throw new IllegalArgumentException(LABEL_NOT_IN_PROJECT);
+          }
+          LabelDto newLabel = new LabelDto();
+          newLabel.setName(choice.name());
+          newLabel.setUsername(userName);
+          newLabel.setProject(project);
+          label = labelService.createLabel(newLabel);
+          createdIds.add(label.getId());
+        }
+        labels.add(new WorkFlowLabel(label.getId(), label.getName()));
+      }
+    } catch (RuntimeException e) {
+      if (!createdIds.isEmpty()) {
+        LOG.warn("The labels {} were created in the project {} by a process save that failed", createdIds, project.getId());
+      }
+      throw e;
+    }
+    labels.sort(Comparator.comparingLong(WorkFlowLabel::getId));
+    return labels;
+  }
+
+  /**
+   * Reads a task project that must exist.
+   *
+   * @param projectId the project id
+   * @return the project
+   * @throws IllegalStateException when Task does not find it
+   */
+  private ProjectDto getProject(long projectId) {
+    ProjectDto project = findProject(projectId);
+    if (project == null) {
+      throw new IllegalStateException("The project " + projectId + " was not found");
+    }
+    return project;
+  }
+
+  /**
+   * Reads a task project, which a manager may have deleted in Tasks.
+   *
+   * @param projectId the project id
+   * @return the project, or null
+   */
+  private ProjectDto findProject(long projectId) {
+    if (projectId <= 0) {
+      return null;
+    }
+    try {
+      return projectService.getProject(projectId);
+    } catch (EntityNotFoundException e) {
+      return null;
+    }
   }
 
   @Override

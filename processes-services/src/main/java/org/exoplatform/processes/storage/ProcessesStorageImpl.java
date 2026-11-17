@@ -44,8 +44,10 @@ import org.exoplatform.processes.model.ProcessesFilter;
 import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFilter;
 import org.exoplatform.processes.model.WorkFlow;
+import org.exoplatform.processes.model.WorkFlowLabel;
 import org.exoplatform.processes.model.WorkStatus;
 import org.exoplatform.processes.service.ProcessesAttachmentService;
+import org.exoplatform.services.attachments.model.Attachment;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -57,10 +59,12 @@ import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.domain.Priority;
+import org.exoplatform.task.dto.LabelDto;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
+import org.exoplatform.task.service.LabelService;
 import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.StatusService;
 import org.exoplatform.task.service.TaskService;
@@ -91,6 +95,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   private final FileService                fileService;
   private final UserACL                    userACL;
 
+  private final LabelService               labelService;
+
   /**
    * Builds the processes storage.
    *
@@ -106,6 +112,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    * @param processesAttachmentService the processes attachment service
    * @param fileService the file service
    * @param userACL the platform ACL
+   * @param labelService the Task add-on's label service
    */
   @SuppressWarnings("java:S107")
   public ProcessesStorageImpl(WorkFlowDAO workFlowDAO,
@@ -119,7 +126,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
                               ListenerService listenerService,
                               ProcessesAttachmentService processesAttachmentService,
                               FileService fileService,
-                              UserACL userACL) {
+                              UserACL userACL,
+                              LabelService labelService) {
     this.workFlowDAO = workFlowDAO;
     this.workDraftDAO = workDraftDAO;
     this.requestDAO = requestDAO;
@@ -132,6 +140,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     this.processesAttachmentService = processesAttachmentService;
     this.fileService = fileService;
     this.userACL = userACL;
+    this.labelService = labelService;
   }
 
   @Override
@@ -161,11 +170,25 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     return EntityMapper.fromWorkflowEntities(workFlowDAO.findDisabledWorkFlows(offset, limit));
   }
 
+  /**
+   * Reads a process with its labels that still exist and belong to its
+   * project, and the permissions of the user on it.
+   *
+   * @param id the process id
+   * @param userIdentityId the reading user's identity id, null for the
+   *          platform's own read
+   * @return the process, or null
+   */
   @Override
   public WorkFlow getWorkFlowById(long id, Long userIdentityId) {
     Map.Entry<String, List<String>> userMemberships = getUserMemberships(userIdentityId);
     List<String> memberships = userMemberships.getValue();
-    return EntityMapper.fromEntity(workFlowDAO.find(id), memberships);
+    WorkFlowEntity workFlowEntity = workFlowDAO.find(id);
+    WorkFlow workFlow = EntityMapper.fromEntity(workFlowEntity, memberships);
+    if (workFlow != null) {
+      workFlow.setLabels(readLabels(workFlowEntity));
+    }
+    return workFlow;
   }
 
   /**
@@ -231,21 +254,22 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       workFlowEntity.setCreatedDate(new Date());
       workFlowEntity.setCreatorId(userId);
       if (workFlow.getProjectId() == 0) {
-        workFlow = createProject(workFlow);
-        workFlowEntity.setProjectId(workFlow.getProjectId());
+        // The Service creates a new process's project before it saves the
+        // process, outside the transaction of the save
+        throw new IllegalArgumentException("processes.project.required");
       }
       // The managing space's members access the process and its managers
       // manage it, whichever project of the space it feeds
       workFlowEntity.setParticipator(getSpaceParticipators(workFlow.getSpaceId()));
       workFlowEntity.setManager(getManagers(workFlow.getRequestsCreators()));
+      workFlowEntity.setLabelIds(toLabelIds(workFlow.getLabels(), null));
       workFlowEntity = workFlowDAO.create(workFlowEntity);
-      WorkFlow newWorkflow = EntityMapper.fromEntity(workFlowEntity, illustrativeAttachment, null);
-      ProcessesUtils.broadcast(listenerService, "exo.process.created", userId, newWorkflow);
     } else {
       // An update keeps the process's space and its participants, unless the
       // Service let it take a new space; it never rewrites the members of its
       // task project, which other processes may feed
       WorkFlowEntity storedWorkFlowEntity = workFlowDAO.find(workFlowEntity.getId());
+      workFlowEntity.setLabelIds(toLabelIds(workFlow.getLabels(), storedWorkFlowEntity));
       if (storedWorkFlowEntity != null) {
         if (workFlowEntity.getSpaceId() == null) {
           // A client that does not state the space keeps the stored one
@@ -262,12 +286,83 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       workFlowEntity.setManager(getManagers(workFlow.getRequestsCreators()));
       workFlowEntity = workFlowDAO.update(workFlowEntity);
     }
-    processesAttachmentService.linkAttachmentsToEntity(workFlow.getAttachments(),
+    WorkFlow savedWorkFlow = EntityMapper.fromEntity(workFlowEntity, illustrativeAttachment, null);
+    if (savedWorkFlow != null) {
+      savedWorkFlow.setLabels(readLabels(workFlowEntity));
+    }
+    return savedWorkFlow;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void linkWorkFlowAttachments(WorkFlow savedWorkFlow, Attachment[] attachments, long userId) {
+    processesAttachmentService.linkAttachmentsToEntity(attachments,
                                                        userId,
-                                                       workFlowEntity.getId(),
+                                                       savedWorkFlow.getId(),
                                                        WORKFLOW_ENTITY_TYPE,
-                                                       workFlowEntity.getProjectId());
-    return EntityMapper.fromEntity(workFlowEntity, illustrativeAttachment, null);
+                                                       savedWorkFlow.getProjectId());
+  }
+
+  /**
+   * Gives the label ids a save writes: those of the labels the Service
+   * resolved, each checked to be a label of the process's project, else, when
+   * the caller states none, the stored ones of an update, or none.
+   *
+   * @param labels the resolved labels, or null when not stated
+   * @param storedWorkFlowEntity the stored process of an update, or null
+   * @return the label ids
+   */
+  private Set<Long> toLabelIds(List<WorkFlowLabel> labels, WorkFlowEntity storedWorkFlowEntity) {
+    if (labels == null) {
+      return storedWorkFlowEntity == null || storedWorkFlowEntity.getLabelIds() == null ? new HashSet<>()
+                                                                                         : new HashSet<>(storedWorkFlowEntity.getLabelIds());
+    }
+    Set<Long> labelIds = new HashSet<>();
+    for (WorkFlowLabel label : labels) {
+      if (label == null || label.getId() <= 0) {
+        throw new IllegalArgumentException("processes.label.notInProject");
+      }
+      labelIds.add(label.getId());
+    }
+    return labelIds;
+  }
+
+  /**
+   * Reads the labels of a stored process, by id order: a label deleted in
+   * Tasks, or of another project than the process's, is left out.
+   *
+   * @param workFlowEntity the stored process
+   * @return the labels
+   */
+  private List<WorkFlowLabel> readLabels(WorkFlowEntity workFlowEntity) {
+    List<WorkFlowLabel> labels = new ArrayList<>();
+    if (workFlowEntity == null || workFlowEntity.getLabelIds() == null) {
+      return labels;
+    }
+    workFlowEntity.getLabelIds().stream().sorted().forEach(labelId -> {
+      LabelDto label = findProjectLabel(labelId, workFlowEntity.getProjectId());
+      if (label != null) {
+        labels.add(new WorkFlowLabel(label.getId(), label.getName()));
+      }
+    });
+    return labels;
+  }
+
+  /**
+   * Reads a Task label when it still exists and belongs to a project.
+   *
+   * @param labelId the label id
+   * @param projectId the project id
+   * @return the label, or null
+   */
+  private LabelDto findProjectLabel(long labelId, Long projectId) {
+    LabelDto label = labelService.getLabel(labelId);
+    if (label == null || label.getProject() == null || projectId == null || label.getProject().getId() != projectId) {
+      return null;
+    }
+    return label;
   }
 
   /**
@@ -509,6 +604,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     if (work.getId() == 0) {
       TaskDto taskDto = createWorkTask(work, identity);
       recordRequest(taskDto, work.getWorkFlowId(), userId);
+      applyLabels(taskDto, work.getWorkFlowId());
       ProjectDto projectDto = taskDto.getStatus().getProject();
       if (work.getDraftId() != null) {
         processesAttachmentService.moveAttachmentsToEntity(work.getAttachments(),
@@ -528,6 +624,33 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     } else {
       TaskDto taskDto = updateWorkTask(work);
       return EntityMapper.taskToWork(taskDto);
+    }
+  }
+
+  /**
+   * Applies the labels of a request's process to its task: each one that
+   * still exists and belongs to the task's project, on its own. A label that
+   * can't be applied is logged and does not fail the request, which Task has
+   * already created.
+   *
+   * @param taskDto the request's task
+   * @param workFlowId the request's process id
+   */
+  private void applyLabels(TaskDto taskDto, long workFlowId) {
+    WorkFlowEntity workFlowEntity = workFlowDAO.find(workFlowId);
+    if (workFlowEntity == null || workFlowEntity.getLabelIds() == null || taskDto.getStatus() == null
+        || taskDto.getStatus().getProject() == null) {
+      return;
+    }
+    long projectId = taskDto.getStatus().getProject().getId();
+    for (Long labelId : workFlowEntity.getLabelIds().stream().sorted().toList()) {
+      try {
+        if (findProjectLabel(labelId, projectId) != null) {
+          labelService.addTaskToLabel(taskDto, labelId);
+        }
+      } catch (Exception e) {
+        LOG.warn("The label {} of the process {} could not be applied to the request {}", labelId, workFlowId, taskDto.getId(), e);
+      }
     }
   }
 
@@ -559,7 +682,11 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     }
   }
 
-  private WorkFlow createProject(WorkFlow workFlow) {
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public WorkFlow createProject(WorkFlow workFlow) {
     Space processSpace = spaceService.getSpaceById(workFlow.getSpaceId());
     if (processSpace == null) {
       throw new IllegalArgumentException("Space of processes not exist");
