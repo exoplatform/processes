@@ -425,10 +425,13 @@ export function getWorkById(workId, expand) {
   });
 }
 
-export function getWorkflowById(workflowId, expand) {
+export function getWorkflowById(workflowId, expand, translate) {
   const formData = new FormData();
   if (expand) {
     formData.append('expand', expand);
+  }
+  if (translate === false) {
+    formData.append('translate', 'false');
   }
   const params = new URLSearchParams(formData).toString();
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workflows/${workflowId}?${params}`, {

@@ -101,6 +101,8 @@ public class ProcessesServiceImpl implements ProcessesService {
 
   private final ListenerService  listenerService;
 
+  private final ProcessTranslationService processTranslationService;
+
   /**
    * Builds the processes service.
    *
@@ -113,6 +115,7 @@ public class ProcessesServiceImpl implements ProcessesService {
    * @param statusService the Task add-on's status service
    * @param labelService the Task add-on's label service
    * @param listenerService the listener service
+   * @param processTranslationService the per-language texts of a process
    */
   public ProcessesServiceImpl(ProcessesStorage processesStorage,
                               ProjectService projectService,
@@ -122,7 +125,8 @@ public class ProcessesServiceImpl implements ProcessesService {
                               ProcessesAttachmentService processesAttachmentService,
                               StatusService statusService,
                               LabelService labelService,
-                              ListenerService listenerService) {
+                              ListenerService listenerService,
+                              ProcessTranslationService processTranslationService) {
     this.processesStorage = processesStorage;
     this.projectService = projectService;
     this.identityManager = identityManager;
@@ -132,6 +136,7 @@ public class ProcessesServiceImpl implements ProcessesService {
     this.statusService = statusService;
     this.labelService = labelService;
     this.listenerService = listenerService;
+    this.processTranslationService = processTranslationService;
   }
 
   @Override
@@ -217,7 +222,7 @@ public class ProcessesServiceImpl implements ProcessesService {
       }
       workFlow.setLabels(createLabels(labelChoices, project, aclIdentity.getUserId()));
       savedWorkFlow = saveWorkFlowRows(workFlow, userId, labelChoices);
-    } catch (RuntimeException e) {
+    } catch (RuntimeException | IllegalAccessException e) {
       if (existingProject == null) {
         // Task committed the new project: it stays, empty
         LOG.warn("The project {} was created for a process whose save failed", workFlow.getProjectId());
@@ -226,6 +231,7 @@ public class ProcessesServiceImpl implements ProcessesService {
     }
     ProcessesUtils.broadcast(listenerService, "exo.process.created", userId, savedWorkFlow);
     processesStorage.linkWorkFlowAttachments(savedWorkFlow, workFlow.getAttachments(), userId);
+    saveTranslations(savedWorkFlow, workFlow);
     return savedWorkFlow;
   }
 
@@ -244,8 +250,57 @@ public class ProcessesServiceImpl implements ProcessesService {
    * @return the saved process
    */
   @ContainerTransactional(atomic = true)
-  public WorkFlow saveWorkFlowRows(WorkFlow workFlow, long userId) {
+  public WorkFlow saveWorkFlowRows(WorkFlow workFlow, long userId) throws IllegalAccessException {
+    return writeWorkFlowRows(workFlow, userId);
+  }
+
+  /**
+   * Writes a process's own rows: the un-advised body of
+   * {@link #saveWorkFlowRows(WorkFlow, long)}.
+   *
+   * @param workFlow the process, its labels resolved to labels of its project
+   * @param userId the saving user's identity id
+   * @return the saved process
+   * @throws IllegalAccessException declared for a write joining the save that
+   *           refuses the editor's choice; none of the writes here refuses
+   */
+  WorkFlow writeWorkFlowRows(WorkFlow workFlow, long userId) throws IllegalAccessException {
     return processesStorage.saveWorkFlow(workFlow, userId);
+  }
+
+  /**
+   * Writes the translations a process save states for the saved process,
+   * once its rows are committed: social's translation write ends the
+   * container transaction it runs in, so it can't join the rows' atomic
+   * save. A failure answers the save with an error, the process saved; saving
+   * again writes them.
+   *
+   * @param savedWorkFlow the process as saved, with its id
+   * @param workFlow the process as the save states it
+   */
+  private void saveTranslations(WorkFlow savedWorkFlow, WorkFlow workFlow) {
+    Map<String, Map<String, String>> translations = new LinkedHashMap<>();
+    putTranslations(translations, ProcessTranslationService.TITLE_FIELD, workFlow.getTitleTranslations());
+    putTranslations(translations, ProcessTranslationService.DESCRIPTION_FIELD, workFlow.getDescriptionTranslations());
+    putTranslations(translations, ProcessTranslationService.SUMMARY_FIELD, workFlow.getSummaryTranslations());
+    if (!translations.isEmpty()) {
+      processTranslationService.saveTranslations(savedWorkFlow, translations);
+    }
+  }
+
+  /**
+   * Adds a field's translations to those a save writes, when it states them.
+   *
+   * @param translations the translations of the save, by field name
+   * @param fieldName the translated field
+   * @param labels the field's labels by language tag, or null when not stated
+   */
+  private static void putTranslations(Map<String, Map<String, String>> translations,
+                                      String fieldName,
+                                      Map<String, String> labels) {
+    if (labels != null) {
+      translations.put(fieldName, labels);
+    }
   }
 
   /**
@@ -257,10 +312,10 @@ public class ProcessesServiceImpl implements ProcessesService {
    * @param labelChoices the checked labels, or null
    * @return the saved process
    */
-  private WorkFlow saveWorkFlowRows(WorkFlow workFlow, long userId, List<LabelChoice> labelChoices) {
+  private WorkFlow saveWorkFlowRows(WorkFlow workFlow, long userId, List<LabelChoice> labelChoices) throws IllegalAccessException {
     try {
       return saveWorkFlowRows(workFlow, userId);
-    } catch (RuntimeException e) {
+    } catch (RuntimeException | IllegalAccessException e) {
       if (labelChoices != null && workFlow.getLabels() != null) {
         Set<Long> keptIds = new HashSet<>();
         labelChoices.stream().filter(choice -> choice.existing() != null).forEach(choice -> keptIds.add(choice.existing().getId()));
@@ -404,6 +459,8 @@ public class ProcessesServiceImpl implements ProcessesService {
     }
     WorkFlow savedWorkFlow = saveWorkFlowRows(workFlow, userId, labelChoices);
     processesStorage.linkWorkFlowAttachments(savedWorkFlow, workFlow.getAttachments(), userId);
+    saveTranslations(savedWorkFlow, workFlow);
+    processTranslationService.keepDefaultLanguage(savedWorkFlow);
     return savedWorkFlow;
   }
 
@@ -680,6 +737,7 @@ public class ProcessesServiceImpl implements ProcessesService {
       throw new IllegalAccessException("User " + userIdentityId + " isn't allowed to delete the process " + workflowId);
     }
     this.processesStorage.deleteWorkflowById(workflowId);
+    processTranslationService.deleteTranslations(workflowId);
   }
 
   /**

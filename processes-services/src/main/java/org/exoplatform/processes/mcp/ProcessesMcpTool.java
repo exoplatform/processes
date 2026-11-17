@@ -21,6 +21,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Objects;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -36,6 +37,7 @@ import org.exoplatform.processes.model.ProcessesFilter;
 import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFilter;
 import org.exoplatform.processes.model.WorkFlow;
+import org.exoplatform.processes.service.ProcessTranslationService;
 import org.exoplatform.processes.service.ProcessesService;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
@@ -97,6 +99,8 @@ public class ProcessesMcpTool implements McpToolPlugin {
 
   private final ProcessSpaceScopeResolver processSpaceScopeResolver;
 
+  private final ProcessTranslationService processTranslationService;
+
   /**
    * @param processesService reads and writes the processes and requests
    * @param taskService reads the pending requests' tasks
@@ -104,17 +108,21 @@ public class ProcessesMcpTool implements McpToolPlugin {
    * @param spaceService reads a listed space and its members
    * @param processSpaceScopeResolver tells the space of a process, so that a
    *          space's listing names only the processes its lookup accepts
+   * @param processTranslationService reads a process's texts in the user's
+   *          language
    */
   public ProcessesMcpTool(ProcessesService processesService,
                           TaskService taskService,
                           IdentityManager identityManager,
                           SpaceService spaceService,
-                          ProcessSpaceScopeResolver processSpaceScopeResolver) {
+                          ProcessSpaceScopeResolver processSpaceScopeResolver,
+                          ProcessTranslationService processTranslationService) {
     this.processesService = processesService;
     this.taskService = taskService;
     this.identityManager = identityManager;
     this.spaceService = spaceService;
     this.processSpaceScopeResolver = processSpaceScopeResolver;
+    this.processTranslationService = processTranslationService;
   }
 
   /**
@@ -137,9 +145,10 @@ public class ProcessesMcpTool implements McpToolPlugin {
   public List<ProcessModel> listProcesses(Long spaceId) throws IllegalAccessException {
     long userIdentityId = getCurrentUserIdentityId();
     ProcessesFilter filter = buildEnabledProcessesFilter();
+    Locale locale = getCurrentUserLocale();
     if (spaceId == null || spaceId <= 0) {
       List<WorkFlow> workFlows = processesService.getWorkFlows(filter, 0, MAX_WORKFLOWS, userIdentityId);
-      return workFlows.stream().filter(Objects::nonNull).map(this::toProcessModel).toList();
+      return workFlows.stream().filter(Objects::nonNull).map(workFlow -> toProcessModel(workFlow, locale)).toList();
     }
     Space space = spaceService.getSpaceById(spaceId);
     if (space == null || !spaceService.isMember(space, getCurrentUserName())) {
@@ -156,7 +165,7 @@ public class ProcessesMcpTool implements McpToolPlugin {
             && spaceId.equals(processSpaceScopeResolver.spaceOfWorkFlow(workFlow))
             && processes.size() < MAX_WORKFLOWS
             && listed.add(workFlow.getId())) {
-          processes.add(toProcessModel(workFlow));
+          processes.add(toProcessModel(workFlow, locale));
         }
       }
       offset += MAX_WORKFLOWS;
@@ -230,11 +239,12 @@ public class ProcessesMcpTool implements McpToolPlugin {
     }
     if (!workFlow.isEnabled()) {
       throw new IllegalArgumentException(("The process '%s' is disabled and does not accept new requests.")
-          .formatted(workFlow.getTitle()));
+          .formatted(processTranslationService.getTitle(workFlow, getCurrentUserLocale())));
     }
     if (workFlow.getAcl() == null || !workFlow.getAcl().isCanAddRequest()) {
       throw new IllegalAccessException(("You are not allowed to submit a request under '%s'. Call list_processes to see "
-          + "the process types available to you.").formatted(workFlow.getTitle()));
+          + "the process types available to you.").formatted(processTranslationService.getTitle(workFlow,
+                                                                                             getCurrentUserLocale())));
     }
     Work work = new Work();
     work.setDescription(StringUtils.trimToEmpty(description));
@@ -272,13 +282,19 @@ public class ProcessesMcpTool implements McpToolPlugin {
     return toRequestModel(updated);
   }
 
-  // Lists the requests awaiting a decision: tasks still in the 'Request' /
-  // 'RequestInProgress' status (not completed) that belong to the process
-  // projects of the enabled processes whose space the current user is a member
-  // of, or of every enabled process that has a space for a platform administrator, within the
-  // MAX_WORKFLOWS and MAX_PENDING caps. Use the returned task_id with the Task MCP
-  // tools (update_task_status to Validated/Refused, add_task_comment) to
-  // respond. READ.
+  /**
+   * Lists the requests awaiting a decision: tasks still in the 'Request' /
+   * 'RequestInProgress' status (not completed) that belong to the process
+   * projects of the enabled processes whose space the current user is a member
+   * of, or of every enabled process that has a space for a platform
+   * administrator, within the MAX_WORKFLOWS and MAX_PENDING caps, each named
+   * by its process title in the user's language. Use the returned task_id with
+   * the Task MCP tools (update_task_status to Validated/Refused,
+   * add_task_comment) to respond. READ.
+   *
+   * @return the pending requests
+   * @throws Exception when the processes or the tasks can't be read
+   */
   public List<PendingApprovalModel> getPendingApprovals() throws Exception {
     long userIdentityId = getCurrentUserIdentityId();
     ProcessesFilter filter = buildEnabledProcessesFilter();
@@ -287,9 +303,10 @@ public class ProcessesMcpTool implements McpToolPlugin {
     // (member of the process's space, or platform administrator), and index
     // their project id -> process title.
     Map<Long, String> managedProjects = new LinkedHashMap<>();
+    Locale locale = getCurrentUserLocale();
     for (WorkFlow workFlow : workFlows) {
       if (workFlow != null && workFlow.isCanShowPending() && workFlow.getProjectId() > 0) {
-        managedProjects.put(workFlow.getProjectId(), workFlow.getTitle());
+        managedProjects.put(workFlow.getProjectId(), processTranslationService.getTitle(workFlow, locale));
       }
     }
     if (managedProjects.isEmpty()) {
@@ -339,11 +356,18 @@ public class ProcessesMcpTool implements McpToolPlugin {
     return Long.parseLong(identity.getId());
   }
 
-  private ProcessModel toProcessModel(WorkFlow workFlow) {
+  /**
+   * Builds the model of a process, its texts in the user's language.
+   *
+   * @param workFlow the process
+   * @param locale the user's language
+   * @return the model
+   */
+  private ProcessModel toProcessModel(WorkFlow workFlow, Locale locale) {
     return new ProcessModel(workFlow.getId(),
-                            workFlow.getTitle(),
-                            workFlow.getDescription(),
-                            workFlow.getSummary(),
+                            processTranslationService.getTitle(workFlow, locale),
+                            processTranslationService.getDescription(workFlow, locale),
+                            processTranslationService.getSummary(workFlow, locale),
                             workFlow.isEnabled(),
                             workFlow.getProjectId(),
                             workFlow.getSpaceId(),

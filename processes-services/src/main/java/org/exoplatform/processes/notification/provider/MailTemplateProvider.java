@@ -61,7 +61,7 @@ public class MailTemplateProvider extends TemplateProvider {
       if (pluginId.equals(CreateRequestPlugin.ID)) {
         String requestTitle = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_TITLE.getKey());
         String requestDescription = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_DESCRIPTION.getKey());
-        String processTitle = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_PROCESS.getKey());
+        String processTitle = NotificationUtils.getProcessTitle(notificationInfo, language);
         templateContext.put("PROCESS_TITLE", encoder.encode(processTitle));
         templateContext.put("REQUEST_TITLE", encoder.encode(requestTitle));
         templateContext.put("REQUEST_DESCRIPTION", requestDescription);
@@ -85,12 +85,12 @@ public class MailTemplateProvider extends TemplateProvider {
       NotificationInfo notificationInfo = notificationContext.getNotificationInfo();
       String pluginId = notificationInfo.getKey().getId();
       HTMLEntityEncoder encoder = HTMLEntityEncoder.getInstance();
-      String processTitle = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_PROCESS.getKey());
       String requestTitle = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_TITLE.getKey());
       String commentAuthor = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_COMMENT_AUTHOR.getKey());
       String comment = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_COMMENT.getKey());
       String requestCommentUrl = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_COMMENT_URL.getKey());
       String language = getLanguage(notificationInfo);
+      String processTitle = NotificationUtils.getProcessTitle(notificationInfo, language);
       TemplateContext templateContext = TemplateContext.newChannelInstance(getChannelKey(), pluginId, language);
       String commentText = NotificationUtils.formatMention(comment);
 

@@ -43,26 +43,52 @@ public class RequestCommentNotificationListener extends TaskCommentNotificationL
     this.processesService = processesService;
   }
 
+  /**
+   * Notifies a request's creator of a comment on it, naming the request's own
+   * process by its stored title and by its id.
+   *
+   * @param event the commented task and the comment
+   * @throws Exception when the notification can't be sent
+   */
   @Override
   public void onEvent(Event<TaskDto, CommentDto> event) throws Exception {
+    NotificationContext ctx = buildContext(event);
+    if (ctx != null) {
+      ctx.getNotificationExecutor().with(ctx.makeCommand(PluginKey.key(RequestCommentPlugin.ID))).execute(ctx);
+    }
+  }
+
+  /**
+   * Builds the notification of a comment on a request.
+   *
+   * @param event the commented task and the comment
+   * @return the notification context, or null when nothing is notified
+   * @throws Exception when the notification can't be built
+   */
+  NotificationContext buildContext(Event<TaskDto, CommentDto> event) throws Exception {
     CommentDto comment = event.getData();
     TaskDto task = event.getSource();
     ProjectDto project = task.getStatus().getProject();
     WorkFlow workFlow = processesService.getWorkFlowByProjectId(project.getId());
     if (workFlow == null) {
-      return;
+      return null;
     }
     NotificationContext ctx = NotificationContextImpl.cloneInstance();
     ctx.append(NotificationArguments.REQUEST_CREATOR, task.getCreatedBy());
     ctx.append(NotificationArguments.REQUEST_TITLE, task.getTitle());
-    ctx.append(NotificationArguments.REQUEST_PROCESS, workFlow.getTitle());
+    // A project may feed several processes: the request's own process is named,
+    // the project's first one only when the request record has none
+    Long requestWorkFlowId = processesService.getRequestWorkFlowId(task.getId());
+    NotificationUtils.appendProcess(ctx,
+                                    processesService,
+                                    requestWorkFlowId == null || requestWorkFlowId <= 0 ? workFlow.getId() : requestWorkFlowId,
+                                    workFlow.getTitle());
     ctx.append(NotificationArguments.REQUEST_COMMENT_AUTHOR, comment.getAuthor());
     ctx.append(NotificationArguments.REQUEST_COMMENT, MentionUtils.substituteUsernames(getPortalOwner(), comment.getComment()));
     ctx.append(NotificationArguments.PROCESS_URL, NotificationUtils.getProcessLink(project.getId()));
     ctx.append(NotificationArguments.REQUEST_COMMENT_URL, NotificationUtils.getRequestCommentsLink(task.getId()));
     ctx.append(NotificationArguments.REQUEST_ID, String.valueOf(task.getId()));
-    ctx.getNotificationExecutor()
-            .with(ctx.makeCommand(PluginKey.key(RequestCommentPlugin.ID))).execute(ctx);
+    return ctx;
   }
 
   private String getPortalOwner() {

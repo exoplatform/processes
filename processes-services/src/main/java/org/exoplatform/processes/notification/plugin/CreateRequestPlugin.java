@@ -31,6 +31,13 @@ public class CreateRequestPlugin extends BaseNotificationPlugin {
     return true;
   }
 
+  /**
+   * Builds the notification of a created request, naming its process by its stored
+   * title and, when known, by its id.
+   *
+   * @param notificationContext the notification context
+   * @return the notification
+   */
   @Override
   protected NotificationInfo makeNotification(NotificationContext notificationContext) {
     String requester = notificationContext.value(NotificationArguments.REQUEST_CREATOR);
@@ -42,7 +49,7 @@ public class CreateRequestPlugin extends BaseNotificationPlugin {
     String workflowProjectId = notificationContext.value(NotificationArguments.WORKFLOW_PROJECT_ID);
     String requestId = notificationContext.value(NotificationArguments.REQUEST_ID);
     List<String> receivers = NotificationUtils.getReceivers(Long.parseLong(workflowProjectId), requester, false);
-    return NotificationInfo.instance()
+    NotificationInfo notificationInfo = NotificationInfo.instance()
                            .setFrom(requester)
                            .to(receivers)
                            .with(NotificationArguments.REQUEST_CREATOR.getKey(), requester)
@@ -54,5 +61,12 @@ public class CreateRequestPlugin extends BaseNotificationPlugin {
                            .with(NotificationArguments.REQUEST_ID.getKey(), requestId)
                            .key(getKey())
                            .end();
+    // The process id, from which each recipient reads the process's title in
+    // their own language; a notification of an unknown process has none
+    String workflowId = notificationContext.value(NotificationArguments.WORKFLOW_ID);
+    if (workflowId != null) {
+      notificationInfo.with(NotificationArguments.WORKFLOW_ID.getKey(), workflowId);
+    }
+    return notificationInfo;
   }
 }
