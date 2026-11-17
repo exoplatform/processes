@@ -67,6 +67,11 @@ export default {
     this.getWorkComments();
   },
   methods: {
+    /**
+     * Opens a draft to resume it, or a sent request in the request detail drawer.
+     *
+     * @returns {void}
+     */
     openRequest() {
       if (this.isDraft) {
         this.openDraft();

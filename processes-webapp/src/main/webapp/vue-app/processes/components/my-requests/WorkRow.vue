@@ -53,10 +53,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
           class="caption text-light-color" />
       </div>
     </div>
-    <!-- Extension point: the request's form values (« Forms on processes ») -->
-    <div class="my-request-row-summary d-none d-md-flex flex-grow-1 text-truncate">
-      <slot name="summary"></slot>
-    </div>
     <div class="my-request-row-status flex-shrink-0 mx-2">
       <request-status
         :is-completed="work.completed"

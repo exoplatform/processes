@@ -580,11 +580,6 @@
       min-width: 0;
     }
 
-    .my-request-row-summary {
-      flex-basis: 0;
-      min-width: 0;
-    }
-
     .my-request-row-comments {
       min-width: 56px;
     }
@@ -600,8 +595,9 @@
     background-color: @greyColorLighten1Opacity2;
   }
 
+  // @primaryColor is a CSS custom property, which less colour functions cannot read
   .my-requests-empty-icon {
-    background-color: fade(@primaryColor, 10%);
+    background-color: @greyColorLighten1Opacity2;
   }
 
   .my-requests-empty-description {

@@ -16,6 +16,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     id="workDetailDrawer"
     ref="drawer"
     class="ProcessesApplication"
+    allow-expand
     right
     @closed="onClosed">
     <template #title>
@@ -26,7 +27,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         :work="work"
         :allow-cancel="allowCancel"
         :task-link="taskLink"
-        @archive="$root.$emit('update-work-completed', work)"
+        @archive="archiveWork"
         @cancel="cancelWork" />
     </template>
     <template v-if="work.id" #content>
@@ -62,8 +63,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         <div class="work-detail-documents my-5">
           <div class="subtitle-1 font-weight-bold mb-2">{{ $t('processes.works.form.label.documents') }}</div>
           <processes-attachments
-            :key="work.id"
-            :workflow-parent-space="parentSpace"
             :entity-id="work.id"
             edit-mode
             entity-type="task" />
@@ -86,14 +85,6 @@ export default {
     taskLink: null,
   }),
   computed: {
-    /**
-     * Reads the managing space of the request's process.
-     *
-     * @returns {Object} the space, or null
-     */
-    parentSpace() {
-      return this.work.workFlow && this.work.workFlow.parentSpace || null;
-    },
     /**
      * Names the request for the sections other add-ons contribute to the detail.
      *
@@ -127,8 +118,8 @@ export default {
   },
   methods: {
     /**
-     * Opens the drawer on a sent request and names it in the address bar. The documents list
-     * is created for each request (its key), so it reads that request's documents itself.
+     * Opens the drawer on a sent request, names it in the address bar, and lists its documents:
+     * the documents list stays mounted once the drawer opened, so it is told which request to read.
      *
      * @param {Object} event the request and its comments, {work, comments}
      * @returns {void}
@@ -139,11 +130,13 @@ export default {
       this.taskLink = null;
       this.checkTaskAccess(this.work);
       this.$root.$emit('update-url-path', 'requestDetails', `/myRequests/requestDetails/${this.work.id}`);
+      // After the flush, so a first opening has mounted the documents list that listens to it
+      this.$nextTick(() => this.$root.$emit('init-list-attachments', {entityId: this.work.id, entityType: 'task'}));
       this.$refs.drawer.open();
     },
     /**
-     * Offers « Open the task » only when Tasks lets the viewer read the request's task: a
-     * requester outside the task's project is refused there, and nothing on the request says it.
+     * Offers « Open the task » only when GET /rest/tasks/{id} answers 200 for the viewer: Tasks
+     * refuses a requester outside the task's project, and nothing on the request says it.
      * An answer for a request the drawer no longer shows is ignored.
      *
      * @param {Object} work the request, whose id is its task's id
@@ -168,6 +161,15 @@ export default {
      * @returns {void}
      */
     close() {
+      this.$refs.drawer.close();
+    },
+    /**
+     * Archives or unarchives the request, then closes the drawer, which would show its former state.
+     *
+     * @returns {void}
+     */
+    archiveWork() {
+      this.$root.$emit('update-work-completed', this.work);
       this.$refs.drawer.close();
     },
     /**
