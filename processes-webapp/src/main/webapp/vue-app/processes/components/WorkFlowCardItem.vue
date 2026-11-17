@@ -2,7 +2,7 @@
   <v-tooltip
     :disabled="!requestDisabledReason"
     bottom>
-    <template #activator="{ on, attrs }">
+    <template #activator="{ on }">
       <v-card
         :id="`workflowCard${workflow.id}`"
         :class="cardClass"
@@ -13,7 +13,6 @@
         role="button"
         tabindex="0"
         outlined
-        v-bind="attrs"
         v-on="on"
         @click.native="openRequest"
         @keydown.native.enter.self="openRequest"
@@ -66,13 +65,12 @@
           v-if="showPending && openRequestsCount !== null"
           class="workflow-card-footer d-flex align-center mt-auto ps-3 pe-2 py-2">
           <v-tooltip bottom>
-            <template #activator="{ on: linkOn, attrs: linkAttrs }">
+            <template #activator="{ on: linkOn }">
               <a
                 :href="projectLink"
                 class="workflow-card-open-requests caption text-light-color"
                 target="_blank"
                 rel="noopener"
-                v-bind="linkAttrs"
                 v-on="linkOn"
                 @click.stop>
                 <v-icon size="14" class="icon-default-color me-1">mdi-clock-time-four-outline</v-icon>

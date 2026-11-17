@@ -218,11 +218,17 @@
     }
 
     // vuetify-all's .v-application [role="button"]:not(.ignore-vuetify-classes) and .v-card--link
-    // (set by the tabindex) give every card a pointer; a card that opens no request drops it
-    &.v-card:not(.workflow-card-requestable) {
+    // (set by the tabindex) give every card, and its chip, a pointer; a card that opens no request drops it
+    &.v-card:not(.workflow-card-requestable),
+    &.v-card:not(.workflow-card-requestable) .v-chip {
       cursor: default;
     }
 
+    // vuetify-all removes both the card's outline and the v-card--link focus overlay
+    &:focus-visible {
+      outline: 2px solid @primaryColor;
+      outline-offset: 2px;
+    }
 
     &.workflow-card-disabled .workflow-card-avatar {
       filter: grayscale(1);
