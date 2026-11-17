@@ -38,6 +38,7 @@ import org.exoplatform.commons.file.services.FileStorageException;
 import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.processes.constant.ProjectMode;
 import org.exoplatform.processes.model.*;
+import org.exoplatform.processes.plugin.RequestValuesPlugin;
 import org.exoplatform.processes.Utils.ProcessesUtils;
 import org.exoplatform.processes.Utils.RequestTitle;
 import org.exoplatform.processes.storage.ProcessesStorage;
@@ -102,6 +103,9 @@ public class ProcessesServiceImpl implements ProcessesService {
   private final ListenerService  listenerService;
 
   private final ProcessTranslationService processTranslationService;
+
+  /** Registered by another add-on at its start, read by request threads. */
+  private volatile RequestValuesPlugin requestValuesPlugin;
 
   /**
    * Builds the processes service.
@@ -334,6 +338,34 @@ public class ProcessesServiceImpl implements ProcessesService {
   @Override
   public Long getRequestWorkFlowId(long taskId) {
     return processesStorage.getRequestWorkFlowId(taskId);
+  }
+
+  @Override
+  public synchronized void addRequestValuesPlugin(RequestValuesPlugin plugin) {
+    if (plugin == null) {
+      throw new IllegalArgumentException("The request values plugin is mandatory");
+    }
+    if (requestValuesPlugin != null && requestValuesPlugin != plugin) {
+      LOG.warn("The request values plugin {} replaces {}",
+               plugin.getClass().getName(),
+               requestValuesPlugin.getClass().getName());
+    }
+    requestValuesPlugin = plugin;
+  }
+
+  @Override
+  public synchronized void removeRequestValuesPlugin(RequestValuesPlugin plugin) {
+    if (plugin != null && requestValuesPlugin == plugin) {
+      requestValuesPlugin = null;
+    }
+  }
+
+  /**
+   * @return the registered request values plugin, or null when no add-on
+   *         registered one
+   */
+  RequestValuesPlugin getRequestValuesPlugin() {
+    return requestValuesPlugin;
   }
 
   /**

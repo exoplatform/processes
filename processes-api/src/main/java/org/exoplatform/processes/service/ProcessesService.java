@@ -22,6 +22,7 @@ import java.util.List;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.file.services.FileStorageException;
 import org.exoplatform.processes.model.*;
+import org.exoplatform.processes.plugin.RequestValuesPlugin;
 import org.exoplatform.social.core.identity.model.Identity;
 
 public interface ProcessesService {
@@ -423,4 +424,22 @@ public interface ProcessesService {
    *         task is no request
    */
   Long getRequestWorkFlowId(long taskId);
+
+  /**
+   * Registers the plugin that checks and writes the values a request carries
+   * and the form of a process. At most one is registered: a second
+   * registration replaces the first.
+   *
+   * @param plugin the plugin to register
+   */
+  void addRequestValuesPlugin(RequestValuesPlugin plugin);
+
+  /**
+   * Unregisters a plugin registered by
+   * {@link #addRequestValuesPlugin(RequestValuesPlugin)}. A plugin that is not
+   * the registered one leaves the registration as it is.
+   *
+   * @param plugin the plugin to unregister
+   */
+  void removeRequestValuesPlugin(RequestValuesPlugin plugin);
 }
