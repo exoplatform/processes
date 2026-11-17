@@ -27,15 +27,18 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       <v-btn
         v-if="isProcessesManager"
         id="addProcessButton"
+        :aria-label="$t('processes.works.label.addRequestType')"
+        :title="$t('processes.works.label.addRequestType')"
+        :class="isMobile && 'px-0'"
         class="btn btn-primary text-none"
         @click="$emit('add')">
         <v-icon
+          :class="!isMobile && 'me-2'"
           size="16"
-          class="me-2"
           dark>
           fa-plus
         </v-icon>
-        <span>{{ $t('processes.works.label.addRequestType') }}</span>
+        <span v-if="!isMobile">{{ $t('processes.works.label.addRequestType') }}</span>
       </v-btn>
     </template>
   </application-toolbar>
@@ -61,6 +64,9 @@ export default {
   computed: {
     canFilterByStatus() {
       return this.isMemberSpaceManager || this.isProcessesManager;
+    },
+    isMobile() {
+      return this.$vuetify.breakpoint.mobile;
     },
   },
   created() {
