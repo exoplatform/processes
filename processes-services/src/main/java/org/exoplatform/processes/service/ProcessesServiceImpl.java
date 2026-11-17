@@ -59,6 +59,11 @@ import org.exoplatform.task.service.LabelService;
 import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.StatusService;
 import org.exoplatform.task.util.UserUtil;
+import java.util.Collection;
+import jakarta.persistence.criteria.CommonAbstractCriteria;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Predicate;
 
 public class ProcessesServiceImpl implements ProcessesService {
 
@@ -338,6 +343,44 @@ public class ProcessesServiceImpl implements ProcessesService {
   @Override
   public Long getRequestWorkFlowId(long taskId) {
     return processesStorage.getRequestWorkFlowId(taskId);
+  }
+
+  @Override
+  public Map<Long, Long> getRequestWorkFlowIds(Collection<Long> taskIds) {
+    return processesStorage.getRequestWorkFlowIds(taskIds);
+  }
+
+  @Override
+  public List<Long> getRequestTaskIds(long workFlowId, Long afterTaskId, int limit) {
+    return processesStorage.getRequestTaskIds(workFlowId, afterTaskId, limit);
+  }
+
+  @Override
+  public Set<Long> getRequestProjectIds(long workFlowId) {
+    return processesStorage.getRequestProjectIds(workFlowId);
+  }
+
+  @Override
+  public long countRequests(long workFlowId) {
+    return processesStorage.countRequests(workFlowId);
+  }
+
+  @Override
+  public Long getManagingSpaceId(long workFlowId) {
+    WorkFlow workFlow = processesStorage.getWorkFlowById(workFlowId, null);
+    if (workFlow == null) {
+      return null;
+    }
+    Space space = getCurrentSpace(workFlow);
+    return space == null ? null : Long.valueOf(space.getId());
+  }
+
+  @Override
+  public Predicate requestOf(CriteriaBuilder cb,
+                             CommonAbstractCriteria query,
+                             Expression<Long> taskId,
+                             Collection<Long> workFlowIds) {
+    return processesStorage.requestOf(cb, query, taskId, workFlowIds);
   }
 
   @Override

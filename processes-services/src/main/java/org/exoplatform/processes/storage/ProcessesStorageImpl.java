@@ -70,6 +70,14 @@ import org.exoplatform.task.service.StatusService;
 import org.exoplatform.task.service.TaskService;
 import org.exoplatform.task.util.ProjectUtil;
 import org.exoplatform.task.util.UserUtil;
+import java.util.Collection;
+import java.util.Collections;
+import jakarta.persistence.criteria.CommonAbstractCriteria;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Predicate;
+import org.exoplatform.task.dao.condition.PredicateCondition;
+import org.exoplatform.task.domain.Task;
 
 public class ProcessesStorageImpl implements ProcessesStorage {
 
@@ -198,6 +206,81 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   public Long getRequestWorkFlowId(long taskId) {
     RequestEntity request = requestDAO.find(taskId);
     return request == null ? null : request.getWorkFlowId();
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Map<Long, Long> getRequestWorkFlowIds(Collection<Long> taskIds) {
+    if (taskIds == null || taskIds.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    return requestDAO.findWorkFlowIdsByTaskIds(taskIds);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<Long> getRequestTaskIds(long workFlowId, Long afterTaskId, int limit) {
+    if (limit <= 0) {
+      throw new IllegalArgumentException("A page of request tasks needs a strictly positive limit");
+    }
+    TaskQuery taskQuery = requestsQuery(workFlowId);
+    if (afterTaskId != null) {
+      taskQuery.add(new PredicateCondition<Task>((cb, query, root) -> cb.greaterThan(root.<Long> get("id"), afterTaskId)));
+    }
+    taskQuery.setOrderBy(List.of(new OrderBy.ASC("id")));
+    try {
+      return taskService.findTasks(taskQuery, 0, limit).stream().map(TaskDto::getId).toList();
+    } catch (Exception e) {
+      throw new IllegalStateException("The request tasks of the process " + workFlowId + " could not be read", e);
+    }
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Set<Long> getRequestProjectIds(long workFlowId) {
+    List<Long> projectIds = taskService.selectTaskField(requestsQuery(workFlowId), "status.project.id");
+    return projectIds == null ? Collections.emptySet() : new HashSet<>(projectIds);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public long countRequests(long workFlowId) {
+    try {
+      return taskService.countTasks(requestsQuery(workFlowId));
+    } catch (Exception e) {
+      throw new IllegalStateException("The request tasks of the process " + workFlowId + " could not be counted", e);
+    }
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Predicate requestOf(CriteriaBuilder cb,
+                             CommonAbstractCriteria query,
+                             Expression<Long> taskId,
+                             Collection<Long> workFlowIds) {
+    return RequestDAO.requestOf(cb, query, taskId, workFlowIds);
+  }
+
+  /**
+   * @param workFlowId the process id
+   * @return a task query restricted to the requests of the process
+   */
+  private TaskQuery requestsQuery(long workFlowId) {
+    TaskQuery taskQuery = new TaskQuery();
+    taskQuery.add(new PredicateCondition<Task>((cb,
+                                                query,
+                                                root) -> RequestDAO.requestOf(cb, query, root.<Long> get("id"), List.of(workFlowId))));
+    return taskQuery;
   }
 
   /**

@@ -27,6 +27,12 @@ import org.exoplatform.services.attachments.model.Attachment;
 import org.exoplatform.social.core.identity.model.Identity;
 
 import jakarta.persistence.EntityNotFoundException;
+import java.util.Collection;
+import java.util.Set;
+import jakarta.persistence.criteria.CommonAbstractCriteria;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Predicate;
 
 public interface ProcessesStorage {
 
@@ -264,4 +270,59 @@ public interface ProcessesStorage {
    *         task is no request
    */
   Long getRequestWorkFlowId(long taskId);
+
+  /**
+   * Reads the processes of the tasks that are requests, one query per page of
+   * {@code 1000} task ids. It is the platform's own read, with no user's
+   * permission.
+   *
+   * @param taskIds the task ids
+   * @return task id → process id, for the tasks that have a request record
+   */
+  Map<Long, Long> getRequestWorkFlowIds(Collection<Long> taskIds);
+
+  /**
+   * Reads one page of the tasks of a process's requests that still exist, by
+   * ascending id. It is the platform's own read, with no user's permission.
+   *
+   * @param workFlowId the process id
+   * @param afterTaskId the last task id of the previous page, or null for the
+   *          first page
+   * @param limit the page size, strictly positive
+   * @return the task ids of the page, ascending
+   */
+  List<Long> getRequestTaskIds(long workFlowId, Long afterTaskId, int limit);
+
+  /**
+   * Reads the task projects that hold the requests of a process, in one query:
+   * the current projects of its request tasks, which may differ from the
+   * process's stored project. It is the platform's own read, with no user's
+   * permission.
+   *
+   * @param workFlowId the process id
+   * @return the distinct project ids
+   */
+  Set<Long> getRequestProjectIds(long workFlowId);
+
+  /**
+   * Counts the requests of a process whose task still exists. It is the
+   * platform's own read, with no user's permission.
+   *
+   * @param workFlowId the process id
+   * @return the number of request tasks of the process
+   */
+  long countRequests(long workFlowId);
+
+  /**
+   * Builds the restriction of a query to the tasks that are requests of some
+   * processes. See
+   * {@link org.exoplatform.processes.service.ProcessesService#requestOf}.
+   *
+   * @param cb the criteria builder of the query
+   * @param query the query, to create the subquery from
+   * @param taskId the task id expression of the query
+   * @param workFlowIds the process ids
+   * @return the restriction; one that no task meets when no process is given
+   */
+  Predicate requestOf(CriteriaBuilder cb, CommonAbstractCriteria query, Expression<Long> taskId, Collection<Long> workFlowIds);
 }
