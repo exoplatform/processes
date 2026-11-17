@@ -1,9 +1,22 @@
 <template>
   <exo-drawer
     @closed="close"
+    @expand-updated="expanded = $event"
     ref="work"
+    :allow-expand="!viewMode"
     class="ProcessesApplication"
     right>
+    <template v-if="expanded && !viewMode" #fullAppLeftTitle>
+      <div class="light-grey-background-color d-flex align-center align-self-stretch flex-grow-1 mx-n4 px-4 text-truncate">
+        {{ work.workFlow.title }}
+      </div>
+    </template>
+    <template v-if="expanded && !viewMode" #fullAppLeftContent>
+      <div id="requestProcessAbout" class="pa-4">
+        <p class="text-subtitle-2 text-uppercase text-light-color mb-2">{{ $t('processes.request.about') }}</p>
+        <p v-sanitized-html="work.workFlow.summary" class="text-break"></p>
+      </div>
+    </template>
     <template slot="title">
       <v-container
         class="pa-0"
@@ -70,6 +83,10 @@
             v-model="valid"
             ref="form"
             id="add-work-form">
+            <request-fill-status
+              :fill="sectionsFill"
+              class="mt-5"
+              variant="bar" />
             <processes-extension-sections
               ref="requestSections"
               :key="`requestSections${openKey}`"
@@ -79,7 +96,7 @@
               type="request-drawer-section"
               class="mt-5"
               @changed="onSectionsChanged"
-              @filled="sectionsFilled = $event" />
+              @fill="onSectionsFill" />
             <div class="work-message">
               <p class="mt-5 font-weight-bold">{{ $t('processes.work.message.to.manager') }}</p>
               <p
@@ -161,23 +178,25 @@
       </div>
     </template>
     <template slot="footer" v-if="!viewMode">
-      <v-btn
-        :loading="saving"
-        @click="addWork"
-        :disabled="!validWorkDescription && !attachmentsChanged && !sectionsChanged && !(sectionsFilled && hasDraft)"
-        id="sendRequestButton"
-        class="btn btn-primary float-e">
-        {{ $t('processes.work.sendWork.label') }}
-      </v-btn>
+      <request-drawer-actions
+        :fill="sectionsFill"
+        :expanded="expanded"
+        :saving="saving"
+        :saving-draft="savingAsDraft"
+        :can-save-draft="canSaveAsDraft"
+        :can-submit="validWorkDescription || attachmentsChanged || sectionsChanged || sectionsFilled && hasDraft"
+        @save-draft="saveAsDraft"
+        @submit="addWork" />
     </template>
   </exo-drawer>
 </template>
 
 <script>
 import RequestDraftMixin from '../js/RequestDraftMixin.js';
+import RequestDrawerExtrasMixin from '../js/RequestDrawerExtrasMixin.js';
 
 export default {
-  mixins: [RequestDraftMixin],
+  mixins: [RequestDraftMixin, RequestDrawerExtrasMixin],
 
   data () {
     return {
@@ -319,6 +338,7 @@ export default {
         }
       }
       this.initDraftState();
+      this.initExtrasState();
       if (mode === 'create_work') {
         // Until the first input creates the draft, which gets copies of them, the process's own documents show read-only
         this.$root.$emit('init-list-attachments', {entityId: this.work.workFlow.id, entityType: 'workflow', preview: true});

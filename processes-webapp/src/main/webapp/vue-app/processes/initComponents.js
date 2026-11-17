@@ -26,6 +26,8 @@ import WorkActionsMenu from './components/my-requests/WorkActionsMenu.vue';
 import WorkDetailDrawer from './components/my-requests/WorkDetailDrawer.vue';
 import WorkDetailTitle from './components/my-requests/WorkDetailTitle.vue';
 import ProcessesExtensionSections from './components/ProcessesExtensionSections.vue';
+import RequestFillStatus from './components/RequestFillStatus.vue';
+import RequestDrawerActions from './components/RequestDrawerActions.vue';
 
 import EmptyOrLoading from './components/commons/EmptyOrLoading.vue';
 import CustomCounter from './components/commons/CustomCounter.vue';
@@ -70,6 +72,8 @@ const components = {
   'work-detail-drawer': WorkDetailDrawer,
   'work-detail-title': WorkDetailTitle,
   'processes-extension-sections': ProcessesExtensionSections,
+  'request-fill-status': RequestFillStatus,
+  'request-drawer-actions': RequestDrawerActions,
   'processes-attachments': ProcessesAttachments,
   'empty-or-loading': EmptyOrLoading,
   'custom-counter': CustomCounter,
