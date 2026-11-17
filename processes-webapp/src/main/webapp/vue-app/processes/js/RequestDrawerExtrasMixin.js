@@ -31,8 +31,14 @@ export default {
     savingAsDraft: false,
   }),
   computed: {
+    /**
+     * True once there is a draft, or an input that creates one: the draft
+     * mixin's own creation rule, so an empty request never gets a draft.
+     *
+     * @returns {Boolean} true when « Save as draft » may run
+     */
     canSaveAsDraft() {
-      return !this.saving && !this.savingAsDraft && (this.hasDraft || this.hasChanges);
+      return !this.saving && !this.savingAsDraft && (this.hasDraft || this.descriptionHasText || this.sectionsChanged);
     },
   },
   methods: {
@@ -62,7 +68,8 @@ export default {
     /**
      * Saves the draft as it stands and closes the drawer once it is saved;
      * a refused save keeps the drawer open, its refused field marked by the
-     * draft mixin.
+     * draft mixin. An answer that comes after the drawer was opened again
+     * acts on nothing.
      *
      * @returns {Promise} settled once the drawer is closed or kept
      */
@@ -70,17 +77,22 @@ export default {
       if (!this.canSaveAsDraft) {
         return Promise.resolve();
       }
+      const openKey = this.openKey;
       this.savingAsDraft = true;
       return this.saveDraft()
         .then(() => {
-          if (!this.hasDraft) {
+          if (openKey !== this.openKey || !this.hasDraft) {
             return;
           }
           this.$root.$emit('show-alert', {type: 'success', message: this.$t('processes.request.draftSaved')});
           this.close();
         })
         .catch(() => null)
-        .finally(() => this.savingAsDraft = false);
+        .finally(() => {
+          if (openKey === this.openKey) {
+            this.savingAsDraft = false;
+          }
+        });
     },
   },
 };
