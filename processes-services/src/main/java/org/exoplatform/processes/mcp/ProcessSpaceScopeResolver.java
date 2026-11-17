@@ -38,15 +38,17 @@ import io.meeds.mcp.server.plugin.SpaceScopeResolver;
 
 /**
  * Tells which space a process (a workflow) belongs to, for the space scope of
- * the processes tools: the space of the process's project, when every manager
- * of that project is a role of one and the same space group
- * ({@code <role>:/spaces/<name>}), the rule of the task add-on's project
- * resolver. A project with a user manager, a group outside the spaces or a
- * second space among its managers, a missing process, project or space
- * belong to no space. The process is read as the system ({@code null} user
- * id), for its project id only, never for an authorization flag: the tools
- * read the process again with the caller's memberships and gate on its
- * {@code acl}. The read gives a project id only, never returned to the model,
+ * the processes tools: its stored managing space, which a task project
+ * shared by several processes cannot tell, and for a process stored before
+ * it had one, the space of its project, when every manager of that project
+ * is a role of one and the same space group ({@code <role>:/spaces/<name>}),
+ * the rule of the task add-on's project resolver. A project with a user
+ * manager, a group outside the spaces or a second space among its managers,
+ * a missing process, project or space belong to no space. The process is
+ * read as the system ({@code null} user id), for its stored space and its
+ * project id only, never for an authorization flag: the tools read the
+ * process again with the caller's memberships and gate on its {@code acl}.
+ * The read gives a space and a project id only, never returned to the model,
  * since a space scope decision needs the space of any process, whoever asks.
  * Its only visible effect is that a process id outside the call's space is
  * refused by the scope, and one inside it that the caller may not submit to,
@@ -87,10 +89,10 @@ public class ProcessSpaceScopeResolver implements SpaceScopeResolver {
 
   /**
    * @param objectId the process (workflow) id
-   * @return the id of the space of the process's project, or null for a
-   *         project that isn't managed through exactly one space, a missing
-   *         process, project or space, an id that isn't one, or a lookup
-   *         that fails
+   * @return the id of the process's stored space, else of the space of its
+   *         project, or null for a project that isn't managed through
+   *         exactly one space, a missing process, project or space, an id
+   *         that isn't one, or a lookup that fails
    */
   @Override
   public Long spaceOf(String objectId) {
@@ -99,7 +101,7 @@ public class ProcessSpaceScopeResolver implements SpaceScopeResolver {
     }
     try {
       WorkFlow workFlow = processesService.getWorkFlow(Long.parseLong(objectId), null);
-      return workFlow == null ? null : spaceOfProject(workFlow.getProjectId());
+      return workFlow == null ? null : spaceOfWorkFlow(workFlow);
     } catch (IllegalAccessException | RuntimeException e) {
       LOG.debug("The space of process '{}' couldn't be read", objectId, e);
       return null;
@@ -134,6 +136,30 @@ public class ProcessSpaceScopeResolver implements SpaceScopeResolver {
     }
     Space space = spaceService.getSpaceByGroupId(groupId);
     return space != null && StringUtils.isNumeric(space.getId()) ? Long.valueOf(space.getId()) : null;
+  }
+
+  /**
+   * @param workFlow a process, already read
+   * @return the id of its stored managing space when that space exists, else
+   *         of the space of its project, by {@link #spaceOfProject(long)}
+   */
+  public Long spaceOfWorkFlow(WorkFlow workFlow) {
+    Long storedSpaceId = storedSpaceOf(workFlow);
+    return storedSpaceId != null ? storedSpaceId : spaceOfProject(workFlow.getProjectId());
+  }
+
+  /**
+   * @param workFlow a process
+   * @return the id of its stored managing space when that space exists, else
+   *         null
+   */
+  private Long storedSpaceOf(WorkFlow workFlow) {
+    String spaceId = workFlow.getSpaceId();
+    if (!StringUtils.isNumeric(spaceId)) {
+      return null;
+    }
+    Space space = spaceService.getSpaceById(spaceId);
+    return space == null ? null : Long.valueOf(spaceId);
   }
 
   /**

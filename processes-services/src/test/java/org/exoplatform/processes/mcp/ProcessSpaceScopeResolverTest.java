@@ -161,6 +161,43 @@ public class ProcessSpaceScopeResolverTest {
   }
 
   /**
+   * Two processes sharing one task project belong each to its own stored
+   * managing space, whatever the space of the project; a stored space that no
+   * longer exists falls back to the project's rule, as does a process stored
+   * before it had a space. Mutation: read the project's space only and the
+   * first assertion fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  public void twoProcessesSharingAProjectBelongToTheirStoredSpaces() throws Exception {// NOSONAR
+    when(projectService.getProject(40L)).thenReturn(project("manager:/spaces/alpha"));
+    Space beta = mock(Space.class);
+    when(spaceService.getSpaceById("13")).thenReturn(beta);
+    process(20L, 40L, "13");
+    process(21L, 40L, "99");
+    process(22L, 40L, "");
+
+    assertEquals(Long.valueOf(13L), resolver.spaceOf("20"));
+    assertEquals("a stored space that no longer exists", Long.valueOf(12L), resolver.spaceOf("21"));
+    assertEquals("no stored space", Long.valueOf(12L), resolver.spaceOf("22"));
+  }
+
+  /**
+   * @param id a process id
+   * @param projectId its project id
+   * @param spaceId its stored space id
+   * @throws IllegalAccessException never, the service is a mock
+   */
+  private void process(long id, long projectId, String spaceId) throws IllegalAccessException {
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setId(id);
+    workFlow.setProjectId(projectId);
+    workFlow.setSpaceId(spaceId);
+    when(processesService.getWorkFlow(id, null)).thenReturn(workFlow);
+  }
+
+  /**
    * @param id a process id
    * @param projectId its project id
    * @throws IllegalAccessException never, the service is a mock

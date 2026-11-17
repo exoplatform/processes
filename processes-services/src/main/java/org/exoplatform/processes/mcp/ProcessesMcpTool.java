@@ -153,7 +153,7 @@ public class ProcessesMcpTool implements McpToolPlugin {
       page = processesService.getWorkFlows(filter, offset, MAX_WORKFLOWS, userIdentityId);
       for (WorkFlow workFlow : page) {
         if (workFlow != null
-            && spaceId.equals(processSpaceScopeResolver.spaceOfProject(workFlow.getProjectId()))
+            && spaceId.equals(processSpaceScopeResolver.spaceOfWorkFlow(workFlow))
             && processes.size() < MAX_WORKFLOWS
             && listed.add(workFlow.getId())) {
           processes.add(toProcessModel(workFlow));

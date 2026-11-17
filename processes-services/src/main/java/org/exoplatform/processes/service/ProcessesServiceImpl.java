@@ -176,6 +176,14 @@ public class ProcessesServiceImpl implements ProcessesService {
    * {@inheritDoc}
    */
   @Override
+  public Long getRequestWorkFlowId(long taskId) {
+    return processesStorage.getRequestWorkFlowId(taskId);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
   public EligibleProjects listEligibleProjects(String spaceId,
                                                int offset,
                                                int limit,

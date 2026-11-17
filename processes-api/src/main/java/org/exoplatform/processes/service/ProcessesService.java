@@ -370,4 +370,15 @@ public interface ProcessesService {
                                                                                        IllegalAccessException,
                                                                                        FileStorageException,
                                                                                        IOException;
+
+  /**
+   * Reads the process a task was created for, from its request record. It is
+   * the platform's own read, with no user's permission: a caller that serves
+   * a user checks that user's rights on what it returns.
+   *
+   * @param taskId the task id
+   * @return the id of the process whose request the task is, or null when the
+   *         task is no request
+   */
+  Long getRequestWorkFlowId(long taskId);
 }

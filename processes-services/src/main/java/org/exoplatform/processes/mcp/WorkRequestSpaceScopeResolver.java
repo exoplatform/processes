@@ -21,7 +21,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
-import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.service.ProcessesService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -30,17 +29,17 @@ import io.meeds.mcp.server.plugin.SpaceScopeResolver;
 
 /**
  * Tells which space a work request belongs to, for the space scope of the
- * processes tools: the space of the project of the process it was submitted
- * to, by the rule of {@link ProcessSpaceScopeResolver}. A request is a task of
- * its process's project, so a task whose project is no process's project is
- * no request and belongs to no space here, nor does a missing one. The request
- * is read as the system ({@link ProcessesService#getWorkById(long)}), for its
- * project id only; the tools read the request again with the caller's own
- * rights ({@code getWorkById(userIdentityId, id)}, the caller's own requests
- * only). The read gives a project id only, never returned to the model, since
- * a space scope decision needs the space of any request, whoever asks. Its
- * only visible effect is that a request id outside the call's space is
- * refused by the scope, and one inside it that isn't the caller's, by the
+ * processes tools: the space of the process its request record names, by the
+ * rule of {@link ProcessSpaceScopeResolver}. A task project may be shared by
+ * several processes and hold plain tasks, so a task with no request record is
+ * no request and belongs to no space here, nor does a missing one. The record
+ * is read as the system ({@link ProcessesService#getRequestWorkFlowId(long)}),
+ * for its process id only; the tools read the request again with the
+ * caller's own rights ({@code getWorkById(userIdentityId, id)}, the caller's
+ * own requests only). The read gives a process id only, never returned to the
+ * model, since a space scope decision needs the space of any request, whoever
+ * asks. Its only visible effect is that a request id outside the call's space
+ * is refused by the scope, and one inside it that isn't the caller's, by the
  * tool.
  */
 @Service("workRequestSpaceScopeResolver")
@@ -53,11 +52,11 @@ public class WorkRequestSpaceScopeResolver implements SpaceScopeResolver {
   /** Logs the lookups that fail. */
   private static final Log LOG = ExoLogger.getLogger(WorkRequestSpaceScopeResolver.class);
 
-  /** Reads the request and the process of its project. */
+  /** Reads the process of a request from its request record. */
   @Autowired
   private ProcessesService          processesService;
 
-  /** Tells the space of a process project. */
+  /** Tells the space of a process. */
   @Autowired
   private ProcessSpaceScopeResolver processSpaceScopeResolver;
 
@@ -71,10 +70,9 @@ public class WorkRequestSpaceScopeResolver implements SpaceScopeResolver {
 
   /**
    * @param objectId the request id, the id of its task
-   * @return the id of the space of the request's process, or null for a task
-   *         that isn't a request, a missing request, a process project that
-   *         isn't managed through exactly one space, an id that isn't one, or
-   *         a lookup that fails
+   * @return the id of the space of the process its request record names, or
+   *         null for a task with no request record, a process with no space,
+   *         an id that isn't one, or a lookup that fails
    */
   @Override
   public Long spaceOf(String objectId) {
@@ -82,11 +80,10 @@ public class WorkRequestSpaceScopeResolver implements SpaceScopeResolver {
       return null;
     }
     try {
-      Work work = processesService.getWorkById(Long.parseLong(objectId));
-      if (work == null || work.getProjectId() <= 0 || processesService.getWorkFlowByProjectId(work.getProjectId()) == null) {
-        return null;
-      }
-      return processSpaceScopeResolver.spaceOfProject(work.getProjectId());
+      // The request record names the process, which a task project shared by
+      // several processes cannot
+      Long workFlowId = processesService.getRequestWorkFlowId(Long.parseLong(objectId));
+      return workFlowId == null ? null : processSpaceScopeResolver.spaceOf(String.valueOf(workFlowId));
     } catch (RuntimeException e) {
       LOG.debug("The space of request '{}' couldn't be read", objectId, e);
       return null;
