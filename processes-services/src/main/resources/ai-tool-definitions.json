@@ -68,7 +68,7 @@
     {
       "name": "submit_work_request",
       "title": "Submit a new work request",
-      "description": "Submits a new work request under a process type, on behalf of the current user. The request is created in the initial 'Request' status. Get 'process_id' from list_processes. There is NO structured field map: put any details the approver needs into the 'description' (structured data belongs to the process's own document form / UI, not this tool).",
+      "description": "Submits a new work request under a process type, on behalf of the current user. The request is created in the initial 'Request' status, and the platform names it '<process> - <yyyy/MM/dd> - <requester>'. Get 'process_id' from list_processes. There is NO structured field map: put any details the approver needs into the 'description' (structured data belongs to the process's own document form / UI, not this tool).",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -78,7 +78,7 @@
           },
           "title": {
             "type": "string",
-            "description": "A short title for the request, e.g. 'Annual leave 12-16 Aug'."
+            "description": "Optional. A short title of your own, e.g. 'Summer holidays', added after the name the platform gives the request: '<process> - <yyyy/MM/dd> - <requester> - <title>'. The whole name is cut to 250 characters, so a long title is shortened."
           },
           "description": {
             "type": "string",
@@ -86,8 +86,7 @@
           }
         },
         "required": [
-          "process_id",
-          "title"
+          "process_id"
         ]
       },
       "annotations": {
