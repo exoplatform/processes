@@ -26,14 +26,14 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       :placeholder="$t('processes.workflow.labels.placeholder')"
       :error-messages="nameError"
       :menu-props="menuProps"
-      class="pt-0 mt-1"
+      class="processLabelsField pt-0 mt-1"
       item-text="name"
       return-object
       multiple
+      small-chips
       outlined
       dense
       hide-selected
-      @focus="measureMenuWidth"
       @change="select">
       <template #no-data>
         <v-list-item class="pa-0">
