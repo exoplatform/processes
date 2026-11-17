@@ -29,6 +29,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -162,10 +163,10 @@ public class ProcessesServiceImplTest {
                                                      listenerService,
                                                      processTranslationService));
     // The save of a process's rows runs in a transaction the platform aspect
-    // begins; the unit tests call the storage's save directly
-    doAnswer(invocation -> processesStorage.saveWorkFlow(invocation.getArgument(0),
-                                                         invocation.getArgument(1))).when(processesService)
-                                                                                    .saveWorkFlowRows(any(), anyLong());
+    // begins; the unit tests call its body directly
+    doAnswer(invocation -> processesService.writeWorkFlowRows(invocation.getArgument(0),
+                                                              invocation.getArgument(1))).when(processesService)
+                                                                                         .saveWorkFlowRows(any(), anyLong());
     when(processesStorage.createProject(any())).thenAnswer(invocation -> invocation.getArgument(0));
     disabledWorkFlow = new WorkFlow();
     disabledWorkFlow.setEnabled(false);
@@ -652,6 +653,38 @@ public class ProcessesServiceImplTest {
     assertFalse(processesService.isProcessesAdministrator(PROJECT_MANAGER_ID));
     assertFalse(processesService.isProcessesAdministrator(PARTICIPANT_ID));
     assertThrows(IllegalAccessException.class, () -> processesService.isProcessesAdministrator(DISABLED_USER_ID));
+  }
+
+  /**
+   * A process update states its translations with the process: they are
+   * written for the saved process after its rows, in the save's transaction
+   * body; an update that states none writes none.
+   * Mutants: the translations not written, written before the rows, or
+   * written from the client's process instead of the saved one.
+   *
+   * @throws Exception never, the services are mocks
+   */
+  @Test
+  public void updateWorkflowSavesItsTranslationsWithTheProcess() throws Exception {
+    WorkFlow stored = new WorkFlow();
+    stored.setId(1L);
+    stored.setTitle("Leave");
+    stored.setAcl(new ProcessPermission(true, true, false, false));
+    when(processesStorage.getWorkFlowById(1L, 1L)).thenReturn(stored);
+    WorkFlow saved = new WorkFlow();
+    saved.setId(1L);
+    WorkFlow update = new WorkFlow();
+    update.setId(1L);
+    update.setTitle("Leave");
+    Map<String, Map<String, String>> translations = Map.of("title", Map.of("fr", "Congés"));
+    update.setTranslations(translations);
+    when(processesStorage.saveWorkFlow(update, 1L)).thenReturn(saved);
+
+    processesService.updateWorkFlow(update, 1L);
+
+    org.mockito.InOrder order = inOrder(processesStorage, processTranslationService);
+    order.verify(processesStorage).saveWorkFlow(update, 1L);
+    order.verify(processTranslationService).saveTranslations(saved, translations);
   }
 
   @Test

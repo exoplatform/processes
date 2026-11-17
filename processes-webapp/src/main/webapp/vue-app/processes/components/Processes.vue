@@ -62,8 +62,6 @@
 </template>
 
 <script>
-/** The answer of a process update that changes nothing in the process itself */
-const NO_CHANGE_SAVE_ERROR = 'there are no changes to save';
 
 export default {
   data () {
@@ -162,10 +160,10 @@ export default {
       this.addWork(work);
     });
     this.$root.$on('add-workflow', (workflow, translations) => {
-      this.addNewWorkFlow(workflow, translations);
+      this.addNewWorkFlow(this.withTranslations(workflow, translations));
     });
     this.$root.$on('update-workflow', (workflow, translations) => {
-      this.updateWorkFlow(workflow, translations);
+      this.updateWorkFlow(this.withTranslations(workflow, translations));
     });
     this.$root.$on('refresh-works', () => {
       this.getWorks();
@@ -528,27 +526,19 @@ export default {
       }));
     },
     /**
-     * Creates a process, then saves its translations, and reports the outcome;
-     * a refused creation tells the drawer so it can be saved again. Translations
-     * that can't be saved leave the process created, which the message says.
+     * Creates a process, then reports the outcome; a refusal tells the drawer
+     * so it can be saved again.
      *
      * @param {Object} workflow the process to create
-     * @param {Object} translations its texts per language, saved once it has an id
      * @returns {void}
      */
-    addNewWorkFlow(workflow, translations) {
+    addNewWorkFlow(workflow) {
       this.saving = true;
       this.$processesService.addNewWorkFlow(workflow).then(workflow => {
-        if (workflow) {
-          return this.saveTranslations(workflow.id, translations).then(saved => ({workflow, saved}));
-        }
-      }).then(created => {
-        if (created) {
-          this.getWorkFlows(created.workflow);
+        if (workflow){
+          this.getWorkFlows(workflow);
           this.$root.$emit('workflow-added');
-          this.displayMessage(created.saved
-            ? {type: 'success', message: this.$t('processes.workflow.add.success.message')}
-            : {type: 'error', message: this.$t('processes.workflow.translations.error.message')});
+          this.displayMessage({type: 'success', message: this.$t('processes.workflow.add.success.message')});
           this.showProcessFilter = true;
         }
       }).catch(e => {
@@ -673,77 +663,34 @@ export default {
      * so it can be saved again.
      *
      * @param {Object} workflow the process to update
-     * @param {Object} translations its texts per language
      * @returns {void}
      */
-    updateWorkFlow(workflow, translations) {
+    updateWorkFlow(workflow) {
       this.saving = true;
       this.$processesService.updateWorkflow(workflow).then(newWorkflow => {
         if (newWorkflow) {
-          this.updateTranslations(workflow.id, translations, newWorkflow);
+          this.$root.$emit('workflow-updated', newWorkflow);
+          this.displayMessage({type: 'success', message: this.$t('processes.workflow.update.success.message')});
         }
       }).catch(e => {
-        // A save that changes only translations leaves the process itself
-        // unchanged, which the server refuses: the translations are saved alone
-        if (e && e.message === NO_CHANGE_SAVE_ERROR && translations && translations.changed) {
-          this.updateTranslations(workflow.id, translations, null);
-          return;
-        }
         this.$root.$emit('workflow-save-failed');
         this.displayMessage({type: 'error', message: this.saveErrorMessage(e, 'update')});
       });
     },
     /**
-     * Saves a process's title, description and summary per language, once the
-     * process is saved; nothing is saved when they did not change.
+     * Adds to a process to save its title, description and summary per
+     * language, when they changed, so that the process and its translations
+     * are saved together.
      *
-     * @param {Number} workflowId the saved process's id
-     * @param {Object} translations the values per language of each field
-     * @returns {Promise<Boolean>} true once they are saved, false when one of
-     *          them could not be
+     * @param {Object} workflow the process to save
+     * @param {Object} translations its texts per language, and whether they
+     *          changed
+     * @return {Object} the process to send
      */
-    saveTranslations(workflowId, translations) {
-      if (!workflowId || !translations || !translations.changed) {
-        return Promise.resolve(true);
-      }
-      return Promise.all(Object.keys(translations.values)
-        .map(fieldName => this.$translationService.saveTranslations('process', workflowId, fieldName, translations.values[fieldName])))
-        .then(() => true)
-        .catch(() => false);
-    },
-    /**
-     * Ends a process update: saves its translations, then shows the process
-     * as the user reads it, in their language, read again when its
-     * translations changed. Translations that can't be saved keep the drawer
-     * open, so that saving again saves them.
-     *
-     * @param {Number} workflowId the process's id
-     * @param {Object} translations its texts per language
-     * @param {String} updatedWorkflow the process the update answered, as
-     *          JSON text, or null when only translations changed
-     * @returns {void}
-     */
-    updateTranslations(workflowId, translations, updatedWorkflow) {
-      this.saveTranslations(workflowId, translations)
-        .then(saved => {
-          if (!saved) {
-            this.$root.$emit('workflow-save-failed');
-            this.displayMessage({type: 'error', message: this.$t('processes.workflow.translations.error.message')});
-            return;
-          }
-          // The process is announced as the update answers it, its JSON text
-          return Promise.resolve(translations && translations.changed || !updatedWorkflow
-            ? this.$processesService.getWorkflowById(workflowId, '').then(storedWorkflow => JSON.stringify(storedWorkflow))
-            : updatedWorkflow)
-            .then(shownWorkflow => {
-              this.$root.$emit('workflow-updated', shownWorkflow);
-              this.displayMessage({type: 'success', message: this.$t('processes.workflow.update.success.message')});
-            });
-        })
-        .catch(() => {
-          this.$root.$emit('workflow-save-failed');
-          this.displayMessage({type: 'error', message: this.saveErrorMessage(null, 'update')});
-        });
+    withTranslations(workflow, translations) {
+      return translations && translations.changed
+        ? Object.assign({}, workflow, {translations: translations.values})
+        : workflow;
     },
     onDialogClosed() {
       this.dialogAction = null;

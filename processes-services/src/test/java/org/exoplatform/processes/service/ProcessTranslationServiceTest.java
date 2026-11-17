@@ -18,14 +18,20 @@ package org.exoplatform.processes.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Locale;
+import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -125,6 +131,60 @@ class ProcessTranslationServiceTest {
     verify(translationService).saveTranslationLabel("process", "9", "title", Locale.ENGLISH, "Leave");
     verify(translationService, never()).saveTranslationLabel("process", "9", "description", Locale.ENGLISH, "Ask for leave");
     verify(translationService, never()).saveTranslationLabel("process", "9", "summary", Locale.ENGLISH, "Leave rules");
+  }
+
+  /**
+   * A save writes each stated field's labels by language, the default
+   * language's being the field's own value whatever was sent for it, a blank
+   * label dropped and a language tag read with an underscore or a dash; a
+   * field not stated, or a save stating none, writes nothing.
+   * Mutants: the default language's label taken from the request, a blank
+   * label kept, an unstated field written, or the labels written for a
+   * process with no id.
+   *
+   * @throws Exception never, the services are mocks
+   */
+  @Test
+  void aSaveWritesTheStatedTranslationsWithTheStoredDefaultValue() throws Exception {
+    Map<String, String> titles = new HashMap<>();
+    titles.put("en", "Not the stored title");
+    titles.put("fr", "Congés");
+    titles.put("pt_BR", "Férias");
+    titles.put("de", " ");
+    Map<String, Map<String, String>> translations = Map.of("title", titles, "other", Map.of("fr", "ignored"));
+
+    processTranslationService.saveTranslations(workFlow(), translations);
+
+    Map<Locale, String> expected = new LinkedHashMap<>();
+    expected.put(Locale.FRENCH, "Congés");
+    expected.put(Locale.forLanguageTag("pt-BR"), "Férias");
+    expected.put(Locale.ENGLISH, "Leave");
+    verify(translationService).saveTranslationLabels("process", "9", "title", expected, false);
+    verify(translationService, never()).saveTranslationLabels(eq("process"), eq("9"), eq("description"), anyMap(), anyBoolean());
+    verify(translationService, never()).saveTranslationLabels(eq("process"), eq("9"), eq("summary"), anyMap(), anyBoolean());
+
+    processTranslationService.saveTranslations(workFlow(), null);
+    WorkFlow unsaved = workFlow();
+    unsaved.setId(0);
+    processTranslationService.saveTranslations(unsaved, translations);
+    verify(translationService).saveTranslationLabels(anyString(), anyString(), anyString(), anyMap(), anyBoolean());
+  }
+
+  /**
+   * A translation that can't be written fails the save it belongs to, so
+   * that its transaction saves neither the process nor its translations.
+   * Mutant: the failure swallowed.
+   *
+   * @throws Exception never, the services are mocks
+   */
+  @Test
+  void aTranslationThatCantBeWrittenFailsTheSave() throws Exception {
+    doThrow(new ObjectNotFoundException("gone")).when(translationService)
+                                                 .saveTranslationLabels(eq("process"), eq("9"), eq("title"), anyMap(), eq(false));
+
+    org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
+                                                  () -> processTranslationService.saveTranslations(workFlow(),
+                                                                                                   Map.of("title", Map.of("fr", "Congés"))));
   }
 
   /**

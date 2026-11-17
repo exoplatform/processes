@@ -19,6 +19,7 @@ package org.exoplatform.processes.model;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.exoplatform.processes.constant.ProjectMode;
@@ -78,6 +79,14 @@ public class WorkFlow {
    * the stored ones.
    */
   private List<WorkFlowLabel>         labels;
+
+  /**
+   * The title, description and summary per language a save writes with the
+   * process, by field name (title, description, summary), then by language
+   * tag. The default language's value is the field itself. Null when the
+   * caller does not state them: the stored translations then stay.
+   */
+  private Map<String, Map<String, String>> translations;
 
   /**
    * How a save chooses the process's task project: a new one, or the existing

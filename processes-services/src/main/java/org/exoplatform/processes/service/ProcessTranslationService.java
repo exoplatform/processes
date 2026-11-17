@@ -16,11 +16,14 @@
  */
 package org.exoplatform.processes.service;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
 
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -132,6 +135,50 @@ public class ProcessTranslationService {
   }
 
   /**
+   * Writes the translations a save states for a saved process, each field's
+   * labels replacing the stored ones. The default language's label is always
+   * the field's own value, whatever was sent for it; a blank label is no
+   * label, and a field not stated keeps its translations. The caller has
+   * checked the right to save the process, and runs it in the process save's
+   * transaction, so that a failure leaves neither saved.
+   *
+   * @param workFlow the process as saved
+   * @param translations the labels by field name, then by language tag, or
+   *          null when the save states none
+   * @throws IllegalStateException when the translations can't be written
+   */
+  public void saveTranslations(WorkFlow workFlow, Map<String, Map<String, String>> translations) {
+    if (workFlow == null || workFlow.getId() <= 0 || translations == null) {
+      return;
+    }
+    Locale defaultLocale = getDefaultLocale();
+    String objectId = String.valueOf(workFlow.getId());
+    for (String fieldName : FIELDS) {
+      Map<String, String> sentLabels = translations.get(fieldName);
+      if (sentLabels == null) {
+        continue;
+      }
+      Map<Locale, String> labels = new LinkedHashMap<>();
+      sentLabels.forEach((language, label) -> {
+        if (StringUtils.isNotBlank(language) && StringUtils.isNotBlank(label)) {
+          labels.put(Locale.forLanguageTag(language.replace('_', '-')), label);
+        }
+      });
+      String storedValue = getStoredValue(workFlow, fieldName);
+      if (StringUtils.isBlank(storedValue)) {
+        labels.remove(defaultLocale);
+      } else {
+        labels.put(defaultLocale, storedValue);
+      }
+      try {
+        translationService.saveTranslationLabels(OBJECT_TYPE, objectId, fieldName, labels, false);
+      } catch (ObjectNotFoundException e) {
+        throw new IllegalStateException("The process " + objectId + " can't be found to save its translations", e);
+      }
+    }
+  }
+
+  /**
    * Rewrites, after a process is saved, each default-language translation that
    * no longer equals the column, so that the editor, which shows that
    * translation in its default field, and every reader agree with the column
@@ -196,6 +243,21 @@ public class ProcessTranslationService {
                objectId,
                e);
     }
+  }
+
+  /**
+   * Reads a translated field's stored value.
+   *
+   * @param workFlow the process
+   * @param fieldName the translated field
+   * @return the column's value
+   */
+  private static String getStoredValue(WorkFlow workFlow, String fieldName) {
+    return switch (fieldName) {
+    case TITLE_FIELD -> workFlow.getTitle();
+    case DESCRIPTION_FIELD -> workFlow.getDescription();
+    default -> workFlow.getSummary();
+    };
   }
 
   /**

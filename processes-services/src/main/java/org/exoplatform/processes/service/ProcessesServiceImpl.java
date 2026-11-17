@@ -236,7 +236,8 @@ public class ProcessesServiceImpl implements ProcessesService {
 
   /**
    * Saves a process's own rows in one transaction: the process, its
-   * illustration and its label ids. It writes nothing through Task, whose
+   * illustration, its label ids and the translations the save states. It
+   * writes nothing through Task, whose
    * labels it only reads back, so every write that must commit with the
    * process's rows can join it; each Task write runs
    * before it, committed by Task, and the process's creation is broadcast
@@ -250,7 +251,22 @@ public class ProcessesServiceImpl implements ProcessesService {
    */
   @ContainerTransactional(atomic = true)
   public WorkFlow saveWorkFlowRows(WorkFlow workFlow, long userId) {
-    return processesStorage.saveWorkFlow(workFlow, userId);
+    return writeWorkFlowRows(workFlow, userId);
+  }
+
+  /**
+   * Writes a process's own rows, then the translations the save states for
+   * it, once it has its id: the body of {@link #saveWorkFlowRows(WorkFlow,
+   * long)}, outside the transaction aspect.
+   *
+   * @param workFlow the process, its labels resolved to labels of its project
+   * @param userId the saving user's identity id
+   * @return the saved process
+   */
+  WorkFlow writeWorkFlowRows(WorkFlow workFlow, long userId) {
+    WorkFlow savedWorkFlow = processesStorage.saveWorkFlow(workFlow, userId);
+    processTranslationService.saveTranslations(savedWorkFlow, workFlow.getTranslations());
+    return savedWorkFlow;
   }
 
   /**
