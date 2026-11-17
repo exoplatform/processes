@@ -38,7 +38,7 @@
     </v-container>
     <empty-or-loading
       v-else
-      :loading="loading || checkingDisabled">
+      :loading="loading || checkingDisabled && !isFiltered">
       <template #empty>
         <workflow-empty-state
           :can-add="isProcessesManager"
