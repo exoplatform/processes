@@ -87,9 +87,8 @@
           <span
             :class="isMobile ? 'ml-8':''">
             <v-chip
-              :class="completedWorksCount == 0 ? 'no-pending-requests':'pending-requests'"
+              :class="[completedWorksCount == 0 ? 'no-pending-requests':'pending-requests', 'application-background']"
               v-if="showPending"
-              color="white"
               :href="projectLink(workflow.projectId)"
               @click.stop
               target="_blank"
