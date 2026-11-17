@@ -67,6 +67,14 @@ export default {
   data () {
     return {
       MOBILE_WIDTH: 768,
+      workflowSaveErrorCodes: [
+        'processes.project.invalidMode',
+        'processes.project.notEligible',
+        'processes.project.statusNameConflict',
+        'processes.label.notInProject',
+        'processes.label.invalidName',
+        'processes.space.notFound',
+      ],
       work: null,
       workComments: [],
       availableWorkStatuses: null,
@@ -517,6 +525,13 @@ export default {
         }
       }));
     },
+    /**
+     * Creates a process, then reports the outcome; a refusal tells the drawer
+     * so it can be saved again.
+     *
+     * @param {Object} workflow the process to create
+     * @returns {void}
+     */
     addNewWorkFlow(workflow) {
       this.saving = true;
       this.$processesService.addNewWorkFlow(workflow).then(workflow => {
@@ -526,9 +541,30 @@ export default {
           this.displayMessage({type: 'success', message: this.$t('processes.workflow.add.success.message')});
           this.showProcessFilter = true;
         }
-      }).catch(() => {
-        this.displayMessage( {type: 'error', message: this.$t('processes.workflow.add.error.message')});
+      }).catch(e => {
+        this.$root.$emit('workflow-save-failed');
+        this.displayMessage( {type: 'error', message: this.saveErrorMessage(e, 'add')});
       });
+    },
+    /**
+     * Words a refused process save: the message of the code the server
+     * answered with a 400, worded for an update where its cause differs, or
+     * the generic message of the save otherwise.
+     *
+     * @param {Error} error the error of the save
+     * @param {String} action add or update
+     * @return {String} the message
+     */
+    saveErrorMessage(error, action) {
+      const code = error && error.message;
+      if (!this.workflowSaveErrorCodes.includes(code)) {
+        return this.$t(`processes.workflow.${action}.error.message`);
+      }
+      // On an update, an ineligible project means the managing space changed
+      // while the process keeps its project
+      return action === 'update' && code === 'processes.project.notEligible'
+        && this.$t('processes.workflow.updateError.processes.project.notEligible')
+        || this.$t(`processes.workflow.saveError.${code}`);
     },
     addWork(work) {
       this.$processesService.addWork(work).then(newWork => {
@@ -622,6 +658,13 @@ export default {
         this.displayMessage({type: 'error', message: this.$t('processes.workflow.delete.error.message')});
       });
     },
+    /**
+     * Updates a process, then reports the outcome; a refusal tells the drawer
+     * so it can be saved again.
+     *
+     * @param {Object} workflow the process to update
+     * @returns {void}
+     */
     updateWorkFlow(workflow) {
       this.saving = true;
       this.$processesService.updateWorkflow(workflow).then(newWorkflow => {
@@ -629,8 +672,9 @@ export default {
           this.$root.$emit('workflow-updated', newWorkflow);
           this.displayMessage({type: 'success', message: this.$t('processes.workflow.update.success.message')});
         }
-      }).catch(() => {
-        this.displayMessage({type: 'error', message: this.$t('processes.workflow.update.error.message')});
+      }).catch(e => {
+        this.$root.$emit('workflow-save-failed');
+        this.displayMessage({type: 'error', message: this.saveErrorMessage(e, 'update')});
       });
     },
     onDialogClosed() {

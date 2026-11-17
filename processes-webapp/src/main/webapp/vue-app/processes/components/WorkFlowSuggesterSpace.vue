@@ -79,6 +79,13 @@ export default {
   watch: {
     workFlowOwner() {
       this.resetCustomValidity();
+      // A change from one chosen space to another, or to none, resets the
+      // project choice; filling the stored space on open changes nothing
+      const formerSpaceId = this.workflow && this.workflow.parentSpace && this.workflow.parentSpace.id || null;
+      const spaceId = this.workFlowOwner && this.workFlowOwner.spaceId || null;
+      if (formerSpaceId && formerSpaceId !== spaceId) {
+        this.$emit('space-changed', spaceId);
+      }
       if (this.workFlowOwner && this.workFlowOwner.spaceId) {
         this.$spaceService.getSpaceById(this.workFlowOwner.spaceId)
           .then(space => {
