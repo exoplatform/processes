@@ -162,7 +162,8 @@ public interface ProcessesService {
    * Creates a request, from a new work object or from an existing draft, in
    * the stored task project of the process its {@link Work#getWorkFlowId()}
    * names, whatever project id it carries, and records it as a request of
-   * that process.
+   * that process. Its task is named by the fixed rule « Process name -
+   * yyyy/MM/dd - Requester name », whatever title the work carries.
    *
    * @param work the request
    * @param userId the requester's identity id
@@ -175,7 +176,30 @@ public interface ProcessesService {
    *           process is named, processes.request.draftMismatch when the draft
    *           is of another process
    */
-  Work createWork(Work work, long userId) throws IllegalAccessException, ObjectNotFoundException;
+  default Work createWork(Work work, long userId) throws IllegalAccessException, ObjectNotFoundException {
+    return createWork(work, userId, null);
+  }
+
+  /**
+   * Creates a request, its task named by the fixed rule « Process name -
+   * yyyy/MM/dd - Requester name », followed by « - agent title » when one is
+   * given; the title of the given work is ignored. Only the AI agent's tool
+   * gives an agent title: every other channel calls
+   * {@link #createWork(Work, long)}.
+   *
+   * @param work the request
+   * @param userId the requester's identity id
+   * @param agentTitle the title the AI agent sent, or null
+   * @return the created request
+   * @throws IllegalAccessException when the user can't add a request to the
+   *           process, or the draft is another user's
+   * @throws ObjectNotFoundException when the process or the draft does not
+   *           exist
+   * @throws IllegalArgumentException processes.request.workflowRequired when no
+   *           process is named, processes.request.draftMismatch when the draft
+   *           is of another process
+   */
+  Work createWork(Work work, long userId, String agentTitle) throws IllegalAccessException, ObjectNotFoundException;
 
   Work updateWork(Work work, long userId) throws IllegalArgumentException,
             ObjectNotFoundException,

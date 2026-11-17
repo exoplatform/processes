@@ -17,6 +17,8 @@
 package org.exoplatform.processes.service;
 
 import java.io.IOException;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -31,6 +33,7 @@ import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.processes.constant.ProjectMode;
 import org.exoplatform.processes.model.*;
 import org.exoplatform.processes.Utils.ProcessesUtils;
+import org.exoplatform.processes.Utils.RequestTitle;
 import org.exoplatform.processes.storage.ProcessesStorage;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
@@ -278,7 +281,7 @@ public class ProcessesServiceImpl implements ProcessesService {
    * {@inheritDoc}
    */
   @Override
-  public Work createWork(Work work, long userId) throws IllegalAccessException, ObjectNotFoundException {
+  public Work createWork(Work work, long userId, String agentTitle) throws IllegalAccessException, ObjectNotFoundException {
     if (work == null) {
       throw new IllegalArgumentException("work is mandatory");
     }
@@ -307,7 +310,24 @@ public class ProcessesServiceImpl implements ProcessesService {
                                                                               workFlow.getProjectId(),
                                                                               work.getAttachments()));
     }
+    // The fixed rule names the request from its stored process, whatever title
+    // the client sent; set once, never re-computed
+    work.setTitle(RequestTitle.of(workFlow.getTitle(),
+                                  LocalDate.now(ZoneId.systemDefault()),
+                                  getRequesterName(userId),
+                                  agentTitle));
     return processesStorage.saveWork(work, userId);
+  }
+
+  /**
+   * Reads the requester's full name, the last part of a request's title.
+   *
+   * @param userId the requester's identity id
+   * @return the full name, empty when the identity or its profile is unknown
+   */
+  private String getRequesterName(long userId) {
+    Identity identity = identityManager.getIdentity(userId);
+    return identity == null || identity.getProfile() == null ? "" : StringUtils.trimToEmpty(identity.getProfile().getFullName());
   }
 
   @Override

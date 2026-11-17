@@ -11,6 +11,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockingDetails;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -429,6 +430,9 @@ public class ProcessesRestTest {
     doThrow(new IllegalAccessException()).when(processesService).createWork(work, 1L);
     Response response5 = processesRest.createWork(workEntity);
     assertEquals(Response.Status.FORBIDDEN.getStatusCode(), response5.getStatus());
+    // A title sent over REST never reaches the agent title: only the MCP tool
+    // gives one (EXO-92568)
+    verify(processesService, never()).createWork(any(), anyLong(), any());
   }
 
   @Test
