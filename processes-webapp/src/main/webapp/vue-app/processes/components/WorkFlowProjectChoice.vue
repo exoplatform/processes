@@ -49,7 +49,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         outlined
         dense
         hide-details
-        @focus="measureMenuWidth"
         @change="$emit('update:projectId', $event)">
         <template #no-data>
           <v-list-item class="pa-0">
