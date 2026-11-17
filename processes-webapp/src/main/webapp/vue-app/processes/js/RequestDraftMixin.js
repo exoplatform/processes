@@ -266,7 +266,8 @@ export default {
             this.work.draftId = this.work.id;
             this.work.id = 0;
           }
-          this.work.attachments = this.attachments;
+          // Without a draft, the list shows the process's own documents, which are not the request's
+          this.work.attachments = this.editDraft ? this.attachments : [];
           this.work.formValues = Object.keys(values).length ? JSON.stringify(values) : null;
           this.$root.$emit('add-work', this.work);
         });

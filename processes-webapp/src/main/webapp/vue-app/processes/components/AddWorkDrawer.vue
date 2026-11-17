@@ -116,6 +116,7 @@
                 :edit-mode="this.editDraft"
                 :entity-id="work.id"
                 :entity-type="entityType"
+                :preview-workflow-id="!hasDraft && work.workFlow && work.workFlow.id || null"
                 :prepare-entity="createDraftForAttachment" />
             </div>
           </v-form>
@@ -317,10 +318,15 @@ export default {
         }
       }
       this.initDraftState();
-      this.$root.$emit('init-list-attachments', {
-        entityId: this.work && this.work.id || null,
-        entityType: this.entityType
-      });
+      if (mode === 'create_work') {
+        // Until the first input creates the draft, which gets copies of them, the process's own documents show read-only
+        this.$root.$emit('init-list-attachments', {entityId: this.work.workFlow.id, entityType: 'workflow', preview: true});
+      } else {
+        this.$root.$emit('init-list-attachments', {
+          entityId: this.work && this.work.id || null,
+          entityType: this.entityType
+        });
+      }
       this.initEditor();
       this.attachmentsUpdated = allowSave;
       this.$refs.work.open();

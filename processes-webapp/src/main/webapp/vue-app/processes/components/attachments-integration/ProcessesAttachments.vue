@@ -58,8 +58,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
             :can-access="attachment.acl && attachment.acl.canAccess"
             :allow-to-detach="false"
             :open-in-editor="true"
-            :is-file-editable="isFileEditable(attachment)"
-            :is-file-fillable="isFileFillable(attachment)"
+            :is-file-editable="!preview && isFileEditable(attachment)"
+            :is-file-fillable="!preview && isFileFillable(attachment)"
+            :is-file-readable="preview && isFileSupported(attachment)"
             allow-to-preview
             small-attachment-icon />
         </v-list-item-group>
@@ -73,8 +74,11 @@ export default {
   data () {
     return {
       attachments: this.files,
-      entityIdVal: this.entityId,
-      entityTypeVal: this.entityType,
+      entityIdVal: this.entityId || this.previewWorkflowId,
+      entityTypeVal: this.entityId || !this.previewWorkflowId ? this.entityType : 'workflow',
+      // True while the list shows another entity's documents, read-only (the editor's view mode), the readable ones only
+      preview: !this.entityId && !!this.previewWorkflowId,
+      listRequest: 0,
       isLoading: false,
       subscribedDocuments: new Map(),
       supportedDocuments: null
@@ -118,6 +122,15 @@ export default {
      */
     prepareEntity: {
       type: Function,
+      default: null
+    },
+    /**
+     * A process whose documents the list shows read-only while there is no
+     * entity, when the list is created; afterwards init-list-attachments
+     * names what to show.
+     */
+    previewWorkflowId: {
+      type: Number,
       default: null
     }
   },
@@ -187,6 +200,7 @@ export default {
     this.$root.$on('init-list-attachments', event => {
       this.entityIdVal = event.entityId;
       this.entityTypeVal = event.entityType;
+      this.preview = !!event.preview;
       this.initEntityAttachmentsList();
     });
     document.addEventListener('documents-supported-document-types-updated', this.refreshSupportedDocumentExtensions);
@@ -202,6 +216,15 @@ export default {
       const type = attachment && attachment.mimetype || '';
       return this.supportedDocuments && this.supportedDocuments.filter(doc => doc.edit && doc.mimeType === type
                                                                                 && !attachment.cloudDriveFile).length > 0;
+    },
+    /**
+     * @param {Object} attachment a listed document
+     * @returns {Boolean} true when the editor supports the document's type, so it opens there in view mode: the
+     *          test attachment-item makes before leaving a document out of its preview
+     */
+    isFileSupported(attachment) {
+      const type = attachment && attachment.mimetype || '';
+      return !!this.supportedDocuments && this.supportedDocuments.some(doc => doc.mimeType === type);
     },
     isFileFillable(attachment) {
       const type = attachment && attachment.mimetype || '';
@@ -275,8 +298,17 @@ export default {
     initEntityAttachmentsList() {
       if (this.entityTypeVal && this.entityIdVal) {
         this.isLoading = true;
+        // Only the latest read is applied, with the preview state it was asked with
+        const request = ++this.listRequest;
+        const preview = this.preview;
         // Not reactive: settled once the documents are listed, which withEntity waits for
         this.attachmentsLoaded = this.$processesAttachmentService.getEntityAttachments(this.entityTypeVal, this.entityIdVal).then(attachments => {
+          if (request !== this.listRequest) {
+            return;
+          }
+          if (preview) {
+            attachments = attachments.filter(attachment => attachment.acl && attachment.acl.canAccess);
+          }
           attachments.forEach(attachment => {
             attachment.name = attachment.title;
             this.subscribeDocument(attachment.id);
