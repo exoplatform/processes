@@ -1,200 +1,186 @@
 <template>
-  <div>
-    <v-card
-      :class="isMobile ? 'mt-2 mb-2 ml-n3':'mt-2 mb-2 mr-8'"
-      height="230"
-      max-height="230"
-      class="workflow-card"
-      @click="open"
-      outlined>
-      <v-menu
-        v-model="showMenu"
-        transition="slide-x-reverse-transition"
-        v-if="isProcessesManager || workflow.acl.canEdit"
-        :ref="'menu' + workflow.id"
-        :close-on-content-click="false"
-        bottom
-        offset-y
-        left>
-        <template #activator="{ on, attrs }">
-          <v-btn
-            :class="isMobile ? 'three-dots mr-n2 mt-3' : 'three-dots mt-1'"
-            icon
-            v-bind="attrs"
-            v-on="!isMobileMenu && on"
-            @click.stop.prevent="openMobileDrawer">
-            <v-icon size="18">mdi-dots-vertical</v-icon>
-          </v-btn>
-        </template>
-        <v-list>
-          <v-list-item
-            @click="copyLink">
-            <v-list-item-title small>
-              <v-icon size="13" class="processes-work-menu-icon mt-1">
-                mdi-link-variant
-              </v-icon>
-              <span class="card-edit-text-size">{{ $t('processes.workflow.copy.link.label') }}</span>
-            </v-list-item-title>
-          </v-list-item>
-          <v-list-item
-            @click="editWorkflow">
-            <v-list-item-title small>
-              <v-icon size="13" class="processes-work-menu-icon mt-1">
-                mdi-square-edit-outline
-              </v-icon>
-              <span class="card-edit-text-size">{{ $t('processes.workflow.edit.label') }}</span>
-            </v-list-item-title>
-          </v-list-item>
-          <v-list-item
-            v-if="workflow.acl.canDelete"
-            @click="deleteWorkflow">
-            <v-list-item-title>
-              <v-icon size="13" class="processes-work-menu-icon mt-1">
-                mdi-trash-can-outline
-              </v-icon>
-              <span class="card-edit-text-size">{{ $t('processes.workflow.delete.label') }}</span>
-            </v-list-item-title>
-          </v-list-item>
-        </v-list>
-      </v-menu>
-      <div>
-        <div class="mb-n5">
-          <v-btn
-            outlined
-            color="grey"
-            class="invisible"
-            icon>
-            <v-icon>mdi-information</v-icon>
-          </v-btn>  
-        </div> 
-        <div class="d-flex justify-center image-height">
+  <v-tooltip
+    :disabled="!requestDisabledReason"
+    bottom>
+    <template #activator="{ on }">
+      <v-card
+        :id="`workflowCard${workflow.id}`"
+        :class="cardClass"
+        :aria-label="cardAriaLabel"
+        :aria-disabled="requestDisabledReason ? 'true' : null"
+        :ripple="!requestDisabledReason"
+        class="workflow-card d-flex flex-column"
+        role="button"
+        tabindex="0"
+        outlined
+        v-on="on"
+        @click.native="openRequest"
+        @keydown.native.enter.self="openRequest"
+        @keydown.native.space.self.prevent="openRequest">
+        <div class="workflow-card-head d-flex align-center text-start ps-3 pe-2 pt-3">
           <v-avatar
-            v-if="avatarUrl"
-            size="50px">
+            :class="!showIllustration && 'workflow-card-avatar-placeholder primary--text'"
+            class="workflow-card-avatar flex-shrink-0 me-3"
+            size="40">
             <v-img
-              :src="avatarUrl" />
-          </v-avatar>         
-        </div>   
-        <div class="d-flex justify-center font-weight-bold">
-          {{ workflow.title }}
-        </div>
-      </div>
-      <div class="text-center text-truncate-3 px-4">
-        {{ workflow.description }}
-      </div>
-      <v-card-footer class="d-inline-flex" elevation="0">
-        <v-card elevation="0" class="mb-5 width-full transparent align-center card-footer-request">
-          <span
-            :class="isMobile ? 'ml-8':''">
+              v-if="showIllustration"
+              :src="avatarUrl"
+              @error="illustrationFailed = true" />
+            <span
+              v-else
+              class="font-weight-bold">
+              {{ initial }}
+            </span>
+          </v-avatar>
+          <div
+            :title="workflow.title"
+            class="workflow-card-title flex-grow-1 font-weight-bold">
+            {{ workflow.title }}
+          </div>
+          <div class="d-flex align-center flex-shrink-0 ms-1">
             <v-chip
-              :class="completedWorksCount == 0 ? 'no-pending-requests':'pending-requests'"
-              v-if="showPending"
-              color="white"
-              :href="projectLink(workflow.projectId)"
-              @click.stop
-              target="_blank"
-              :loading="!completedWorksCount">
-              <v-icon small>mdi-clock-time-four-outline</v-icon>
-              {{ completedWorksCount }} {{ $t('processes.workflow.label.pending') }}
+              v-if="!workflow.enabled"
+              class="workflow-card-disabled-chip"
+              small
+              outlined>
+              {{ $t('processes.workflow.deactivated.label') }}
             </v-chip>
-          </span>
-        </v-card>
-      </v-card-footer>
-    </v-card>
-    <process-mobile-action-drawer
-      @editWorkflow="editWorkflow"
-      @deleteWorkflow="deleteWorkflow"
-      @copyLink="copyLink"
-      ref="mobileActionDrawer" />
-  </div> 
+            <workflow-card-menu
+              v-if="canManage"
+              :workflow="workflow" />
+          </div>
+        </div>
+        <div
+          v-if="workflow.description"
+          :title="workflow.description"
+          class="workflow-card-description text-light-color px-3 pt-2">
+          {{ workflow.description }}
+        </div>
+        <div
+          v-else
+          class="workflow-card-description text-light-color font-italic px-3 pt-2">
+          {{ $t('processes.workflow.card.noDescription') }}
+        </div>
+        <div
+          v-if="showPending && openRequestsCount !== null"
+          class="workflow-card-footer d-flex align-center mt-auto ps-3 pe-2 py-2">
+          <v-tooltip bottom>
+            <template #activator="{ on: linkOn }">
+              <a
+                :href="projectLink"
+                class="workflow-card-open-requests caption text-light-color"
+                target="_blank"
+                rel="noopener"
+                v-on="linkOn"
+                @click.stop>
+                <v-icon size="14" class="icon-default-color me-1">mdi-clock-time-four-outline</v-icon>
+                {{ openRequestsLabel }}
+              </a>
+            </template>
+            <span>{{ $t('processes.workflow.card.openInTasks') }}</span>
+          </v-tooltip>
+        </div>
+      </v-card>
+    </template>
+    <span>{{ requestDisabledReason }}</span>
+  </v-tooltip>
 </template>
 
 <script>
-
 export default {
-  data () {
-    return {
-      MOBILE_WIDTH: 600,
-      showMenu: false,
-      completedWorksCount: 0,
-    };
-  },
   props: {
     workflow: {
       type: Object,
-      default: function() {
-        return {};
-      },
+      default: () => ({}),
     },
     isProcessesManager: {
       type: Boolean,
       default: false
-    }
+    },
   },
-  created() {
-    $(document).on('mousedown', () => {
-      if (this.showMenu) {
-        window.setTimeout(() => {
-          this.showMenu = false;
-        }, 200);
-      }
-    });
-    this.countWorksByWorkflow(false);
-  },
+  data: () => ({
+    openRequestsCount: null,
+    illustrationFailed: false,
+  }),
   computed: {
     avatarUrl() {
       return this.workflow && this.workflow.illustrativeAttachment
                            && this.workflow.illustrativeAttachment.id
                            && `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/illustration/${this.workflow.id}?v=${this.workflow.illustrativeAttachment.lastUpdated}`;
     },
-    isMobile() {
-      return this.$vuetify.breakpoint.name === 'xs' || this.$vuetify.breakpoint.name === 'sm';
+    showIllustration() {
+      return this.avatarUrl && !this.illustrationFailed;
     },
-    isMobileMenu() {
-      return this.$vuetify.breakpoint.width < this.MOBILE_WIDTH;
+    initial() {
+      return (this.workflow.title || '').trim().charAt(0).toUpperCase();
+    },
+    canManage() {
+      return this.isProcessesManager || (this.workflow.acl && this.workflow.acl.canEdit);
     },
     showPending() {
-      return this.workflow && this.workflow.canShowPending ;
+      return this.workflow && this.workflow.canShowPending;
+    },
+    requestDisabledReason() {
+      if (!this.workflow.enabled) {
+        return this.$t('processes.workflow.request.disabled.processDisabled');
+      }
+      if (!this.workflow.acl || !this.workflow.acl.canAddRequest) {
+        return this.$t('processes.workflow.request.disabled.notAllowed');
+      }
+      return null;
+    },
+    openRequestsLabel() {
+      return this.openRequestsCount === 1
+        ? this.$t('processes.workflow.card.openRequest')
+        : this.$t('processes.workflow.card.openRequests', {0: this.openRequestsCount});
+    },
+    cardClass() {
+      return {
+        'workflow-card-disabled': !this.workflow.enabled,
+        'workflow-card-requestable': !this.requestDisabledReason,
+      };
+    },
+    cardAriaLabel() {
+      return this.requestDisabledReason
+        ? `${this.workflow.title}: ${this.requestDisabledReason}`
+        : this.$t('processes.workflow.card.makeRequest', {0: this.workflow.title});
+    },
+    projectLink() {
+      return `${eXo.env.portal.context}/${eXo.env.portal.portalName}/tasks/projectDetail/${this.workflow.projectId}`;
     },
   },
+  watch: {
+    avatarUrl() {
+      this.illustrationFailed = false;
+    },
+  },
+  created() {
+    if (this.showPending) {
+      this.countOpenRequests();
+    }
+  },
   methods: {
-    openMobileDrawer() {
-      if (this.isMobileMenu){
-        this.$refs.mobileActionDrawer.open();
-      }
-    },
-    editWorkflow() {
-      this.$root.$emit('open-workflow-drawer', {workflow: this.workflow, mode: 'edit_workflow'});
-    },
-    deleteWorkflow() {
-      this.$root.$emit('show-confirm-action', {model: this.workflow, reason: 'delete_workflow'});
-    },
-    copyLink() {
-      const inputTemp = $('<input>');
-      $('body').append(inputTemp);
-      inputTemp.val(`${window.location.href}/${this.workflow.id}/createRequest`).select();
-      document.execCommand('copy');
-      inputTemp.remove();
-      this.$root.$emit('show-alert', {
-        type: 'success',
-        message: this.$t('processes.workflow.copy.link.success.message')
-      });
-    },
-    open() {
-      if (this.workflow.enabled && this.workflow.acl.canAddRequest) {
+    /**
+     * Opens the request drawer on this process, when the user may make a request on it.
+     *
+     * @returns {void}
+     */
+    openRequest() {
+      if (!this.requestDisabledReason) {
         this.$root.$emit('open-add-work-drawer', {object: this.workflow, mode: 'create_work'});
       }
     },
-    countWorksByWorkflow(isCompleted) {
-      if (this.workflow) {
-        return this.$processesService.countWorksByWorkflow(this.workflow.projectId, isCompleted).then(value => {
-          this.completedWorksCount = value;
-        });
-      }
+    /**
+     * Reads the number of uncompleted requests of the process's task project; the endpoint answers it as text.
+     *
+     * @returns {Promise} resolved once the count is read
+     */
+    countOpenRequests() {
+      return this.$processesService.countWorksByWorkflow(this.workflow.projectId, false).then(value => {
+        const count = Number(value);
+        this.openRequestsCount = Number.isFinite(count) ? count : null;
+      });
     },
-    projectLink(projectId) {
-      return `${eXo.env.portal.context}/${eXo.env.portal.portalName}/tasks/projectDetail/${projectId}`;
-    }
-  }
+  },
 };
 </script>

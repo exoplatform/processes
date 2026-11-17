@@ -27,6 +27,9 @@
                 <module>commonVueComponents</module>
             </depends>
             <depends>
+                <module>applicationToolbarComponent</module>
+            </depends>
+            <depends>
                 <module>extensionRegistry</module>
             </depends>
             <depends>
