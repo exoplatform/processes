@@ -1,357 +1,184 @@
 <template>
-  <div
-    id="workflows">
-    <v-container class="workflow-controls pb-0">
-      <v-row
-        :class="isMobile? 'pe-5': 'pe-0'"
-        no-gutters>
-        <v-col
-          id="workflowFilter"
-          v-if="!showMobileFilter || !isMobile"
-          :cols="2"
-          md="4"
-          sm="1"
-          xs="1"
-          lg="6">
-          <v-btn
-            v-if="isProcessesManager"
-            class="mt-2 mb-4 btn-primary btn add-process-btn"
-            dark
-            @click="open"
-            color="primary">
-            <v-icon
-              :class="isCMobile? 'me-n1':''"
-              left
-              dark>
-              mdi-plus-thick
-            </v-icon>
-            <span
-              v-if="!isCMobile">
-              {{ $t('processes.works.label.addRequestType') }}
-            </span>
-          </v-btn>
-        </v-col>
-        <v-col
-          v-show="showWorkflowFilter"
-          :cols="10"
-          md="8"
-          xs="11"
-          sm="11"
-          lg="6">
-          <v-select
-            v-if="!isMobile && (isMemberSpaceManager || isProcessesManager)"
-            ref="filter"
-            class="pt-5 workflow-filter mt-n3 float-e"
-            v-model="filter"
-            :items="filterItems"
-            item-text="label"
-            item-value="value"
-            return-object
-            attach
-            @blur="$refs.filter.blur();"
-            @change="updateFilter"
-            dense
-            outlined />
-          <v-btn
-            v-if="!showMobileFilter && isMobile"
-            class="float-e mt-2"
-            @click="switchToMobileFilter"
-            icon>
-            <v-icon v-if="activatedFilters.length || query">
-              mdi-filter
-            </v-icon>
-            <v-icon
-              v-else>
-              mdi-filter-outline
-            </v-icon>
-          </v-btn>
-          <v-text-field
-            v-if="!isMobile"
-            id="workflow-filter-query"
-            class="me-4 workflow-filter-query filter-query-width float-e"
-            @keyup="filterByQuery"
-            v-model="query"
-            :placeholder="$t('processes.workflow.filter.query.placeholder')"
-            prepend-inner-icon="mdi-filter">
-            <template #append>
-              <btn
-                v-if="query"
-                @click="resetQueryInput"
-                icon>
-                <v-icon class="mt-1">
-                  fa-times
-                </v-icon>
-              </btn>
-            </template>
-          </v-text-field>
-        </v-col>
-        <v-col
-          v-if="showMobileFilter && isMobile"
-          v-show="showWorkflowFilter"
-          class="d-flex me-4"
-          cols="12">
-          <v-text-field
-            class="pt-5 me-2 mb-1 workflow-filter-query float-e d-flex"
-            @keyup="filterByQuery"
-            v-model="query"
-            :placeholder="$t('processes.workflow.filter.query.placeholder')">
-            <template #prepend>
-              <btn
-                @click="switchToMobileFilter"
-                icon>
-                <v-icon class="mt-1">
-                  fa-arrow-left
-                </v-icon>
-              </btn>
-            </template>
-            <template #append>
-              <btn
-                v-if="query"
-                @click="resetQueryInput"
-                icon>
-                <v-icon>
-                  fa-times
-                </v-icon>
-              </btn>
-            </template>
-          </v-text-field>
-          <v-btn
-            outlined
-            class="btn btn-primary pa-0 mt-2 mobile-filter-btn"
-            @click="openMobileFilter">
-            <v-icon
-              class="pa-0"
-              size="16">
-              fa-sliders-h
-            </v-icon>
-            <span v-if="activatedFilters.length">({{ activatedFilters.length }})</span>
-          </v-btn>
-        </v-col>
-      </v-row>
-    </v-container>
+  <div id="workflows">
+    <workflow-list-toolbar
+      :is-processes-manager="isProcessesManager"
+      :show-filter="showWorkflowFilter || allDisabled"
+      :loading="loading || loadingMore"
+      @add="open"
+      @change="applyFilter" />
     <v-container
-      v-if="!loading"
-      no-gutters>
-      <v-row
-        v-if="workflowList.length>0"
-        class="d-flex flex-wrap"
-        no-gutters>
+      v-if="!loading && workflowList.length"
+      id="processesCardList"
+      class="pa-0 pt-2"
+      fluid>
+      <v-row class="mx-n2 my-0">
         <v-col
-          xl="4"
-          :lg="lg"
-          md="6"
-          sm="6"
-          cols="12"
           v-for="workflow in workflowList"
-          :key="workflow.id">
+          :key="workflow.id"
+          class="px-2 py-2"
+          cols="12"
+          sm="6"
+          md="4"
+          lg="4"
+          xl="3">
           <workflow-card-item
             :is-processes-manager="isProcessesManager"
             :workflow="workflow" />
         </v-col>
       </v-row>
-      <v-row
-        align="center"
-        v-if="hasMore">
-        <v-col>
-          <v-btn
-            :loading="loadingMore"
-            @click="loadMore"
-            class="btn">
-            {{ $t('processes.load.more.label') }}
-          </v-btn>
-        </v-col>
-      </v-row>
+      <v-btn
+        v-if="hasMore"
+        id="processesLoadMoreButton"
+        :loading="loadingMore"
+        class="btn text-none mt-2"
+        block
+        @click="loadMore">
+        {{ $t('processes.load.more.label') }}
+      </v-btn>
     </v-container>
     <empty-or-loading
-      :loading="loading"
-      v-if="workflowList.length === 0">
+      v-else
+      :loading="loading || checkingDisabled && !isFiltered">
       <template #empty>
-        <div>
-          <v-img
-            width="280px"
-            height="273px"
-            src="/processes/images/noWorkflow.png" />
-          <p
-            class="mt-2">
-            {{ $t('processes.workflow.noProcess.label') }}
-          </p>
-        </div>
+        <workflow-empty-state
+          :can-add="isProcessesManager"
+          :filtered="isFiltered"
+          :all-disabled="allDisabled"
+          @add="open" />
       </template>
     </empty-or-loading>
-    <mobile-filter
-      ref="workMobileFilter"
-      :items="filterItems"
-      default-value-index="0"
-      @filter-changed="handleFilterChange"
-      @activated-filters-update="handleActiveFilters" />
   </div>
 </template>
 
 <script>
 export default {
-  data () {
-    return {
-      MOBILE_WIDTH: 600,
-      CUSTOM_MOBILE_WIDTH: 768,
-      filter: {},
-      showMobileFilter: false,
-      displayFilterMenu: true,
-      filterItems: [],
-      query: null,
-      searchTimer: null,
-      endTypingKeywordTimeout: 200,
-      activatedFilters: [],
-      isMemberSpaceManager: false,
-    };
-  },
   props: {
     workflows: {
       type: Array,
-      default: function() {
-        return [];
-      },
+      default: () => [],
     },
-    hasMore: {
-      type: Boolean,
-      default: false
-    },
-    loading: {
-      type: Boolean,
-      default: false
-    },
-    loadingMore: {
-      type: Boolean,
-      default: false
-    },
-    isProcessesManager: {
-      type: Boolean,
-      default: false
-    },
-    showWorkflowFilter: {
-      type: Boolean,
-      default: false
-    }
+    hasMore: {type: Boolean, default: false},
+    loading: {type: Boolean, default: false},
+    loadingMore: {type: Boolean, default: false},
+    isProcessesManager: {type: Boolean, default: false},
+    showWorkflowFilter: {type: Boolean, default: false},
   },
-  created() {
-    this.init();
-    this.$root.$on('workflow-updated', (workflow) => {
-      workflow = JSON.parse(workflow);
-      const index = this.workflowList.map(workflow => workflow.id).indexOf(workflow.id);
-      switch (this.filter.value) {
-      case 'activated':
-        if (workflow.enabled) {
-          this.workflowList.splice(index, 1, workflow);
-        } else {
-          this.workflowList.splice(index, 1);
-        }
-        break;
-      case 'deactivated':
-        if (!workflow.enabled) {
-          this.workflowList.splice(index, 1, workflow);
-        } else {
-          this.workflowList.splice(index, 1);
-        }
-        break;
-      case 'manager':
-        if (workflow.acl.canEdit) {
-          this.workflowList.splice(index, 1, workflow);
-        } else {
-          this.workflowList.splice(index, 1);
-        }
-        break;
-      default:
-        this.workflowList.splice(index, 1, workflow);
-        break;
-      }
-    });
-    this.$root.$on('workflow-removed', (workflow) => {
-      this.workflowList.splice(this.workflowList.indexOf(workflow), 1);
-    });
-  },
+  data: () => ({
+    filter: null,
+    isFiltered: false,
+    allDisabled: false,
+    checkingDisabled: false,
+    checkId: 0,
+  }),
   computed: {
-    workflowList(){
+    workflowList() {
       return this.workflows || [];
     },
-    lg() {
-      if (this.workflowList.length >= 4) {
-        return 4;
-      }
-      return this.workflowList.length === 3 ? 4 : 6;
-    },
-    isMobile() {
-      return this.$vuetify.breakpoint.width < this.MOBILE_WIDTH;
-    },
-    isCMobile() {
-      return this.$vuetify.breakpoint.width < this.CUSTOM_MOBILE_WIDTH;
+    showsEmptyDefaultView() {
+      return this.isProcessesManager && !this.loading && !this.workflowList.length && !this.isFiltered;
     },
   },
+  watch: {
+    showsEmptyDefaultView: {
+      immediate: true,
+      handler(value) {
+        if (value) {
+          this.checkAllDisabled();
+        }
+      },
+    },
+  },
+  created() {
+    this.filter = this.isProcessesManager ? 'activated' : null;
+    this.$root.$on('workflow-updated', this.replaceWorkflow);
+    this.$root.$on('workflow-removed', this.removeWorkflow);
+  },
+  beforeDestroy() {
+    this.$root.$off('workflow-updated', this.replaceWorkflow);
+    this.$root.$off('workflow-removed', this.removeWorkflow);
+  },
   methods: {
-    openMobileFilter() {
-      this.$refs.workMobileFilter.open();
-    },
-    handleFilterChange(event) {
-      this.filter.value = event.filter;
-      this.updateFilter();
-    },
-    handleActiveFilters(filter) {
-      const exists = this.activatedFilters.includes(filter.filterType);
-      if (!exists && filter.enabled) {
-        this.activatedFilters.push(filter.filterType);
-      } else if (exists && !filter.enabled) {
-        const index = this.activatedFilters.indexOf(filter.filterType);
-        this.activatedFilters.splice(index, 1);
+    /**
+     * Replaces an updated process in the list, or removes it when it no longer matches the selected filter.
+     *
+     * @param {String} workflowJson the updated process, as JSON
+     * @returns {void}
+     */
+    replaceWorkflow(workflowJson) {
+      const workflow = JSON.parse(workflowJson);
+      const index = this.workflowList.findIndex(item => item.id === workflow.id);
+      if (index >= 0) {
+        const matches = {
+          activated: workflow.enabled,
+          deactivated: !workflow.enabled,
+          manager: !!(workflow.acl && workflow.acl.canEdit),
+        }[this.filter];
+        this.workflowList.splice(index, 1, ...(matches === false ? [] : [workflow]));
       }
     },
-    resetQueryInput() {
-      if (!this.query) {
-        return;
+    /**
+     * Removes a deleted process from the list.
+     *
+     * @param {Object} workflow the removed process
+     * @returns {void}
+     */
+    removeWorkflow(workflow) {
+      const index = this.workflowList.indexOf(workflow);
+      if (index >= 0) {
+        this.workflowList.splice(index, 1);
       }
-      this.query = null;
-      this.updateFilter();
     },
-    switchToMobileFilter() {
-      this.showMobileFilter = !this.showMobileFilter;
-    },
+    /**
+     * Opens the process editor drawer to create a process.
+     *
+     * @returns {void}
+     */
     open() {
       this.$root.$emit('open-workflow-drawer', {workflow: null, mode: 'create_workflow'});
     },
+    /**
+     * Asks the application for the next page of processes.
+     *
+     * @returns {void}
+     */
     loadMore() {
       this.$root.$emit('load-more-workflows');
     },
-    filterByQuery() {
-      clearTimeout(this.searchTimer);
-      this.searchTimer = setTimeout(() => {
-        if (this.loading) {
-          this.filterByQuery();
-          return;
-        }
-        this.updateFilter();
-      }, this.endTypingKeywordTimeout);
-    },
-    updateFilter() {
-      this.$root.$emit('workflow-filter-changed', {filter: this.filter.value, query: this.query});
-    },
-    init(){
-      const managerFilterItem = {label: this.$t('processes.workflow.manager.label'), value: 'manager' };
-      this.filter = this.isProcessesManager ? {label: this.$t('processes.workflow.activated.label'), value: 'activated'} : {label: this.$t('processes.workflow.all.label'), value: null};
-      if (this.isProcessesManager) {
-        this.filterItems.push({label: this.$t('processes.workflow.activated.label'), value: 'activated'});
-        this.filterItems.push({label: this.$t('processes.workflow.deactivated.label'), value: 'deactivated'});
-        this.filterItems.push(managerFilterItem);
-      } else {
-        // Only a user who administers a process's managing space manages processes
-        const filter = {};
-        filter.enabled = true;
-        filter.manager = true;
-        this.$processesService.getWorkFlows(filter, 0, 1).then(workflows =>{
-          this.isMemberSpaceManager = workflows.length > 0;
-          if (this.isMemberSpaceManager) {
-            this.filterItems.unshift(managerFilterItem);
+    /**
+     * Tells whether the processes an administrator does not see on the default view, which lists
+     * the enabled ones, all exist as disabled processes. The empty state waits for the answer, so it
+     * never says « No process yet » before knowing. An answer that a newer check replaced changes
+     * nothing; one that fails ends the wait and keeps the previous answer, « No process yet » on a
+     * first check.
+     *
+     * @returns {Promise} resolved once the answer is read
+     */
+    checkAllDisabled() {
+      const checkId = ++this.checkId;
+      this.checkingDisabled = true;
+      return this.$processesService.getWorkFlows({enabled: false, manager: false}, 0, 1)
+        .then(workflows => {
+          if (checkId === this.checkId) {
+            this.allDisabled = !!(workflows && workflows.length);
+          }
+        })
+        .catch(() => null)
+        .finally(() => {
+          if (checkId === this.checkId) {
+            this.checkingDisabled = false;
           }
         });
-      }
-      this.filterItems.push({label: this.$t('processes.workflow.all.label'), value: null});
-    }
-  }
+    },
+    /**
+     * Keeps the status the toolbar selected, which decides whether an updated process stays listed.
+     *
+     * @param {Object} event the selected status and whether it differs from the default view
+     * @returns {void}
+     */
+    applyFilter(event) {
+      this.filter = event.filter;
+      this.isFiltered = event.filtered;
+    },
+  },
 };
 </script>
