@@ -172,18 +172,15 @@
   }
 
   .processLabelsField {
-    .v-select__selections {
-      padding-top: 4px;
-      padding-bottom: 4px;
-    }
-
     .processLabelChip {
       margin: 2px 4px 2px 0;
     }
 
-    .v-select__selections input {
-      flex: 1 1 96px;
-      min-width: 96px;
+    // the same typing room focused or not, so the field never changes lines on the click that focuses it
+    // (vuetify-all sets 0 at rest and 64px on focus)
+    &.v-autocomplete.v-select .v-select__selections input {
+      flex: 1 1 64px;
+      min-width: 64px;
     }
   }
 
