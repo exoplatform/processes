@@ -341,6 +341,38 @@
       }
     }
   }
+  // The full-screen process editor: the description in the first column; the management, the request makers, the
+  // form and the documents, in that order, in the second. The description spans the rows of the second column, the
+  // last one flexible, so a taller description does not space out the second column's sections. Row placements are
+  // longhands: LESS reads « 1 / span 5 » as a division
+  .processEditorFull {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: repeat(4, auto) 1fr;
+    column-gap: 32px;
+    align-items: start;
+    .processEditorFullDescription {
+      grid-column: 1;
+      grid-row-start: 1;
+      grid-row-end: span 5;
+    }
+    .processEditorFullManagement {
+      grid-column: 2;
+      grid-row-start: 1;
+    }
+    .processEditorFullRequesters {
+      grid-column: 2;
+      grid-row-start: 2;
+    }
+    .processEditorFullForm {
+      grid-column: 2;
+      grid-row-start: 3;
+    }
+    .processEditorFullDocuments {
+      grid-column: 2;
+      grid-row-start: 4;
+    }
+  }
   // The full-screen request's left pane, set off from the main column by the platform's divider
   .request-full-left {
     border-inline-end: 1px solid @borderColor !important;

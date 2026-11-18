@@ -3,9 +3,11 @@
     :confirm-close="confirmClose"
     :confirm-close-labels="confirmCloseLabels"
     @closed="close()"
+    @expand-updated="onExpandUpdated"
     ref="workFlow"
     id="addWorkFlowDrawer"
     class="ProcessesApplication"
+    allow-expand
     right>
     <template #title>
       <span v-if="!editMode">
@@ -15,18 +17,40 @@
         {{ $t('processes.works.label.editProcessType') }}
       </span>
     </template>
+    <template v-if="!$vuetify.breakpoint.smAndDown" #expandAction>
+      <v-btn
+        id="processEditorExpandButton"
+        :title="$refs.workFlow && $refs.workFlow.expandTooltip"
+        icon
+        @click="$refs.workFlow.toogleExpand()">
+        <v-icon v-text="$refs.workFlow && $refs.workFlow.expandIcon" size="20" />
+      </v-btn>
+    </template>
     <template #content>
-      <v-stepper
+      <!-- In full screen the steps are sections, in two columns: the description, then the management, the form and
+           the documents; each field as the drawer shows it -->
+      <component
+        :is="expanded ? 'div' : 'v-stepper'"
+        :id="expanded && 'processEditorFull' || null"
+        :class="expanded && 'processEditorFull'"
+        :vertical="!expanded"
         class="pa-4"
-        v-model="stp"
-        vertical>
+        v-model="stp">
         <v-stepper-step
+          v-if="!expanded"
           class="primary--text"
           :complete="stp > 1"
           step="1">
           {{ $t('processes.workflow.form.label.description') }}
         </v-stepper-step>
-        <v-stepper-content step="1">
+        <component
+          :is="expanded ? 'section' : 'v-stepper-content'"
+          id="processEditorDescriptionSection"
+          :class="expanded && 'processEditorFullDescription'"
+          step="1">
+          <div v-if="expanded" class="text-subtitle-1 font-weight-bold mb-2">
+            {{ $t('processes.workflow.editor.section.description') }}
+          </div>
           <v-form
             v-model="valid"
             ref="form1">
@@ -35,7 +59,7 @@
               :key="`title-${formKey}`"
               v-model="translations.title"
               :field-value.sync="workflow.title"
-              :object-id="translationObjectId"
+              :object-id="translationFetchId('title')"
               :maxlength="titleMaxLength"
               object-type="process"
               field-name="title"
@@ -65,7 +89,7 @@
               :key="`description-${formKey}`"
               v-model="translations.description"
               :field-value.sync="workflow.description"
-              :object-id="translationObjectId"
+              :object-id="translationFetchId('description')"
               :maxlength="descriptionMaxLength"
               object-type="process"
               field-name="description"
@@ -98,7 +122,7 @@
               :key="`summary-${formKey}`"
               v-model="translations.summary"
               :field-value.sync="workflow.summary"
-              :object-id="translationObjectId"
+              :object-id="translationFetchId('summary')"
               :maxlength="summaryMaxLength"
               object-type="process"
               field-name="summary"
@@ -196,7 +220,7 @@
                 name="status"
                 v-model="workflowEnabled" />
             </div>
-            <div class="mt-10">
+            <div v-if="!expanded" class="mt-10">
               <v-btn
                 :disabled="!valid"
                 class="btn btn-primary v-btn--outlined float-e"
@@ -206,8 +230,9 @@
               </v-btn>
             </div>
           </v-form>
-        </v-stepper-content>
+        </component>
         <v-stepper-step
+          v-if="!expanded"
           class="primary--text width-full d-flex"
           :complete="stp > 2"
           step="2">
@@ -230,7 +255,14 @@
             </v-tooltip>
           </div>
         </v-stepper-step>
-        <v-stepper-content step="2">
+        <component
+          :is="expanded ? 'section' : 'v-stepper-content'"
+          id="processEditorManagementSection"
+          :class="expanded && 'processEditorFullManagement'"
+          step="2">
+          <div v-if="expanded" class="text-subtitle-1 font-weight-bold mb-2">
+            {{ $t('processes.workflow.editor.section.management') }}
+          </div>
           <v-label>
             <span class="ms-1 pe-1">
               {{ $t('processes.works.form.label.add.manage') + ' *' }}
@@ -260,15 +292,16 @@
             :project-id="projectMode === 'EXISTING' && projectId || null"
             :space-id="managingSpaceId" />
           <processes-extension-sections
+            v-if="!expanded"
             ref="editorSections"
             :key="`editorSections${formKey}`"
-            :params="{workflow, spaceId: managingSpaceId}"
+            :params="editorSectionsParams"
             hook-id="processEditorSections"
             name="ProcessEditor"
             type="process-editor-section"
             class="mt-4"
             @changed="sectionsChanged = $event" />
-          <v-card-actions class="d-flex flex-row mt-4 ms-2 px-0">
+          <v-card-actions v-if="!expanded" class="d-flex flex-row mt-4 ms-2 px-0">
             <v-btn class="btn" @click="previousStep">
               <v-icon size="18" class="me-2">
                 {{ $vuetify.rtl && 'fa-caret-right' || 'fa-caret-left' }}
@@ -287,8 +320,9 @@
               </v-icon>
             </v-btn>
           </v-card-actions>
-        </v-stepper-content>
+        </component>
         <v-stepper-step
+          v-if="!expanded"
           :complete="stp > 3"
           step="3">
           <div class="width-full d-flex">
@@ -310,7 +344,14 @@
             </v-tooltip>
           </div>
         </v-stepper-step>
-        <v-stepper-content step="3">
+        <component
+          :is="expanded ? 'section' : 'v-stepper-content'"
+          id="processEditorRequestersSection"
+          :class="expanded && 'processEditorFullRequesters'"
+          step="3">
+          <div v-if="expanded" class="text-subtitle-1 font-weight-bold mb-2 mt-6">
+            {{ $t('processes.works.form.label.request') }}
+          </div>
           <v-label>
             <span class="text-color body-2">
               {{ $t('processes.works.form.label.add.request') + ' *' }}
@@ -323,7 +364,7 @@
               class="ms-1 pe-1"
               @initialized="formInitialized" />
           </div>
-          <v-card-actions class="d-flex flex-row mt-4 ms-2 px-0">
+          <v-card-actions v-if="!expanded" class="d-flex flex-row mt-4 ms-2 px-0">
             <v-btn class="btn" @click="previousStep">
               <v-icon size="18" class="me-2">
                 {{ $vuetify.rtl && 'fa-caret-right' || 'fa-caret-left' }}
@@ -342,13 +383,38 @@
               </v-icon>
             </v-btn>
           </v-card-actions>
-        </v-stepper-content>
+        </component>
+        <!-- Full screen: the form, after the management and the request makers it depends on -->
+        <section
+          v-if="expanded"
+          id="processEditorFullForm"
+          class="processEditorFullForm">
+          <div class="text-subtitle-1 font-weight-bold mb-2 mt-6">
+            {{ $t('processes.workflow.editor.section.form') }}
+          </div>
+          <processes-extension-sections
+            ref="editorSections"
+            :key="`editorSections${formKey}`"
+            :params="editorSectionsParams"
+            hook-id="processEditorSections"
+            name="ProcessEditor"
+            type="process-editor-section"
+            @changed="sectionsChanged = $event" />
+        </section>
         <v-stepper-step
+          v-if="!expanded"
           :complete="stp > 4"
           step="4">
           {{ $t('processes.works.form.label.documents') }}
         </v-stepper-step>
-        <v-stepper-content step="4">
+        <component
+          :is="expanded ? 'section' : 'v-stepper-content'"
+          id="processEditorDocumentsSection"
+          :class="expanded && 'processEditorFullDocuments'"
+          step="4">
+          <div v-if="expanded" class="text-subtitle-1 font-weight-bold mb-2 mt-6">
+            {{ $t('processes.works.form.label.documents') }}
+          </div>
           <processes-attachments
             v-model="attachments"
             :workflow-parent-space="workflowParentSpace"
@@ -358,6 +424,7 @@
             :entity-id="workflow.id"
             entity-type="workflow" />
           <v-btn
+            v-if="!expanded"
             class="btn mt-4"
             @click="previousStep"
             text>
@@ -366,12 +433,12 @@
             </v-icon>
             {{ $t('processes.works.form.label.back') }}
           </v-btn>
-        </v-stepper-content>
-      </v-stepper>
+        </component>
+      </component>
     </template>
     <template #footer>
       <v-btn
-        :disabled="!(valid && workflowChanged && workflowRequestChanged)"
+        :disabled="!(valid && workflowChanged && validSpace && projectChosen && workflowRequestChanged)"
         v-if="!editMode"
         :loading="saving"
         @click="addNewWorkFlow"
@@ -380,7 +447,7 @@
         {{ $t('processes.works.form.label.save') }}
       </v-btn>
       <v-btn
-        :disabled="!(valid && workflowChanged && workflowRequestChanged)"
+        :disabled="!(valid && workflowChanged && validSpace && projectChosen && workflowRequestChanged)"
         v-if="editMode"
         :loading="saving"
         @click="updateWorkFlow"
@@ -452,6 +519,12 @@ export default {
       formKey: 0,
       originalProjectChoice: null,
       sectionsChanged: false,
+      // True while the drawer is in full screen
+      expanded: false,
+      // The form chosen in the Forms section before the layout changed, which the re-mounted section shows again
+      pendingFormId: null,
+      // The translation fields that read their stored translations since the drawer opened, by field name
+      initializedTranslations: {},
     };
   },
   created(){
@@ -507,8 +580,29 @@ export default {
     projectChosen() {
       return this.editMode || this.projectMode === 'NEW' || !!this.projectId;
     },
+    /**
+     * @returns {Object} the props of the sections other add-ons register:
+     *          the process, its managing space, its Task project (the
+     *          existing project chosen on create, the stored one on edit),
+     *          the form chosen before the layout changed, if any, and in
+     *          full screen the preview of the form picked
+     */
+    editorSectionsParams() {
+      return {
+        workflow: this.workflow,
+        spaceId: this.managingSpaceId,
+        projectId: this.editMode ? this.workflow.projectId || null : this.projectMode === 'EXISTING' && this.projectId || null,
+        selected: this.pendingFormId,
+        preview: this.expanded,
+      };
+    },
   },
   watch: {
+    // The form chosen before a change of layout was offered in the former managing space: the first one chosen
+    // included, which the space picker does not report as a change. Re-feeding the same space changes nothing
+    managingSpaceId() {
+      this.pendingFormId = null;
+    },
     workflowEnabled(value) {
       this.workflow.enabled = value;
     },
@@ -600,6 +694,8 @@ export default {
     open(workflow, mode) {
       this.translations = {title: {}, description: {}, summary: {}};
       this.openedTranslations = {};
+      this.initializedTranslations = {};
+      this.pendingFormId = null;
       if (workflow && workflow.id && mode === 'edit_workflow') {
         // The editor edits the stored default-language texts: the list object
         // carries them in the user's language, so it is never edited
@@ -633,6 +729,12 @@ export default {
       // opening lists the projects and labels afresh
       this.formKey++;
       this.sectionsChanged = false;
+      // Each opening starts in the drawer, with no document nor request creator of an earlier one: the list starts
+      // from this.attachments when it is mounted, an edited process's documents are read again, and its request
+      // creators are given to their picker by step 2's Continue or by the change of layout
+      this.expanded = false;
+      this.attachments = [];
+      this.workflowRequest = [];
       if (workflow) {
         this.workflow = Object.assign({}, workflow);
         this.workflowEnabled = workflow.enabled;
@@ -791,6 +893,11 @@ export default {
      * @returns {void}
      */
     keepOpenedTranslation(fieldName) {
+      if (this.initializedTranslations[fieldName]) {
+        // A field re-mounted by a change of layout holds what was typed, not what the drawer opened with
+        return;
+      }
+      this.$set(this.initializedTranslations, fieldName, true);
       const values = this.translations[fieldName] || {};
       if (Object.values(values).some(value => value)) {
         this.openedTranslations[fieldName] = JSON.stringify(values);
@@ -822,6 +929,57 @@ export default {
         values,
         changed: Object.keys(values).length > 0,
       };
+    },
+    /**
+     * The process a translation field reads its stored translations of: the
+     * edited process, until the field read them once since the drawer
+     * opened. A field re-mounted by a change of layout then starts from the
+     * values typed, which the drawer holds, rather than reading the stored
+     * ones over them.
+     *
+     * @param {String} fieldName the translated field
+     * @returns {String} the process id, or null
+     */
+    translationFetchId(fieldName) {
+      return this.initializedTranslations[fieldName] ? null : this.translationObjectId;
+    },
+    /**
+     * Follows the drawer's full screen. Changing the layout re-mounts the
+     * settings and the Forms section: the form chosen is kept for the new
+     * section, read while the former one is still mounted, and the space and
+     * request pickers, which the steps' Continue fill, are given their values
+     * once the new ones are mounted. A drawer that is closing keeps its
+     * layout, so that nothing is re-mounted while it closes: the next
+     * opening starts in the drawer.
+     *
+     * @param {Boolean} expanded true in full screen
+     * @returns {void}
+     */
+    onExpandUpdated(expanded) {
+      if (expanded === this.expanded) {
+        return;
+      }
+      if (!this.$refs.workFlow || !this.$refs.workFlow.drawer) {
+        return;
+      }
+      const fields = this.$refs.editorSections && this.$refs.editorSections.fields() || {};
+      this.pendingFormId = fields.requestFormId ?? null;
+      this.expanded = expanded;
+      this.$nextTick(() => this.syncPickers());
+    },
+    /**
+     * Gives the space and request pickers the process's values, as the
+     * steps' Continue do: the managing space, and the request creators,
+     * those already chosen or else the stored ones.
+     *
+     * @returns {void}
+     */
+    syncPickers() {
+      this.setSpace();
+      if (!this.workflowRequest.length && this.workflow.requestsCreators) {
+        this.workflowRequest = this.workflow.requestsCreators;
+      }
+      this.$root.$emit('set-workflow-creators', this.workflowRequest);
     },
     deleteIllustrative(){
       this.illustrativeInput = null;
