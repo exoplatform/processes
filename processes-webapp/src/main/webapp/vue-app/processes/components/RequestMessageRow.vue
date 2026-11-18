@@ -144,11 +144,16 @@ export default {
       }
     },
     /**
-     * Lists the attachments the cards show: the attached ones, but the documents to fill in.
+     * Lists the attachments the cards show: the attached ones, but the documents to fill in. Before the
+     * request has its draft, the list shows the process's documents only, which are not the requester's to
+     * detach: no card then.
      *
      * @returns {Array} the attachments shown as cards
      */
     cardFiles() {
+      if (!this.entityId) {
+        return [];
+      }
       const hiddenIds = (this.hiddenIds || []).map(String);
       return (this.attachments || []).filter(attachment => attachment && attachment.id && !hiddenIds.includes(String(attachment.id)));
     }
