@@ -801,7 +801,9 @@ public class ProcessesServiceImpl implements ProcessesService {
                                                       workFlow.getRequesterFormIds(),
                                                       storedRequesterFormIds,
                                                       getAclIdentity(userId));
-    workFlow.setRequesterFormIds(requesterFormIds == null ? storedRequesterFormIds : requesterFormIds);
+    // The stored choice is kept as read, so that a save changing nothing else
+    // compares equal to the stored process
+    workFlow.setRequesterFormIds(requesterFormIds == null ? oldWorkFlow.getRequesterFormIds() : requesterFormIds);
     if (oldWorkFlow.equals(workFlow) && workFlow.getRequestFormId() == null) {
       throw new IllegalArgumentException("there are no changes to save");
     }
