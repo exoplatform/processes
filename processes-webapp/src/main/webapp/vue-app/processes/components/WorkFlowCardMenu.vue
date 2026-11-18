@@ -16,7 +16,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     <v-menu
       v-model="showMenu"
       :disabled="isMobile"
-      content-class="workflow-card-menu menu-close-content"
+      ref="menu"
+      content-class="workflow-card-menu"
       transition="slide-x-reverse-transition"
       bottom
       offset-y

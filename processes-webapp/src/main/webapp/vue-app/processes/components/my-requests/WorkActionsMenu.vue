@@ -14,7 +14,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 <template>
   <v-menu
     v-model="showMenu"
-    content-class="my-request-menu menu-close-content"
+    ref="menu"
+    content-class="my-request-menu"
     bottom
     offset-y
     left>
