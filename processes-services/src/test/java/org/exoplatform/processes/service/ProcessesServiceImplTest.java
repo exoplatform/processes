@@ -488,7 +488,7 @@ public class ProcessesServiceImplTest {
   }
 
   /**
-   * An icon chosen on update removes the stored image, and a new image sent
+   * An icon chosen on update unlinks the stored image, and a new image sent
    * replaces the icon: a process shows one of them, never both. Mutation: drop
    * either branch of the exclusion and its assertion fails.
    */
