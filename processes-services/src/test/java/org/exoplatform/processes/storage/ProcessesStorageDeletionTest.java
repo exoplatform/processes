@@ -251,6 +251,73 @@ public class ProcessesStorageDeletionTest {
   }
 
   /**
+   * Deleting a process deletes its requester form rows with it, and leaves
+   * the other process's rows. Mutation: map the requester forms with no
+   * collection table and the foreign key refuses the deletion.
+   *
+   * @throws SQLException on a count failure
+   */
+  @Test
+  public void aDeletionRemovesTheProcessRequesterForms() throws SQLException {
+    try (Statement statement = connection.createStatement()) {
+      statement.executeUpdate("INSERT INTO PROCESSES_WORK_FLOW_REQ_FORMS (WORK_FLOW_ID, FORM_ID) VALUES (1, 63)");
+      statement.executeUpdate("INSERT INTO PROCESSES_WORK_FLOW_REQ_FORMS (WORK_FLOW_ID, FORM_ID) VALUES (2, 63)");
+    }
+    connection.commit();
+
+    entityManager.getTransaction().begin();
+    storage.deleteWorkflowRows(1L);
+    entityManager.getTransaction().commit();
+
+    assertEquals(0, count("SELECT COUNT(*) FROM PROCESSES_WORK_FLOW_REQ_FORMS WHERE WORK_FLOW_ID = 1"));
+    assertEquals(1, count("SELECT COUNT(*) FROM PROCESSES_WORK_FLOW_REQ_FORMS WHERE WORK_FLOW_ID = 2"));
+  }
+
+  /**
+   * A save writes the requester form ids it is given on the schema the
+   * changelog builds, keeps the stored ones when given none, and replaces
+   * them when given others; a save rolled back leaves none; the narrow read
+   * gives them in id order. Mutation: keep them out of the saved entity, let
+   * a null list clear them, or map another table or column, and a count
+   * fails.
+   *
+   * @throws SQLException on a count failure
+   */
+  @Test
+  public void aSaveWritesTheRequesterFormsItIsGivenInTheTransaction() throws SQLException {
+    WorkFlow chosen = process("Leave", null);
+    chosen.setRequesterFormIds(List.of(64L, 63L));
+    entityManager.getTransaction().begin();
+    storage.saveWorkFlow(chosen, 5L);
+    entityManager.getTransaction().rollback();
+    entityManager.clear();
+    assertEquals(0, count("SELECT COUNT(*) FROM PROCESSES_WORK_FLOW_REQ_FORMS WHERE WORK_FLOW_ID = 1"));
+
+    entityManager.getTransaction().begin();
+    storage.saveWorkFlow(chosen, 5L);
+    entityManager.getTransaction().commit();
+    entityManager.clear();
+    assertEquals(2, count("SELECT COUNT(*) FROM PROCESSES_WORK_FLOW_REQ_FORMS WHERE WORK_FLOW_ID = 1"));
+    assertEquals(List.of(63L, 64L), storage.getRequesterFormIds(1L));
+
+    entityManager.getTransaction().begin();
+    storage.saveWorkFlow(process("Leave requests", null), 5L);
+    entityManager.getTransaction().commit();
+    entityManager.clear();
+    assertEquals(2, count("SELECT COUNT(*) FROM PROCESSES_WORK_FLOW_REQ_FORMS WHERE WORK_FLOW_ID = 1"));
+
+    WorkFlow replaced = process("Leave requests", null);
+    replaced.setRequesterFormIds(List.of(64L));
+    entityManager.getTransaction().begin();
+    storage.saveWorkFlow(replaced, 5L);
+    entityManager.getTransaction().commit();
+    entityManager.clear();
+    assertEquals(1, count("SELECT COUNT(*) FROM PROCESSES_WORK_FLOW_REQ_FORMS WHERE WORK_FLOW_ID = 1 AND FORM_ID = 64"));
+    assertEquals(1, count("SELECT COUNT(*) FROM PROCESSES_WORK_FLOW_REQ_FORMS WHERE WORK_FLOW_ID = 1"));
+    assertEquals(List.of(), storage.getRequesterFormIds(99L));
+  }
+
+  /**
    * A save writes the label ids it is given, keeps the stored ones when given
    * none, and replaces them when given others; a save rolled back after its
    * writes leaves neither the process's new title nor its labels, so the

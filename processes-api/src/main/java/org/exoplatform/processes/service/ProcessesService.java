@@ -492,6 +492,20 @@ public interface ProcessesService {
   Long getManagingSpaceId(long workFlowId);
 
   /**
+   * Reads the forms of a process's task project that its requesters fill when
+   * they create a request, as the process's editor chose them. It is the
+   * platform's own read, with no user's permission: a caller that serves a
+   * user checks first that user's right on the process with
+   * {@link #getWorkFlow(long, Long)} given the user's identity id, and never
+   * returns its answer to a client as it is.
+   *
+   * @param workFlowId the process id
+   * @return the form ids, in id order; empty when the process does not exist
+   *         or its requesters fill none of its project's forms
+   */
+  List<Long> getRequesterFormIds(long workFlowId);
+
+  /**
    * Builds the restriction of a task query to the tasks that are requests of
    * some processes: an EXISTS on their request records, correlated by the task
    * id. It only narrows a query, and must stay out of any OR that would widen
