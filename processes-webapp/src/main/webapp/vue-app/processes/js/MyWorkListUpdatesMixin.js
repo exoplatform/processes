@@ -90,7 +90,8 @@ export default {
       work.completed = true;
     },
     /**
-     * Takes an unarchived request out of the completed group.
+     * Takes an unarchived request out of the completed group, and reloads the open requests,
+     * so it shows again in its status group with its process.
      *
      * @param {Object} work the request
      * @returns {void}
@@ -101,6 +102,7 @@ export default {
         this.completedWorkList.splice(index, 1);
       }
       work.completed = false;
+      this.$root.$emit('refresh-works');
     },
   },
 };

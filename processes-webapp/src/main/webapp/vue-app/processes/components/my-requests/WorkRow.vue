@@ -35,7 +35,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         <v-img v-if="avatarUrl" :src="avatarUrl" />
         <span v-else class="font-weight-bold">{{ initial }}</span>
       </v-avatar>
-      <div class="text-truncate">
+      <!-- text-start: the row is a card, whose text the platform centers -->
+      <div class="text-truncate text-start">
         <div class="d-flex align-center">
           <span
             :class="work.completed && 'text-decoration-line-through'"
@@ -50,7 +51,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         </div>
         <custom-date-format
           :timestamp="createdTime"
-          class="caption text-light-color" />
+          class="d-block caption text-light-color" />
       </div>
     </div>
     <!-- Extension point ProcessRequestRow / request-row-summary: a few of the request's form values.
