@@ -52,13 +52,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     </td>
     <td v-if="large" class="my-request-cell-process">
       <div class="d-flex align-center text-truncate">
-        <v-avatar
-          :class="!avatarUrl && 'workflow-card-avatar-placeholder primary--text'"
+        <process-avatar
+          :avatar-url="avatarUrl"
+          :icon="work.workFlow && work.workFlow.image"
           class="my-request-row-avatar flex-shrink-0 me-2"
-          size="24">
-          <v-img v-if="avatarUrl" :src="avatarUrl" />
-          <span v-else class="caption font-weight-bold">{{ initial }}</span>
-        </v-avatar>
+          size="24" />
         <span class="text-truncate">{{ processTitle }}</span>
       </div>
     </td>
@@ -152,14 +150,6 @@ export default {
      */
     requestTitle() {
       return this.work.title || this.processTitle;
-    },
-    /**
-     * Reads the first letter of the process title, shown when the process has no illustration.
-     *
-     * @returns {String} the initial
-     */
-    initial() {
-      return this.processTitle.charAt(0).toUpperCase();
     },
     /**
      * Reads when the request was created.

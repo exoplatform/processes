@@ -19,16 +19,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       v-if="!expanded"
       ref="nameRow"
       class="d-flex align-center mb-2">
-      <v-avatar
-        :class="!showIllustration && 'workflow-card-avatar-placeholder primary--text'"
+      <process-avatar
+        :avatar-url="avatarUrl"
+        :icon="workflow.image"
         class="workflow-card-avatar me-3 flex-shrink-0"
-        size="32">
-        <v-img
-          v-if="showIllustration"
-          :src="avatarUrl"
-          @error="illustrationFailed = true" />
-        <span v-else class="font-weight-bold">{{ initial }}</span>
-      </v-avatar>
+        size="32" />
       <div class="text-start font-weight-bold text-break">{{ workflow.title }}</div>
     </div>
     <p
@@ -102,22 +97,6 @@ export default {
     readable: {
       type: Function,
       default: () => false,
-    },
-  },
-  data: () => ({illustrationFailed: false}),
-  computed: {
-    /** @returns {Boolean} true when the process's illustration is shown, its initial otherwise, as on the home cards */
-    showIllustration() {
-      return !!this.avatarUrl && !this.illustrationFailed;
-    },
-    /** @returns {String} the process title's first letter, for a process with no illustration */
-    initial() {
-      return (this.workflow.title || '?').trim().charAt(0).toUpperCase();
-    },
-  },
-  watch: {
-    avatarUrl() {
-      this.illustrationFailed = false;
     },
   },
 };
