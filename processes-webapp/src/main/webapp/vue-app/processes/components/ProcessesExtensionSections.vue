@@ -55,8 +55,7 @@ export default {
   data: () => ({components: []}),
   watch: {
     components() {
-      // The sections render on the next flush, and only then have instances to watch
-      this.$nextTick(this.watchSections);
+      this.$nextTick(this.watchSections); // the sections render on the next flush, and only then have instances to watch
     },
   },
   created() {
