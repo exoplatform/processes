@@ -612,8 +612,10 @@ public class ProcessesServiceImpl implements ProcessesService {
   /**
    * Checks the forms of the process's existing task project a save chooses
    * for its requesters to fill, before any write of the save. The forms
-   * add-on refuses a form the project does not give, or a project its editor
-   * may not see.
+   * add-on refuses a newly chosen form the project does not give, or a
+   * project its editor may not see; a stored form sent again is kept
+   * unchecked, as it was checked when chosen, even when the project no longer
+   * gives it or another editor chose it, so that it never blocks a change.
    *
    * @param workFlowId the process id, or null for a new process
    * @param projectId the id of the process's task project
@@ -643,14 +645,15 @@ public class ProcessesServiceImpl implements ProcessesService {
     if (chosen.equals(storedFormIds)) {
       return null;
     }
-    if (chosen.isEmpty()) {
+    List<Long> added = chosen.stream().filter(formId -> !storedFormIds.contains(formId)).toList();
+    if (added.isEmpty()) {
       return chosen;
     }
     RequestValuesPlugin plugin = requestValuesPlugin;
     if (plugin == null) {
       throw new IllegalArgumentException(FORM_UNSUPPORTED);
     }
-    plugin.checkRequesterForms(workFlowId, projectId, chosen, editor);
+    plugin.checkRequesterForms(workFlowId, projectId, added, editor);
     return chosen;
   }
 

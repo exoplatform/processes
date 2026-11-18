@@ -454,10 +454,12 @@ public class ProcessesServiceProcessFormTest {
   /**
    * An update that does not state the requester forms, or states the stored
    * ones, keeps them without asking the plugin, and states no change by
-   * itself; one that changes them has them checked against the stored
-   * project before its first write and saves them; an empty list removes
-   * them unchecked. Mutation: save the client's null, count the stored forms
-   * as a change, or check against the client's project, and this test fails.
+   * itself; one that adds forms has only the added ones checked against the
+   * stored project before its first write, a stored form sent again being
+   * kept unchecked whether or not the project still gives it, and saves them;
+   * an empty list removes them unchecked. Mutation: save the client's null,
+   * count the stored forms as a change, check against the client's project,
+   * or send the stored forms to the plugin again, and this test fails.
    *
    * @throws Exception on an unexpected refusal
    */
@@ -485,7 +487,7 @@ public class ProcessesServiceProcessFormTest {
     changed.setRequesterFormIds(List.of(64L, 63L));
     processesService.updateWorkFlow(changed, EDITOR_ID);
     InOrder order = inOrder(plugin, processesStorage);
-    order.verify(plugin).checkRequesterForms(eq(WORKFLOW_ID), eq(PROJECT_ID), eq(List.of(63L, 64L)), any(Identity.class));
+    order.verify(plugin).checkRequesterForms(eq(WORKFLOW_ID), eq(PROJECT_ID), eq(List.of(64L)), any(Identity.class));
     order.verify(processesStorage).saveWorkFlow(saved.capture(), eq(EDITOR_ID));
     assertEquals(List.of(63L, 64L), saved.getValue().getRequesterFormIds());
 
