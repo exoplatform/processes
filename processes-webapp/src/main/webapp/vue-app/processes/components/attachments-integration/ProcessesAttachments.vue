@@ -84,6 +84,8 @@ export default {
       listRequest: 0,
       isLoading: false,
       subscribedDocuments: new Map(),
+      // The ids of the documents whose detach is under way, so that a second click sends no second detach
+      detaching: [],
       supportedDocuments: null
     };
   },
@@ -162,6 +164,12 @@ export default {
     },
   },
   computed: {
+    /**
+     * Builds the configuration Documents' drawers open with: the entity, its files, whether they are attached to
+     * it, and excludedIds, the documents to fill in, which the drawers neither list nor detach.
+     *
+     * @returns {Object} the drawers' opening configuration
+     */
     attachmentDrawerParams() {
       return {
         entityType: this.entityType,
@@ -169,6 +177,8 @@ export default {
         defaultFolder: 'Documents',
         sourceApp: 'processesApp',
         attachments: JSON.parse(JSON.stringify(this.attachments)),
+        // the documents another list shows are neither listed nor detached there
+        excludedIds: this.hiddenIds,
         spaceId: this.workflowParentSpace && this.workflowParentSpace.id,
         attachToEntity: this.editMode,
         openAttachmentsInEditor: true,
@@ -347,6 +357,27 @@ export default {
           self.subscribedDocuments.set(docId, subscription);
         }
       });
+    },
+    /**
+     * Detaches a document: from the entity first when the list attaches its documents to it (a draft), as
+     * the Documents drawer does, then from the list, through the attachment-removed event every list of the
+     * page follows.
+     *
+     * @param {Object} attachment the document
+     * @returns {Promise} settled once the document is detached, or its failure shown
+     */
+    detachAttachment(attachment) {
+      if (!attachment || !attachment.id || this.detaching.includes(attachment.id)) {
+        return Promise.resolve();
+      }
+      this.detaching.push(attachment.id);
+      const detached = this.editMode && this.entityId
+        ? this.$processesAttachmentService.removeEntityAttachment(this.entityType, this.entityId, attachment.id)
+        : Promise.resolve();
+      return detached
+        .then(() => document.dispatchEvent(new CustomEvent('attachment-removed', {detail: attachment})))
+        .catch(() => this.$root.$emit('show-alert', {type: 'error', message: this.$t('processes.work.attachment.detach.error')}))
+        .finally(() => this.detaching.splice(this.detaching.indexOf(attachment.id), 1));
     },
     /**
      * Opens the drawer that adds a document to the entity, once it exists.
