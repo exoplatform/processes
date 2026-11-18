@@ -378,7 +378,7 @@ public class ProcessesRest implements ResourceContainer {
       return Response.status(Response.Status.UNAUTHORIZED).build();
     }
     try {
-      Work newWork = processesService.createWork(EntityBuilder.toWork(processesService,workEntity),currentIdentityId);
+      Work newWork = processesService.createWork(EntityBuilder.toNewWork(processesService, workEntity), currentIdentityId);
       return Response.ok(EntityBuilder.toWorkEntity(processesService, newWork, "workFlow", getLocale())).build();
     } catch (ObjectNotFoundException e) {
       LOG.debug("User '{}' attempts to create a request on a not existing workflow", currentIdentityId, e);
@@ -768,7 +768,7 @@ public class ProcessesRest implements ResourceContainer {
       return Response.status(Response.Status.UNAUTHORIZED).build();
     }
     try {
-      Work newWork = processesService.createWorkDraft(EntityBuilder.fromEntity(workEntity), currentIdentityId);
+      Work newWork = processesService.createWorkDraft(EntityBuilder.toDraft(workEntity), currentIdentityId);
       return Response.ok(EntityBuilder.toEntity(newWork, getLocale())).build();
     } catch (ObjectNotFoundException e) {
       return Response.status(Response.Status.NOT_FOUND).entity(WORKFLOW_NOT_FOUND_MESSAGE).build();
@@ -815,7 +815,7 @@ public class ProcessesRest implements ResourceContainer {
       return Response.status(Response.Status.UNAUTHORIZED).build();
     }
     try {
-      Work newWork = processesService.updateWorkDraft(EntityBuilder.fromEntity(workEntity), currentIdentityId);
+      Work newWork = processesService.updateWorkDraft(EntityBuilder.toDraft(workEntity), currentIdentityId);
       return Response.ok(EntityBuilder.toEntity(newWork, getLocale())).build();
     } catch (ObjectNotFoundException e) {
       LOG.debug("User '{}' attempts to update a not existing Work draft '{}'", currentIdentityId, e);
@@ -1035,9 +1035,12 @@ public class ProcessesRest implements ResourceContainer {
       if (workFlow == null) {
         return Response.status(Response.Status.NOT_FOUND).build();
       }
-      return Response.ok(EntityBuilder.toEntity(workFlow, expand, translate ? getLocale() : null))
-                     .cacheControl(PER_USER_CACHE_CONTROL)
-                     .build();
+      WorkFlowEntity workFlowEntity = EntityBuilder.toEntity(workFlow, expand, translate ? getLocale() : null);
+      if (workFlow.getAcl() != null && workFlow.getAcl().isCanEdit()) {
+        // The editor shows the process's own forms; the Service checks the right
+        workFlowEntity.setRequestFormIds(processesService.getProcessFormIds(workflowId, currentIdentityId));
+      }
+      return Response.ok(workFlowEntity).cacheControl(PER_USER_CACHE_CONTROL).build();
     } catch (IllegalAccessException e) {
       LOG.debug("User isn't allowed to see the workflow '{}'", workflowId, e);
       return Response.status(Response.Status.FORBIDDEN).build();

@@ -22,7 +22,15 @@ import java.util.List;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.file.services.FileStorageException;
 import org.exoplatform.processes.model.*;
+import org.exoplatform.processes.plugin.RequestValuesPlugin;
 import org.exoplatform.social.core.identity.model.Identity;
+import java.util.Collection;
+import java.util.Map;
+import java.util.Set;
+import jakarta.persistence.criteria.CommonAbstractCriteria;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Predicate;
 
 public interface ProcessesService {
 
@@ -423,4 +431,180 @@ public interface ProcessesService {
    *         task is no request
    */
   Long getRequestWorkFlowId(long taskId);
+
+  /**
+   * Reads the processes of the tasks that are requests, one query per page of
+   * {@code 1000} task ids. It is the platform's own read, with no user's permission: a caller that serves a user checks first that
+   * user's right on the process with {@link #getWorkFlow(long, Long)} given the user's identity id, and never
+   * returns its answer to a client as it is.
+   *
+   * @param taskIds the task ids
+   * @return task id → process id, for the tasks that are requests
+   */
+  Map<Long, Long> getRequestWorkFlowIds(Collection<Long> taskIds);
+
+  /**
+   * Reads one page of the tasks of a process's requests that still exist, by
+   * ascending id. It is the platform's own read, with no user's permission: a caller that serves a user checks first that
+   * user's right on the process with {@link #getWorkFlow(long, Long)} given the user's identity id, and never
+   * returns its answer to a client as it is.
+   *
+   * @param workFlowId the process id
+   * @param afterTaskId the last task id of the previous page, or null for the
+   *          first page
+   * @param limit the page size, strictly positive
+   * @return the task ids of the page, ascending
+   */
+  List<Long> getRequestTaskIds(long workFlowId, Long afterTaskId, int limit);
+
+  /**
+   * Reads the task projects that hold the requests of a process, in one query:
+   * the current projects of its request tasks, which may differ from the
+   * process's stored project when a request was moved. It is the platform's own read, with no user's permission: a caller that serves a user checks first that
+   * user's right on the process with {@link #getWorkFlow(long, Long)} given the user's identity id, and never
+   * returns its answer to a client as it is.
+   *
+   * @param workFlowId the process id
+   * @return the distinct project ids
+   */
+  Set<Long> getRequestProjectIds(long workFlowId);
+
+  /**
+   * Counts the requests of a process whose task still exists. It is the platform's own read, with no user's permission: a caller that serves a user checks first that
+   * user's right on the process with {@link #getWorkFlow(long, Long)} given the user's identity id, and never
+   * returns its answer to a client as it is.
+   *
+   * @param workFlowId the process id
+   * @return the number of request tasks of the process
+   */
+  long countRequests(long workFlowId);
+
+  /**
+   * Reads the space that manages a process: its stored space when it still
+   * exists, else the first space that manages its task project. It is the platform's own read, with no user's permission: a caller that serves a user checks first that
+   * user's right on the process with {@link #getWorkFlow(long, Long)} given the user's identity id, and never
+   * returns its answer to a client as it is.
+   *
+   * @param workFlowId the process id
+   * @return the space id, or null when the process does not exist or no space
+   *         manages it
+   */
+  Long getManagingSpaceId(long workFlowId);
+
+  /**
+   * Builds the restriction of a task query to the tasks that are requests of
+   * some processes: an EXISTS on their request records, correlated by the task
+   * id. It only narrows a query, and must stay out of any OR that would widen
+   * it. It is the platform's own read, with no user's permission: a caller that serves a user checks first that
+   * user's right on the process with {@link #getWorkFlow(long, Long)} given the user's identity id, and never
+   * returns its answer to a client as it is.
+   *
+   * @param cb the criteria builder of the query
+   * @param query the query, to create the subquery from
+   * @param taskId the task id expression of the query
+   * @param workFlowIds the process ids
+   * @return the restriction; one that no task meets when no process is given
+   */
+  Predicate requestOf(CriteriaBuilder cb, CommonAbstractCriteria query, Expression<Long> taskId, Collection<Long> workFlowIds);
+
+  /**
+   * Registers the plugin that checks and writes the values a request carries
+   * and the form of a process. At most one is registered: a second
+   * registration replaces the first.
+   *
+   * @param plugin the plugin to register
+   */
+  void addRequestValuesPlugin(RequestValuesPlugin plugin);
+
+  /**
+   * Reads one of the user's own request drafts.
+   *
+   * @param draftId the draft id
+   * @param userIdentityId the user's identity id
+   * @return the draft
+   * @throws ObjectNotFoundException when no such draft exists
+   * @throws IllegalAccessException when the draft is not the user's
+   */
+  Work getWorkDraft(long draftId, long userIdentityId) throws ObjectNotFoundException, IllegalAccessException;
+
+  /**
+   * Reads the process of a request draft. It is the platform's own read, with no user's permission: a caller that serves a user checks that the
+   * draft's owner is that user ({@link #getWorkDraft(long, long)}, or the owner id against the viewer), never only
+   * the user's right on the process, which would show one requester's drafts to every user who may add a request
+   * to it.
+   *
+   * @param draftId the draft id
+   * @return the process id, or null when no such draft exists
+   */
+  Long getWorkDraftWorkFlowId(long draftId);
+
+  /**
+   * Reads the owner of a request draft. It is the platform's own read, with no user's permission: a caller that serves a user checks that the
+   * draft's owner is that user ({@link #getWorkDraft(long, long)}, or the owner id against the viewer), never only
+   * the user's right on the process, which would show one requester's drafts to every user who may add a request
+   * to it.
+   *
+   * @param draftId the draft id
+   * @return the owner's identity id, or null when no such draft exists
+   */
+  Long getWorkDraftOwnerId(long draftId);
+
+  /**
+   * Reads what describes some request drafts, one query per page of
+   * {@code 1000} ids. It is the platform's own read, with no user's permission: a caller that serves a user checks that the
+   * draft's owner is that user ({@link #getWorkDraft(long, long)}, or the owner id against the viewer), never only
+   * the user's right on the process, which would show one requester's drafts to every user who may add a request
+   * to it.
+   *
+   * @param draftIds the draft ids
+   * @return draft id → its owner, process, title and dates, for the ids that
+   *         are drafts
+   */
+  Map<Long, WorkDraftRef> getWorkDraftRefs(Collection<Long> draftIds);
+
+  /**
+   * Reads one page of a process's draft ids, by ascending id. It is the platform's own read, with no user's permission: a caller that serves a user checks that the
+   * draft's owner is that user ({@link #getWorkDraft(long, long)}, or the owner id against the viewer), never only
+   * the user's right on the process, which would show one requester's drafts to every user who may add a request
+   * to it.
+   *
+   * @param workFlowId the process id
+   * @param afterDraftId the last id of the previous page, or null for the
+   *          first page
+   * @param limit the page size, strictly positive
+   * @return the draft ids of the page
+   */
+  List<Long> getWorkDraftIds(long workFlowId, Long afterDraftId, int limit);
+
+  /**
+   * Counts a process's drafts. It is the platform's own read, with no user's permission: a caller that serves a user checks that the
+   * draft's owner is that user ({@link #getWorkDraft(long, long)}, or the owner id against the viewer), never only
+   * the user's right on the process, which would show one requester's drafts to every user who may add a request
+   * to it.
+   *
+   * @param workFlowId the process id
+   * @return the number of drafts
+   */
+  long countWorkDrafts(long workFlowId);
+
+  /**
+   * Reads the forms bound to a process itself, for a user who can edit it.
+   *
+   * @param workFlowId the process id
+   * @param userIdentityId the user's identity id
+   * @return the ids of the process's own forms, empty when it has none or when
+   *         no add-on registered a request values plugin
+   * @throws ObjectNotFoundException when the process does not exist
+   * @throws IllegalAccessException when the user may not edit the process
+   */
+  List<Long> getProcessFormIds(long workFlowId, long userIdentityId) throws ObjectNotFoundException, IllegalAccessException;
+
+  /**
+   * Unregisters a plugin registered by
+   * {@link #addRequestValuesPlugin(RequestValuesPlugin)}. A plugin that is not
+   * the registered one leaves the registration as it is.
+   *
+   * @param plugin the plugin to unregister
+   */
+  void removeRequestValuesPlugin(RequestValuesPlugin plugin);
 }
