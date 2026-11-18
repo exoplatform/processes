@@ -35,7 +35,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         {{ $t('processes.request.checklist.count', {0: item.filled, 1: item.total}) }}
       </span>
     </div>
-    <request-fill-status :fill="fill" class="mt-1" />
+    <request-fill-status
+      :fill="fill"
+      class="mt-1"
+      show-empty />
   </div>
 </template>
 

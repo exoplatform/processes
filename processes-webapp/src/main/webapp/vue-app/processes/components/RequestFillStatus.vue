@@ -13,7 +13,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 -->
 <template>
   <v-progress-linear
-    v-if="fill.total && fill.filled"
+    v-if="fill.total && (fill.filled || showEmpty)"
     id="requestFillBar"
     :value="filledPercent"
     :aria-label="$t('processes.request.fill.count', {0: fill.filled, 1: fill.total})"
@@ -29,14 +29,19 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
  * Shows how far the request is filled, from the fill state the drawer
  * reports ({total, filled, missing}): a track of the values holding a value,
  * with no text since the count beside it already says « x of y required ».
- * Renders nothing while the total is 0 or nothing is filled: an empty grey
- * bar would read as a divider.
+ * Renders nothing while the total is 0, nor while nothing is filled, an
+ * empty grey bar reading as a divider, unless showEmpty asks for the empty
+ * track (the full-screen checklist, where its title frames it).
  */
 export default {
   props: {
     fill: {
       type: Object,
       default: () => ({total: 0, filled: 0, missing: []}),
+    },
+    showEmpty: {
+      type: Boolean,
+      default: false,
     },
   },
   computed: {
