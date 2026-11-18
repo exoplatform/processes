@@ -8,8 +8,10 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
@@ -60,6 +62,7 @@ import org.exoplatform.processes.dao.RequestDAO;
 import org.exoplatform.processes.dao.WorkDraftDAO;
 import org.exoplatform.processes.dao.WorkFlowDAO;
 import org.exoplatform.processes.entity.WorkEntity;
+import org.exoplatform.processes.constant.ProcessesEvents;
 import org.exoplatform.processes.entity.RequestEntity;
 import org.exoplatform.processes.entity.WorkFlowEntity;
 import org.exoplatform.processes.model.CreatorIdentityEntity;
@@ -551,6 +554,70 @@ public class ProcessesStorageImplTest {
     verify(taskService).removeTask(40L);
     verify(workDraftDAO, never()).delete(any());
     verify(processesAttachmentService, never()).moveAttachmentsToEntity(any(), anyLong(), anyLong(), any(), anyLong(), any(), anyLong());
+  }
+
+  /**
+   * A request made from a draft deletes the draft, then announces the draft's
+   * deletion with its id and its process, then announces the request, so a
+   * listener purging the draft's values runs before the request's listeners.
+   * Mutation: drop the draft's announcement, or move it after the request's,
+   * and this test fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  public void aRequestFromADraftAnnouncesTheDraftDeletedBeforeTheRequest() throws Exception {
+    Work work = newRequest();
+    work.setDraftId(8L);
+    work.setAttachments(new ArrayList<>());
+    when(statusService.getStatuses(9L)).thenReturn(Arrays.asList(status(7L, "Request")));
+    org.exoplatform.processes.entity.WorkEntity draftRow = mock(org.exoplatform.processes.entity.WorkEntity.class);
+    when(workDraftDAO.find(8L)).thenReturn(draftRow);
+    List<String> steps = new ArrayList<>();
+    doAnswer(invocation -> steps.add("draft deleted")).when(workDraftDAO).delete(draftRow);
+    PROCESSES_UTILS.when(() -> ProcessesUtils.broadcast(any(), anyString(), any(), any())).thenAnswer(invocation -> {
+      String event = invocation.getArgument(1);
+      if (ProcessesEvents.REQUEST_DRAFT_DELETED.equals(event)) {
+        steps.add(event + " " + invocation.getArgument(2) + " " + invocation.getArgument(3));
+      } else if ("exo.process.request.created".equals(event)) {
+        steps.add(event);
+      }
+      return null;
+    });
+
+    processesStorage.saveWork(work, 1L);
+
+    assertEquals(List.of("draft deleted", ProcessesEvents.REQUEST_DRAFT_DELETED + " 8 3", "exo.process.request.created"), steps);
+  }
+
+  /**
+   * Removing a request whose values were refused removes its task, then its
+   * record, and still removes the record when the task's removal fails.
+   * Mutation: drop the record's removal, or let a failed task removal skip it,
+   * and this test fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  public void removingARefusedRequestRemovesItsTaskThenItsRecord() throws Exception {
+    RequestEntity record = new RequestEntity();
+    record.setTaskId(40L);
+    when(requestDAO.find(40L)).thenReturn(record);
+
+    processesStorage.removeRequest(40L);
+
+    org.mockito.InOrder order = inOrder(taskService, requestDAO);
+    order.verify(taskService).removeTask(40L);
+    order.verify(requestDAO).delete(record);
+
+    doThrow(new IllegalStateException("the task is gone")).when(taskService).removeTask(41L);
+    RequestEntity otherRecord = new RequestEntity();
+    otherRecord.setTaskId(41L);
+    when(requestDAO.find(41L)).thenReturn(otherRecord);
+
+    processesStorage.removeRequest(41L);
+
+    verify(requestDAO).delete(otherRecord);
   }
 
   /**
