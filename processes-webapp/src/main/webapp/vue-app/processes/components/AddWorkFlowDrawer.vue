@@ -574,7 +574,7 @@ export default {
      *          creators
      */
     editChanged() {
-      return JSON.stringify(this.workflow) !== JSON.stringify(this.oldWorkflow)
+      return this.processString(this.workflow) !== this.processString(this.oldWorkflow)
         || JSON.stringify(this.illustrativeImage) !== this.openedIllustration
         || this.projectChoiceString() !== this.originalProjectChoice
         || this.sectionsChanged
@@ -851,6 +851,20 @@ export default {
       if (!this.editMode) {
         this.resetProjectChoice();
       }
+    },
+    /**
+     * Gives a process as text, its managing space by id only: the space
+     * picker replaces the space the server gave with the one it reads, which
+     * carries other fields, when step 1's Continue or a change of layout
+     * gives it the space.
+     *
+     * @param {Object} workflow the process
+     * @return {String} the process as text
+     */
+    processString(workflow) {
+      return JSON.stringify(Object.assign({}, workflow, {
+        parentSpace: workflow && workflow.parentSpace && workflow.parentSpace.id || null,
+      }));
     },
     /**
      * Gives request creators as text, by provider and id, to tell whether
