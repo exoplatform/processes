@@ -15,7 +15,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
   <div
     id="requestGuideCard"
     :class="expanded ? 'pa-1' : 'request-guide light-grey-background-color application-border-radius pa-3'">
-    <div ref="nameRow" class="d-flex align-center mb-2">
+    <div
+      v-if="!expanded"
+      ref="nameRow"
+      class="d-flex align-center mb-2">
       <v-avatar
         :class="!showIllustration && 'workflow-card-avatar-placeholder primary--text'"
         class="workflow-card-avatar me-3 flex-shrink-0"
@@ -26,10 +29,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
           @error="illustrationFailed = true" />
         <span v-else class="font-weight-bold">{{ initial }}</span>
       </v-avatar>
-      <div class="text-start text-truncate">
-        <div v-if="!expanded || !spaceName" class="font-weight-bold text-break">{{ workflow.title }}</div>
-        <div v-if="spaceName" class="text-caption text-light-color text-truncate">{{ spaceName }}</div>
-      </div>
+      <div class="text-start font-weight-bold text-break">{{ workflow.title }}</div>
     </div>
     <p
       v-if="workflow.description"
@@ -72,12 +72,13 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 <script>
 /**
- * The read-only guide at the top of the request drawer, and its full-screen
- * left pane, where the pane's title already names the process and the guide
- * sits on the pane itself, no card, its help shown open: the process with its
- * managing space, its description, a
- * « How to complete my request? » block holding its summary, open in full
- * screen, and the process's own documents, which the requester may read.
+ * The read-only guide at the top of the request drawer: the process with its
+ * illustration (its name row, which the header's line replaces once scrolled
+ * out), its description, a « How to complete my request? » block holding its
+ * summary, and the process's own documents, which the requester may read. The
+ * requester needs no managing space, so none is named. In the full-screen
+ * left pane, whose title already names the process, the guide sits on the
+ * pane itself, no card and no name row, and its help is shown open.
  */
 export default {
   props: {
@@ -108,10 +109,6 @@ export default {
     /** @returns {Boolean} true when the process's illustration is shown, its initial otherwise, as on the home cards */
     showIllustration() {
       return !!this.avatarUrl && !this.illustrationFailed;
-    },
-    /** @returns {String} the managing space's name, null when the process has none */
-    spaceName() {
-      return this.workflow.parentSpace && this.workflow.parentSpace.displayName || null;
     },
     /** @returns {String} the process title's first letter, for a process with no illustration */
     initial() {

@@ -61,11 +61,9 @@ export default {
     }
   },
   computed: {
-    /** @returns {String} the header's process line: the process, then its managing space */
+    /** @returns {String} the header's process line: the process's name, the requester needing no space */
     titleLine() {
-      const workflow = this.work && this.work.workFlow || {};
-      const space = workflow.parentSpace && workflow.parentSpace.displayName;
-      return space ? `${workflow.title} · ${space}` : workflow.title;
+      return this.work && this.work.workFlow && this.work.workFlow.title || '';
     },
     /** @returns {String} the line's style, struck through once the request is completed */
     textDecoration() {
