@@ -108,11 +108,13 @@ export default {
       const workflow = JSON.parse(workflowJson);
       const index = this.workflowList.findIndex(item => item.id === workflow.id);
       if (index >= 0) {
+        // a non-administrator's « I manage » and « All » views list enabled processes only
+        const enabledOrAdministrator = this.isProcessesManager || workflow.enabled;
         const matches = {
           activated: workflow.enabled,
           deactivated: !workflow.enabled,
-          manager: !!(workflow.acl && workflow.acl.canEdit),
-        }[this.filter];
+          manager: !!(workflow.acl && workflow.acl.canEdit) && enabledOrAdministrator,
+        }[this.filter] ?? enabledOrAdministrator;
         this.workflowList.splice(index, 1, ...(matches === false ? [] : [workflow]));
       }
     },

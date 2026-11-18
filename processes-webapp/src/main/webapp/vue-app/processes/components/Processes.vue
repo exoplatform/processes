@@ -37,7 +37,7 @@
               :works="works"
               :work-drafts="workDrafts"
               :completed-works="completedWorks"
-              :loading="loading"
+              :loading="worksLoading || completedLoads > 0"
               :show-work-filter="requestSubmitted || allWorkDrafts.length > 0" />
           </v-tab-item>
         </v-tabs-items>
@@ -96,6 +96,9 @@ export default {
       loadingMore: false,
       hasMoreTypes: false,
       isManager: false,
+      managesWorkflow: null,
+      worksLoading: false,
+      completedLoads: 0,
       confirmTitle: this.$t('processes.workflow.action.confirmation.label'),
       confirmMessage: '',
       dialogAction: null,
@@ -197,6 +200,10 @@ export default {
         if (event.filter === 'manager') {
           this.manager = true;
           this.enabled = true;
+        } else if (event.filter === 'deactivated') {
+          // a user who manages a process finds the disabled ones they manage, to enable them again
+          this.manager = true;
+          this.enabled = false;
         } else {
           this.manager = false;
           this.enabled = true;
@@ -214,6 +221,11 @@ export default {
       this.work = event.object;
       this.workComments = event.object.comments;
       this.$refs.addWork.open(event.object, event.mode, event.isDraft,event.allowSave);
+    });
+    // The request detail's comments open the task comments drawer on this request
+    this.$root.$on('open-work-detail-drawer', event => {
+      this.work = event.work;
+      this.workComments = event.comments;
     });
     this.$root.$on('open-workflow-drawer', event => {
       this.$refs.addWorkFlow.open(event.workflow, event.mode);
@@ -233,23 +245,16 @@ export default {
     this.$root.$on('update-work-draft', draft => {
       this.updateWorkDraft(draft);
     });
+    // « My requests » filters the loaded requests itself: only the completed ones load on demand
     this.$root.$on('work-filter-changed', event => {
-      this.completedWorks = [];
-      this.works = [];
-      this.workDrafts = [];
       this.status = event.status;
-      this.query = event.query;
-      if (this.status === 'drafts') {
-        this.getWorkDrafts();
-      } else if (this.status === null) {
-        this.getWorkDrafts();
-        this.getWorks();
-      } else if (this.status === 'completed') {
+      if (this.status === 'completed') {
         this.getCompletedWorks();
       } else {
-        this.getWorks();
+        this.completedWorks = [];
       }
     });
+    this.$root.$on('processes-show-tab', tab => this.tab = tab);
     document.addEventListener('Task-comments-drawer-closed', () => {
       const urlInst = window.location.href;
       if (urlInst.includes('comments')) {
@@ -337,8 +342,17 @@ export default {
         filter.enabled = true;
         filter.manager = false;
         this.query = '';
-        this.$processesService.getWorkFlows(filter).then(workflows =>{
-          this.showProcessFilter = workflows.length > 0;});
+        // whether the user manages a process is read once: the toolbar then offers its « Disabled » view
+        this.managesWorkflow = this.managesWorkflow || this.$processesService.getWorkFlows({manager: true}, 0, 1)
+          .then(managedWorkflows => managedWorkflows.length > 0)
+          .catch(() => {
+            this.managesWorkflow = null;
+            return false;
+          });
+        Promise.all([this.$processesService.getWorkFlows(filter), this.managesWorkflow])
+          .then(([workflows, managesWorkflow]) => {
+            this.showProcessFilter = workflows.length > 0 || managesWorkflow;
+          });
       }
     },
     handleTabChanges() {
@@ -395,8 +409,9 @@ export default {
       if (value === 1) {
         window.history.pushState('myRequests', '', `${spacePath != null ? spacePath : baseProcessPath}/processes/myRequests`);
         if (!this.myRequestsTabVisited) {
-          this.getWorkDrafts();
-          this.getWorks();
+          // « My requests » waits for both loads before it says the list is empty
+          this.worksLoading = true;
+          Promise.all([this.getWorkDrafts(), this.getWorks()]).finally(() => this.worksLoading = false);
           this.myRequestsTabVisited = 1;
         }
       } else {
@@ -408,7 +423,7 @@ export default {
         if (work) {
           this.$processesService.getWorkComments(work.id).then(comments => {
             work.comments = comments;
-            this.$root.$emit('open-add-work-drawer', {object: work, mode: 'view_work', isDraft: false});
+            this.$root.$emit('open-work-detail-drawer', {work, comments});
           });
         }
       });
@@ -444,11 +459,12 @@ export default {
       this.loading = !this.loadingMore;
       return this.$processesService.getWorkFlows(filter, this.offset, this.limit + 1, expand).then(workflows => {
         this.hasMoreTypes = workflows && workflows.length > this.limit;
-        if (this.hasMoreTypes) {
-          this.workflows.push(...workflows.slice(0, -1));
-        } else {
-          this.workflows.push(...workflows || []);
+        let page = this.hasMoreTypes ? workflows.slice(0, -1) : workflows || [];
+        if (!this.isManager && filter.enabled === false) {
+          // a guard: the server's manager scope already lists only the processes the user may edit
+          page = page.filter(workflow => workflow.acl && workflow.acl.canEdit);
         }
+        this.workflows.push(...page);
       })
         .finally(() => {
           this.loading = false;
@@ -456,15 +472,7 @@ export default {
         });
     },
     getWorks() {
-      const filter = {};
-      if (this.query) {
-        filter.query = this.query;
-      }
-      filter.status = this.status;
-      filter.completed = this.status === 'completed';
-      if (filter.completed) {
-        filter.status = null;
-      }
+      const filter = {completed: false};
       const expand = 'workFlow';
       this.limit = this.limit || this.pageSize;
       this.loading = true;
@@ -480,15 +488,15 @@ export default {
       const filter = {
         completed: true
       };
-      if (this.query) {
-        filter.query = this.query;
-      }      
-      this.$processesService.getWorks(filter, 0, 0, expand).then(works => {
-        works.forEach(work => {
-          work.status = 'completed';
-        });
+      // counted, not flagged: a quick Completed, All, Completed starts a second load before the first answers
+      this.completedLoads++;
+      return this.$processesService.getWorks(filter, 0, 0, expand).then(works => {
+        if (this.status !== 'completed') {
+          // the status changed while the completed requests were loading
+          return;
+        }
         this.completedWorks = works || [];
-      });
+      }).finally(() => this.completedLoads--);
     },
     getWorkDrafts() {
       const expand = '';
@@ -503,14 +511,7 @@ export default {
             this.handleUpdateUrlPath('draftDetails', `/myRequests/draftDetails/${draft.id}`);
           }
         }
-        if (this.query){
-          this.workDrafts = this.allWorkDrafts.filter(elem=>{
-            return elem.description && elem.description.replace(/\s/g,'').replace(/<\/?[^>]+(>|$)/gi, '').includes(this.query.replace(/\s/g,''));
-          });
-        }
-        else {
-          this.workDrafts = this.allWorkDrafts;
-        }
+        this.workDrafts = this.allWorkDrafts;
       }).finally(() => this.loading = false);
     },
     displayMessage(alert) {

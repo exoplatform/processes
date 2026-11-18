@@ -12,6 +12,7 @@
     <portlet>
         <name>Processes</name>
         <module>
+            <load-group>ProcessesGRP</load-group>
             <script>
                 <minify>false</minify>
                 <path>/js/processes.bundle.js</path>

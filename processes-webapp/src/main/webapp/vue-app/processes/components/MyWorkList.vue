@@ -1,200 +1,40 @@
 <template>
   <div
     id="myWorks">
-    <v-container class="pa-0 work-controls" v-show="showWorkFilter">
-      <v-row no-gutters>
-        <v-col
-          height="150">
-          <v-select
-            v-if="!isMobile"
-            ref="filter"
-            class="work-filter pt-5 me-9 float-e"
-            v-model="filter"
-            :items="filterItems"
-            item-text="label"
-            item-value="value"
-            return-object
-            attach
-            @blur="$refs.filter.blur();"
-            @change="updateFilter"
-            dense
-            outlined />
-          <v-text-field
-            v-if="!isMobile"
-            class="work-filter-query me-4"
-            @keyup="updateFilter"
-            v-model="query"
-            :placeholder="$t('processes.work.filter.query.placeholder')"
-            prepend-inner-icon="mdi-filter">
-            <template #append>
-              <btn
-                v-if="query"
-                @click="resetQueryInput"
-                icon>
-                <v-icon class="mt-1">
-                  fa-times
-                </v-icon>
-              </btn>
-            </template>
-          </v-text-field>
-          <v-btn
-            v-if="!showMobileFilter && isMobile"
-            class="float-e mt-2"
-            @click="switchToMobileFilter"
-            icon>
-            <v-icon v-if="activatedFilters.length || query">
-              mdi-filter
-            </v-icon>
-            <v-icon
-              v-else>
-              mdi-filter-outline
-            </v-icon>
-          </v-btn>
-        </v-col>
-        <v-col
-          v-if="showMobileFilter && isMobile"
-          v-show="showWorkFilter"
-          class="d-flex me-4 mb-n4"
-          cols="12">
-          <v-text-field
-            class="pt-5 me-2 mb-1 workflow-filter-query float-e d-flex"
-            @keyup="updateFilter"
-            v-model="query"
-            :placeholder="$t('processes.workflow.filter.query.placeholder')">
-            <template #prepend>
-              <btn
-                @click="switchToMobileFilter"
-                icon>
-                <v-icon class="mt-1">
-                  fa-arrow-left
-                </v-icon>
-              </btn>
-            </template>
-            <template #append>
-              <btn
-                v-if="query"
-                @click="resetQueryInput"
-                icon>
-                <v-icon>
-                  fa-times
-                </v-icon>
-              </btn>
-            </template>
-          </v-text-field>
-          <v-btn
-            outlined
-            class="btn btn-primary pa-0 mt-2 mobile-filter-btn"
-            @click="openMobileFilter">
-            <v-icon
-              class="pa-0"
-              size="16">
-              fa-sliders-h
-            </v-icon>
-            <span v-if="activatedFilters.length">({{ activatedFilters.length }})</span>
-          </v-btn>
-        </v-col>
-      </v-row>
-    </v-container>
-    <empty-or-loading
-      :loading="isLoading"
-      v-if="canShowEmptyOrLoad">
-      <template #empty>
-        <div>
-          <v-img
-            width="280px"
-            height="273px"
-            src="/processes/images/noRequest.png" />
-          <p
-            class="mt-2">
-            {{ $t('processes.work.noRequest.label') }}
-          </p>
-        </div>
-      </template>
-    </empty-or-loading>
-    <v-expansion-panels
-      class="mt-5"
-      v-if="canShowPanels"
-      v-model="panel"
-      multiple>
-      <v-expansion-panel
-        v-if="draftList.length>0"
-        class="elevation-0 ml-n5">
-        <v-expansion-panel-header
-          class="text-md-body-1 font-weight-regular grey--text text--darken-1">
-          <div class="panel-custom-header">
-            {{ this.$t('processes.myWorks.status.draft') }} ({{ draftList.length }})
-          </div>
-          <hr class="line-panel-work">
-        </v-expansion-panel-header>
-        <v-expansion-panel-content
-          class="elevation-0 work-panel-content">
-          <work
-            v-for="draft in draftList"
-            :is-draft="true"
-            :key="draft.id"
-            :work="draft" />
-        </v-expansion-panel-content>
-      </v-expansion-panel>
-      <v-expansion-panel
-        v-for="item in items"
-        :key="item.status"
-        class="elevation-0 ml-n5">
-        <v-expansion-panel-header
-          class="text-md-body-1 font-weight-regular grey--text text--darken-1">
-          <div class="panel-custom-header">
-            {{ statusI18n(item.status) }} ({{ item.works.length }})
-          </div>
-          <hr class="line-panel-work">
-        </v-expansion-panel-header>
-        <v-expansion-panel-content
-          class="elevation-0 work-panel-content">
-          <work
-            v-for="work in item.works"
-            :key="work.id"
-            :work="work" />
-        </v-expansion-panel-content>
-      </v-expansion-panel>
-      <v-expansion-panel
-        v-if="completedWorkList.length>0"
-        class="elevation-0 ml-n5">
-        <v-expansion-panel-header
-          class="text-md-body-1 font-weight-regular grey--text text--darken-1">
-          <div class="panel-custom-header">
-            {{ this.$t('label.task.completed') }} ({{ completedWorkList.length }})
-          </div>
-          <hr class="line-panel-work">
-        </v-expansion-panel-header>
-        <v-expansion-panel-content
-          class="elevation-0 work-panel-content">
-          <work
-            v-for="work in completedWorkList"
-            :is-draft="false"
-            :key="work.id"
-            :work="work" />
-        </v-expansion-panel-content>
-      </v-expansion-panel>
-    </v-expansion-panels>
-    <mobile-filter
-      ref="workMobileFilter"
-      :items="filterItems"
-      default-value-index="0"
-      @filter-changed="handleFilterChange"
-      @activated-filters-update="handleActiveFilters" />
+    <my-work-list-toolbar
+      v-show="showWorkFilter"
+      :key="toolbarKey"
+      :available-work-statuses="availableWorkStatuses || []"
+      :processes="processes"
+      :total-count="allWorks.length"
+      :drafts-count="draftList.length"
+      :shown-count="shownCount"
+      :hide-filters="isEmpty"
+      @change="filter = $event" />
+    <div
+      v-if="loading && !shownCount"
+      class="d-flex justify-center py-10">
+      <v-progress-circular color="primary" indeterminate />
+    </div>
+    <my-work-list-empty
+      v-else-if="!shownCount"
+      :never-requested="isEmpty"
+      :filtered="!!(filter.query || filter.workflowId || filter.status)"
+      @clear="clearFilters" />
+    <my-requests-table
+      v-else
+      id="myRequestsList"
+      :groups="groups" />
+    <work-detail-drawer />
   </div>
 </template>
 
 <script>
+import {CAPPED_GROUP_SIZE, CAPPED_STATUSES, matchesQuery, processesOf, sortRecentFirst, statusesOf, workflowIdOf} from '../js/MyRequestsFilters.js';
+import MyWorkListUpdatesMixin from '../js/MyWorkListUpdatesMixin.js';
+
 export default {
-  data () {
-    return {
-      panel: [],
-      filter: {label: this.$t('processes.workflow.all.label'), value: null},
-      query: null,
-      MOBILE_WIDTH: 600,
-      showMobileFilter: false,
-      activatedFilters: [],
-    };
-  },
+  mixins: [MyWorkListUpdatesMixin],
   props: {
     works: {
       type: Array,
@@ -213,52 +53,18 @@ export default {
       default: false
     },
     availableWorkStatuses: {
-      type: Object,
-      default: () => {
-        return {};
-      }
+      type: Array,
+      default: null,
     },
     showWorkFilter: {
       type: Boolean,
     }
   },
-  created() {
-    this.$root.$on('work-draft-updated', (draft) => {
-      const object = JSON.parse(draft);
-      const index = this.draftList.map(object => object.id).indexOf(object.id);
-      this.draftList.splice(index, 1, object);
-    });
-    this.$root.$on('work-draft-removed', (draft) => {
-      const index = this.draftList.map(draft => draft.id).indexOf(draft.id);
-      this.draftList.splice(index, 1);
-    });
-    this.$root.$on('work-removed', (work) => {
-      this.workList.splice(this.workList.indexOf(work), 1);
-    });
-    this.$root.$on('work-canceled', (work) => {
-      this.handleCompleted(work);
-    });
-    this.$root.$on('work-completed', (work) => {
-      this.handleCompleted(work);
-    });
-    this.$root.$on('work-uncanceled', (work) => {
-      const index = this.completedWorkList.map(work => work.id).indexOf(work.id);
-      this.completedWorkList.splice(index, 1);
-      work.completed = false;
-    });
-  },
-  watch: {
-    works() {
-      this.initPanels();
-    },
-    workDrafts() {
-      this.initPanels();
-    }
-  },
+  data: () => ({
+    filter: {query: null, workflowId: null, status: null, grouped: false},
+    toolbarKey: 0,
+  }),
   computed: {
-    isMobile() {
-      return this.$vuetify.breakpoint.width < this.MOBILE_WIDTH;
-    },
     draftList() {
       return this.workDrafts || [];
     },
@@ -268,109 +74,138 @@ export default {
     completedWorkList() {
       return this.completedWorks || [];
     },
-    isLoading() {
-      return this.loading || false;
+    /**
+     * Lists every request and draft the application loaded, whatever the filters.
+     *
+     * @returns {Array} the requests and the drafts
+     */
+    allWorks() {
+      return [...this.draftList, ...this.workList, ...this.completedWorkList];
     },
-    items() {
-      return this.groupByKey(this.workList, 'status');
+    /**
+     * Lists the processes of the loaded requests, with their counts, for the process filter.
+     *
+     * @returns {Array} the processes, as {id, title, count}
+     */
+    processes() {
+      return processesOf(this.allWorks);
     },
-    filterItems() {
-      const items = [];
-      items.push({label: this.$t('processes.workflow.all.label'), value: null});
-      if (this.availableWorkStatuses) {
-        this.availableWorkStatuses.forEach((value) => {
-          if (!items.find(object => object.value === value.name)) {
-            items.push({label: this.statusI18n(value.name), value: value.name});
-          }
-        });
+    /**
+     * Tells whether the user has no request at all: none loaded, and none sent, completed ones included.
+     *
+     * @returns {Boolean} true when the user never made a request
+     */
+    isEmpty() {
+      return !this.allWorks.length && !this.showWorkFilter;
+    },
+    /**
+     * Builds what the table shows: by default one flat list of every kept request, drafts included,
+     * or, when « Group by status » is chosen, the status groups.
+     *
+     * @returns {Array} the groups, as {key, label, works, isDraft, cap, hint}, or the flat list's
+     *   single group, as {key, flat, works, drafts, hint}
+     */
+    groups() {
+      if (this.filter.grouped) {
+        return this.statusGroups;
       }
-      items.push({label: this.$t('processes.myWorks.status.draft'), value: 'drafts'});
-      items.push({label: this.$t('label.task.completed'), value: 'completed'});
-      return items;
+      const works = this.statusGroups.flatMap(group => group.works);
+      if (!works.length) {
+        return [];
+      }
+      return [{
+        key: 'all',
+        flat: true,
+        works,
+        drafts: new Set(this.draftList),
+        hint: this.isDraftsOnlyProcess && this.$t('processes.myRequests.draftsOnly') || null,
+      }];
     },
-    canShowEmptyOrLoad() {
-      return this.workList.length === 0 && this.draftList.length === 0 && this.completedWorkList.length === 0;
+    /**
+     * Builds the status groups: the drafts, each status in the order the processes list them,
+     * then the completed requests, each filtered and sorted most recent first, without the empty ones.
+     *
+     * @returns {Array} the groups, as {key, label, works, isDraft, cap, hint}
+     */
+    statusGroups() {
+      const status = this.filter.status;
+      const groups = [];
+      if (!status || status === 'drafts') {
+        groups.push({key: 'drafts', label: this.$t('processes.myWorks.status.draft'), works: this.draftList, isDraft: true});
+      }
+      if (status !== 'drafts' && status !== 'completed') {
+        statusesOf(this.workList).filter(name => !status || name === status).forEach(name => groups.push({
+          key: `status-${name}`,
+          label: this.statusI18n(name),
+          works: this.workList.filter(work => work.status === name),
+          cap: CAPPED_STATUSES.includes(name) ? CAPPED_GROUP_SIZE : 0,
+        }));
+      }
+      if (!status || status === 'completed') {
+        groups.push({key: 'completed', label: this.$t('label.task.completed'), works: this.completedWorkList});
+      }
+      groups.forEach(group => group.works = sortRecentFirst(group.works.filter(this.matches)));
+      const shown = groups.filter(group => group.works.length);
+      const drafts = shown.find(group => group.isDraft);
+      if (drafts && this.isDraftsOnlyProcess) {
+        drafts.hint = this.$t('processes.myRequests.draftsOnly');
+      }
+      return shown;
     },
-    canShowPanels() {
-      return this.workList.length>0 || this.draftList.length>0 || this.completedWorkList.length>0;
-    }
+    /**
+     * Tells whether the chosen process holds drafts only among the loaded requests: no open request.
+     *
+     * @returns {Boolean} true when a process is chosen and none of its loaded requests was sent
+     */
+    isDraftsOnlyProcess() {
+      const workflowId = this.filter.workflowId;
+      return !!workflowId
+        && this.draftList.some(work => workflowIdOf(work) === workflowId)
+        && ![...this.workList, ...this.completedWorkList].some(work => workflowIdOf(work) === workflowId);
+    },
+    /**
+     * Counts the requests and drafts the filters keep.
+     *
+     * @returns {Number} the shown count
+     */
+    shownCount() {
+      return this.groups.reduce((count, group) => count + group.works.length, 0);
+    },
   },
   methods: {
-    openMobileFilter() {
-      this.$refs.workMobileFilter.open();
+    /**
+     * Tells whether a request matches the chosen process and the typed text.
+     *
+     * @param {Object} work the request or the draft
+     * @returns {Boolean} true when the filters keep it
+     */
+    matches(work) {
+      return (!this.filter.workflowId || workflowIdOf(work) === this.filter.workflowId)
+        && matchesQuery(work, this.filter.query, this.statusI18n(work.status));
     },
-    handleFilterChange(event) {
-      this.filter.value = event.filter;
-      this.updateFilter();
-    },
-    handleActiveFilters(filter) {
-      const exists = this.activatedFilters.includes(filter.filterType);
-      if (!exists && filter.enabled) {
-        this.activatedFilters.push(filter.filterType);
-      } else if (exists && !filter.enabled) {
-        const index = this.activatedFilters.indexOf(filter.filterType);
-        this.activatedFilters.splice(index, 1);
+    /**
+     * Resets the text, the process and the status filters, the grouping, and the toolbar that holds them.
+     *
+     * @returns {void}
+     */
+    clearFilters() {
+      if (this.filter.status) {
+        this.$root.$emit('work-filter-changed', {status: null});
       }
+      this.filter = {query: null, workflowId: null, status: null, grouped: false};
+      this.toolbarKey++;
     },
-    resetQueryInput() {
-      if (!this.query) {
-        return;
-      }
-      this.query = null;
-      this.updateFilter();
-    },
-    switchToMobileFilter() {
-      this.showMobileFilter = !this.showMobileFilter;
-    },
-    handleCompleted(work) {
-      const index = this.workList.map(work => work.id).indexOf(work.id);
-      this.workList.splice(index, 1);
-      work.completed = true;
-    },
-    statusI18n(value){
-      if (value === 'completed') {
-        return this.$t('label.task.completed') || value;
-      }
+    /**
+     * Translates a task status name, or keeps the name when no translation exists.
+     *
+     * @param {String} value the status name
+     * @returns {String} the label
+     */
+    statusI18n(value) {
       const key = `tasks.status.${value}`;
       const translation = this.$t(key);
       return translation === key && value || translation;
     },
-    groupByKey(arr, prop) {
-      arr = this.sortWorks(arr);
-      const statuses = [];
-      const map = new Map(Array.from(arr, obj => [obj[prop], []]));
-      arr.forEach(obj => map.get(obj[prop]).push(obj));
-      for (const x of map.keys()) {
-        statuses.push({status: x,works: map.get(x)});
-      }
-      return statuses;
-    },
-    statusList() {
-      const statusList = new Set();
-      this.workList.map(work => work.workFlow).map(workflow => workflow.statuses)
-        .filter(statuses => statuses && statuses.length > 0).forEach(statuses => {
-          statuses.forEach(status => {
-            if (status) {
-              statusList.add(status.name);
-            }
-          });
-        });
-      statusList.add('completed');
-      return Array.from(statusList);
-    },
-    sortWorks(works) {
-      const statusList = this.statusList();
-      return works.sort((a, b) => statusList.indexOf(a['status']) - statusList.indexOf(b['status']));
-    },
-    updateFilter() {
-      this.isLoading = true;
-      this.$root.$emit('work-filter-changed', {status: this.filter.value, query: this.query});
-    },
-    initPanels() {
-      window.setTimeout(() => {
-        this.panel =  [...Array(this.statusList().length + 1).keys()].map(i => i);
-      }, 200);
-    }
   }
 };
 </script>

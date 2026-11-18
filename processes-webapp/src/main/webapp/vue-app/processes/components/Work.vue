@@ -17,36 +17,17 @@
  */
 -->
 <template>
-  <work-body
-    v-if="!isMobileWork"
-    :work-object="workObject"
-    :comments="comments"
+  <work-row
+    :work="workObject"
     :is-draft="isDraft"
-    :work-description="workDescription"
-    :workflow-avatar-url="workflowAvatarUrl"
+    :comments-count="comments.length"
+    :avatar-url="workflowAvatarUrl"
     :allow-cancel="allowCancel"
-    :last-comment-date="lastCommentDate"
-    @update-work-completed="updateCompleted"
-    @open-request="openRequest"
-    @open-comments-drawer="openCommentsDrawer"
-    @open-draft="openDraft"
-    @delete-work="deleteWork"
-    @cancel-work="cancelWork" />
-  <work-body-mobile
-    v-else
-    :work-object="workObject"
-    :comments="comments"
-    :is-draft="isDraft"
-    :work-description="workDescription"
-    :workflow-avatar-url="workflowAvatarUrl"
-    :allow-cancel="allowCancel"
-    :last-comment-date="lastCommentDate"
-    @update-work-completed="updateCompleted"
-    @open-request="openRequest"
-    @open-comments-drawer="openCommentsDrawer"
-    @open-draft="openDraft"
-    @delete-work="deleteWork"
-    @cancel-work="cancelWork" />
+    @open="openRequest"
+    @open-comments="openCommentsDrawer"
+    @delete="deleteWork"
+    @cancel="cancelWork"
+    @archive="updateCompleted" />
 </template>
 
 <script>
@@ -54,7 +35,6 @@ export default {
   data () {
     return {
       comments: [],
-      MOBILE_WORK_WIDTH: 1023
     };
   },
   props: {
@@ -70,17 +50,8 @@ export default {
     }
   },
   computed: {
-    isMobileWork() {
-      return this.$vuetify.breakpoint.width <= this.MOBILE_WORK_WIDTH;
-    },
-    workDescription() {
-      return this.workObject.description && this.$utils.htmlToText(this.workObject.description);
-    },
     workObject() {
       return this.work || {};
-    },
-    lastCommentDate() {
-      return this.comments && this.comments[this.comments.length-1] && this.comments[this.comments.length-1].comment.createdTime.time;
     },
     allowCancel() {
       return this.workObject && this.workObject.status !== 'Validated' && this.workObject.status !== 'Refused';
@@ -95,12 +66,16 @@ export default {
     this.getWorkComments();
   },
   methods: {
+    /**
+     * Opens a draft to resume it, or a sent request in the request detail drawer.
+     *
+     * @returns {void}
+     */
     openRequest() {
       if (this.isDraft) {
         this.openDraft();
       } else {
-        this.workObject.comments = this.comments;
-        this.$root.$emit('open-add-work-drawer', {object: this.workObject, mode: 'view_work', isDraft: this.isDraft});
+        this.$root.$emit('open-work-detail-drawer', {work: this.workObject, comments: this.comments});
       }
     },
     openDraft() {
