@@ -12,12 +12,12 @@ You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 -->
 <template>
+  <!-- opens beside its button, so it never covers the button of the row below -->
   <v-menu
     v-model="showMenu"
     ref="menu"
     content-class="my-request-menu"
-    bottom
-    offset-y
+    offset-x
     left>
     <template #activator="{ on, attrs }">
       <v-btn
