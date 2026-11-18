@@ -515,6 +515,19 @@
     }
   }
 
+  // the text filter's icon comes first, then the advanced filter button: the toolbar renders its
+  // right slot before the icon, in a wrapper that grows in compact mode, so the wrapper keeps its
+  // width and the icon is ordered first; the open text filter still grows across the toolbar
+  #myRequestsToolbar #applicationToolbarRight {
+    > div.flex-grow-1:not(#applicationToolbarFilter) {
+      flex-grow: 0 !important;
+    }
+
+    #applicationToolbarConeButton {
+      order: -1;
+    }
+  }
+
   // a menu button clicked with the mouse keeps no focus ring, a keyboard focus keeps its own
   .my-request-menu-button,
   .workflow-card-menu-button {

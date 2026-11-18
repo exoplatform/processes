@@ -20,13 +20,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     @click="$emit('open')"
     @keydown.enter.self="$emit('open')">
     <td class="my-request-cell-request">
-      <div class="my-request-title font-weight-bold text-truncate">{{ requestTitle }}</div>
-      <div
-        v-if="preview"
-        :title="preview"
-        class="my-request-preview caption text-light-color text-truncate">
-        {{ preview }}
-      </div>
+      <div class="my-request-title text-truncate">{{ requestTitle }}</div>
       <!-- Extension point ProcessRequestRow / request-row-summary: a few of the request's form values.
            Its modules load with the detail drawer's: their name contains ProcessRequestDetailExtension -->
       <div :id="`requestRowSummary-${work.id}`" class="my-request-row-summary text-truncate">
@@ -38,8 +32,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       </div>
       <my-request-status-chip
         :status="work.status"
-        :is-draft="isDraft"
         v-if="!wide"
+        :is-draft="isDraft"
         :is-completed="work.completed"
         class="mt-1"
         x-small />
@@ -91,7 +85,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 </template>
 
 <script>
-import {LARGE_WIDTH, WIDE_WIDTH, plainTextOf} from '../../js/MyRequestsFilters.js';
+import {LARGE_WIDTH, WIDE_WIDTH} from '../../js/MyRequestsFilters.js';
 
 export default {
   props: {
@@ -158,14 +152,6 @@ export default {
      */
     requestTitle() {
       return this.work.title || this.processTitle;
-    },
-    /**
-     * Reads a one-line preview of the request's message, without its markup.
-     *
-     * @returns {String} the preview, empty when the request has no message
-     */
-    preview() {
-      return plainTextOf(this.work.description);
     },
     /**
      * Reads the first letter of the process title, shown when the process has no illustration.

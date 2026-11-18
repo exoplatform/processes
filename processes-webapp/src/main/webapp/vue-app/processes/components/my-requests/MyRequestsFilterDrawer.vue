@@ -16,20 +16,25 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     id="myRequestsFilterDrawer"
     ref="drawer"
     v-model="drawer"
-    allow-expand
     right>
     <template #title>
       {{ $t('processes.myRequests.filter.drawerTitle') }}
     </template>
     <template v-if="drawer" #content>
       <div class="d-flex flex-column">
-        <v-switch
-          id="myRequestsGroupByStatus"
-          v-model="grouped"
-          :label="$t('processes.myRequests.filter.groupByStatus')"
-          class="mx-4 mt-4"
-          inset
-          hide-details />
+        <!-- the label on the left, the switch on the right, as social's LoginFormSettingsDrawer -->
+        <div class="d-flex align-center mx-4 mt-4">
+          <div class="text-header">
+            {{ $t('processes.myRequests.filter.groupByStatus') }}
+          </div>
+          <div class="spacer"></div>
+          <v-switch
+            id="myRequestsGroupByStatus"
+            v-model="grouped"
+            :aria-label="$t('processes.myRequests.filter.groupByStatus')"
+            class="mt-0"
+            hide-details />
+        </div>
         <div class="text-header mx-4 mt-4">
           {{ $t('processes.myRequests.filter.status') }}
         </div>

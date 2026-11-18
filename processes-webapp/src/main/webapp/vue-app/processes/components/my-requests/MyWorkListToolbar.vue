@@ -14,7 +14,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 <template>
   <div>
     <!-- compact at every width: the toolbar's filter icon opens the text filter across the toolbar,
-         and the advanced filter button, left out while the text filter is open as social's spaces
+         then the advanced filter button, left out while the text filter is open as social's spaces
          directory does, opens the drawer holding the grouping, the status and the process -->
     <application-toolbar
       id="myRequestsToolbar"
@@ -33,7 +33,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         </span>
       </template>
       <template v-if="!filterExpand" #right>
-        <div class="ms-auto">
+        <div class="ms-2">
           <v-btn
             id="myRequestsAdvancedFilterButton"
             :aria-label="advancedFilterLabel"
