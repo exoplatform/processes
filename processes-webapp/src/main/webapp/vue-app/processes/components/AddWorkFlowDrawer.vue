@@ -772,10 +772,20 @@ export default {
     previousStep() {
       this.stp--;
     },
+    /**
+     * Empties the form for a new process: the texts as '', a managing space
+     * declared for reactivity, no image, request makers or labels, and a new
+     * Task project.
+     *
+     * @returns {void}
+     */
     resetInputs() {
       // parentSpace is declared here so the space the suggester sets later is
-      // reactive and reaches the project choice
-      this.workflow = {enabled: true, parentSpace: null};
+      // reactive and reaches the project choice. The texts start empty rather
+      // than undefined: a translation field sends back '' once it is mounted,
+      // and a change from undefined to '' counts as typed, so the required
+      // rules would show their error before anything was typed
+      this.workflow = {enabled: true, parentSpace: null, title: '', description: '', summary: ''};
       this.illustrativeInput = null;
       this.workflowRequest = [];
       this.projectMode = 'NEW';
