@@ -28,7 +28,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 /**
  * Shows how far the request is filled, from the fill state the drawer
  * reports ({total, filled, missing}): a track of the values holding a value,
- * with no text since the section's header already says « x of y filled ».
+ * with no text since the count beside it already says « x of y required ».
  * Renders nothing while the total is 0 or nothing is filled: an empty grey
  * bar would read as a divider.
  */

@@ -54,20 +54,26 @@ export default {
       return this.documentsToFill.map(attachment => attachment.id);
     },
     /**
-     * The fill state of the whole section: the form's fields as the section
-     * reports them, plus each document to fill in. The optional message is
-     * not counted.
+     * The request's required items: the form's required fields as the
+     * section reports them, plus each document to fill in; each part is
+     * given apart too. The optional fields and message are not counted.
      *
-     * @returns {Object} {total, filled, missing}
+     * @returns {Object} {total, filled, missing, fieldsTotal, fieldsFilled, documentsTotal, documentsFilled}
      */
     requestFill() {
       const fill = this.sectionsFill;
-      const filledDocuments = this.hasDraft ? this.documentsToFill.filter(this.isCopyFilled).length : 0;
-      // Only the form's required fields count, the documents to fill in with them
+      const fieldsTotal = fill.requiredTotal ?? fill.total ?? 0;
+      const fieldsFilled = fill.requiredFilled ?? fill.filled ?? 0;
+      const documentsTotal = this.processDocuments.length;
+      const documentsFilled = this.hasDraft ? this.documentsToFill.filter(this.isCopyFilled).length : 0;
       return {
-        total: (fill.requiredTotal ?? fill.total ?? 0) + this.processDocuments.length,
-        filled: (fill.requiredFilled ?? fill.filled ?? 0) + filledDocuments,
+        total: fieldsTotal + documentsTotal,
+        filled: fieldsFilled + documentsFilled,
         missing: fill.missing || [],
+        fieldsTotal,
+        fieldsFilled,
+        documentsTotal,
+        documentsFilled,
       };
     },
   },

@@ -28,6 +28,9 @@
         :avatar-url="workflowAvatarUrl"
         class="ma-4"
         expanded />
+      <request-progress-checklist
+        :fill="requestFill"
+        class="mx-4 mb-4" />
     </template>
     <template slot="title">
       <request-drawer-title
@@ -35,7 +38,6 @@
         :avatar-url="workflowAvatarUrl"
         :view-mode="viewMode"
         :line-shown="titleLineShown"
-        :fill="requestFill"
         :expanded="expanded" />
     </template>
     <template slot="content">

@@ -29,6 +29,7 @@ import ProcessesExtensionSections from './components/ProcessesExtensionSections.
 import RequestFillStatus from './components/RequestFillStatus.vue';
 import RequestDrawerActions from './components/RequestDrawerActions.vue';
 import RequestGuideCard from './components/RequestGuideCard.vue';
+import RequestProgressChecklist from './components/RequestProgressChecklist.vue';
 import RequestFieldRow from './components/RequestFieldRow.vue';
 import RequestFieldsSection from './components/RequestFieldsSection.vue';
 import RequestDocumentLine from './components/RequestDocumentLine.vue';
@@ -83,6 +84,7 @@ const components = {
   'request-fill-status': RequestFillStatus,
   'request-drawer-actions': RequestDrawerActions,
   'request-guide-card': RequestGuideCard,
+  'request-progress-checklist': RequestProgressChecklist,
   'request-field-row': RequestFieldRow,
   'request-fields-section': RequestFieldsSection,
   'request-document-line': RequestDocumentLine,

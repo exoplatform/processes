@@ -25,11 +25,18 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         </v-icon>
         {{ $t('processes.request.section.missing', {0: missingCount}) }}
       </span>
-      <span v-if="fill.total" class="text-caption text-light-color">
+      <span
+        v-if="fill.total && fill.filled >= fill.total"
+        class="d-flex align-center text-caption success--text">
+        <v-icon class="success--text me-1" size="12">fa-check</v-icon>
+        {{ $t('processes.request.fill.complete') }}
+      </span>
+      <span v-else-if="fill.total" class="text-caption text-light-color">
         {{ $t('processes.request.fill.count', {0: fill.filled, 1: fill.total}) }}
       </span>
     </div>
     <request-fill-status
+      v-if="!hideHeader"
       :fill="fill"
       class="mb-3" />
     <slot></slot>
@@ -39,8 +46,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 <script>
 /**
  * The request drawer's « Your request » section: its heading, which says
- * how many required values are missing and how many fields hold a value,
- * the fill track (once something is filled), then the fields: the form's, and the drawer's own rows.
+ * how many required values are missing and how many required items (the
+ * required fields and the documents to fill in) are done, the fill track
+ * (once something is done), then the fields: the form's, and the drawer's own
+ * rows. In full screen (hideHeader), the left pane's checklist carries the
+ * heading's count and the track.
  */
 export default {
   props: {
@@ -48,7 +58,7 @@ export default {
       type: Object,
       default: () => ({total: 0, filled: 0, missing: []}),
     },
-    // In full screen, the drawer's header carries the section's title and count
+    // In full screen, the drawer's header carries the section's title, and the left pane its progress
     hideHeader: {
       type: Boolean,
       default: false,
