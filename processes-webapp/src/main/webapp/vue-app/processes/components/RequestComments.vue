@@ -15,7 +15,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
   <div id="requestComments" class="requestComments">
     <div class="d-flex align-center mb-3">
       <span class="text-header">{{ $t('processes.request.comments') }}</span>
-      <span v-if="comments.length" class="text-light-color ms-2">{{ comments.length }}</span>
+      <span v-if="commentsCount" class="text-light-color ms-2">{{ commentsCount }}</span>
     </div>
     <task-comment-item
       v-for="comment in comments"
@@ -77,6 +77,14 @@ export default {
     composing: false,
   }),
   computed: {
+    /**
+     * Counts the comments, the replies made in the task included.
+     *
+     * @returns {Number} how many comments the task holds
+     */
+    commentsCount() {
+      return this.comments.reduce((count, comment) => count + 1 + (comment.subComments || []).length, 0);
+    },
     /**
      * Reads the id of the request's task, which holds the comments.
      *
