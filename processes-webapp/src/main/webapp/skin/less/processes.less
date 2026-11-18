@@ -480,22 +480,27 @@
       table-layout: fixed;
     }
 
-    // the table keeps the Request column's 280px beside the fixed columns shown at each width
-    // (360px from 600px, 560px from 960px with Process) and scrolls sideways rather than squeeze it
+    // the table keeps the Request column's minimum beside the fixed columns shown at each width,
+    // and scrolls sideways rather than squeeze it: 200px beside 360px from 600px, so a tablet's
+    // card holds the whole row, and 240px beside 560px from 960px, with Process
     @media (min-width: 600px) {
       table {
-        min-width: 680px;
+        min-width: 560px;
+      }
+
+      .my-request-col-request {
+        min-width: 200px;
       }
     }
 
     @media (min-width: 960px) {
       table {
-        min-width: 880px;
+        min-width: 800px;
       }
-    }
 
-    .my-request-col-request {
-      min-width: 280px;
+      .my-request-col-request {
+        min-width: 240px;
+      }
     }
 
     .my-request-row {
