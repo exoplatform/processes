@@ -183,7 +183,11 @@ export default {
     }
   },
   created() {
-
+    // attachment-item is registered by the Documents attachment application, which the page loads on its
+    // own: a list rendered before it would keep an unknown element, so it renders again once it is there
+    if (!Vue.options.components['attachment-item']) {
+      window.require(['PORTLET/documents-portlet/AttachmentApp'], () => this.$forceUpdate());
+    }
     this.initEntityAttachmentsList();
     if (this.workflowParentSpace) {
       this.$spaceService.getSpaceByPrettyName(this.workflowParentSpace.prettyName)
