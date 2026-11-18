@@ -988,10 +988,6 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    */
   @Override
   public Work saveWorkDraft(Work work, long userId) {
-    Identity identity = identityManager.getIdentity(userId);
-    if (identity == null) {
-      throw new IllegalArgumentException("identity is not exist");
-    }
     WorkEntity workEntity = saveWorkDraftEntity(work, userId);
     if (work.getId() == 0) {
       copyProcessAttachmentsToDraft(workEntity.getId(), work.getWorkFlow(), userId);
