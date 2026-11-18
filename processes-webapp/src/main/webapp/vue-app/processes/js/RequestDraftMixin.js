@@ -173,13 +173,16 @@ export default {
     /**
      * Binds the drawer to the draft its first input created, keeping what was
      * typed meanwhile, and lists the attachments the draft got from its
-     * process.
+     * process. The draft's creation time and creator are taken too, since
+     * each later update sends them back.
      *
      * @param {Object} draft the created draft
      * @returns {void}
      */
     bindCreatedDraft(draft) {
       this.$set(this.work, 'id', draft.id);
+      this.$set(this.work, 'createdTime', draft.createdTime);
+      this.$set(this.work, 'creatorId', draft.creatorId);
       this.editDraft = true;
       if (this.$refs.work && this.$refs.work.drawer) {
         // A drawer already closed keeps the address its close set
