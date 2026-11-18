@@ -39,21 +39,11 @@ export default {
     };
   },
   created(){
-    this.$root.$on('set-workflow-space', (space) => {
-      if (space){
-        this.workFlowOwner = {
-          remoteId: space.prettyName,
-          providerId: 'space',
-          spaceId: space.id,
-          profile: {
-            avatarUrl: space.avatarUrl,
-            fullName: space.displayName,
-          }
-        };
-      } else {
-        this.workFlowOwner = {};
-      }
-    });
+    this.$root.$on('set-workflow-space', this.setSpace);
+  },
+  beforeDestroy() {
+    // A picker re-mounted by the process editor's change of layout leaves no listener behind
+    this.$root.$off('set-workflow-space', this.setSpace);
   },
   computed: {
     workFlowSuggesterLabels() {
@@ -99,6 +89,27 @@ export default {
     },
   },
   methods: {
+    /**
+     * Shows the process's managing space, as the editor gives it.
+     *
+     * @param {Object} space the managing space, or null
+     * @returns {void}
+     */
+    setSpace(space) {
+      if (space){
+        this.workFlowOwner = {
+          remoteId: space.prettyName,
+          providerId: 'space',
+          spaceId: space.id,
+          profile: {
+            avatarUrl: space.avatarUrl,
+            fullName: space.displayName,
+          }
+        };
+      } else {
+        this.workFlowOwner = {};
+      }
+    },
     resetCustomValidity() {
       if (this.$refs.workFlowOwnerSuggester) {
         this.$refs.workFlowOwnerSuggester.$el.querySelector('input').setCustomValidity('');

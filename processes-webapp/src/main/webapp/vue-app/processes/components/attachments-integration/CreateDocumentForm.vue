@@ -22,7 +22,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     <a
       @click="showNewFormDocInput"
       class="primary--text font-weight-bold text-decoration-underline">
-      {{ $t('processes.create.document.form.label') }}
+      {{ $t('processes.create.pdf.form.label') }}
     </a>
     <v-text-field
       ref="NewFormDocInput"

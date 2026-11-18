@@ -56,11 +56,11 @@ export default {
     };
   },
   created(){
-    this.$root.$on('set-workflow-creators', (creators) => {
-      if (creators){
-        this.workflowRequest = creators;
-      }
-    });
+    this.$root.$on('set-workflow-creators', this.setCreators);
+  },
+  beforeDestroy() {
+    // A picker re-mounted by the process editor's change of layout leaves no listener behind
+    this.$root.$off('set-workflow-creators', this.setCreators);
   },
   computed: {
     workFlowSuggesterLabels() {
@@ -105,6 +105,17 @@ export default {
     },
   },
   methods: {
+    /**
+     * Shows the process's request creators, as the editor gives them.
+     *
+     * @param {Array} creators the request creators, or null to keep the current ones
+     * @returns {void}
+     */
+    setCreators(creators) {
+      if (creators){
+        this.workflowRequest = creators;
+      }
+    },
     reset() {
       if  (!this.workflowRequest || !this.workflowRequest?.length) {
         this.workflowRequest = [];

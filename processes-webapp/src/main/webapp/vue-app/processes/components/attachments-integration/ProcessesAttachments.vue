@@ -23,26 +23,26 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     </div>
     <div v-else>
       <div v-if="!listOnly" class="d-inline">
-      <v-icon
-        color="primary"
-        small>
-        fa-paperclip
-      </v-icon>
-      <a
-        @click="openAttachmentDrawer"
-        class="viewAllAttachments primary--text font-weight-bold">
-        {{ $t('processes.work.add.attachment.label') }} {{ attachmentsLength }}
-        <v-btn
-          @click.stop.prevent="openAddDocumentDrawer"
-          class="ms-n2"
-          icon>
-          <v-icon
-            size="15"
-            color="primary">
-            fa-plus
-          </v-icon>
-        </v-btn>
-      </a>
+        <v-icon
+          color="primary"
+          small>
+          fa-paperclip
+        </v-icon>
+        <a
+          @click="openAttachmentDrawer"
+          class="viewAllAttachments primary--text font-weight-bold">
+          {{ $t('processes.work.add.attachment.label') }} {{ attachmentsLength }}
+          <v-btn
+            @click.stop.prevent="openAddDocumentDrawer"
+            class="ms-n2"
+            icon>
+            <v-icon
+              size="15"
+              color="primary">
+              fa-plus
+            </v-icon>
+          </v-btn>
+        </a>
       </div>
       <create-document-from
         v-if="allowDocFormCreation"
@@ -189,44 +189,88 @@ export default {
           };
         });
     }
-    document.addEventListener('attachment-added', event => {
+    document.addEventListener('attachment-added', this.onAttachmentAdded);
+    this.$root.$on('add-new-created-form-document', this.onFormDocumentCreated);
+    document.addEventListener('attachment-removed', this.onAttachmentRemoved);
+    this.$root.$on('reset-list-attachments', this.resetList);
+    this.$root.$on('init-list-attachments', this.initList);
+    document.addEventListener('documents-supported-document-types-updated', this.refreshSupportedDocumentExtensions);
+    this.refreshSupportedDocumentExtensions();
+  },
+  beforeDestroy() {
+    // A read still in flight is dropped, so that it subscribes to no document once the list is gone
+    this.listRequest++;
+    // A list re-mounted by its host (the process editor's change of layout) leaves no listener behind
+    document.removeEventListener('attachment-added', this.onAttachmentAdded);
+    this.$root.$off('add-new-created-form-document', this.onFormDocumentCreated);
+    document.removeEventListener('attachment-removed', this.onAttachmentRemoved);
+    this.$root.$off('reset-list-attachments', this.resetList);
+    this.$root.$off('init-list-attachments', this.initList);
+    document.removeEventListener('documents-supported-document-types-updated', this.refreshSupportedDocumentExtensions);
+    for (const docId of this.subscribedDocuments.keys()){
+      this.unsubscribeDocument(docId);
+    }
+  },
+  methods: {
+    /**
+     * Lists a document attached through the attachments drawer.
+     *
+     * @param {CustomEvent} event the attachment-added event
+     * @returns {void}
+     */
+    onAttachmentAdded(event) {
       this.attachments.push(event.detail.attachment);
       this.subscribeDocument(event.detail.attachment.id);
       this.$root.$emit('attachments-updated',this.attachments);
-    });
-    this.$root.$on('add-new-created-form-document', (doc) => {
+    },
+    /**
+     * Lists a document created from a form, which its creator edits.
+     *
+     * @param {Object} doc the created document
+     * @returns {void}
+     */
+    onFormDocumentCreated(doc) {
       doc.acl.canEdit = true;
       doc.acl.canView = true;
       this.attachments.push(doc);
       this.subscribeDocument(doc.id);
       this.$root.$emit('attachments-updated', this.attachments);
-    });
-    document.addEventListener('attachment-removed', event => {
+    },
+    /**
+     * Removes a detached document from the list.
+     *
+     * @param {CustomEvent} event the attachment-removed event
+     * @returns {void}
+     */
+    onAttachmentRemoved(event) {
       const index = this.attachments.findIndex(attachment => attachment.id === event.detail.id);
       if (index >= 0) {
         this.attachments.splice(index, 1);
       }
       this.unsubscribeDocument(event.detail.id);
       this.$root.$emit('attachments-updated', this.attachments);
-    });
-    this.$root.$on('reset-list-attachments', () => {
+    },
+    /** @returns {void} once the list is emptied and its documents' subscriptions released */
+    resetList() {
+      // A read still in flight belongs to the former opening: it is dropped, and so is the loading it shows
+      this.listRequest++;
+      this.isLoading = false;
       this.attachments = [];
-    });
-    this.$root.$on('init-list-attachments', event => {
+      // The list stays mounted between the host's openings, which subscribe their own documents
+      [...this.subscribedDocuments.keys()].forEach(docId => this.unsubscribeDocument(docId));
+    },
+    /**
+     * Lists the documents of the entity an opening names.
+     *
+     * @param {Object} event {entityId, entityType, preview}
+     * @returns {void}
+     */
+    initList(event) {
       this.entityIdVal = event.entityId;
       this.entityTypeVal = event.entityType;
       this.preview = !!event.preview;
       this.initEntityAttachmentsList();
-    });
-    document.addEventListener('documents-supported-document-types-updated', this.refreshSupportedDocumentExtensions);
-    this.refreshSupportedDocumentExtensions();
-  },
-  beforeDestroy() {
-    for (const docId of this.subscribedDocuments.keys()){
-      this.unsubscribeDocument(docId);
-    }
-  },
-  methods: {
+    },
     isFileEditable(attachment) {
       const type = attachment && attachment.mimetype || '';
       return this.supportedDocuments && this.supportedDocuments.filter(doc => doc.edit && doc.mimeType === type
@@ -248,15 +292,31 @@ export default {
     refreshSupportedDocumentExtensions () {
       this.supportedDocuments = extensionRegistry.loadExtensions('documents', 'supported-document-types');
     },
+    /**
+     * Releases a document's subscription. It leaves the map at once, so that
+     * a later subscription to the same document, made before this release is
+     * confirmed, is never the one the confirmation removes.
+     *
+     * @param {Number} docId the document
+     * @returns {void}
+     */
     unsubscribeDocument(docId) {
-      const self = this;
       const subscription = this.subscribedDocuments.get(docId);
-      cCometd.unsubscribe(subscription, {}, function (unsubscribeReply) {
-        if (unsubscribeReply.successful) {
-          self.subscribedDocuments.delete(docId);
-        }
-      });
+      if (!subscription) {
+        return;
+      }
+      this.subscribedDocuments.delete(docId);
+      cCometd.unsubscribe(subscription, {});
     },
+    /**
+     * Follows a document's changes in the editor. Its confirmation keeps the
+     * subscription, or releases it at once when the list is gone, the
+     * document was detached, or another subscription to it is held, since
+     * nothing else would release it then.
+     *
+     * @param {Number} docId the document
+     * @returns {void}
+     */
     subscribeDocument(docId) {
       const cometdContext = eXo.env.portal.cometdContext;
       const self = this;
@@ -265,7 +325,15 @@ export default {
           self.$root.$emit('attachment-content-updated', docId);
         }
       }, cometdContext, function (subscribeReply) {
-        if (subscribeReply.successful) {
+        if (!subscribeReply.successful) {
+          return;
+        }
+        if (self._isDestroyed || self.subscribedDocuments.has(docId)
+            || !self.attachments.some(attachment => attachment.id === docId)) {
+          // Confirmed once the list was gone (its host re-mounted it), once the document was detached, or while
+          // another subscription to it is held: released at once, as nothing else would release it
+          cCometd.unsubscribe(subscription, {});
+        } else {
           self.subscribedDocuments.set(docId, subscription);
         }
       });
@@ -333,13 +401,12 @@ export default {
           if (preview) {
             attachments = attachments.filter(attachment => attachment.acl && attachment.acl.canAccess);
           }
-          attachments.forEach(attachment => {
-            attachment.name = attachment.title;
-            if (!preview) {
-              this.subscribeDocument(attachment.id);
-            }
-          });
+          attachments.forEach(attachment => attachment.name = attachment.title);
+          // Listed first: a subscription's confirmation releases a document the list does not hold
           this.attachments = attachments;
+          if (!preview) {
+            attachments.forEach(attachment => this.subscribeDocument(attachment.id));
+          }
           this.isLoading = false;
         });
       }
