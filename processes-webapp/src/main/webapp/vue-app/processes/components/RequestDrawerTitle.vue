@@ -22,12 +22,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       id="requestTitleLine"
       :class="{'request-title-line-shown': viewMode || lineShown}"
       class="request-title-line d-flex align-center text-caption text-light-color text-truncate">
-      <v-avatar
-        v-if="avatarUrl"
+      <process-avatar
+        :avatar-url="avatarUrl"
+        :icon="processIcon"
         class="me-1 flex-shrink-0"
-        size="18">
-        <v-img :src="avatarUrl" />
-      </v-avatar>
+        size="18" />
       <span :style="textDecoration" class="text-truncate">{{ titleLine }}</span>
     </div>
   </div>
@@ -61,6 +60,10 @@ export default {
     }
   },
   computed: {
+    /** @returns {String} the process's icon name, null when it has none */
+    processIcon() {
+      return this.work && this.work.workFlow && this.work.workFlow.image || null;
+    },
     /** @returns {String} the header's process line: the process's name, the requester needing no space */
     titleLine() {
       return this.work && this.work.workFlow && this.work.workFlow.title || '';
