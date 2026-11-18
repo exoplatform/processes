@@ -192,7 +192,9 @@ public class ProcessesRestTest {
     WorkEntity workEntity = new WorkEntity();
     Work work = new Work();
     ENTITY_BUILDER.when(() -> EntityBuilder.toWork(processesService, workEntity)).thenReturn(work);
+    ENTITY_BUILDER.when(() -> EntityBuilder.toNewWork(processesService, workEntity)).thenReturn(work);
     ENTITY_BUILDER.when(() -> EntityBuilder.fromEntity(workEntity)).thenReturn(work);
+    ENTITY_BUILDER.when(() -> EntityBuilder.toDraft(workEntity)).thenReturn(work);
     when(processesService.updateWork(work, 1L)).thenThrow(new IllegalArgumentException("there are no changes to save"));
     when(processesService.updateWorkDraft(work, 1L)).thenThrow(new IllegalArgumentException("there are no changes to save"));
 
@@ -330,6 +332,8 @@ public class ProcessesRestTest {
                                                         null,
                                                         null,
                                                         null,
+                                                        null,
+                                                        null,
                                                         null);
   }
 
@@ -418,6 +422,7 @@ public class ProcessesRestTest {
     assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response3.getStatus());
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
     ENTITY_BUILDER.when(() -> EntityBuilder.toWork(processesService, workEntity)).thenReturn(work);
+    ENTITY_BUILDER.when(() -> EntityBuilder.toNewWork(processesService, workEntity)).thenReturn(work);
     when(processesService.createWork(work, 1L)).thenReturn(work);
     ENTITY_BUILDER.when(() -> EntityBuilder.toWorkEntity(processesService, work, "")).thenReturn(workEntity);
     Response response4 = processesRest.createWork(workEntity);
@@ -454,6 +459,7 @@ public class ProcessesRestTest {
     workEntity.getWorkFlow().setEnabled(true);
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
     ENTITY_BUILDER.when(() -> EntityBuilder.toWork(processesService, workEntity)).thenReturn(work);
+    ENTITY_BUILDER.when(() -> EntityBuilder.toNewWork(processesService, workEntity)).thenReturn(work);
     ENTITY_BUILDER.when(() -> EntityBuilder.toWorkEntity(processesService, work, "")).thenReturn(workEntity);
     when(processesService.createWork(work, 1L)).thenThrow(RuntimeException.class);
     Response response5 = processesRest.createWork(workEntity);
@@ -471,6 +477,7 @@ public class ProcessesRestTest {
     assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response3.getStatus());
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
     ENTITY_BUILDER.when(() -> EntityBuilder.toWork(processesService, workEntity)).thenReturn(work);
+    ENTITY_BUILDER.when(() -> EntityBuilder.toNewWork(processesService, workEntity)).thenReturn(work);
     when(processesService.updateWork(work, 1L)).thenReturn(work);
     ENTITY_BUILDER.when(() -> EntityBuilder.toWorkEntity(processesService, work, "")).thenReturn(workEntity);
     Response response4 = processesRest.updateWork(workEntity);
@@ -487,6 +494,7 @@ public class ProcessesRestTest {
     Work work = mock(Work.class);
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
     ENTITY_BUILDER.when(() -> EntityBuilder.toWork(processesService, workEntity)).thenReturn(work);
+    ENTITY_BUILDER.when(() -> EntityBuilder.toNewWork(processesService, workEntity)).thenReturn(work);
     ENTITY_BUILDER.when(() -> EntityBuilder.toWorkEntity(processesService, work, "")).thenReturn(workEntity);
     when(processesService.updateWork(work, 1L)).thenThrow(IllegalAccessException.class);
     Response response6 = processesRest.updateWork(workEntity);
@@ -499,6 +507,7 @@ public class ProcessesRestTest {
     Work work = mock(Work.class);
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
     ENTITY_BUILDER.when(() -> EntityBuilder.toWork(processesService, workEntity)).thenReturn(work);
+    ENTITY_BUILDER.when(() -> EntityBuilder.toNewWork(processesService, workEntity)).thenReturn(work);
     ENTITY_BUILDER.when(() -> EntityBuilder.toWorkEntity(processesService, work, "")).thenReturn(workEntity);
     when(processesService.updateWork(work, 1L)).thenThrow(RuntimeException.class);
     Response response6 = processesRest.updateWork(workEntity);
@@ -552,6 +561,7 @@ public class ProcessesRestTest {
     WorkEntity WorkEntity = new WorkEntity();
     Work work = mock(Work.class);
     ENTITY_BUILDER.when(() -> EntityBuilder.fromEntity(WorkEntity)).thenReturn(work);
+    ENTITY_BUILDER.when(() -> EntityBuilder.toDraft(WorkEntity)).thenReturn(work);
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
     Response response = processesRest.createWorkDraft(null);
     assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -597,6 +607,7 @@ public class ProcessesRestTest {
     WorkEntity WorkEntity = new WorkEntity();
     Work work = mock(Work.class);
     ENTITY_BUILDER.when(() -> EntityBuilder.fromEntity(WorkEntity)).thenReturn(work);
+    ENTITY_BUILDER.when(() -> EntityBuilder.toDraft(WorkEntity)).thenReturn(work);
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
     Response response = processesRest.updateWorkDraft(null);
     assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -604,6 +615,7 @@ public class ProcessesRestTest {
     assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response1.getStatus());
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
     ENTITY_BUILDER.when(() -> EntityBuilder.fromEntity(WorkEntity)).thenReturn(work);
+    ENTITY_BUILDER.when(() -> EntityBuilder.toDraft(WorkEntity)).thenReturn(work);
     ENTITY_BUILDER.when(() -> EntityBuilder.toEntity(work)).thenReturn(WorkEntity);
     when(processesService.updateWorkDraft(work, 1L)).thenReturn(work);
     Response response2 = processesRest.updateWorkDraft(WorkEntity);
@@ -683,6 +695,38 @@ public class ProcessesRestTest {
     doThrow(new RuntimeException()).when(processesService).getWorkFlow(anyLong(), anyLong());
     Response response4 = processesRest.getWorkFlowById(1L, "", true);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response4.getStatus());
+  }
+
+  /**
+   * A process's own forms are read for its editor only: a requester who may
+   * not edit it reads the process with no form ids, the editor-only read
+   * never called, and an editor reads them. Mutation: drop the edit check and
+   * the requester's read gets the form ids.
+   *
+   * @throws Exception on an unexpected refusal
+   */
+  @Test
+  public void aProcessFormsAreReadForItsEditorOnly() throws Exception {
+    REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setId(1L);
+    org.exoplatform.processes.model.ProcessPermission acl = new org.exoplatform.processes.model.ProcessPermission();
+    workFlow.setAcl(acl);
+    when(processesService.getWorkFlow(1L, 1L)).thenReturn(workFlow);
+    when(processesService.getProcessFormIds(1L, 1L)).thenReturn(List.of(38L));
+    WorkFlowEntity requesterRead = new WorkFlowEntity();
+    ENTITY_BUILDER.when(() -> EntityBuilder.toEntity(eq(workFlow), any(), any())).thenReturn(requesterRead);
+
+    assertEquals(Response.Status.OK.getStatusCode(), processesRest.getWorkFlowById(1L, "", false).getStatus());
+    assertEquals(null, requesterRead.getRequestFormIds());
+    verify(processesService, never()).getProcessFormIds(anyLong(), anyLong());
+
+    acl.setCanEdit(true);
+    WorkFlowEntity editorRead = new WorkFlowEntity();
+    ENTITY_BUILDER.when(() -> EntityBuilder.toEntity(eq(workFlow), any(), any())).thenReturn(editorRead);
+
+    assertEquals(Response.Status.OK.getStatusCode(), processesRest.getWorkFlowById(1L, "", false).getStatus());
+    assertEquals(List.of(38L), editorRead.getRequestFormIds());
   }
 
   /**

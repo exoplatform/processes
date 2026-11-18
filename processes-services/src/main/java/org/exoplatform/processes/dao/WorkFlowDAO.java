@@ -14,6 +14,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.exoplatform.commons.persistence.impl.GenericDAOJPAImpl;
 import org.exoplatform.processes.entity.WorkFlowEntity;
 import org.exoplatform.processes.model.ProcessesFilter;
+import org.exoplatform.services.security.MembershipEntry;
 
 public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
 
@@ -117,11 +118,31 @@ public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
     return query;
   }
 
+  /**
+   * The entries the request creators of a process are matched against: the
+   * group of every 'type:/group' membership, whatever its type, and a user name
+   * as it is. A request creator is stored as a group id or a user name, so a
+   * membership of any type in a creator group lists the process, as
+   * {@link org.exoplatform.processes.Utils.EntityMapper#getACL} grants it.
+   *
+   * @param memberships the user name and the memberships of the user, as
+   *          'type:/group'
+   * @return the user name and the groups of the memberships, without duplicates
+   */
   private List<String> getMembershipGroups(List<String> memberships) {
     return memberships.stream()
-                             .map(s -> (!s.startsWith("manager:/") && !s.startsWith("member:/") && !s.startsWith("*:/"))
-                                     ? s : s.replace("manager:","").replace("member:","").replace("*:",""))
-                             .collect(Collectors.toList());
+                      .map(WorkFlowDAO::toRequestCreatorEntry)
+                      .distinct()
+                      .collect(Collectors.toList());
+  }
+
+  /**
+   * @param membership a 'type:/group' membership or a user name
+   * @return the group of the membership, or the user name as it is
+   */
+  private static String toRequestCreatorEntry(String membership) {
+    MembershipEntry membershipEntry = MembershipEntry.parse(membership);
+    return membershipEntry == null ? membership : membershipEntry.getGroup();
   }
 
   private Query buildWorkflowQueryCriteria(ProcessesFilter processesFilter) {
