@@ -275,8 +275,9 @@ public class ProcessesServiceImpl implements ProcessesService {
     if (illustration != null && illustration.getFileBody() != null) {
       icon = null;
     } else if (icon != null) {
-      // An illustration with no file name is removed by the storage
-      workFlow.setIllustrativeAttachment(new IllustrativeAttachment(storedIllustrationId));
+      // An illustration with no file name is removed by the storage; with
+      // none stored, nothing is sent
+      workFlow.setIllustrativeAttachment(storedIllustrationId == null ? null : new IllustrativeAttachment(storedIllustrationId));
     }
     workFlow.setImage(icon);
   }

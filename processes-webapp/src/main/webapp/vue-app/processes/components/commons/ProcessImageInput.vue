@@ -63,7 +63,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       ref="imageCropDrawer"
       :crop-options="cropOptions"
       :max-file-size="maxFileSize"
-      max-image-width="512"
+      :max-image-width="512"
       drawer-title="processes.workflow.image.cropTitle"
       @apply="applyImage" />
   </div>

@@ -162,6 +162,7 @@
               {{ $t('processes.works.form.label.illustration') }}
             </v-label>
             <process-image-input
+              :key="`image-${formKey}`"
               :workflow="workflow"
               :icon="workflow.image"
               :illustration="illustrativeImage"

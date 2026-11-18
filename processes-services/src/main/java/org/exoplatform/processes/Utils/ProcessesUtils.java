@@ -30,12 +30,12 @@ public class ProcessesUtils {
    */
   public static final String MEMBER_MEMBERSHIP_TYPE  = "member";
 
-  private static final Log   LOG                     = ExoLogger.getLogger(ProcessesUtils.class);
-
   /**
    * The longest icon name a process stores in its image field
    */
   public static final int     PROCESS_ICON_MAX_LENGTH = 100;
+
+  private static final Log   LOG                     = ExoLogger.getLogger(ProcessesUtils.class);
 
   /**
    * The shape of an icon name the icon picker gives, such as « fas fa-cog »

@@ -520,12 +520,22 @@ public class ProcessesServiceImplTest {
     verify(processesStorage, times(2)).saveWorkFlow(saved.capture(), anyLong());
     assertNull(saved.getValue().getImage());
     assertEquals("image.png", saved.getValue().getIllustrativeAttachment().getFileName());
+
+    // With no stored image, an icon sends no illustration, so an unchanged
+    // process stays unchanged
+    storedWorkFlow.setIllustrativeAttachment(null);
+    workFlow.setImage("fas fa-cog");
+    workFlow.setIllustrativeAttachment(null);
+    processesService.updateWorkFlow(workFlow, PARTICIPANT_ID);
+    verify(processesStorage, times(3)).saveWorkFlow(saved.capture(), anyLong());
+    assertNull(saved.getValue().getIllustrativeAttachment());
   }
 
   /**
    * A new process with an icon gets no image, and an icon value that is no icon
    * name is refused before any write. Mutation: drop the icon check and the
-   * refusal assertion fails.
+   * refusal assertion fails; send an illustration to remove when none is stored
+   * and the no-image assertion fails.
    */
   @Test
   public void createWorkflowTakesOnlyAnIconName() throws Exception {
@@ -538,8 +548,7 @@ public class ProcessesServiceImplTest {
     ArgumentCaptor<WorkFlow> saved = ArgumentCaptor.forClass(WorkFlow.class);
     verify(processesStorage).saveWorkFlow(saved.capture(), anyLong());
     assertEquals("fas fa-cog", saved.getValue().getImage());
-    assertNull(saved.getValue().getIllustrativeAttachment().getId());
-    assertNull(saved.getValue().getIllustrativeAttachment().getFileName());
+    assertNull(saved.getValue().getIllustrativeAttachment());
 
     WorkFlow invalid = new WorkFlow();
     invalid.setImage("fa-cog\" onmouseover=\"alert(1)");
