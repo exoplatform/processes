@@ -341,6 +341,48 @@ public class ProcessesServiceAtomicSavesTest {
   }
 
   /**
+   * A process save whose form choice was checked while the plugin was
+   * registered, and which finds it gone at the write, refuses the choice and
+   * keeps the stored process rather than saving it without its form.
+   * Mutation: drop the write's own plugin check and the new title is saved.
+   *
+   * @throws Exception on a count failure
+   */
+  @Test
+  public void aProcessSaveWithThePluginGoneRefusesItsForm() throws Exception {
+    processesService.removeRequestValuesPlugin(plugin);
+
+    entityManager.getTransaction().begin();
+    IllegalArgumentException refusal = assertThrows(IllegalArgumentException.class,
+                                                    () -> processesService.writeWorkFlowRows(process("Leave request", 38L), USER_ID));
+    entityManager.getTransaction().rollback();
+    entityManager.clear();
+
+    assertEquals("processes.workflow.formUnsupported", refusal.getMessage());
+    assertEquals(1, count("SELECT COUNT(*) FROM PROCESSES_WORK_FLOW WHERE WORK_FLOW_ID = 1 AND TITLE = 'Leave'"));
+  }
+
+  /**
+   * The storage sets a request draft's state: an update whose body says it is
+   * no draft still stores a draft. Mutation: drop the storage's draft-state
+   * line and the row is stored as no draft.
+   *
+   * @throws Exception on a count failure
+   */
+  @Test
+  public void theStorageSetsTheDraftState() throws Exception {
+    Work draft = draft(50L, "draft renamed");
+    draft.setIsDraft(false);
+
+    entityManager.getTransaction().begin();
+    storage.saveWorkDraftRow(draft, USER_ID);
+    entityManager.getTransaction().commit();
+    entityManager.clear();
+
+    assertEquals(1, count("SELECT COUNT(*) FROM PROCESSES_WORK WHERE WORK_ID = 50 AND IS_DRAFT = TRUE AND TITLE = 'draft renamed'"));
+  }
+
+  /**
    * Builds a draft of user 5 on process 1, as the Service sets it before the
    * write: the stored process, the server's draft state.
    *

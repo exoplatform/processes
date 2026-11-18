@@ -291,6 +291,10 @@ public class ProcessesServiceImpl implements ProcessesService {
     WorkFlow savedWorkFlow = processesStorage.saveWorkFlow(workFlow, userId);
     Long requestFormId = workFlow.getRequestFormId();
     RequestValuesPlugin plugin = requestValuesPlugin;
+    if (requestFormId != null && requestFormId != 0 && plugin == null) {
+      // Unregistered since the save checked the choice
+      throw new IllegalArgumentException(FORM_UNSUPPORTED);
+    }
     if (requestFormId != null && plugin != null) {
       plugin.setProcessForm(savedWorkFlow.getId(), requestFormId == 0 ? null : requestFormId, getAclIdentity(userId));
     }
@@ -365,26 +369,41 @@ public class ProcessesServiceImpl implements ProcessesService {
     return processesStorage.getRequestWorkFlowId(taskId);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public Map<Long, Long> getRequestWorkFlowIds(Collection<Long> taskIds) {
     return processesStorage.getRequestWorkFlowIds(taskIds);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public List<Long> getRequestTaskIds(long workFlowId, Long afterTaskId, int limit) {
     return processesStorage.getRequestTaskIds(workFlowId, afterTaskId, limit);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public Set<Long> getRequestProjectIds(long workFlowId) {
     return processesStorage.getRequestProjectIds(workFlowId);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public long countRequests(long workFlowId) {
     return processesStorage.countRequests(workFlowId);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public Long getManagingSpaceId(long workFlowId) {
     WorkFlow workFlow = processesStorage.getWorkFlowById(workFlowId, null);
@@ -395,6 +414,9 @@ public class ProcessesServiceImpl implements ProcessesService {
     return space == null ? null : Long.valueOf(space.getId());
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public Predicate requestOf(CriteriaBuilder cb,
                              CommonAbstractCriteria query,
@@ -403,6 +425,9 @@ public class ProcessesServiceImpl implements ProcessesService {
     return processesStorage.requestOf(cb, query, taskId, workFlowIds);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public synchronized void addRequestValuesPlugin(RequestValuesPlugin plugin) {
     if (plugin == null) {
@@ -416,6 +441,9 @@ public class ProcessesServiceImpl implements ProcessesService {
     requestValuesPlugin = plugin;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public synchronized void removeRequestValuesPlugin(RequestValuesPlugin plugin) {
     if (plugin != null && requestValuesPlugin == plugin) {
@@ -423,38 +451,59 @@ public class ProcessesServiceImpl implements ProcessesService {
     }
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public Work getWorkDraft(long draftId, long userIdentityId) throws ObjectNotFoundException, IllegalAccessException {
     return getOwnWorkDraft(draftId, userIdentityId);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public Long getWorkDraftWorkFlowId(long draftId) {
     WorkDraftRef ref = processesStorage.getWorkDraftRefs(List.of(draftId)).get(draftId);
     return ref == null ? null : ref.workFlowId();
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public Long getWorkDraftOwnerId(long draftId) {
     WorkDraftRef ref = processesStorage.getWorkDraftRefs(List.of(draftId)).get(draftId);
     return ref == null ? null : ref.ownerId();
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public Map<Long, WorkDraftRef> getWorkDraftRefs(Collection<Long> draftIds) {
     return processesStorage.getWorkDraftRefs(draftIds);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public List<Long> getWorkDraftIds(long workFlowId, Long afterDraftId, int limit) {
     return processesStorage.getWorkDraftIds(workFlowId, afterDraftId, limit);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public long countWorkDrafts(long workFlowId) {
     return processesStorage.countWorkDrafts(workFlowId);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public List<Long> getProcessFormIds(long workFlowId, long userIdentityId) throws ObjectNotFoundException,
                                                                               IllegalAccessException {
@@ -1147,6 +1196,10 @@ public class ProcessesServiceImpl implements ProcessesService {
                           Map<Long, Map<String, List<Object>>> formValues,
                           boolean writeRow) throws IllegalAccessException {
     RequestValuesPlugin plugin = requestValuesPlugin;
+    if (plugin == null) {
+      // Unregistered since the save checked it
+      throw new IllegalArgumentException(FORM_VALUES_UNSUPPORTED);
+    }
     org.exoplatform.services.security.Identity owner = getAclIdentity(userId);
     long workFlowId = draft.getWorkFlow().getId();
     if (draft.getId() == 0) {

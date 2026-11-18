@@ -698,6 +698,38 @@ public class ProcessesRestTest {
   }
 
   /**
+   * A process's own forms are read for its editor only: a requester who may
+   * not edit it reads the process with no form ids, the editor-only read
+   * never called, and an editor reads them. Mutation: drop the edit check and
+   * the requester's read gets the form ids.
+   *
+   * @throws Exception on an unexpected refusal
+   */
+  @Test
+  public void aProcessFormsAreReadForItsEditorOnly() throws Exception {
+    REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setId(1L);
+    org.exoplatform.processes.model.ProcessPermission acl = new org.exoplatform.processes.model.ProcessPermission();
+    workFlow.setAcl(acl);
+    when(processesService.getWorkFlow(1L, 1L)).thenReturn(workFlow);
+    when(processesService.getProcessFormIds(1L, 1L)).thenReturn(List.of(38L));
+    WorkFlowEntity requesterRead = new WorkFlowEntity();
+    ENTITY_BUILDER.when(() -> EntityBuilder.toEntity(eq(workFlow), any(), any())).thenReturn(requesterRead);
+
+    assertEquals(Response.Status.OK.getStatusCode(), processesRest.getWorkFlowById(1L, "", false).getStatus());
+    assertEquals(null, requesterRead.getRequestFormIds());
+    verify(processesService, never()).getProcessFormIds(anyLong(), anyLong());
+
+    acl.setCanEdit(true);
+    WorkFlowEntity editorRead = new WorkFlowEntity();
+    ENTITY_BUILDER.when(() -> EntityBuilder.toEntity(eq(workFlow), any(), any())).thenReturn(editorRead);
+
+    assertEquals(Response.Status.OK.getStatusCode(), processesRest.getWorkFlowById(1L, "", false).getStatus());
+    assertEquals(List.of(38L), editorRead.getRequestFormIds());
+  }
+
+  /**
    * A workflow the user may not see is answered with a 403. Mutation: drop the
    * IllegalAccessException mapping and this test fails on a 500.
    */

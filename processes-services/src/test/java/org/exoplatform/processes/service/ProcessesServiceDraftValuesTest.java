@@ -47,6 +47,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import io.meeds.common.ContainerTransactional;
 
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.processes.model.ProcessPermission;
 import org.exoplatform.processes.model.Work;
@@ -244,7 +245,8 @@ public class ProcessesServiceDraftValuesTest {
   /**
    * An update keeps the stored draft's creator, creation and modification
    * dates and task, whether the body leaves them out or forges them, with or
-   * without values. Mutation: drop any one of the resets and this test fails.
+   * without values, and the server sets its draft state. Mutation: drop any
+   * one of the resets and this test fails.
    *
    * @throws Exception on an unexpected refusal
    */
@@ -258,7 +260,7 @@ public class ProcessesServiceDraftValuesTest {
     Work missing = new Work(DRAFT_ID, "renamed", "", 0, null, null, null, true, storedProcess);
     missing.setFormValues(VALUES);
     processesService.updateWorkDraft(missing, USER_ID);
-    Work forged = new Work(DRAFT_ID, "renamed again", "", 99L, new Date(5L), new Date(6L), 4242L, true, storedProcess);
+    Work forged = new Work(DRAFT_ID, "renamed again", "", 99L, new Date(5L), new Date(6L), 4242L, false, storedProcess);
     processesService.updateWorkDraft(forged, USER_ID);
 
     ArgumentCaptor<Work> withValues = ArgumentCaptor.forClass(Work.class);
@@ -270,6 +272,7 @@ public class ProcessesServiceDraftValuesTest {
       assertEquals(created, saved.getCreatedDate());
       assertEquals(modified, saved.getModifiedDate());
       assertNull(saved.getTaskId());
+      assertTrue(saved.getIsDraft());
     }
   }
 
@@ -292,6 +295,53 @@ public class ProcessesServiceDraftValuesTest {
     processesService.updateWorkDraft(echoed, USER_ID);
 
     verify(plugin).writeDraftValues(eq(WORKFLOW_ID), eq(DRAFT_ID), eq(VALUES), any(Identity.class));
+    verify(processesStorage, never()).saveWorkDraftRow(any(), anyLong());
+  }
+
+  /**
+   * A stored row that is no draft is not found by any path that reads a
+   * draft by id: the owner's read, update and delete, and a request made from
+   * it, and none of them writes. Mutation: drop the draft-state condition of
+   * the owner's draft read and this test fails.
+   *
+   * @throws Exception on an unexpected refusal
+   */
+  @Test
+  public void aRowThatIsNoDraftIsFoundByNoDraftPath() throws Exception {
+    when(processesStorage.getWorkDraftyId(DRAFT_ID)).thenReturn(new Work(DRAFT_ID, "d", "", USER_ID, null, null, null, false, storedProcess));
+    storedProcess.setEnabled(true);
+    Work update = storedDraft("renamed");
+    update.setFormValues(VALUES);
+    Work request = new Work();
+    request.setWorkFlowId(WORKFLOW_ID);
+    request.setDraftId(DRAFT_ID);
+
+    assertThrows(ObjectNotFoundException.class, () -> processesService.getWorkDraft(DRAFT_ID, USER_ID));
+    assertThrows(ObjectNotFoundException.class, () -> processesService.updateWorkDraft(update, USER_ID));
+    assertThrows(ObjectNotFoundException.class, () -> processesService.deleteWorkDraftById(DRAFT_ID, USER_ID));
+    assertThrows(ObjectNotFoundException.class, () -> processesService.createWork(request, USER_ID, null));
+
+    verify(plugin, never()).writeDraftValues(anyLong(), anyLong(), any(), any());
+    verify(processesStorage, never()).saveWorkDraftRow(any(), anyLong());
+    verify(processesStorage, never()).saveWorkDraft(any(), anyLong());
+    verify(processesStorage, never()).deleteWorkDraftById(anyLong());
+  }
+
+  /**
+   * With the plugin gone between a draft save's check and its write, the write
+   * refuses the values as unsupported rather than failing on a missing plugin.
+   * Mutation: drop the write's own plugin check and this test fails on a
+   * NullPointerException.
+   *
+   * @throws Exception on an unexpected refusal
+   */
+  @Test
+  public void aDraftWriteWithThePluginGoneRefusesTheValues() throws Exception {
+    processesService.removeRequestValuesPlugin(plugin);
+
+    assertEquals("processes.request.formValuesUnsupported",
+                 assertThrows(IllegalArgumentException.class,
+                              () -> processesService.writeWorkDraftRows(storedDraft("renamed"), USER_ID, VALUES, true)).getMessage());
     verify(processesStorage, never()).saveWorkDraftRow(any(), anyLong());
   }
 
