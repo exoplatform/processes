@@ -31,15 +31,29 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         </v-icon>
       </span>
       <span class="text-light-color text-break">{{ label }}</span>
+      <template v-if="stacked && $slots.action">
+        <v-spacer />
+        <slot name="action"></slot>
+      </template>
     </v-col>
     <v-col
-      :style="stacked ? `padding-inline-start: ${typeIconWidth + typeIconGap - 8}px` : valueColumnWidth"
+      :style="stacked ? `padding-inline-start: ${typeIconWidth + typeIconGap}px` : valueColumnWidth"
       :cols="stacked ? 12 : 8"
       class="py-0">
-      <div :class="stacked && actionsEnd && 'd-flex flex-column align-end'">
-        <slot></slot>
+      <div
+        v-if="!stacked && $slots.action"
+        :style="firstLineStyle"
+        class="d-flex flex-wrap align-center">
+        <slot name="action"></slot>
+        <span v-if="hint" class="text-caption text-light-color ms-2">{{ hint }}</span>
       </div>
-      <div v-if="hint" class="text-caption text-light-color text-start px-2 mb-1">{{ hint }}</div>
+      <div
+        v-else-if="hint"
+        :class="!stacked && 'px-2'"
+        class="text-caption text-light-color text-start mb-1">
+        {{ hint }}
+      </div>
+      <slot></slot>
     </v-col>
   </v-row>
 </template>
@@ -62,8 +76,9 @@ const TABLE_LABEL_WIDTH = 160;
  * included, then the value column, whose content starts 8px in (px-2), and an
  * optional hint under it. In full screen (table), the label column takes the
  * fixed width of Forms' full-screen table. Stacked, the label takes a line
- * of its own and the value the next, its content starting where the label's
- * text does, with its actions at the line's end when actionsEnd is set.
+ * of its own, its action (the action slot) at the line's end, then the hint
+ * and the content start where the label's text does. On the grid, the action
+ * and the hint share the value column's first line.
  */
 export default {
   props: {
@@ -84,10 +99,6 @@ export default {
       default: false,
     },
     stacked: {
-      type: Boolean,
-      default: false,
-    },
-    actionsEnd: {
       type: Boolean,
       default: false,
     },

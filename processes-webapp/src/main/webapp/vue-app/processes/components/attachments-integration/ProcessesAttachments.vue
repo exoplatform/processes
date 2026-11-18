@@ -22,7 +22,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         indeterminate />
     </div>
     <div v-else>
-      <div :class="actionsEnd ? 'd-flex justify-end align-center' : 'd-inline'">
+      <div v-if="!listOnly" class="d-inline">
       <v-icon
         color="primary"
         small>
@@ -53,7 +53,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       <v-list v-if="shownAttachments.length" dense>
         <v-list-item-group>
           <attachment-item
-            v-for="attachment in shownAttachments.slice(0, 2)"
+            v-for="attachment in (listOnly ? shownAttachments : shownAttachments.slice(0, 2))"
             :key="attachment.id"
             :attachment="attachment"
             :attachments="shownAttachments"
@@ -135,8 +135,8 @@ export default {
       type: Number,
       default: null
     },
-    // Puts the attachments link at the end of its line
-    actionsEnd: {
+    // Shows the documents alone, every one, the actions being the host's
+    listOnly: {
       type: Boolean,
       default: false,
     },

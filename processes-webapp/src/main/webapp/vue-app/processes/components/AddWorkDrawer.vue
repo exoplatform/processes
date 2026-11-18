@@ -5,6 +5,7 @@
     @expand-updated="expanded = $event"
     ref="work"
     :allow-expand="!viewMode"
+    full-app-left-class="request-full-left"
     class="ProcessesApplication"
     right>
     <template v-if="expanded && !viewMode" #fullAppLeftTitle>
@@ -90,20 +91,17 @@
               :hint="$t('processes.request.message.hint')"
               icon="fas fa-align-left"
               stacked>
-              <div class="full-width">
-                <request-editor
-                  @blur="blurOnDescriptionComposer"
-                  required
-                  ref="requestEditor"
-                  id="request-editor"
-                  :auto-focus="false"
-                  :placeholder="$t('processes.works.form.placeholder.workDetail')"
-                  v-model="work.description" />
-                <custom-counter
-                  class="mt-n4 me-4"
-                  :value="work.description"
-                  :max-length="maxLength" />
-              </div>
+              <rich-editor
+                id="request-editor"
+                ref="requestEditor"
+                v-model="work.description"
+                :max-length="maxLength"
+                :placeholder="$t('processes.works.form.placeholder.workDetail')"
+                :tag-enabled="false"
+                ck-editor-type="processesRequest"
+                class="full-width"
+                disable-suggester
+                @ready="bindEditorBlur" />
             </request-field-row>
             <request-field-row
               v-if="processDocuments.length"
@@ -150,6 +148,15 @@
               :table="expanded"
               :stacked="!expanded"
               icon="fas fa-paperclip">
+              <template #action>
+                <button
+                  id="requestAddAttachmentButton"
+                  type="button"
+                  class="primary--text border-radius px-2"
+                  @click="$refs.supportingDocuments.openAddDocumentDrawer()">
+                  {{ $t('processes.request.supportingDocuments.add') }}
+                </button>
+              </template>
               <processes-attachments
                 ref="supportingDocuments"
                 v-model="attachments"
@@ -158,10 +165,10 @@
                 :entity-id="work.id"
                 :entity-type="entityType"
                 :hidden-ids="documentsToFillIds"
-                :actions-end="!expanded"
+                list-only
                 :preview-workflow-id="!hasDraft && work.workFlow && work.workFlow.id || null"
                 :prepare-entity="createDraftForAttachment"
-                class="request-documents px-2 py-2 full-width" />
+                class="request-documents full-width" />
             </request-field-row>
           </request-fields-section>
         </v-form>
@@ -346,7 +353,7 @@ export default {
         this.$root.$emit('update-url-path', 'draftDetails', `/myRequests/draftDetails/${this.work.id}`);
         this.$root.$on('can-show-request-editor',() => {
           window.setTimeout(() => {
-            this.$refs?.requestEditor?.setFocus();
+            this.$refs?.requestEditor?.setFocus(true);
           }, 200);
         });
       } else {
@@ -431,7 +438,7 @@ export default {
         return;
       }
       if (code === 'processes.request.draftInvalid') {
-        window.setTimeout(() => this.$refs?.requestEditor?.setFocus(), 200);
+        window.setTimeout(() => this.$refs?.requestEditor?.setFocus(true), 200);
         this.$root.$emit('show-alert', {type: 'error', message: this.$t('processes.work.form.description.maxLength.message', {0: this.maxLength})});
       }
       const draftPath = `/myRequests/draftDetails/${this.work.id}`;
@@ -452,6 +459,20 @@ export default {
         this.$root.$emit('update-url-path', 'myRequest', '/myRequests');
       } else {
         this.$root.$emit('update-url-path', 'processes', '');
+      }
+    },
+    /**
+     * Saves the draft when the message editor loses the focus, once per
+     * editor instance the rich editor creates.
+     *
+     * @returns {void}
+     */
+    bindEditorBlur() {
+      const editor = this.$refs.requestEditor && this.$refs.requestEditor.editor;
+      if (editor && editor !== this.blurBoundEditor) {
+        // Not reactive: the editor instance whose blur is followed
+        this.blurBoundEditor = editor;
+        editor.on('blur', this.blurOnDescriptionComposer);
       }
     },
     resetInputs() {
