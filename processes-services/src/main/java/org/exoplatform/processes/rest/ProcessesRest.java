@@ -1039,6 +1039,7 @@ public class ProcessesRest implements ResourceContainer {
       if (workFlow.getAcl() != null && workFlow.getAcl().isCanEdit()) {
         // The editor shows the process's own forms; the Service checks the right
         workFlowEntity.setRequestFormIds(processesService.getProcessFormIds(workflowId, currentIdentityId));
+        workFlowEntity.setRequesterFormIds(workFlow.getRequesterFormIds());
       }
       return Response.ok(workFlowEntity).cacheControl(PER_USER_CACHE_CONTROL).build();
     } catch (IllegalAccessException e) {

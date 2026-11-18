@@ -268,7 +268,8 @@
             :workflow-id="workflow.id || null"
             :read-only="editMode"
             @update:mode="changeProjectMode"
-            @update:projectId="changeProject" />
+            @update:projectId="changeProject"
+            @update:projectName="projectName = $event" />
           <workflow-labels-field
             :key="`labelsField${formKey}`"
             v-model="labels"
@@ -509,6 +510,7 @@ export default {
       showSpaceAlertMessage: false,
       projectMode: 'NEW',
       projectId: null,
+      projectName: null,
       labels: [],
       labelsRead: false,
       formKey: 0,
@@ -578,7 +580,8 @@ export default {
     /**
      * @returns {Object} the props of the sections other add-ons register:
      *          the process, its managing space, its Task project (the
-     *          existing project chosen on create, the stored one on edit),
+     *          existing project chosen on create, the stored one on edit)
+     *          and that project's name, once the project choice lists it,
      *          the form chosen before the layout changed, if any, and in
      *          full screen the preview of the form picked
      */
@@ -587,6 +590,7 @@ export default {
         workflow: this.workflow,
         spaceId: this.managingSpaceId,
         projectId: this.editMode ? this.workflow.projectId || null : this.projectMode === 'EXISTING' && this.projectId || null,
+        projectName: (this.editMode || this.projectMode === 'EXISTING') && this.projectName || null,
         selected: this.pendingFormId,
         preview: this.expanded,
       };
@@ -701,6 +705,7 @@ export default {
       this.labelsRead = !!workflow && Array.isArray(workflow.labels);
       this.projectMode = workflow && workflow.id ? 'EXISTING' : 'NEW';
       this.projectId = workflow && workflow.projectId || null;
+      this.projectName = null;
       this.originalProjectChoice = this.projectChoiceString();
       // A new key recreates the project choice and the labels field, so each
       // opening lists the projects and labels afresh
@@ -768,6 +773,7 @@ export default {
       this.workflowRequest = [];
       this.projectMode = 'NEW';
       this.projectId = null;
+      this.projectName = null;
       this.labels = [];
       this.labelsRead = false;
     },
@@ -824,6 +830,7 @@ export default {
      */
     resetProjectChoice() {
       this.projectId = null;
+      this.projectName = null;
       this.labels = [];
     },
     /**

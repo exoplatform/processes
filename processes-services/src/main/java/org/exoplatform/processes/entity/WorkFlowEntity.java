@@ -97,4 +97,16 @@ public class WorkFlowEntity implements Serializable {
   @Column(name = "LABEL_ID")
   private Set<Long> labelIds = new HashSet<>();
 
+  /**
+   * The ids of the forms of the process's task project that its requesters
+   * fill when they create a request. No foreign key: the forms add-on owns
+   * the forms, and a form it no longer gives the project is left out where it
+   * reads the choice.
+   */
+  @ElementCollection
+  @CollectionTable(name = "PROCESSES_WORK_FLOW_REQ_FORMS",
+          joinColumns = @JoinColumn(name = "WORK_FLOW_ID"))
+  @Column(name = "FORM_ID")
+  private Set<Long> requesterFormIds = new HashSet<>();
+
 }

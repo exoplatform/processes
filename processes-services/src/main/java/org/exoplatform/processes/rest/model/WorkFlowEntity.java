@@ -123,4 +123,11 @@ public class WorkFlowEntity {
    */
   private List<Long>                  requestFormIds;
 
+  /**
+   * The forms of the process's task project that its requesters fill: in a
+   * save, absent to keep the stored choice, empty for none, else the form
+   * ids; read for a user who can edit the process, null otherwise.
+   */
+  private List<Long>                  requesterFormIds;
+
 }

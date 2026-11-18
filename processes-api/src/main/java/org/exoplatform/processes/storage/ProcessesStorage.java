@@ -71,6 +71,15 @@ public interface ProcessesStorage {
   WorkFlow getWorkFlowById(long id, Long userIdentityId);
 
   /**
+   * Reads the stored ids of the forms of a process's task project that its
+   * requesters fill, with no other read of the process.
+   *
+   * @param workFlowId the process id
+   * @return the form ids, in id order; empty when the process does not exist
+   */
+  List<Long> getRequesterFormIds(long workFlowId);
+
+  /**
    * Reads the first process feeding a task project.
    *
    * @param projectId the task project id

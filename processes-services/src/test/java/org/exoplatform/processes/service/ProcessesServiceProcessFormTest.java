@@ -25,6 +25,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -42,6 +43,7 @@ import java.util.Set;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
@@ -384,6 +386,130 @@ public class ProcessesServiceProcessFormTest {
     assertEquals(List.of(5L), processesService.getProcessFormIds(WORKFLOW_ID, EDITOR_ID));
     assertThrows(IllegalAccessException.class, () -> processesService.getProcessFormIds(WORKFLOW_ID, 9L));
     assertThrows(ObjectNotFoundException.class, () -> processesService.getProcessFormIds(8L, EDITOR_ID));
+  }
+
+  /**
+   * A new process in an existing project has the project forms its
+   * requesters fill checked, distinct and in id order, before its first
+   * write, and saved with its row; a new project stores none and asks
+   * nothing. Mutation: check after the save, skip the check, or save the
+   * client's list as sent, and this test fails.
+   *
+   * @throws Exception on an unexpected refusal
+   */
+  @Test
+  public void aNewProcessChecksItsRequesterFormsBeforeAnyWrite() throws Exception {
+    WorkFlow existingProject = newWorkFlow(ProjectMode.EXISTING);
+    existingProject.setProjectId(PROJECT_ID);
+    existingProject.setRequesterFormIds(Arrays.asList(64L, 63L, 64L));
+
+    processesService.createWorkFlow(existingProject, ADMIN_ID);
+
+    InOrder order = inOrder(plugin, processesStorage);
+    order.verify(plugin).checkRequesterForms(isNull(), eq(PROJECT_ID), eq(List.of(63L, 64L)), any(Identity.class));
+    ArgumentCaptor<WorkFlow> saved = ArgumentCaptor.forClass(WorkFlow.class);
+    order.verify(processesStorage).saveWorkFlow(saved.capture(), eq(ADMIN_ID));
+    assertEquals(List.of(63L, 64L), saved.getValue().getRequesterFormIds());
+
+    WorkFlow newProject = newWorkFlow(ProjectMode.NEW);
+    newProject.setRequesterFormIds(List.of(63L));
+    processesService.createWorkFlow(newProject, ADMIN_ID);
+
+    verify(plugin).checkRequesterForms(any(), anyLong(), any(), any());
+    verify(processesStorage, org.mockito.Mockito.times(2)).saveWorkFlow(saved.capture(), eq(ADMIN_ID));
+    assertEquals("a new project has no form to choose yet", List.of(), saved.getValue().getRequesterFormIds());
+  }
+
+  /**
+   * A requester form the plugin refuses, an id that names no form, or a
+   * plugin that does not know the choice fails the whole save before its
+   * first write. Mutation: catch the refusal, drop the id check, or make the
+   * plugin's default accept the forms, and this test fails.
+   *
+   * @throws Exception on an unexpected refusal
+   */
+  @Test
+  public void aRefusedRequesterFormWritesNothing() throws Exception {
+    doThrow(new IllegalArgumentException("forms.form.notApplicable")).when(plugin).checkRequesterForms(any(), anyLong(), any(), any());
+    WorkFlow refused = newWorkFlow(ProjectMode.EXISTING);
+    refused.setProjectId(PROJECT_ID);
+    refused.setRequesterFormIds(List.of(63L));
+    assertEquals("forms.form.notApplicable",
+                 assertThrows(IllegalArgumentException.class, () -> processesService.createWorkFlow(refused, ADMIN_ID)).getMessage());
+
+    WorkFlow noForm = newWorkFlow(ProjectMode.EXISTING);
+    noForm.setProjectId(PROJECT_ID);
+    noForm.setRequesterFormIds(Arrays.asList(63L, 0L));
+    assertEquals("processes.workflow.requesterFormInvalid",
+                 assertThrows(IllegalArgumentException.class, () -> processesService.createWorkFlow(noForm, ADMIN_ID)).getMessage());
+
+    doCallRealMethod().when(plugin).checkRequesterForms(any(), anyLong(), any(), any());
+    assertEquals("processes.workflow.formUnsupported",
+                 assertThrows(IllegalArgumentException.class, () -> processesService.createWorkFlow(refused, ADMIN_ID)).getMessage());
+
+    verify(statusService, never()).createStatus(any(), any());
+    verify(processesStorage, never()).saveWorkFlow(any(), anyLong());
+  }
+
+  /**
+   * An update that does not state the requester forms, or states the stored
+   * ones, keeps them without asking the plugin, and states no change by
+   * itself; one that adds forms has only the added ones checked against the
+   * stored project before its first write, a stored form sent again being
+   * kept unchecked whether or not the project still gives it, and saves them;
+   * an empty list removes them unchecked. Mutation: save the client's null,
+   * count the stored forms as a change, check against the client's project,
+   * or send the stored forms to the plugin again, and this test fails.
+   *
+   * @throws Exception on an unexpected refusal
+   */
+  @Test
+  public void anUpdateKeepsOrChecksTheRequesterForms() throws Exception {
+    WorkFlow stored = storedWorkFlow(true);
+    stored.setRequesterFormIds(List.of(63L));
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, EDITOR_ID)).thenReturn(stored);
+    ArgumentCaptor<WorkFlow> saved = ArgumentCaptor.forClass(WorkFlow.class);
+
+    WorkFlow unchanged = storedWorkFlow(true);
+    unchanged.setRequesterFormIds(List.of(63L));
+    assertEquals("there are no changes to save",
+                 assertThrows(IllegalArgumentException.class, () -> processesService.updateWorkFlow(unchanged, EDITOR_ID)).getMessage());
+
+    WorkFlow titleEdit = storedWorkFlow(true);
+    titleEdit.setTitle("Renamed");
+    processesService.updateWorkFlow(titleEdit, EDITOR_ID);
+    verify(processesStorage).saveWorkFlow(saved.capture(), eq(EDITOR_ID));
+    assertEquals("a save that does not state them keeps the stored ones", List.of(63L), saved.getValue().getRequesterFormIds());
+    verify(plugin, never()).checkRequesterForms(any(), anyLong(), any(), any());
+
+    WorkFlow changed = storedWorkFlow(true);
+    changed.setProjectId(99L);
+    changed.setRequesterFormIds(List.of(64L, 63L));
+    processesService.updateWorkFlow(changed, EDITOR_ID);
+    InOrder order = inOrder(plugin, processesStorage);
+    order.verify(plugin).checkRequesterForms(eq(WORKFLOW_ID), eq(PROJECT_ID), eq(List.of(64L)), any(Identity.class));
+    order.verify(processesStorage).saveWorkFlow(saved.capture(), eq(EDITOR_ID));
+    assertEquals(List.of(63L, 64L), saved.getValue().getRequesterFormIds());
+
+    WorkFlow cleared = storedWorkFlow(true);
+    cleared.setRequesterFormIds(List.of());
+    processesService.updateWorkFlow(cleared, EDITOR_ID);
+    verify(processesStorage, org.mockito.Mockito.times(3)).saveWorkFlow(saved.capture(), eq(EDITOR_ID));
+    assertEquals(List.of(), saved.getValue().getRequesterFormIds());
+    verify(plugin).checkRequesterForms(any(), anyLong(), any(), any());
+  }
+
+  /**
+   * The forms add-on reads a process's requester forms with no user, through
+   * the storage's narrow read, never a whole process with its labels.
+   * Mutation: read the whole process, and the narrow read is never called.
+   */
+  @Test
+  public void theRequesterFormsAreReadForTheFormsAddOn() {
+    when(processesStorage.getRequesterFormIds(WORKFLOW_ID)).thenReturn(List.of(63L, 64L));
+
+    assertEquals(List.of(63L, 64L), processesService.getRequesterFormIds(WORKFLOW_ID));
+    verify(processesStorage, never()).getWorkFlowById(eq(WORKFLOW_ID), isNull());
   }
 
   private WorkFlow newWorkFlow(ProjectMode projectMode) {

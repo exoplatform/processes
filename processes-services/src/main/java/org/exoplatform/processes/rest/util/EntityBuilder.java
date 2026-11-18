@@ -91,6 +91,8 @@ public class EntityBuilder {
     workFlow.setSummaryTranslations(workFlowEntity.getSummaryTranslations());
     // The Service checks the chosen form before any write
     workFlow.setRequestFormId(workFlowEntity.getRequestFormId());
+    // The Service checks each requester form against the process's project
+    workFlow.setRequesterFormIds(workFlowEntity.getRequesterFormIds());
     return workFlow;
   }
 
@@ -194,6 +196,7 @@ public class EntityBuilder {
                               workFlow.getRequestsCreators(),
                               null,
                               workFlow.getLabels(),
+                              null,
                               null,
                               null,
                               null,

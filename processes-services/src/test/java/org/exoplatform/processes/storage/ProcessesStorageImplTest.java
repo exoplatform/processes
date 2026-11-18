@@ -409,6 +409,50 @@ public class ProcessesStorageImplTest {
   }
 
   /**
+   * A save writes the requester forms the Service checked; an update that
+   * does not state them keeps the stored ones; a read gives them in id order.
+   * Mutation: drop the fallback to the stored forms, write the stored ones
+   * over the checked ones, or leave them out of the read, and this test fails.
+   */
+  @Test
+  public void theRequesterFormsAreSavedKeptAndReadInIdOrder() {
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setId(5L);
+    workFlow.setProjectId(9L);
+    workFlow.setRequestsCreators(new ArrayList<>());
+    workFlow.setRequesterFormIds(Arrays.asList(64L, 63L));
+    when(identityManager.getIdentity(1L)).thenReturn(mock(Identity.class));
+    WorkFlowEntity stored = new WorkFlowEntity();
+    stored.setId(5L);
+    stored.setSpaceId(7L);
+    stored.setRequesterFormIds(new HashSet<>(Arrays.asList(61L)));
+    when(workFlowDAO.find(5L)).thenReturn(stored);
+    when(workFlowDAO.update(any(WorkFlowEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    WorkFlowEntity sent = new WorkFlowEntity();
+    sent.setId(5L);
+    sent.setProjectId(9L);
+    sent.setSpaceId(7L);
+    ENTITY_MAPPER.when(() -> EntityMapper.toEntity(workFlow)).thenReturn(sent);
+
+    processesStorage.saveWorkFlow(workFlow, 1L);
+    assertEquals(new HashSet<>(Arrays.asList(63L, 64L)), sent.getRequesterFormIds());
+
+    workFlow.setRequesterFormIds(null);
+    WorkFlowEntity sentWithoutForms = new WorkFlowEntity();
+    sentWithoutForms.setId(5L);
+    sentWithoutForms.setProjectId(9L);
+    sentWithoutForms.setSpaceId(7L);
+    ENTITY_MAPPER.when(() -> EntityMapper.toEntity(workFlow)).thenReturn(sentWithoutForms);
+
+    processesStorage.saveWorkFlow(workFlow, 1L);
+    assertEquals("an update that does not state them keeps the stored ones", new HashSet<>(Arrays.asList(61L)), sentWithoutForms.getRequesterFormIds());
+
+    stored.setRequesterFormIds(new HashSet<>(Arrays.asList(64L, 61L, 63L)));
+    ENTITY_MAPPER.when(() -> EntityMapper.fromEntity(eq(stored), any())).thenReturn(new WorkFlow());
+    assertEquals(Arrays.asList(61L, 63L, 64L), processesStorage.getWorkFlowById(5L, null).getRequesterFormIds());
+  }
+
+  /**
    * A process created in an existing project keeps it, creates no project,
    * and gets the managing space's two memberships as participants, which an
    * existing-project creation would otherwise leave empty. Mutation: write the

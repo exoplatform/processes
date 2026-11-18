@@ -237,4 +237,27 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.-->
         </modifySql>
     </changeSet>
 
+    <!-- The forms of a process's task project that its requesters fill when
+         they create a request (EXO-94642): ids of forms of the forms add-on,
+         with no foreign key to its tables, since a form it no longer gives the
+         project is left out where it reads the choice. The primary key's
+         leading column serves the foreign key, so MySQL adds no index of its
+         own, and dropping the table drops both keys with it. -->
+    <changeSet author="processes" id="1.0.0-exo-94642-01">
+        <createTable tableName="PROCESSES_WORK_FLOW_REQ_FORMS">
+            <column name="WORK_FLOW_ID" type="BIGINT">
+                <constraints primaryKey="true" primaryKeyName="PK_PROCESSES_WF_REQ_FORMS" foreignKeyName="FK_PROCESSES_WF_REQ_FORMS_WF" references="PROCESSES_WORK_FLOW(WORK_FLOW_ID)" nullable="false"/>
+            </column>
+            <column name="FORM_ID" type="BIGINT">
+                <constraints primaryKey="true" primaryKeyName="PK_PROCESSES_WF_REQ_FORMS" nullable="false"/>
+            </column>
+        </createTable>
+        <rollback>
+            <dropTable tableName="PROCESSES_WORK_FLOW_REQ_FORMS"/>
+        </rollback>
+        <modifySql dbms="mysql">
+            <append value=" ENGINE=INNODB CHARSET=UTF8 COLLATE utf8_general_ci"/>
+        </modifySql>
+    </changeSet>
+
 </databaseChangeLog>

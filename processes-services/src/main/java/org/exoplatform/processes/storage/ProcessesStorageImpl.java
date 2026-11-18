@@ -199,6 +199,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     WorkFlow workFlow = EntityMapper.fromEntity(workFlowEntity, memberships);
     if (workFlow != null) {
       workFlow.setLabels(readLabels(workFlowEntity));
+      workFlow.setRequesterFormIds(readRequesterFormIds(workFlowEntity));
     }
     return workFlow;
   }
@@ -380,6 +381,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       workFlowEntity.setParticipator(getSpaceParticipators(workFlow.getSpaceId()));
       workFlowEntity.setManager(getManagers(workFlow.getRequestsCreators()));
       workFlowEntity.setLabelIds(toLabelIds(workFlow.getLabels(), null));
+      workFlowEntity.setRequesterFormIds(toRequesterFormIds(workFlow.getRequesterFormIds(), null));
       workFlowEntity = workFlowDAO.create(workFlowEntity);
     } else {
       // An update keeps the process's space and its participants, unless the
@@ -387,6 +389,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       // task project, which other processes may feed
       WorkFlowEntity storedWorkFlowEntity = workFlowDAO.find(workFlowEntity.getId());
       workFlowEntity.setLabelIds(toLabelIds(workFlow.getLabels(), storedWorkFlowEntity));
+      workFlowEntity.setRequesterFormIds(toRequesterFormIds(workFlow.getRequesterFormIds(), storedWorkFlowEntity));
       if (storedWorkFlowEntity != null) {
         if (workFlowEntity.getSpaceId() == null) {
           // A client that does not state the space keeps the stored one
@@ -406,6 +409,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     WorkFlow savedWorkFlow = EntityMapper.fromEntity(workFlowEntity, illustrativeAttachment, null);
     if (savedWorkFlow != null) {
       savedWorkFlow.setLabels(readLabels(workFlowEntity));
+      savedWorkFlow.setRequesterFormIds(readRequesterFormIds(workFlowEntity));
     }
     return savedWorkFlow;
   }
@@ -444,6 +448,41 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       labelIds.add(label.getId());
     }
     return labelIds;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<Long> getRequesterFormIds(long workFlowId) {
+    return readRequesterFormIds(workFlowDAO.find(workFlowId));
+  }
+
+  /**
+   * Gives the requester form ids a save writes: those the Service checked,
+   * else, when the caller states none, the stored ones of an update, or none.
+   *
+   * @param formIds the checked form ids, or null when not stated
+   * @param storedWorkFlowEntity the stored process of an update, or null
+   * @return the form ids
+   */
+  private Set<Long> toRequesterFormIds(List<Long> formIds, WorkFlowEntity storedWorkFlowEntity) {
+    if (formIds == null) {
+      return storedWorkFlowEntity == null || storedWorkFlowEntity.getRequesterFormIds() == null ? new HashSet<>()
+                                                                                                 : new HashSet<>(storedWorkFlowEntity.getRequesterFormIds());
+    }
+    return new HashSet<>(formIds);
+  }
+
+  /**
+   * @param workFlowEntity the stored process, or null
+   * @return the ids of the forms its requesters fill, in id order
+   */
+  private static List<Long> readRequesterFormIds(WorkFlowEntity workFlowEntity) {
+    if (workFlowEntity == null || workFlowEntity.getRequesterFormIds() == null) {
+      return new ArrayList<>();
+    }
+    return workFlowEntity.getRequesterFormIds().stream().sorted().toList();
   }
 
   /**

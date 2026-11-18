@@ -76,6 +76,8 @@ public class ProcessesChangelogTest {
 
   private static final String LABELS_TABLE           = "PROCESSES_WORK_FLOW_LABELS";
 
+  private static final String REQUESTER_FORMS_TABLE  = "PROCESSES_WORK_FLOW_REQ_FORMS";
+
   private String              url;
 
   private Connection          connection;
@@ -308,6 +310,7 @@ public class ProcessesChangelogTest {
     assertFalse("and the space column", columnExists(WORK_FLOW_TABLE, "SPACE_ID"));
     assertFalse("and the move columns", columnExists(WORK_FLOW_TABLE, "MOVE_SEQ"));
     assertFalse("and the label table", tableExists(LABELS_TABLE));
+    assertFalse("and the requester form table", tableExists(REQUESTER_FORMS_TABLE));
     insertWorkFlow(1, 10);
     assertThrows("the project is unique again", SQLException.class, () -> insertWorkFlow(2, 10));
     connection.rollback();
@@ -317,6 +320,39 @@ public class ProcessesChangelogTest {
     assertTrue(tableExists(REQUEST_TABLE));
     assertTrue(columnExists(WORK_FLOW_TABLE, "SPACE_ID"));
     assertTrue(tableExists(LABELS_TABLE));
+    assertTrue(tableExists(REQUESTER_FORMS_TABLE));
+  }
+
+  /**
+   * A process keeps each form its requesters fill once, and only a process
+   * that exists keeps such forms; a row needs no form of the forms add-on,
+   * which owns its tables. Mutation: drop the primary key or the foreign key
+   * and an insert passes.
+   *
+   * @throws Exception when Liquibase or the engine fails
+   */
+  @Test
+  public void aProcessKeepsEachRequesterFormOnce() throws Exception {
+    update(connection);
+    insertWorkFlow(1, 10);
+    try (Statement statement = connection.createStatement()) {
+      statement.executeUpdate("INSERT INTO " + REQUESTER_FORMS_TABLE + " (WORK_FLOW_ID, FORM_ID) VALUES (1, 63)");
+    }
+    connection.commit();
+
+    assertThrows("a form twice", SQLException.class, () -> {
+      try (Statement statement = connection.createStatement()) {
+        statement.executeUpdate("INSERT INTO " + REQUESTER_FORMS_TABLE + " (WORK_FLOW_ID, FORM_ID) VALUES (1, 63)");
+      }
+    });
+    connection.rollback();
+    assertThrows("a form of no process", SQLException.class, () -> {
+      try (Statement statement = connection.createStatement()) {
+        statement.executeUpdate("INSERT INTO " + REQUESTER_FORMS_TABLE + " (WORK_FLOW_ID, FORM_ID) VALUES (99, 63)");
+      }
+    });
+    connection.rollback();
+    assertEquals(1, count("SELECT COUNT(*) FROM " + REQUESTER_FORMS_TABLE));
   }
 
   /**
