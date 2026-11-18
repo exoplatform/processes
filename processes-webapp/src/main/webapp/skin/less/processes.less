@@ -277,13 +277,82 @@
     max-width: 85%;
   }
 
-  .work-title {
-    background: rgba(150, 182, 219, 0.67) 0 0 no-repeat padding-box;
-    border-radius: 19px;
-    max-width: 90%;
-    width: fit-content;
-    top: 5px;
-    position: relative;
+  // The request drawer's header line: shown once the guide's process name scrolled out of view
+  .request-title-line {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    font-weight: normal;
+    transition: max-height .18s ease, opacity .18s ease;
+  }
+  .request-title-line-shown {
+    max-height: 20px;
+    opacity: 1;
+  }
+  // The request drawer's documents show their file icon at the size of a row's icon
+  .request-documents {
+    .v-list-item__avatar {
+      min-width: 20px !important;
+      width: 20px !important;
+      height: 20px !important;
+    }
+    .fileType .v-icon {
+      font-size: 20px !important;
+      height: 20px !important;
+      width: 20px !important;
+    }
+    .attachmentThumbnail {
+      width: 20px !important;
+      height: 20px !important;
+    }
+    .v-list-item__avatar {
+      margin: 0 8px 0 0 !important;
+    }
+    // Drawn like the documents card's rows: name at body size, start-aligned, « size · type » under it
+    .v-list-item__content {
+      text-align: start;
+    }
+    .uploadedFileTitle {
+      white-space: normal;
+      overflow-wrap: anywhere;
+      text-align: start;
+      font-size: 0.875rem !important;
+      font-weight: 400 !important;
+      line-height: 1.25rem !important;
+    }
+    .uploadedFileMeta {
+      font-size: 0.75rem;
+      text-align: start;
+    }
+    // No source badge, no info button: only a small neutral remove icon
+    .attachmentSourceBadge,
+    .v-list-item__action .fa-info-circle {
+      display: none !important;
+    }
+    .remove-button {
+      .v-btn {
+        height: 20px !important;
+        width: 20px !important;
+      }
+      .v-icon {
+        font-size: 12px !important;
+        color: inherit !important;
+        opacity: 0.6;
+      }
+    }
+  }
+  // The full-screen request's left pane, set off from the main column by the platform's divider
+  .request-full-left {
+    border-inline-end: 1px solid @borderColor !important;
+  }
+  // In full screen, the documents to fill in are laid out in columns
+  .requestDocumentsCard-columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 24px;
+  }
+  .request-guide {
+    border-left: 3px solid @primaryColor;
   }
   .v-autocomplete.identitySuggester {
     width: 290px;
@@ -562,5 +631,84 @@
 
   .work-detail-subtitle {
     margin-top: 2px;
+  }
+}
+
+// « Document to fill in »: one outlined card, a row per document, stacked in the drawer,
+// in columns once the card is wide (full screen): icon | name | size · type | state | button | menu
+.requestDocumentsCard {
+  .requestDocumentsCard-head {
+    border-bottom: 1px solid @borderColor;
+  }
+
+  .requestDocumentLine {
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr) auto auto;
+    grid-template-areas: "icon name button menu" ". meta button menu" ". state button menu";
+    align-items: center;
+    gap: 2px 10px;
+    padding: 10px 4px 10px 12px;
+    text-align: start;
+
+    + .requestDocumentLine {
+      border-top: 1px solid @borderColor;
+    }
+
+    .requestDocumentLine-icon {
+      grid-area: icon;
+      align-self: start;
+      margin-top: 2px;
+    }
+
+    .requestDocumentLine-name {
+      grid-area: name;
+      overflow-wrap: anywhere;
+      line-height: 1.35;
+    }
+
+    .requestDocumentLine-meta {
+      grid-area: meta;
+    }
+
+    .requestDocumentLine-state {
+      grid-area: state;
+      justify-self: start;
+      margin-top: 4px;
+      font-weight: bold;
+
+      // Filled in green, a required document not filled yet in the error colour: the text takes the platform's colour
+      // class, and the chip's own overlay, drawn in the text colour, gives the light tint (the platform defines no
+      // Vuetify colour variables to mix)
+      &.requestDocumentLine-tinted {
+        background-color: transparent !important;
+
+        &::before {
+          opacity: 0.12 !important;
+        }
+      }
+    }
+
+    .requestDocumentLine-button {
+      grid-area: button;
+    }
+
+    .requestDocumentLine-menu {
+      grid-area: menu;
+    }
+  }
+
+  &.requestDocumentsCard-wide .requestDocumentLine {
+    grid-template-columns: 20px minmax(0, 1fr) 110px 170px auto auto;
+    grid-template-areas: "icon name meta state button menu";
+    gap: 0 12px;
+
+    .requestDocumentLine-icon {
+      align-self: center;
+      margin-top: 0;
+    }
+
+    .requestDocumentLine-state {
+      margin-top: 0;
+    }
   }
 }
