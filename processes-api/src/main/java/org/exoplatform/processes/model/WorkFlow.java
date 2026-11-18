@@ -124,6 +124,16 @@ public class WorkFlow {
   private Long                        requestFormId;
 
   /**
+   * The ids of the forms of the process's existing task project that its
+   * requesters fill when they create a request; the project's other forms are
+   * filled by its members on the request's task. Null when a save does not
+   * state it, the stored choice being kept; empty when the requesters fill
+   * none of them. The forms add-on checks each newly chosen id before a save
+   * stores it; a stored one sent again is kept.
+   */
+  private List<Long>                  requesterFormIds;
+
+  /**
    * Builds a process with every field but the save's project mode.
    *
    * @param id the process id, 0 for a new process

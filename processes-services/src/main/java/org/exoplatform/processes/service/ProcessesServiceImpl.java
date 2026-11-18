@@ -88,6 +88,9 @@ public class ProcessesServiceImpl implements ProcessesService {
 
   private static final String      FORM_UNSUPPORTED     = "processes.workflow.formUnsupported";
 
+  /** The refusal of a requester form id that names no form. */
+  private static final String      REQUESTER_FORM_INVALID = "processes.workflow.requesterFormInvalid";
+
   private static final String      FORM_VALUES_UNSUPPORTED = "processes.request.formValuesUnsupported";
 
   /** The size of a Task label name (TASK_LABELS.NAME). */
@@ -229,6 +232,15 @@ public class ProcessesServiceImpl implements ProcessesService {
                                                StringUtils.trimToNull(workFlow.getSpaceId()),
                                                workFlow.getRequestFormId(),
                                                aclIdentity));
+    // The project forms its requesters fill are checked before the first
+    // write; a new project has no form to choose yet
+    List<Long> requesterFormIds = existingProject == null ? null
+                                                          : checkRequesterForms(null,
+                                                                                existingProject.getId(),
+                                                                                workFlow.getRequesterFormIds(),
+                                                                                Collections.emptyList(),
+                                                                                aclIdentity);
+    workFlow.setRequesterFormIds(requesterFormIds == null ? Collections.emptyList() : requesterFormIds);
     // Task commits each project, status and label it creates, before the
     // process's own rows are saved
     ProjectDto project = existingProject;
@@ -444,6 +456,14 @@ public class ProcessesServiceImpl implements ProcessesService {
    * {@inheritDoc}
    */
   @Override
+  public List<Long> getRequesterFormIds(long workFlowId) {
+    return processesStorage.getRequesterFormIds(workFlowId);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
   public Predicate requestOf(CriteriaBuilder cb,
                              CommonAbstractCriteria query,
                              Expression<Long> taskId,
@@ -589,6 +609,54 @@ public class ProcessesServiceImpl implements ProcessesService {
   }
 
   /**
+   * Checks the forms of the process's existing task project a save chooses
+   * for its requesters to fill, before any write of the save. The forms
+   * add-on refuses a newly chosen form the project does not give, or a
+   * project its editor may not see; a stored form sent again is kept
+   * unchecked, as it was checked when chosen, even when the project no longer
+   * gives it or another editor chose it, so that it never blocks a change.
+   *
+   * @param workFlowId the process id, or null for a new process
+   * @param projectId the id of the process's task project
+   * @param formIds the form ids the save sends, null when it does not state
+   *          them
+   * @param storedFormIds the stored choice, empty for a new process
+   * @param editor the editor's identity
+   * @return the choice to save, distinct ids in id order; null to keep the
+   *         stored one, when none is sent or the stored one is sent again
+   * @throws IllegalAccessException when the plugin refuses the editor's right
+   * @throws IllegalArgumentException {@value #REQUESTER_FORM_INVALID} for an
+   *           id that names no form, {@value #FORM_UNSUPPORTED} when no
+   *           add-on checks the choice
+   */
+  private List<Long> checkRequesterForms(Long workFlowId,
+                                         long projectId,
+                                         List<Long> formIds,
+                                         List<Long> storedFormIds,
+                                         org.exoplatform.services.security.Identity editor) throws IllegalAccessException {
+    if (formIds == null) {
+      return null;
+    }
+    if (formIds.stream().anyMatch(formId -> formId == null || formId <= 0)) {
+      throw new IllegalArgumentException(REQUESTER_FORM_INVALID);
+    }
+    List<Long> chosen = formIds.stream().distinct().sorted().toList();
+    if (chosen.equals(storedFormIds)) {
+      return null;
+    }
+    List<Long> added = chosen.stream().filter(formId -> !storedFormIds.contains(formId)).toList();
+    if (added.isEmpty()) {
+      return chosen;
+    }
+    RequestValuesPlugin plugin = requestValuesPlugin;
+    if (plugin == null) {
+      throw new IllegalArgumentException(FORM_UNSUPPORTED);
+    }
+    plugin.checkRequesterForms(workFlowId, projectId, added, editor);
+    return chosen;
+  }
+
+  /**
    * @param space a space, or null
    * @return its id, or null
    */
@@ -723,6 +791,19 @@ public class ProcessesServiceImpl implements ProcessesService {
                                                formSpaceId,
                                                workFlow.getRequestFormId(),
                                                getAclIdentity(userId)));
+    // The project forms its requesters fill are checked before the first
+    // write; a save that does not state them, or states the stored ones,
+    // keeps the stored choice
+    List<Long> storedRequesterFormIds = oldWorkFlow.getRequesterFormIds() == null ? Collections.emptyList()
+                                                                                  : oldWorkFlow.getRequesterFormIds();
+    List<Long> requesterFormIds = checkRequesterForms(oldWorkFlow.getId(),
+                                                      oldWorkFlow.getProjectId(),
+                                                      workFlow.getRequesterFormIds(),
+                                                      storedRequesterFormIds,
+                                                      getAclIdentity(userId));
+    // The stored choice is kept as read, so that a save changing nothing else
+    // compares equal to the stored process
+    workFlow.setRequesterFormIds(requesterFormIds == null ? oldWorkFlow.getRequesterFormIds() : requesterFormIds);
     if (oldWorkFlow.equals(workFlow) && workFlow.getRequestFormId() == null) {
       throw new IllegalArgumentException("there are no changes to save");
     }
