@@ -27,8 +27,9 @@
       </v-btn>
     </template>
     <template #content>
-      <!-- In full screen the steps are sections, in two columns: the description, then the management, the form and
-           the documents; each field as the drawer shows it -->
+      <!-- In full screen the steps are sections, in two columns: step 1, the description, then step 2, the management
+           and the form, step 3, the request makers, and step 4, the documents; each under the drawer's numbered step
+           and each field as the drawer shows it -->
       <component
         :is="expanded ? 'div' : 'v-stepper'"
         :id="expanded && 'processEditorFull' || null"
@@ -48,9 +49,17 @@
           id="processEditorDescriptionSection"
           :class="expanded && 'processEditorFullDescription'"
           step="1">
-          <div v-if="expanded" class="text-subtitle-1 font-weight-bold mb-2">
-            {{ $t('processes.workflow.editor.section.description') }}
-          </div>
+          <v-stepper
+            v-if="expanded"
+            :value="1"
+            class="processEditorStepHeading elevation-0 transparent">
+            <v-stepper-header class="elevation-0">
+              <v-stepper-step class="primary--text" step="1">
+                {{ $t('processes.workflow.form.label.description') }}
+              </v-stepper-step>
+              <v-divider />
+            </v-stepper-header>
+          </v-stepper>
           <v-form
             v-model="valid"
             ref="form1">
@@ -260,9 +269,32 @@
           id="processEditorManagementSection"
           :class="expanded && 'processEditorFullManagement'"
           step="2">
-          <div v-if="expanded" class="text-subtitle-1 font-weight-bold mb-2">
-            {{ $t('processes.workflow.editor.section.management') }}
-          </div>
+          <v-stepper
+            v-if="expanded"
+            :value="2"
+            class="processEditorStepHeading elevation-0 transparent">
+            <v-stepper-header class="elevation-0">
+              <v-stepper-step class="primary--text" step="2">
+                <div class="d-flex align-center">
+                  {{ $t('processes.works.form.label.manage') }}
+                  <v-tooltip bottom>
+                    <template #activator="{ on, attrs }">
+                      <v-icon
+                        dark
+                        v-bind="attrs"
+                        v-on="on"
+                        size="17"
+                        class="primary--text ms-2">
+                        fa-info-circle
+                      </v-icon>
+                    </template>
+                    <span class="center">{{ infoManage }}</span>
+                  </v-tooltip>
+                </div>
+              </v-stepper-step>
+              <v-divider />
+            </v-stepper-header>
+          </v-stepper>
           <v-label>
             <span class="ms-1 pe-1">
               {{ $t('processes.works.form.label.add.manage') + ' *' }}
@@ -292,7 +324,6 @@
             :project-id="projectMode === 'EXISTING' && projectId || null"
             :space-id="managingSpaceId" />
           <processes-extension-sections
-            v-if="!expanded"
             ref="editorSections"
             :key="`editorSections${formKey}`"
             :params="editorSectionsParams"
@@ -349,9 +380,32 @@
           id="processEditorRequestersSection"
           :class="expanded && 'processEditorFullRequesters'"
           step="3">
-          <div v-if="expanded" class="text-subtitle-1 font-weight-bold mb-2 mt-6">
-            {{ $t('processes.works.form.label.request') }}
-          </div>
+          <v-stepper
+            v-if="expanded"
+            :value="3"
+            class="processEditorStepHeading elevation-0 transparent">
+            <v-stepper-header class="elevation-0">
+              <v-stepper-step class="primary--text" step="3">
+                <div class="d-flex align-center">
+                  {{ $t('processes.works.form.label.request') }}
+                  <v-tooltip bottom>
+                    <template #activator="{ on, attrs }">
+                      <v-icon
+                        dark
+                        v-bind="attrs"
+                        v-on="on"
+                        size="17"
+                        class="primary--text ms-2">
+                        fa-info-circle
+                      </v-icon>
+                    </template>
+                    <span class="center">{{ infoRequest }}</span>
+                  </v-tooltip>
+                </div>
+              </v-stepper-step>
+              <v-divider />
+            </v-stepper-header>
+          </v-stepper>
           <v-label>
             <span class="text-color body-2">
               {{ $t('processes.works.form.label.add.request') + ' *' }}
@@ -384,23 +438,6 @@
             </v-btn>
           </v-card-actions>
         </component>
-        <!-- Full screen: the form, after the management and the request makers it depends on -->
-        <section
-          v-if="expanded"
-          id="processEditorFullForm"
-          class="processEditorFullForm">
-          <div class="text-subtitle-1 font-weight-bold mb-2 mt-6">
-            {{ $t('processes.workflow.editor.section.form') }}
-          </div>
-          <processes-extension-sections
-            ref="editorSections"
-            :key="`editorSections${formKey}`"
-            :params="editorSectionsParams"
-            hook-id="processEditorSections"
-            name="ProcessEditor"
-            type="process-editor-section"
-            @changed="sectionsChanged = $event" />
-        </section>
         <v-stepper-step
           v-if="!expanded"
           :complete="stp > 4"
@@ -412,9 +449,17 @@
           id="processEditorDocumentsSection"
           :class="expanded && 'processEditorFullDocuments'"
           step="4">
-          <div v-if="expanded" class="text-subtitle-1 font-weight-bold mb-2 mt-6">
-            {{ $t('processes.works.form.label.documents') }}
-          </div>
+          <v-stepper
+            v-if="expanded"
+            :value="4"
+            class="processEditorStepHeading elevation-0 transparent">
+            <v-stepper-header class="elevation-0">
+              <v-stepper-step class="primary--text" step="4">
+                {{ $t('processes.works.form.label.documents') }}
+              </v-stepper-step>
+              <v-divider />
+            </v-stepper-header>
+          </v-stepper>
           <processes-attachments
             v-model="attachments"
             :workflow-parent-space="workflowParentSpace"

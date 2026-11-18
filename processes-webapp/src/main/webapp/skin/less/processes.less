@@ -341,20 +341,20 @@
       }
     }
   }
-  // The full-screen process editor: the description in the first column; the management, the request makers, the
-  // form and the documents, in that order, in the second. The description spans the rows of the second column, the
-  // last one flexible, so a taller description does not space out the second column's sections. Row placements are
-  // longhands: LESS reads « 1 / span 5 » as a division
+  // The full-screen process editor: step 1, the description, in the first column; step 2, the management with the
+  // form, step 3, the request makers, and step 4, the documents, in that order, in the second. The description spans
+  // the rows of the second column, the last one flexible, so a taller description does not space out the second
+  // column's sections. Row placements are longhands: LESS reads « 1 / span 4 » as a division
   .processEditorFull {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-rows: repeat(4, auto) 1fr;
+    grid-template-rows: repeat(3, auto) 1fr;
     column-gap: 32px;
     align-items: start;
     .processEditorFullDescription {
       grid-column: 1;
       grid-row-start: 1;
-      grid-row-end: span 5;
+      grid-row-end: span 4;
     }
     .processEditorFullManagement {
       grid-column: 2;
@@ -364,13 +364,22 @@
       grid-column: 2;
       grid-row-start: 2;
     }
-    .processEditorFullForm {
+    .processEditorFullDocuments {
       grid-column: 2;
       grid-row-start: 3;
     }
-    .processEditorFullDocuments {
-      grid-column: 2;
-      grid-row-start: 4;
+    // Each section opens on the drawer's numbered step, followed by a separator line
+    .processEditorStepHeading .v-stepper__header {
+      height: auto;
+      .v-stepper__step {
+        padding-top: 12px;
+        padding-bottom: 12px;
+        padding-inline-start: 0;
+      }
+      // The platform hides a horizontal stepper's labels below the tablet width; a heading keeps its label
+      .v-stepper__label {
+        display: flex !important;
+      }
     }
   }
   // The full-screen request's left pane, set off from the main column by the platform's divider
