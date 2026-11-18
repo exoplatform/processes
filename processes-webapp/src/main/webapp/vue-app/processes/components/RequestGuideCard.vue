@@ -12,7 +12,10 @@ You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 -->
 <template>
-  <div id="requestGuideCard" class="request-guide light-grey-background-color application-border-radius pa-3">
+  <div
+    id="requestGuideCard"
+    :class="expanded ? 'white' : 'light-grey-background-color'"
+    class="request-guide application-border-radius pa-3">
     <div ref="nameRow" class="d-flex align-center mb-2">
       <v-avatar
         :class="!showIllustration && 'workflow-card-avatar-placeholder primary--text'"

@@ -5,7 +5,7 @@
     @expand-updated="expanded = $event"
     ref="work"
     :allow-expand="!viewMode"
-    full-app-left-class="request-full-left"
+    full-app-left-class="request-full-left grey-lighten1-background-opacity-5"
     class="ProcessesApplication"
     right>
     <template v-if="expanded && !viewMode" #fullAppLeftTitle>
