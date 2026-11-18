@@ -12,11 +12,11 @@ You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 -->
 <template>
-  <request-field-row
+  <div
     id="requestMessageRow"
-    :label="$t('processes.work.message.to.manager')"
-    icon="fas fa-align-left"
-    stacked>
+    :aria-label="$t('processes.work.message.to.manager')"
+    class="mb-4"
+    role="group">
     <rich-editor
       id="request-editor"
       ref="requestEditor"
@@ -25,6 +25,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       :placeholder="$t('processes.works.form.placeholder.workDetail')"
       :tag-enabled="false"
       ck-editor-type="processesRequest"
+      :aria-label="$t('processes.work.message.to.manager')"
       class="full-width"
       content-link-enabled
       disable-suggester
@@ -41,7 +42,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       :prepare-entity="prepareEntity"
       class="request-documents full-width mt-1"
       list-only />
-  </request-field-row>
+  </div>
 </template>
 
 <script>
