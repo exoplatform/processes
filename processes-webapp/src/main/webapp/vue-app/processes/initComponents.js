@@ -25,6 +25,7 @@ import WorkRow from './components/my-requests/WorkRow.vue';
 import WorkActionsMenu from './components/my-requests/WorkActionsMenu.vue';
 import WorkDetailDrawer from './components/my-requests/WorkDetailDrawer.vue';
 import WorkDetailTitle from './components/my-requests/WorkDetailTitle.vue';
+import ProcessesExtensionSections from './components/ProcessesExtensionSections.vue';
 
 import EmptyOrLoading from './components/commons/EmptyOrLoading.vue';
 import CustomCounter from './components/commons/CustomCounter.vue';
@@ -68,6 +69,7 @@ const components = {
   'work-actions-menu': WorkActionsMenu,
   'work-detail-drawer': WorkDetailDrawer,
   'work-detail-title': WorkDetailTitle,
+  'processes-extension-sections': ProcessesExtensionSections,
   'processes-attachments': ProcessesAttachments,
   'empty-or-loading': EmptyOrLoading,
   'custom-counter': CustomCounter,

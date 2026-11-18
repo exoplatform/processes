@@ -74,6 +74,13 @@ export default {
         'processes.label.notInProject',
         'processes.label.invalidName',
         'processes.space.notFound',
+        'processes.workflow.formUnsupported',
+        'forms.form.otherSpace',
+      ],
+      requestSaveErrorCodes: [
+        'processes.request.formValuesInvalid',
+        'processes.request.formValuesUnsupported',
+        'processes.request.draftMismatch',
       ],
       work: null,
       workComments: [],
@@ -109,7 +116,6 @@ export default {
       initializing: true,
       messageActionLabel: '',
       messageAction: null,
-      messageTargetModel: null,
       messageTimer: null,
       draftId: null,
       updated: false,
@@ -215,9 +221,6 @@ export default {
       this.showConfirmDialog(event.model, event.reason);
     });
     this.$root.$on('open-add-work-drawer', event => {
-      if (this.alert) {
-        this.handleMessageClose();
-      }
       this.work = event.object;
       this.workComments = event.object.comments;
       this.$refs.addWork.open(event.object, event.mode, event.isDraft,event.allowSave);
@@ -240,7 +243,7 @@ export default {
       window.history.pushState('requestComments', '', url);
     });
     this.$root.$on('create-work-draft', event => {
-      this.createWorkDraft(event.draft, event.preSave);
+      this.createWorkDraft(event.draft);
     });
     this.$root.$on('update-work-draft', draft => {
       this.updateWorkDraft(draft);
@@ -278,10 +281,6 @@ export default {
       this.updateWorkCompleted(work, !work.completed);
     });
     this.$root.$on('update-url-path',  this.handleUpdateUrlPath);
-    this.$root.$on('keep-work-draft', () => {
-      this.closeAlert();
-    });
-    document.addEventListener('alert-message-dismissed', this.handleMessageClose);
   },
   mounted() {
     window.setTimeout(() => {
@@ -313,12 +312,6 @@ export default {
     }
   },
   methods: {
-    handleMessageClose() {
-      if (this.messageTargetModel && this.messageTargetModel.id) {
-        this.deleteWorkDraftById(this.messageTargetModel);
-        this.messageTargetModel = null;
-      }
-    },
     handleMessageAction() {
       if (this.messageAction) {
         this.$root.$emit(this.messageAction);
@@ -516,7 +509,6 @@ export default {
     },
     displayMessage(alert) {
       this.messageAction = alert.messageAction || null;
-      this.messageTargetModel = alert.messageTargetModel || null;
       document.dispatchEvent(new CustomEvent('alert-message', {
         detail: {
           alertMessage: alert?.message,
@@ -549,17 +541,18 @@ export default {
     },
     /**
      * Words a refused process save: the message of the code the server
-     * answered with a 400, worded for an update where its cause differs, or
-     * the generic message of the save otherwise.
+     * answered with a 400, worded for an update where its cause differs, the
+     * process editor's own wording first, then Forms' label for a Forms code,
+     * or the generic message of the save otherwise.
      *
      * @param {Error} error the error of the save
      * @param {String} action add or update
      * @return {String} the message
      */
     saveErrorMessage(error, action) {
-      const code = error && error.message;
+      const code = this.refusal(error).code;
       if (!this.workflowSaveErrorCodes.includes(code)) {
-        return this.$t(`processes.workflow.${action}.error.message`);
+        return this.formsRefusalMessage(code) || this.$t(`processes.workflow.${action}.error.message`);
       }
       // On an update, an ineligible project means the managing space changed
       // while the process keeps its project
@@ -567,10 +560,17 @@ export default {
         && this.$t('processes.workflow.updateError.processes.project.notEligible')
         || this.$t(`processes.workflow.saveError.${code}`);
     },
+    /**
+     * Sends a request, then tells the drawer: work-added, or work-add-failed
+     * with the refusal's code and field key, each naming the request sent.
+     *
+     * @param {Object} work the request to send
+     * @returns {void}
+     */
     addWork(work) {
       this.$processesService.addWork(work).then(newWork => {
         if (newWork) {
-          this.$root.$emit('work-added', {work: newWork, draftId: work.draftId});
+          this.$root.$emit('work-added', {work: newWork, draftId: work.draftId, sent: work});
           this.works.unshift(newWork);
           if (work.draftId) {
             const index = this.workDrafts.findIndex(draft => draft.id === work.draftId);
@@ -579,36 +579,93 @@ export default {
           this.displayMessage({type: 'success', message: this.$t('processes.work.add.success.message')});
           this.requestSubmitted = true;
         }
-      }).catch(() => {
-        this.displayMessage({type: 'error', message: this.$t('processes.work.add.error.message')});
+      }).catch(e => {
+        this.$root.$emit('work-add-failed', Object.assign(this.refusal(e), {sent: work}));
+        this.displayMessage({type: 'error', message: this.requestRefusalMessage(e, 'processes.work.add.error.message')});
       });
     },
-    createWorkDraft(workDraft, preSave) {
+    /**
+     * Creates the draft the user's first input in the request drawer starts,
+     * silently, then tells the drawer; a refusal tells the drawer too.
+     *
+     * @param {Object} workDraft the draft to create
+     * @returns {Promise} settled once the drawer is told
+     */
+    createWorkDraft(workDraft) {
       return this.$processesService.createWorkDraft(workDraft).then(draft => {
         if (draft) {
-          if (preSave) {
-            this.$root.$emit('pre-save-work-draft-added', draft);
-            this.displayMessage({type: 'success', message: this.$t('processes.workDraft.created.success.message')});
-          } else {
-            this.$root.$emit('work-draft-added', draft);
-            this.displayMessage({type: 'success', message: this.$t('processes.workDraft.add.success.message')});
-          }
+          this.$root.$emit('pre-save-work-draft-added', draft);
           this.workDrafts.unshift(draft);
-          this.$root.$emit('update-url-path', 'draftDetails', `/myRequests/draftDetails/${draft.id}`);
         }
-      }).catch(() => {
-        this.displayMessage({type: 'error', message: this.$t('processes.workDraft.save.error.message')});
+      }).catch(e => {
+        this.$root.$emit('work-draft-save-failed', this.refusal(e));
+        this.displayMessage({type: 'error', message: this.requestRefusalMessage(e, 'processes.workDraft.save.error.message')});
       });
     },
+    /**
+     * Updates a draft, then tells the drawer: work-draft-updated, or
+     * work-draft-save-failed with the refusal's code and field key.
+     *
+     * @param {Object} workDraft the draft to update
+     * @returns {Promise} settled once the drawer is told
+     */
     updateWorkDraft(workDraft) {
       return this.$processesService.updateWorkDraft(workDraft).then(draft => {
         if (draft) {
           this.$root.$emit('work-draft-updated', draft);
           this.displayMessage({type: 'success', message: this.$t('processes.workDraft.update.success.message')});
         }
-      }).catch(() => {
-        this.displayMessage({type: 'error', message: this.$t('processes.workDraft.save.error.message')});
+      }).catch(e => {
+        this.$root.$emit('work-draft-save-failed', this.refusal(e));
+        this.displayMessage({type: 'error', message: this.requestRefusalMessage(e, 'processes.workDraft.save.error.message')});
       });
+    },
+    /**
+     * Reads a refused save's error: its message is the code of a 400, then,
+     * for a refused field, its form's id and its key (code:formId:fieldKey)
+     * or its key alone (code:fieldKey). A code holds no colon and a form id
+     * is a number, so splitting on colons tells them apart.
+     *
+     * @param {Error} error the error of the save
+     * @returns {Object} the code, the field's form id and its key, null when none
+     */
+    refusal(error) {
+      const parts = (error && error.message || '').split(':');
+      if (parts.length >= 3) {
+        return {code: parts[0], formId: parts[1], fieldKey: parts.slice(2).join(':')};
+      }
+      return {code: parts[0], formId: null, fieldKey: parts.length === 2 ? parts[1] : null};
+    },
+    /**
+     * Gives the label Forms registers for one of its codes: the one worded
+     * for the object kind first, under the key Forms' own sections read
+     * (formsObject.error.<kind>.<code>), then the general one.
+     *
+     * @param {String} code the refusal's code
+     * @param {String} [kind] the Forms object kind, processes.requestDraft for a request or its draft
+     * @returns {String} the label, null for another code or none registered
+     */
+    formsRefusalMessage(code, kind) {
+      if (!code || !code.startsWith('forms.')) {
+        return null;
+      }
+      const key = [kind && `formsObject.error.${kind}.${code}`, `formsObject.error.${code}`].find(candidate => candidate && this.$te(candidate));
+      return key && this.$t(key) || null;
+    },
+    /**
+     * Words a refused request or draft save: the label of the code the server
+     * answered with a 400, or the generic message of the save otherwise.
+     *
+     * @param {Error} error the error of the save
+     * @param {String} genericKey the generic message's key
+     * @returns {String} the message
+     */
+    requestRefusalMessage(error, genericKey) {
+      const code = this.refusal(error).code;
+      if (this.requestSaveErrorCodes.includes(code)) {
+        return this.$t(`processes.request.saveError.${code}`);
+      }
+      return this.formsRefusalMessage(code, 'processes.requestDraft') || this.$t(genericKey);
     },
     showConfirmDialog(model, reason){
       this.dialogAction = reason;

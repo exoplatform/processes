@@ -92,13 +92,19 @@ export function addNewWorkFlow(workflow) {
     }),
   }).then(resp => {
     if (!resp || !resp.ok) {
-      return readSaveError(resp);
+      return readRefusal(resp, 'Error while saving a workflow');
     } else {
       return resp.json();
     }
   });
 }
 
+/**
+ * Sends a request; a refusal rejects with the body of a 400 as its message.
+ *
+ * @param {Object} work the request
+ * @return {Promise} the created request
+ */
 export function addWork(work) {
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/works`, {
     method: 'POST',
@@ -111,7 +117,7 @@ export function addWork(work) {
     }),
   }).then(resp => {
     if (!resp || !resp.ok) {
-      throw new Error('Error while adding a new work');
+      return readRefusal(resp, 'Error while adding a new work');
     } else {
       return resp.json();
     }
@@ -184,7 +190,7 @@ export function updateWorkflow(workflow) {
     }),
   }).then(resp => {
     if (!resp || !resp.ok) {
-      return readSaveError(resp);
+      return readRefusal(resp, 'Error while saving a workflow');
     } else {
       return resp.text();
     }
@@ -192,18 +198,20 @@ export function updateWorkflow(workflow) {
 }
 
 /**
- * Throws the error of a refused process save, its message being the code the
- * server answers with a 400, or a generic message otherwise.
+ * Throws the error of a refused save, its message being the body the server
+ * answers with a 400: a code, or a code and the refused field's key as
+ * code:fieldKey. Any other refusal throws the generic message.
  *
  * @param {Response} resp the response of the save
+ * @param {String} message the generic message
  * @return {Promise} a promise rejected with the error
  */
-function readSaveError(resp) {
+function readRefusal(resp, message) {
   if (!resp || resp.status !== 400) {
-    return Promise.reject(new Error('Error while saving a workflow'));
+    return Promise.reject(new Error(message));
   }
   return resp.text().then(code => {
-    throw new Error(code || 'Error while saving a workflow');
+    throw new Error(code || message);
   });
 }
 
@@ -341,6 +349,13 @@ export function getWorkDrafts(itemsFilter, offset, limit, expand) {
   });
 }
 
+/**
+ * Creates a request draft; a refusal rejects with the body of a 400 as its
+ * message.
+ *
+ * @param {Object} workDraft the draft
+ * @return {Promise} the created draft
+ */
 export function createWorkDraft(workDraft) {
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workDraft`, {
     method: 'POST',
@@ -353,13 +368,20 @@ export function createWorkDraft(workDraft) {
     }),
   }).then(resp => {
     if (!resp || !resp.ok) {
-      throw new Error('Error while creating a new work draft');
+      return readRefusal(resp, 'Error while creating a new work draft');
     } else {
       return resp.json();
     }
   });
 }
 
+/**
+ * Updates a request draft; a refusal rejects with the body of a 400 as its
+ * message.
+ *
+ * @param {Object} workDraft the draft
+ * @return {Promise} the updated draft, as text
+ */
 export function updateWorkDraft(workDraft) {
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workDraft`, {
     method: 'PUT',
@@ -374,7 +396,7 @@ export function updateWorkDraft(workDraft) {
     }),
   }).then(resp => {
     if (!resp || !resp.ok) {
-      throw new Error('Error while updating a work draft');
+      return readRefusal(resp, 'Error while updating a work draft');
     } else {
       return resp.text();
     }
