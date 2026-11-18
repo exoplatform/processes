@@ -8,8 +8,10 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
@@ -27,6 +29,7 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.ws.rs.ext.RuntimeDelegate;
@@ -60,6 +63,7 @@ import org.exoplatform.processes.dao.RequestDAO;
 import org.exoplatform.processes.dao.WorkDraftDAO;
 import org.exoplatform.processes.dao.WorkFlowDAO;
 import org.exoplatform.processes.entity.WorkEntity;
+import org.exoplatform.processes.constant.ProcessesEvents;
 import org.exoplatform.processes.entity.RequestEntity;
 import org.exoplatform.processes.entity.WorkFlowEntity;
 import org.exoplatform.processes.model.CreatorIdentityEntity;
@@ -554,6 +558,117 @@ public class ProcessesStorageImplTest {
   }
 
   /**
+   * A request made from a draft deletes the draft, then announces the draft's
+   * deletion with its id and its process, then announces the request, so a
+   * listener purging the draft's values runs before the request's listeners.
+   * Mutation: drop the draft's announcement, or move it after the request's,
+   * and this test fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  public void aRequestFromADraftAnnouncesTheDraftDeletedBeforeTheRequest() throws Exception {
+    Work work = newRequest();
+    work.setDraftId(8L);
+    work.setAttachments(new ArrayList<>());
+    when(statusService.getStatuses(9L)).thenReturn(Arrays.asList(status(7L, "Request")));
+    org.exoplatform.processes.entity.WorkEntity draftRow = mock(org.exoplatform.processes.entity.WorkEntity.class);
+    when(workDraftDAO.find(8L)).thenReturn(draftRow);
+    List<String> steps = new ArrayList<>();
+    doAnswer(invocation -> steps.add("draft deleted")).when(workDraftDAO).delete(draftRow);
+    PROCESSES_UTILS.when(() -> ProcessesUtils.broadcast(any(), anyString(), any(), any())).thenAnswer(invocation -> {
+      String event = invocation.getArgument(1);
+      if (ProcessesEvents.REQUEST_DRAFT_DELETED.equals(event)) {
+        steps.add(event + " " + invocation.getArgument(2) + " " + invocation.getArgument(3));
+      } else if ("exo.process.request.created".equals(event)) {
+        steps.add(event);
+      }
+      return null;
+    });
+
+    processesStorage.saveWork(work, 1L);
+
+    assertEquals(List.of("draft deleted", ProcessesEvents.REQUEST_DRAFT_DELETED + " 8 3", "exo.process.request.created"), steps);
+  }
+
+  /**
+   * Removing a request whose values were refused removes its task, then its
+   * record, and still removes the record when the task's removal fails.
+   * Mutation: drop the record's removal, or let a failed task removal skip it,
+   * and this test fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  public void removingARefusedRequestRemovesItsTaskThenItsRecord() throws Exception {
+    RequestEntity record = new RequestEntity();
+    record.setTaskId(40L);
+    when(requestDAO.find(40L)).thenReturn(record);
+
+    processesStorage.removeRequest(40L);
+
+    org.mockito.InOrder order = inOrder(taskService, requestDAO);
+    order.verify(taskService).removeTask(40L);
+    order.verify(requestDAO).delete(record);
+
+    doThrow(new IllegalStateException("the task is gone")).when(taskService).removeTask(41L);
+    RequestEntity otherRecord = new RequestEntity();
+    otherRecord.setTaskId(41L);
+    when(requestDAO.find(41L)).thenReturn(otherRecord);
+
+    processesStorage.removeRequest(41L);
+
+    verify(requestDAO).delete(otherRecord);
+  }
+
+  /**
+   * A request read by id names the process its request record names, not the
+   * first process of its project: request 22014 was created on process 2 in
+   * project 159, which process 1 also feeds. Both reads, the requester's and
+   * the platform's, set it; a task with no record names no process.
+   * Mutation: drop the record lookup from either read and this test fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  public void aRequestReadByIdNamesTheProcessOfItsRecord() throws Exception {
+    RequestEntity record = new RequestEntity();
+    record.setTaskId(22014L);
+    record.setWorkFlowId(2L);
+    when(requestDAO.find(22014L)).thenReturn(record);
+    TaskDto task = new TaskDto();
+    task.setId(22014L);
+    Work fromTask = new Work();
+    fromTask.setId(22014L);
+    fromTask.setProjectId(159L);
+    ENTITY_MAPPER.when(() -> EntityMapper.taskToWork(task)).thenReturn(fromTask);
+    when(taskService.getTask(22014L)).thenReturn(task);
+
+    assertEquals(2L, processesStorage.getWorkById(22014L).getWorkFlowId());
+
+    TaskDto ownTask = new TaskDto();
+    ownTask.setId(22014L);
+    Work fromOwnTask = new Work();
+    fromOwnTask.setId(22014L);
+    ENTITY_MAPPER.when(() -> EntityMapper.taskToWork(ownTask)).thenReturn(fromOwnTask);
+    Identity identity = mock(Identity.class);
+    when(identity.getRemoteId()).thenReturn("root");
+    when(identityManager.getIdentity(1L)).thenReturn(identity);
+    when(taskService.findTasks(any(TaskQuery.class), eq(0), eq(0))).thenReturn(List.of(ownTask));
+
+    assertEquals(2L, processesStorage.getWorkById(1L, 22014L).getWorkFlowId());
+
+    TaskDto plainTask = new TaskDto();
+    plainTask.setId(500L);
+    Work fromPlainTask = new Work();
+    fromPlainTask.setId(500L);
+    ENTITY_MAPPER.when(() -> EntityMapper.taskToWork(plainTask)).thenReturn(fromPlainTask);
+    when(taskService.getTask(500L)).thenReturn(plainTask);
+
+    assertEquals(0L, processesStorage.getWorkById(500L).getWorkFlowId());
+  }
+
+  /**
    * Builds a new request of process 3 in project 9, whose task Task creates
    * with id 40.
    *
@@ -872,6 +987,75 @@ public class ProcessesStorageImplTest {
     ENTITY_MAPPER.when(() -> EntityMapper.tasksToWorkList(tasks)).thenReturn(works);
     processesStorage.getWorks(1L, workFilter, 0, 0);
     verify(taskService, times(1)).findTasks(any(), anyInt(), anyInt());
+  }
+
+  /**
+   * A request returned by an edit or by its completion names the process its
+   * request record names, not the first process of its project: request 22014
+   * was created on process 2 in a project process 1 also feeds. Mutation:
+   * drop the record lookup from either write and this test fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  public void aRequestReturnedByAWriteNamesTheProcessOfItsRecord() throws Exception {
+    RequestEntity record = new RequestEntity();
+    record.setTaskId(22014L);
+    record.setWorkFlowId(2L);
+    when(requestDAO.find(22014L)).thenReturn(record);
+    TaskDto task = new TaskDto();
+    task.setId(22014L);
+    task.setStatus(status(7L, "Request"));
+    when(taskService.getTask(22014L)).thenReturn(task);
+    when(taskService.updateTask(task)).thenReturn(task);
+    ENTITY_MAPPER.when(() -> EntityMapper.taskToWork(task)).thenAnswer(invocation -> {
+      Work fromTask = new Work();
+      fromTask.setId(22014L);
+      return fromTask;
+    });
+
+    assertEquals(2L, processesStorage.updateWorkCompleted(22014L, true).getWorkFlowId());
+
+    when(identityManager.getIdentity(1L)).thenReturn(mock(Identity.class));
+    when(statusService.getStatuses(9L)).thenReturn(Arrays.asList(status(7L, "Request")));
+    Work edit = new Work();
+    edit.setId(22014L);
+    edit.setProjectId(9L);
+    edit.setStatus("Request");
+    edit.setTitle("edited");
+
+    assertEquals(2L, processesStorage.saveWork(edit, 1L).getWorkFlowId());
+  }
+
+  /**
+   * A listed request names the process its request record names, not the
+   * first process of its project: request 22014 was created on process 2 in a
+   * project process 1 also feeds. The page's records are read in one query,
+   * and a task with no record names no process. Mutation: drop the record
+   * lookup from the list and this test fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  public void aListedRequestNamesTheProcessOfItsRecord() throws Exception {
+    TaskDto requestTask = new TaskDto();
+    requestTask.setId(22014L);
+    TaskDto plainTask = new TaskDto();
+    plainTask.setId(500L);
+    List<TaskDto> tasks = List.of(requestTask, plainTask);
+    when(taskService.findTasks(any(TaskQuery.class), eq(0), eq(10))).thenReturn(tasks);
+    Work request = new Work();
+    request.setId(22014L);
+    Work plain = new Work();
+    plain.setId(500L);
+    ENTITY_MAPPER.when(() -> EntityMapper.tasksToWorkList(tasks)).thenReturn(new ArrayList<>(List.of(request, plain)));
+    when(requestDAO.findWorkFlowIdsByTaskIds(any())).thenReturn(Map.of(22014L, 2L));
+
+    List<Work> works = processesStorage.getWorks(1L, new WorkFilter(), 0, 10);
+
+    assertEquals(2L, works.get(0).getWorkFlowId());
+    assertEquals(0L, works.get(1).getWorkFlowId());
+    verify(requestDAO, times(1)).findWorkFlowIdsByTaskIds(any());
   }
 
   @Test

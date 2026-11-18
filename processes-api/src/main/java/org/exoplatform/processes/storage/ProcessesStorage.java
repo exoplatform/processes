@@ -27,6 +27,12 @@ import org.exoplatform.services.attachments.model.Attachment;
 import org.exoplatform.social.core.identity.model.Identity;
 
 import jakarta.persistence.EntityNotFoundException;
+import java.util.Collection;
+import java.util.Set;
+import jakarta.persistence.criteria.CommonAbstractCriteria;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Predicate;
 
 public interface ProcessesStorage {
 
@@ -147,11 +153,48 @@ public interface ProcessesStorage {
   Work saveWork(Work work, long userId) throws IllegalArgumentException;
 
   /**
-   * Delete a workflow by its given Id.
+   * Creates a new request's task, its request record and its process's
+   * labels: the first steps of {@link #saveWork(Work, long)} for a new
+   * request, before its values are written.
    *
-   * @param workflowId : workflow id
+   * @param work the new request, its project set
+   * @param userId the requester's identity id
+   * @return the request, its id being its task's
+   * @throws IllegalStateException when the record cannot be saved, the task
+   *           being removed
    */
-  void deleteWorkflowById(Long workflowId) throws EntityNotFoundException;
+  Work createRequest(Work work, long userId);
+
+  /**
+   * Ends a new request's creation once its values are written: moves its
+   * draft's attachments, deletes its draft and announces it, then announces
+   * the request.
+   *
+   * @param request the request {@link #createRequest(Work, long)} answered
+   * @param work the new request as submitted, with its draft id
+   * @param userId the requester's identity id
+   * @return the created request
+   */
+  Work completeRequest(Work request, Work work, long userId);
+
+  /**
+   * Removes a request whose values were refused after its task was created:
+   * its task, then its record. A failure of either is logged, so the caller
+   * answers the refusal that made it remove the request.
+   *
+   * @param taskId the request's task id
+   */
+  void removeRequest(long taskId);
+
+  /**
+   * Deletes a process, its drafts and its request records, in one
+   * transaction. The request tasks stay as plain tasks.
+   *
+   * @param workflowId the process id
+   * @return the task ids its request records held and the ids of its drafts
+   * @throws EntityNotFoundException when the process does not exist
+   */
+  ProcessDeletion deleteWorkflowById(Long workflowId) throws EntityNotFoundException;
 
   /**
    * Retrieves a Work by its given id
@@ -206,6 +249,27 @@ public interface ProcessesStorage {
    * @return {@link Work}
    */
   Work saveWorkDraft(Work work, long userId);
+
+  /**
+   * Saves a request draft's row only: what {@link #saveWorkDraft(Work, long)}
+   * does but the copy of its process's attachments into a new draft. The
+   * server sets the row's draft state.
+   *
+   * @param work the draft
+   * @param userId the owner's identity id
+   * @return the saved draft
+   */
+  Work saveWorkDraftRow(Work work, long userId);
+
+  /**
+   * Copies a process's attachments into a new request draft, as a draft's
+   * creation does.
+   *
+   * @param draftId the new draft's id
+   * @param workFlow the draft's stored process
+   * @param userId the owner's identity id
+   */
+  void copyProcessAttachmentsToDraft(Long draftId, WorkFlow workFlow, long userId);
 
   /**
    * Retrieves a work draft by its given id
@@ -264,4 +328,89 @@ public interface ProcessesStorage {
    *         task is no request
    */
   Long getRequestWorkFlowId(long taskId);
+
+  /**
+   * Reads the processes of the tasks that are requests, one query per page of
+   * {@code 1000} task ids. It is the platform's own read, with no user's
+   * permission.
+   *
+   * @param taskIds the task ids
+   * @return task id → process id, for the tasks that have a request record
+   */
+  Map<Long, Long> getRequestWorkFlowIds(Collection<Long> taskIds);
+
+  /**
+   * Reads one page of the tasks of a process's requests that still exist, by
+   * ascending id. It is the platform's own read, with no user's permission.
+   *
+   * @param workFlowId the process id
+   * @param afterTaskId the last task id of the previous page, or null for the
+   *          first page
+   * @param limit the page size, strictly positive
+   * @return the task ids of the page, ascending
+   */
+  List<Long> getRequestTaskIds(long workFlowId, Long afterTaskId, int limit);
+
+  /**
+   * Reads the task projects that hold the requests of a process, in one query:
+   * the current projects of its request tasks, which may differ from the
+   * process's stored project. It is the platform's own read, with no user's
+   * permission.
+   *
+   * @param workFlowId the process id
+   * @return the distinct project ids
+   */
+  Set<Long> getRequestProjectIds(long workFlowId);
+
+  /**
+   * Counts the requests of a process whose task still exists. It is the
+   * platform's own read, with no user's permission.
+   *
+   * @param workFlowId the process id
+   * @return the number of request tasks of the process
+   */
+  long countRequests(long workFlowId);
+
+  /**
+   * Builds the restriction of a query to the tasks that are requests of some
+   * processes. See
+   * {@link org.exoplatform.processes.service.ProcessesService#requestOf}.
+   *
+   * @param cb the criteria builder of the query
+   * @param query the query, to create the subquery from
+   * @param taskId the task id expression of the query
+   * @param workFlowIds the process ids
+   * @return the restriction; one that no task meets when no process is given
+   */
+  Predicate requestOf(CriteriaBuilder cb, CommonAbstractCriteria query, Expression<Long> taskId, Collection<Long> workFlowIds);
+
+  /**
+   * Reads what describes some request drafts, one query per page of 1,000 ids.
+   * The platform's own read, with no user's permission.
+   *
+   * @param draftIds the draft ids
+   * @return draft id → its owner, process, title and dates, for the ids that
+   *         are drafts
+   */
+  Map<Long, WorkDraftRef> getWorkDraftRefs(Collection<Long> draftIds);
+
+  /**
+   * Reads one page of a process's draft ids, by ascending id. The platform's
+   * own read, with no user's permission.
+   *
+   * @param workFlowId the process id
+   * @param afterDraftId the last id of the previous page, or null
+   * @param limit the page size, strictly positive
+   * @return the draft ids of the page
+   */
+  List<Long> getWorkDraftIds(long workFlowId, Long afterDraftId, int limit);
+
+  /**
+   * Counts a process's drafts. The platform's own read, with no user's
+   * permission.
+   *
+   * @param workFlowId the process id
+   * @return the number of drafts
+   */
+  long countWorkDrafts(long workFlowId);
 }

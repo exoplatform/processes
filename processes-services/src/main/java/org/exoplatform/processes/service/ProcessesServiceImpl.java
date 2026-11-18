@@ -38,6 +38,7 @@ import org.exoplatform.commons.file.services.FileStorageException;
 import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.processes.constant.ProjectMode;
 import org.exoplatform.processes.model.*;
+import org.exoplatform.processes.plugin.RequestValuesPlugin;
 import org.exoplatform.processes.Utils.ProcessesUtils;
 import org.exoplatform.processes.Utils.RequestTitle;
 import org.exoplatform.processes.storage.ProcessesStorage;
@@ -58,6 +59,13 @@ import org.exoplatform.task.service.LabelService;
 import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.StatusService;
 import org.exoplatform.task.util.UserUtil;
+import java.util.Collection;
+import jakarta.persistence.criteria.CommonAbstractCriteria;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Predicate;
+import java.util.Objects;
+import org.exoplatform.processes.constant.ProcessesEvents;
 
 public class ProcessesServiceImpl implements ProcessesService {
 
@@ -77,6 +85,10 @@ public class ProcessesServiceImpl implements ProcessesService {
   private static final String      LABEL_NOT_IN_PROJECT = "processes.label.notInProject";
 
   private static final String      LABEL_INVALID_NAME   = "processes.label.invalidName";
+
+  private static final String      FORM_UNSUPPORTED     = "processes.workflow.formUnsupported";
+
+  private static final String      FORM_VALUES_UNSUPPORTED = "processes.request.formValuesUnsupported";
 
   /** The size of a Task label name (TASK_LABELS.NAME). */
   private static final int         LABEL_NAME_MAX_LENGTH = 50;
@@ -102,6 +114,9 @@ public class ProcessesServiceImpl implements ProcessesService {
   private final ListenerService  listenerService;
 
   private final ProcessTranslationService processTranslationService;
+
+  /** Registered by another add-on at its start, read by request threads. */
+  private volatile RequestValuesPlugin requestValuesPlugin;
 
   /**
    * Builds the processes service.
@@ -207,6 +222,12 @@ public class ProcessesServiceImpl implements ProcessesService {
     // Every label is checked before the first write; a new project has no
     // label to choose yet
     List<LabelChoice> labelChoices = checkLabels(workFlow.getLabels(), existingProject, existingProject == null, aclIdentity);
+    // The chosen form is checked before the first write, so a refused form
+    // writes nothing; its binding is written with the process's rows
+    workFlow.setRequestFormId(checkProcessForm(null,
+                                               StringUtils.trimToNull(workFlow.getSpaceId()),
+                                               workFlow.getRequestFormId(),
+                                               aclIdentity));
     // Task commits each project, status and label it creates, before the
     // process's own rows are saved
     ProjectDto project = existingProject;
@@ -255,17 +276,29 @@ public class ProcessesServiceImpl implements ProcessesService {
   }
 
   /**
-   * Writes a process's own rows: the un-advised body of
+   * Writes a process's own rows, then the form its save chose, which the
+   * request values plugin binds once the row exists, so the binding commits
+   * or rolls back with the rows. The un-advised body of
    * {@link #saveWorkFlowRows(WorkFlow, long)}.
    *
-   * @param workFlow the process, its labels resolved to labels of its project
+   * @param workFlow the process, its labels resolved and its form choice
+   *          checked: null to keep the stored form, 0 for no form
    * @param userId the saving user's identity id
    * @return the saved process
-   * @throws IllegalAccessException declared for a write joining the save that
-   *           refuses the editor's choice; none of the writes here refuses
+   * @throws IllegalAccessException when the plugin refuses the editor's choice
    */
   WorkFlow writeWorkFlowRows(WorkFlow workFlow, long userId) throws IllegalAccessException {
-    return processesStorage.saveWorkFlow(workFlow, userId);
+    WorkFlow savedWorkFlow = processesStorage.saveWorkFlow(workFlow, userId);
+    Long requestFormId = workFlow.getRequestFormId();
+    RequestValuesPlugin plugin = requestValuesPlugin;
+    if (requestFormId != null && requestFormId != 0 && plugin == null) {
+      // Unregistered since the save checked the choice
+      throw new IllegalArgumentException(FORM_UNSUPPORTED);
+    }
+    if (requestFormId != null && plugin != null) {
+      plugin.setProcessForm(savedWorkFlow.getId(), requestFormId == 0 ? null : requestFormId, getAclIdentity(userId));
+    }
+    return savedWorkFlow;
   }
 
   /**
@@ -334,6 +367,215 @@ public class ProcessesServiceImpl implements ProcessesService {
   @Override
   public Long getRequestWorkFlowId(long taskId) {
     return processesStorage.getRequestWorkFlowId(taskId);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Map<Long, Long> getRequestWorkFlowIds(Collection<Long> taskIds) {
+    return processesStorage.getRequestWorkFlowIds(taskIds);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<Long> getRequestTaskIds(long workFlowId, Long afterTaskId, int limit) {
+    return processesStorage.getRequestTaskIds(workFlowId, afterTaskId, limit);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Set<Long> getRequestProjectIds(long workFlowId) {
+    return processesStorage.getRequestProjectIds(workFlowId);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public long countRequests(long workFlowId) {
+    return processesStorage.countRequests(workFlowId);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Long getManagingSpaceId(long workFlowId) {
+    WorkFlow workFlow = processesStorage.getWorkFlowById(workFlowId, null);
+    if (workFlow == null) {
+      return null;
+    }
+    Space space = getCurrentSpace(workFlow);
+    return space == null ? null : Long.valueOf(space.getId());
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Predicate requestOf(CriteriaBuilder cb,
+                             CommonAbstractCriteria query,
+                             Expression<Long> taskId,
+                             Collection<Long> workFlowIds) {
+    return processesStorage.requestOf(cb, query, taskId, workFlowIds);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public synchronized void addRequestValuesPlugin(RequestValuesPlugin plugin) {
+    if (plugin == null) {
+      throw new IllegalArgumentException("The request values plugin is mandatory");
+    }
+    if (requestValuesPlugin != null && requestValuesPlugin != plugin) {
+      LOG.warn("The request values plugin {} replaces {}",
+               plugin.getClass().getName(),
+               requestValuesPlugin.getClass().getName());
+    }
+    requestValuesPlugin = plugin;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public synchronized void removeRequestValuesPlugin(RequestValuesPlugin plugin) {
+    if (plugin != null && requestValuesPlugin == plugin) {
+      requestValuesPlugin = null;
+    }
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Work getWorkDraft(long draftId, long userIdentityId) throws ObjectNotFoundException, IllegalAccessException {
+    return getOwnWorkDraft(draftId, userIdentityId);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Long getWorkDraftWorkFlowId(long draftId) {
+    WorkDraftRef ref = processesStorage.getWorkDraftRefs(List.of(draftId)).get(draftId);
+    return ref == null ? null : ref.workFlowId();
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Long getWorkDraftOwnerId(long draftId) {
+    WorkDraftRef ref = processesStorage.getWorkDraftRefs(List.of(draftId)).get(draftId);
+    return ref == null ? null : ref.ownerId();
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Map<Long, WorkDraftRef> getWorkDraftRefs(Collection<Long> draftIds) {
+    return processesStorage.getWorkDraftRefs(draftIds);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<Long> getWorkDraftIds(long workFlowId, Long afterDraftId, int limit) {
+    return processesStorage.getWorkDraftIds(workFlowId, afterDraftId, limit);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public long countWorkDrafts(long workFlowId) {
+    return processesStorage.countWorkDrafts(workFlowId);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<Long> getProcessFormIds(long workFlowId, long userIdentityId) throws ObjectNotFoundException,
+                                                                              IllegalAccessException {
+    WorkFlow workFlow = processesStorage.getWorkFlowById(workFlowId, userIdentityId);
+    if (workFlow == null) {
+      throw new ObjectNotFoundException("The process " + workFlowId + " does not exist");
+    }
+    if (workFlow.getAcl() == null || !workFlow.getAcl().isCanEdit()) {
+      throw new IllegalAccessException("User " + userIdentityId + " isn't allowed to edit the process " + workFlowId);
+    }
+    RequestValuesPlugin plugin = requestValuesPlugin;
+    return plugin == null ? Collections.emptyList() : plugin.getProcessFormIds(workFlowId);
+  }
+
+  /**
+   * Checks the form a process's save chooses, before any write of the save.
+   *
+   * @param workFlowId the process id, or null for a new process
+   * @param spaceId the space that manages the process, or null when unknown
+   * @param requestFormId the form the save sends: null to keep the stored
+   *          one, 0 for no form, else the form id
+   * @param editor the editor's identity
+   * @return the choice to write inside the save: null when there is nothing
+   *         to write, 0 for no form, else the form id
+   * @throws IllegalAccessException when the plugin refuses the editor's right
+   */
+  private Long checkProcessForm(Long workFlowId,
+                                String spaceId,
+                                Long requestFormId,
+                                org.exoplatform.services.security.Identity editor) throws IllegalAccessException {
+    if (requestFormId == null) {
+      return null;
+    }
+    RequestValuesPlugin plugin = requestValuesPlugin;
+    if (plugin == null) {
+      if (requestFormId == 0) {
+        // No add-on gives a process a form: it has none
+        return null;
+      }
+      throw new IllegalArgumentException(FORM_UNSUPPORTED);
+    }
+    Long formId = requestFormId == 0 ? null : requestFormId;
+    if (workFlowId == null) {
+      if (formId == null) {
+        // A new process has no form to remove
+        return null;
+      }
+    } else {
+      List<Long> ownFormIds = plugin.getProcessFormIds(workFlowId);
+      if (ownFormIds.size() <= 1 && Objects.equals(formId, ownFormIds.isEmpty() ? null : ownFormIds.get(0))) {
+        // The process already has exactly that form, or none: no change
+        return null;
+      }
+    }
+    plugin.checkProcessForm(workFlowId, spaceId, formId, editor);
+    return requestFormId;
+  }
+
+  /**
+   * @param space a space, or null
+   * @return its id, or null
+   */
+  private static String toSpaceId(Space space) {
+    return space == null ? null : space.getId();
+  }
+
+  /**
+   * @return the registered request values plugin, or null when no add-on
+   *         registered one
+   */
+  RequestValuesPlugin getRequestValuesPlugin() {
+    return requestValuesPlugin;
   }
 
   /**
@@ -447,7 +689,14 @@ public class ProcessesServiceImpl implements ProcessesService {
       labelChoices = checkLabels(workFlow.getLabels(), project, false, getAclIdentity(userId));
       workFlow.setLabels(toLabels(labelChoices));
     }
-    if (oldWorkFlow.equals(workFlow)) {
+    // The chosen form is checked before the first write; a form already the
+    // process's own is no change
+    String formSpaceId = StringUtils.isNotBlank(workFlow.getSpaceId()) ? workFlow.getSpaceId() : toSpaceId(getCurrentSpace(oldWorkFlow));
+    workFlow.setRequestFormId(checkProcessForm(oldWorkFlow.getId(),
+                                               formSpaceId,
+                                               workFlow.getRequestFormId(),
+                                               getAclIdentity(userId)));
+    if (oldWorkFlow.equals(workFlow) && workFlow.getRequestFormId() == null) {
       throw new IllegalArgumentException("there are no changes to save");
     }
     workFlow.setAttachments(processesAttachmentService.selectProcessAttachments(userId,
@@ -675,7 +924,30 @@ public class ProcessesServiceImpl implements ProcessesService {
                                   LocalDate.now(ZoneId.systemDefault()),
                                   getRequesterName(userId),
                                   agentTitle));
-    return processesStorage.saveWork(work, userId);
+    Map<Long, Map<String, List<Object>>> formValues = work.getFormValues() == null ? new LinkedHashMap<>()
+                                                                                  : work.getFormValues();
+    RequestValuesPlugin plugin = requestValuesPlugin;
+    if (plugin == null) {
+      if (!formValues.isEmpty()) {
+        throw new IllegalArgumentException(FORM_VALUES_UNSUPPORTED);
+      }
+      return processesStorage.saveWork(work, userId);
+    }
+    // The values are checked before the task exists, so a refused value
+    // creates nothing; the draft's own values are checked with them
+    org.exoplatform.services.security.Identity requester = getAclIdentity(userId);
+    plugin.checkRequestValues(workFlow.getId(), work.getDraftId(), formValues, requester);
+    Work request = processesStorage.createRequest(work, userId);
+    try {
+      plugin.writeRequestValues(workFlow.getId(), work.getDraftId(), request.getId(), formValues, requester);
+    } catch (IllegalAccessException | RuntimeException e) {
+      // The values were refused once the task existed, after a change of the
+      // process's form: the request is removed, its draft and the draft's
+      // values are kept, and the refusal is answered
+      processesStorage.removeRequest(request.getId());
+      throw e;
+    }
+    return processesStorage.completeRequest(request, work, userId);
   }
 
   /**
@@ -718,7 +990,7 @@ public class ProcessesServiceImpl implements ProcessesService {
   @Override
   @Deprecated(forRemoval = true)
   public void deleteWorkflowById(Long workflowId) {
-    this.processesStorage.deleteWorkflowById(workflowId);
+    broadcastProcessDeleted(workflowId, this.processesStorage.deleteWorkflowById(workflowId));
   }
 
   /**
@@ -736,8 +1008,24 @@ public class ProcessesServiceImpl implements ProcessesService {
     if (workFlow.getAcl() == null || !workFlow.getAcl().isCanDelete()) {
       throw new IllegalAccessException("User " + userIdentityId + " isn't allowed to delete the process " + workflowId);
     }
-    this.processesStorage.deleteWorkflowById(workflowId);
+    broadcastProcessDeleted(workflowId, this.processesStorage.deleteWorkflowById(workflowId));
     processTranslationService.deleteTranslations(workflowId);
+  }
+
+  /**
+   * Announces a committed process deletion, with the tasks its requests had,
+   * which stay as plain tasks, then the deletion of each of its drafts.
+   *
+   * @param workflowId the deleted process id
+   * @param deletion what the deletion removed, or null
+   */
+  private void broadcastProcessDeleted(Long workflowId, ProcessDeletion deletion) {
+    ProcessDeletion deleted = deletion == null ? new ProcessDeletion(null, null) : deletion;
+    ProcessesUtils.broadcast(listenerService, ProcessesEvents.PROCESS_DELETED, workflowId, deleted.requestTaskIds());
+    // Each of its drafts was deleted with it
+    for (Long draftId : deleted.draftIds()) {
+      ProcessesUtils.broadcast(listenerService, ProcessesEvents.REQUEST_DRAFT_DELETED, draftId, workflowId);
+    }
   }
 
   /**
@@ -822,7 +1110,17 @@ public class ProcessesServiceImpl implements ProcessesService {
     }
     // The draft is attached to the stored process, never to the one the client sent
     work.setWorkFlow(checkCanAddRequest(work.getWorkFlow().getId(), userId));
-    return processesStorage.saveWorkDraft(work, userId);
+    // The server sets a request draft's state
+    work.setIsDraft(true);
+    Map<Long, Map<String, List<Object>>> formValues = draftFormValues(work);
+    if (formValues.isEmpty()) {
+      return processesStorage.saveWorkDraft(work, userId);
+    }
+    Work saved = saveWorkDraftRows(work, userId, formValues, true);
+    // The process's attachments are copied once the draft and its values are
+    // committed, so a draft refused for its values leaves no copied file
+    processesStorage.copyProcessAttachmentsToDraft(saved.getId(), work.getWorkFlow(), userId);
+    return saved;
   }
 
   /**
@@ -840,13 +1138,93 @@ public class ProcessesServiceImpl implements ProcessesService {
     }
 
     Work oldWork = getOwnWorkDraft(work.getId(), userId);
-    // The draft keeps its creator and its process, whatever the client sent
+    // The draft keeps its stored creator, process, dates and task, whatever the
+    // client sent: only its title and description are the client's
     work.setCreatorId(oldWork.getCreatorId());
     work.setWorkFlow(oldWork.getWorkFlow());
-    if (oldWork.equals(work)) {
+    work.setCreatedDate(oldWork.getCreatedDate());
+    work.setModifiedDate(oldWork.getModifiedDate());
+    work.setTaskId(oldWork.getTaskId());
+    // The server sets a request draft's state
+    work.setIsDraft(true);
+    Map<Long, Map<String, List<Object>>> formValues = draftFormValues(work);
+    boolean rowChanged = !Objects.equals(oldWork.getTitle(), work.getTitle())
+        || !Objects.equals(oldWork.getDescription(), work.getDescription());
+    if (!rowChanged && formValues.isEmpty()) {
       throw new IllegalArgumentException("there are no changes to save");
     }
-    return processesStorage.saveWorkDraft(work, userId);
+    if (formValues.isEmpty()) {
+      return processesStorage.saveWorkDraft(work, userId);
+    }
+    return saveWorkDraftRows(work, userId, formValues, rowChanged);
+  }
+
+  /**
+   * Saves a request draft's row and its form values in one transaction:
+   * a refused value refuses the whole save. Forms' value write joins the
+   * transaction when this method begins it (ADR-0010), as the process save's
+   * binding does. A creation writes its row first, since its values need its
+   * id; an update writes its values first, then its row.
+   *
+   * @param draft the draft, its stored process set
+   * @param userId the owner's identity id
+   * @param formValues the sent values, not empty
+   * @param writeRow whether the draft's row changed
+   * @return the saved draft
+   * @throws IllegalAccessException when the plugin refuses the owner's right
+   */
+  @ContainerTransactional(atomic = true)
+  public Work saveWorkDraftRows(Work draft,
+                                long userId,
+                                Map<Long, Map<String, List<Object>>> formValues,
+                                boolean writeRow) throws IllegalAccessException {
+    return writeWorkDraftRows(draft, userId, formValues, writeRow);
+  }
+
+  /**
+   * The un-advised body of {@link #saveWorkDraftRows}.
+   *
+   * @param draft the draft, its stored process set
+   * @param userId the owner's identity id
+   * @param formValues the sent values, not empty
+   * @param writeRow whether the draft's row changed
+   * @return the saved draft
+   * @throws IllegalAccessException when the plugin refuses the owner's right
+   */
+  Work writeWorkDraftRows(Work draft,
+                          long userId,
+                          Map<Long, Map<String, List<Object>>> formValues,
+                          boolean writeRow) throws IllegalAccessException {
+    RequestValuesPlugin plugin = requestValuesPlugin;
+    if (plugin == null) {
+      // Unregistered since the save checked it
+      throw new IllegalArgumentException(FORM_VALUES_UNSUPPORTED);
+    }
+    org.exoplatform.services.security.Identity owner = getAclIdentity(userId);
+    long workFlowId = draft.getWorkFlow().getId();
+    if (draft.getId() == 0) {
+      Work saved = processesStorage.saveWorkDraftRow(draft, userId);
+      plugin.writeDraftValues(workFlowId, saved.getId(), formValues, owner);
+      return saved;
+    }
+    plugin.writeDraftValues(workFlowId, draft.getId(), formValues, owner);
+    return writeRow ? processesStorage.saveWorkDraftRow(draft, userId) : draft;
+  }
+
+  /**
+   * Reads the form values a draft's save sends, refused when no add-on takes
+   * them.
+   *
+   * @param draft the draft as sent
+   * @return the sent values, empty when none
+   */
+  private Map<Long, Map<String, List<Object>>> draftFormValues(Work draft) {
+    Map<Long, Map<String, List<Object>>> formValues = draft.getFormValues() == null ? new LinkedHashMap<>()
+                                                                                    : draft.getFormValues();
+    if (!formValues.isEmpty() && requestValuesPlugin == null) {
+      throw new IllegalArgumentException(FORM_VALUES_UNSUPPORTED);
+    }
+    return formValues;
   }
 
   /**
@@ -866,7 +1244,9 @@ public class ProcessesServiceImpl implements ProcessesService {
     if (draftId == null) {
       throw new IllegalArgumentException("WorkDraft id is mandatory");
     }
+    Work draft = processesStorage.getWorkDraftyId(draftId);
     processesStorage.deleteWorkDraftById(draftId);
+    broadcastDraftDeleted(draftId, draft);
   }
 
   /**
@@ -877,8 +1257,20 @@ public class ProcessesServiceImpl implements ProcessesService {
     if (draftId == null) {
       throw new IllegalArgumentException("WorkDraft id is mandatory");
     }
-    getOwnWorkDraft(draftId, userIdentityId);
+    Work draft = getOwnWorkDraft(draftId, userIdentityId);
     processesStorage.deleteWorkDraftById(draftId);
+    broadcastDraftDeleted(draftId, draft);
+  }
+
+  /**
+   * Announces a committed draft deletion, with the draft's process.
+   *
+   * @param draftId the deleted draft id
+   * @param draft the draft as read before its deletion, or null
+   */
+  private void broadcastDraftDeleted(Long draftId, Work draft) {
+    Long workFlowId = draft == null || draft.getWorkFlow() == null ? null : draft.getWorkFlow().getId();
+    ProcessesUtils.broadcast(listenerService, ProcessesEvents.REQUEST_DRAFT_DELETED, draftId, workFlowId);
   }
 
   /**
@@ -1089,7 +1481,7 @@ public class ProcessesServiceImpl implements ProcessesService {
 
   private Work getOwnWorkDraft(long draftId, long userIdentityId) throws ObjectNotFoundException, IllegalAccessException {
     Work draft = processesStorage.getWorkDraftyId(draftId);
-    if (draft == null) {
+    if (draft == null || !Boolean.TRUE.equals(draft.getIsDraft())) {
       throw new ObjectNotFoundException("oldWorkDraft is not exist");
     }
     if (draft.getCreatorId() != userIdentityId) {

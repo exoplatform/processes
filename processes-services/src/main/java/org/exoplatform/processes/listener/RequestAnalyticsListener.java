@@ -31,17 +31,28 @@ public class RequestAnalyticsListener extends Listener<Work, ProjectDto> {
   private ProcessesService processesService;
   private final String operation;
 
+  /**
+   * @param initParams its parameters: the analytics operation it records
+   * @param processesService reads the request's process
+   */
   public RequestAnalyticsListener(InitParams initParams, ProcessesService processesService) {
     this.operation = initParams.getValueParam("operation").getValue();
     this.processesService = processesService;
   }
 
+  /**
+   * Records a request's event for analytics, with the process it was created
+   * for.
+   *
+   * @param event the event: the request, and its task project
+   * @throws Exception when the process cannot be read
+   */
   @Override
   public void onEvent(Event<Work, ProjectDto> event) throws Exception {
     StatisticData statisticData = new StatisticData();
     Work work = event.getSource();
     ProjectDto project = event.getData();
-    WorkFlow workFlow = processesService.getWorkFlowByProjectId(project.getId());
+    WorkFlow workFlow = workFlowOf(work, project);
     long userId = work.getCreatorId();
     statisticData.setModule("processes");
     statisticData.setSubModule("request");
@@ -52,5 +63,22 @@ public class RequestAnalyticsListener extends Listener<Work, ProjectDto> {
     statisticData.addKeyword("requestID", work.getId());
     statisticData.addKeyword("requestName", work.getTitle());
     AnalyticsUtils.addStatisticData(statisticData);
+  }
+
+  /**
+   * Reads the process a request was created for: the one the request names,
+   * whichever processes share its project, else the first process of its
+   * project when the request names none or the one it names is not found.
+   * The read is the platform's own.
+   *
+   * @param work the request
+   * @param project its task project
+   * @return the process
+   * @throws IllegalAccessException never, the platform's read applies no right
+   */
+  @SuppressWarnings("removal")
+  private WorkFlow workFlowOf(Work work, ProjectDto project) throws IllegalAccessException {
+    WorkFlow workFlow = work.getWorkFlowId() > 0 ? processesService.getWorkFlow(work.getWorkFlowId(), null) : null;
+    return workFlow != null ? workFlow : processesService.getWorkFlowByProjectId(project.getId());
   }
 }

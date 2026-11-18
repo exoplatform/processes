@@ -49,12 +49,34 @@ public class ProcessesToolDefinitionUpgradeTest {
   /** The only text submit_work_request shipped before EXO-92568. */
   private static final String SHIPPED_DIGEST     = "2410f9f21bddc010b503710ce33e78b4945ebf40c5e4c29daad80d9b249af7c0";
 
+  /** The text EXO-92568 shipped, the optional title's: Forms on processes replaces it. */
+  private static final String TITLE_DIGEST       = "b44da91deb5c3a16baa1f1aa4682058a93906d57ecb019897ee8cedd446c712f";
+
   /**
-   * The text EXO-92568 ships, as `jq -jcS '{description, input_schema}' |
-   * shasum -a 256` gives it: the next change of this tool (Forms on processes)
-   * lists it.
+   * The first text of Forms on processes (EXO-94526), whose refusal named a
+   * field by its key alone: the text that names its form replaces it.
    */
-  private static final String CURRENT_DIGEST     = "b44da91deb5c3a16baa1f1aa4682058a93906d57ecb019897ee8cedd446c712f";
+  private static final String FORM_VALUES_DIGEST = "6bfd32b490e70f6c95d545ea7dfbca7378399d0648d8999e537c459cd66f65dd";
+
+  /**
+   * The text whose refusal named a field's form, before a request carried its
+   * board's forms: the text naming every form the request carries replaces it.
+   */
+  private static final String FORM_ID_DIGEST     = "82e841b90e02b04a5aa29c87302b10f2357355863189f3d93ecfa49a2fb03ee1";
+
+  /**
+   * The text naming every form a request carries, before a process with
+   * documents to fill was handed to the Process app: the text that hands it
+   * off replaces it.
+   */
+  private static final String BOARD_FORMS_DIGEST = "ae731d2d7c38625543a885431086495d90c8e1513a05f662baf3e8da2b3e154a";
+
+  /**
+   * The text Forms on processes (EXO-94526) ships, as `jq -jcS
+   * '{description, input_schema}' | shasum -a 256` gives it: the next change
+   * of this tool lists it.
+   */
+  private static final String CURRENT_DIGEST     = "757e20e45e52d23ed8cbc915a2778cd8660dbe451496a70bd23e665e018c0f64";
 
   /**
    * The title is optional and its description says where it goes and that it
@@ -75,8 +97,8 @@ public class ProcessesToolDefinitionUpgradeTest {
   }
 
   /**
-   * The upgrades file lists the text shipped before, never the current one,
-   * whose digest the test computes as mcp-server does. Mutation: the shipped
+   * The upgrades file lists every text shipped before, never the current one,
+   * whose digest the test computes as mcp-server does. Mutation: a shipped
    * digest removed, or the current one listed, and this test fails.
    *
    * @throws Exception never
@@ -93,6 +115,10 @@ public class ProcessesToolDefinitionUpgradeTest {
                 }
               });
     assertTrue(replaced.toString(), replaced.contains(SHIPPED_DIGEST));
+    assertTrue(replaced.toString(), replaced.contains(TITLE_DIGEST));
+    assertTrue(replaced.toString(), replaced.contains(FORM_VALUES_DIGEST));
+    assertTrue(replaced.toString(), replaced.contains(FORM_ID_DIGEST));
+    assertTrue(replaced.toString(), replaced.contains(BOARD_FORMS_DIGEST));
 
     JsonNode definition = definition();
     ObjectNode text = JsonMapper.shared().createObjectNode();
@@ -101,6 +127,46 @@ public class ProcessesToolDefinitionUpgradeTest {
     String digest = sha256(canonical(text));
     assertEquals("the current text's digest, which the next change of the tool lists", CURRENT_DIGEST, digest);
     assertFalse("the current text replaces nothing", replaced.contains(digest));
+  }
+
+  /**
+   * The form values are an optional argument the space scope does not accept,
+   * and the description no longer forbids them: it sends the agent to the
+   * process's forms first, through get_form_places and get_form on the
+   * process's place, which lists every form the request carries, the
+   * board's included, and to the required fields of every form. A field's
+   * refusal names its form id before its key, or its key alone. Mutation:
+   * form_values required, listed in allowed_args, the old sentence restored,
+   * the refusal's form id dropped, the board's forms left out, or the hand-off
+   * of a process with documents to fill dropped, and this test fails. That
+   * process is not submitted here: the tool refuses it and the agent gives the
+   * user the process's link to finish in the Process app.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void theFormValuesAreOptionalAndUnscopedOnly() throws Exception {
+    JsonNode definition = definition();
+    JsonNode schema = definition.get("input_schema");
+    JsonNode formValues = schema.get("properties").get("form_values");
+    assertNotNull(formValues);
+    assertEquals("object", formValues.get("type").asString());
+    Set<String> required = new HashSet<>();
+    schema.get("required").forEach(name -> required.add(name.asString()));
+    assertFalse(required.contains("form_values"));
+    Set<String> allowed = new HashSet<>();
+    definition.get("space_scope").get("allowed_args").forEach(name -> allowed.add(name.asString()));
+    assertEquals(Set.of("title", "description"), allowed);
+    assertTrue(definition.get("require_approval").asBoolean());
+    String description = definition.get("description").asString();
+    assertFalse(description, description.contains("NO structured field map"));
+    assertTrue(description, description.contains("get_form_places") && description.contains("get_form with")
+        && description.contains("'processes.process'") && description.contains("every required field"));
+    assertTrue(description, description.contains("forms.value.required:<formId>:<key>") && description.contains("the key alone"));
+    assertTrue(description, description.contains("those of its board") && description.contains("lists every form the request carries")
+        && description.contains("every required field of every form"));
+    assertTrue(description, description.contains("processes.request.documentToFill") && description.contains("'requestUrl'")
+        && description.contains("Process app"));
   }
 
   /**

@@ -24,6 +24,7 @@ import org.exoplatform.services.attachments.model.Attachment;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 @Data
 @AllArgsConstructor
@@ -73,6 +74,14 @@ public class Work {
    */
   @EqualsAndHashCode.Exclude
   private long     workFlowId;
+
+  /**
+   * The form values a new request or a request draft's save sends: form id →
+   * field key → values. A save instruction, left out of the comparison of two
+   * requests; null when none is sent.
+   */
+  @EqualsAndHashCode.Exclude
+  private Map<Long, Map<String, List<Object>>> formValues;
 
   /**
    * constructor for Work task object
