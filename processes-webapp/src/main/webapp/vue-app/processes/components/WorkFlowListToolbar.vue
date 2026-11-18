@@ -113,7 +113,7 @@ export default {
     },
     /**
      * Builds the status choices: a processes administrator gets them all, any other user
-     * gets « I manage » only when they manage a process's space.
+     * gets « I manage » and « Disabled » only when they manage a process's space.
      *
      * @returns {void}
      */
@@ -126,10 +126,11 @@ export default {
         this.filterItems.push({text: this.$t('processes.workflow.deactivated.label'), value: 'deactivated'});
         this.filterItems.push(managerFilterItem);
       } else {
-        this.$processesService.getWorkFlows({enabled: true, manager: true}, 0, 1).then(workflows => {
+        this.$processesService.getWorkFlows({manager: true}, 0, 1).then(workflows => {
           this.isMemberSpaceManager = workflows.length > 0;
           if (this.isMemberSpaceManager) {
             this.filterItems.unshift(managerFilterItem);
+            this.filterItems.splice(1, 0, {text: this.$t('processes.workflow.deactivated.label'), value: 'deactivated'});
           }
         });
       }
