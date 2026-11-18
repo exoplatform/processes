@@ -13,8 +13,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 -->
 <template>
   <section
-    :id="`myRequestsGroup-${groupKey}`"
-    :class="`my-request-group-${groupKey}`"
+    :id="`myRequestsGroup-${hookKey}`"
+    :class="`my-request-group-${hookKey}`"
     class="my-request-group">
     <h4 class="my-request-group-header d-flex align-center text-light-color font-weight-regular subtitle-2 mt-4 mb-2">
       <span class="flex-shrink-0 me-3">{{ label }} ({{ works.length }})</span>
@@ -27,7 +27,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       :is-draft="isDraft" />
     <v-btn
       v-if="hiddenCount"
-      :id="`myRequestsShowMore-${groupKey}`"
+      :id="`myRequestsShowMore-${hookKey}`"
       class="my-requests-show-more text-none mb-2"
       color="primary"
       small
@@ -76,6 +76,14 @@ export default {
     expanded: false,
   }),
   computed: {
+    /**
+     * Turns the group key, a status name a project may write with spaces, into a hook for ids and classes.
+     *
+     * @returns {String} the key in lower case, each run of other characters than letters and digits as a dash
+     */
+    hookKey() {
+      return String(this.groupKey || '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    },
     /**
      * Lists the requests the group shows: all of them, or the first ones of a capped group
      * until « Show N more » is clicked.

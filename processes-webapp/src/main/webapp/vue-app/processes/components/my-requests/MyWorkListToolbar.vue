@@ -15,6 +15,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
   <application-toolbar
     id="myRequestsToolbar"
     :hide-right="hideFilters"
+    :hide-cone-button="!$vuetify.breakpoint.mobile"
+    :filters-count="filtersCount"
     :right-text-filter="{placeholder: $t('processes.myRequests.filter.query')}"
     :right-select-box="{
       selected: filter,
@@ -38,7 +40,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         v-model="workflowId"
         :aria-label="$t('processes.myRequests.filter.process')"
         class="my-requests-process-filter flex-grow-0 ignore-vuetify-classes py-2 height-auto width-auto text-truncate my-auto ms-4"
-        @change="emitFilter">
+        @change="emitFilter(false)">
         <option :value="ALL_FILTER">{{ $t('processes.myRequests.filter.allProcesses') }}</option>
         <option
           v-for="process in processes"
@@ -112,6 +114,14 @@ export default {
       return !!this.query || this.workflowId !== this.ALL_FILTER || this.filter !== this.ALL_FILTER;
     },
     /**
+     * Counts the chosen process and status, for the toolbar's filter button on a phone.
+     *
+     * @returns {Number} how many of the two are chosen
+     */
+    filtersCount() {
+      return (this.workflowId !== this.ALL_FILTER ? 1 : 0) + (this.filter !== this.ALL_FILTER ? 1 : 0);
+    },
+    /**
      * Says how many requests the list holds, « 13 requests · 2 drafts », or how many of them
      * the filters keep, « 2 of 13 requests ».
      *
@@ -142,7 +152,7 @@ export default {
      */
     updateQuery(query) {
       this.query = query || null;
-      this.emitFilter();
+      this.emitFilter(false);
     },
     /**
      * Applies the status chosen in the select box.
@@ -152,20 +162,23 @@ export default {
      */
     updateFilter(filter) {
       this.filter = filter;
-      this.emitFilter();
+      this.emitFilter(true);
     },
     /**
      * Sends the text, the process and the status to the list, which filters the requests it
-     * holds, and tells the application the status, which loads the completed requests only
-     * when « completed » is chosen.
+     * holds, and, when the status changed, tells the application, which loads the completed
+     * requests only when « completed » is chosen.
      *
+     * @param {Boolean} statusChanged whether the status is what changed
      * @returns {void}
      */
-    emitFilter() {
+    emitFilter(statusChanged) {
       const status = this.filter === this.ALL_FILTER ? null : this.filter;
       const workflowId = this.workflowId === this.ALL_FILTER ? null : this.workflowId;
       this.$emit('change', {query: this.query, workflowId, status});
-      this.$root.$emit('work-filter-changed', {status});
+      if (statusChanged) {
+        this.$root.$emit('work-filter-changed', {status});
+      }
     },
     /**
      * Translates a task status name, or keeps the name when no translation exists.

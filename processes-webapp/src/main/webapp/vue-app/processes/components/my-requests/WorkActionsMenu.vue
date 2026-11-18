@@ -114,7 +114,7 @@ export default {
   computed: {
     /**
      * Tells whether the requester may archive the request, or unarchive it: a sent request
-     * that is not decided, as the former row's check button allowed.
+     * that is not decided (Validated or Refused).
      *
      * @returns {Boolean} true when Archive or Unarchive is offered
      */

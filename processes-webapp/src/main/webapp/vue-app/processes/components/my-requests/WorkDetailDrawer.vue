@@ -108,7 +108,8 @@ export default {
     },
   },
   created() {
-    // Loads the modules whose name contains ProcessRequestDetailExtension, which register their sections
+    // Loads the modules whose name contains ProcessRequestDetailExtension, which register their
+    // request-detail-section and the rows' request-row-summary components
     this.$utils.includeExtensions('ProcessRequestDetailExtension');
     this.$root.$on('open-work-detail-drawer', this.open);
     this.$root.$on('close-work-drawer', this.close);

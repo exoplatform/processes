@@ -53,7 +53,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
           class="caption text-light-color" />
       </div>
     </div>
-    <!-- Extension point ProcessRequestRow / request-row-summary: a few of the request's form values -->
+    <!-- Extension point ProcessRequestRow / request-row-summary: a few of the request's form values.
+         Its modules load with the detail drawer's: their name contains ProcessRequestDetailExtension -->
     <div
       :id="`requestRowSummary-${work.id}`"
       class="my-request-row-summary d-none d-md-flex flex-shrink-1 text-truncate mx-2">

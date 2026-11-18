@@ -96,6 +96,7 @@ export default {
       loadingMore: false,
       hasMoreTypes: false,
       isManager: false,
+      managesWorkflow: null,
       confirmTitle: this.$t('processes.workflow.action.confirmation.label'),
       confirmMessage: '',
       dialogAction: null,
@@ -198,7 +199,7 @@ export default {
           this.manager = true;
           this.enabled = true;
         } else if (event.filter === 'deactivated') {
-          // a user who edits a process finds the ones they disabled, to enable them again
+          // a user who manages a process finds the disabled ones they manage, to enable them again
           this.manager = true;
           this.enabled = false;
         } else {
@@ -339,12 +340,13 @@ export default {
         filter.enabled = true;
         filter.manager = false;
         this.query = '';
-        Promise.all([
-          this.$processesService.getWorkFlows(filter),
-          this.$processesService.getWorkFlows({manager: true}, 0, 1),
-        ]).then(([workflows, managedWorkflows]) => {
-          this.showProcessFilter = workflows.length > 0 || managedWorkflows.length > 0;
-        });
+        // whether the user manages a process is read once: the toolbar then offers its « Disabled » view
+        this.managesWorkflow = this.managesWorkflow || this.$processesService.getWorkFlows({manager: true}, 0, 1)
+          .then(managedWorkflows => managedWorkflows.length > 0);
+        Promise.all([this.$processesService.getWorkFlows(filter), this.managesWorkflow])
+          .then(([workflows, managesWorkflow]) => {
+            this.showProcessFilter = workflows.length > 0 || managesWorkflow;
+          });
       }
     },
     handleTabChanges() {
@@ -452,7 +454,7 @@ export default {
         this.hasMoreTypes = workflows && workflows.length > this.limit;
         let page = this.hasMoreTypes ? workflows.slice(0, -1) : workflows || [];
         if (!this.isManager && filter.enabled === false) {
-          // the disabled processes a user sees are the ones they may edit
+          // a guard: the server's manager scope already lists only the processes the user may edit
           page = page.filter(workflow => workflow.acl && workflow.acl.canEdit);
         }
         this.workflows.push(...page);
@@ -480,6 +482,10 @@ export default {
         completed: true
       };
       this.$processesService.getWorks(filter, 0, 0, expand).then(works => {
+        if (this.status !== 'completed') {
+          // the status changed while the completed requests were loading
+          return;
+        }
         works.forEach(work => {
           work.status = 'completed';
         });

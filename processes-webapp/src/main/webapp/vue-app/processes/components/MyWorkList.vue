@@ -103,12 +103,12 @@ export default {
       return processesOf(this.allWorks);
     },
     /**
-     * Tells whether the list holds no request, draft or completed request at all.
+     * Tells whether the user has no request at all: none loaded, and none sent, completed ones included.
      *
-     * @returns {Boolean} true when nothing is loaded
+     * @returns {Boolean} true when the user never made a request
      */
     isEmpty() {
-      return !this.allWorks.length;
+      return !this.allWorks.length && !this.showWorkFilter;
     },
     /**
      * Builds the shown groups: the drafts, each status in the order the processes list them,
@@ -142,9 +142,9 @@ export default {
       return shown;
     },
     /**
-     * Tells whether the chosen process holds drafts only: nothing was sent for it yet.
+     * Tells whether the chosen process holds drafts only among the loaded requests: no open request.
      *
-     * @returns {Boolean} true when a process is chosen and none of its requests was sent
+     * @returns {Boolean} true when a process is chosen and none of its loaded requests was sent
      */
     isDraftsOnlyProcess() {
       const workflowId = this.filter.workflowId;

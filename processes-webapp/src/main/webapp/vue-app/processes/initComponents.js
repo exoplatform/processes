@@ -33,9 +33,6 @@ import CreateDocumentForm from './components/attachments-integration/CreateDocum
 import ProcessesAttachments from './components/attachments-integration/ProcessesAttachments.vue';
 
 import ProcessMobileActionDrawer from './components/mobile/ProcessMobileActionDrawer.vue';
-import MobileFilter from './components/mobile/MobileFilter.vue';
-import WorkBodyMobile from './components/mobile/WorkBodyMobile.vue';
-import WorkBody from './components/WorkBody.vue';
 
 import * as processesService from './js/ProcessesService.js';
 import * as ProcessesAttachmentService from './js/ProcessesAttachmentService.js';
@@ -73,10 +70,7 @@ const components = {
   'custom-date-format': CustomDateFormat,
   'request-status': RequestStatus,
   'create-document-from': CreateDocumentForm,
-  'process-mobile-action-drawer': ProcessMobileActionDrawer,
-  'mobile-filter': MobileFilter,
-  'work-body-mobile': WorkBodyMobile,
-  'work-body': WorkBody
+  'process-mobile-action-drawer': ProcessMobileActionDrawer
 };
 
 for (const key in components) {
