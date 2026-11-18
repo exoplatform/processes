@@ -37,8 +37,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       class="requestFillDocumentButton requestDocumentLine-button font-weight-bold"
       color="primary"
       outlined
-      @click="$emit('fill')">
-      {{ $t(filled ? 'processes.request.documentToFill.continue' : 'processes.request.documentToFill.fill') }}
+      @click="$emit(readonly ? 'open' : 'fill')">
+      {{ $t(buttonLabelKey) }}
     </v-btn>
     <v-menu
       ref="menu"
@@ -100,8 +100,24 @@ export default {
       type: String,
       default: null,
     },
+    /** A sent request's copy: the button opens it, read-only, rather than filling it */
+    readonly: {
+      type: Boolean,
+      default: false,
+    },
   },
   computed: {
+    /**
+     * Picks the button's label: « Open » on a sent request, else « Continue » once filled, or « Fill in ».
+     *
+     * @returns {String} the label's key
+     */
+    buttonLabelKey() {
+      if (this.readonly) {
+        return 'processes.request.documentToFill.open';
+      }
+      return this.filled ? 'processes.request.documentToFill.continue' : 'processes.request.documentToFill.fill';
+    },
     /** @returns {String} the document's name */
     title() {
       return this.name || this.attachment.title || this.attachment.name || '';

@@ -676,9 +676,20 @@
   .my-requests-empty-description {
     max-width: 420px;
   }
+}
 
-  .work-detail-subtitle {
-    margin-top: 2px;
+// a sent request's comments: the drawer's footer posts them, and a sent request's comments are
+// neither answered in a thread nor deleted from its view
+#requestComments {
+  .requestCommentPrompt {
+    border-radius: 4px;
+    cursor: text;
+  }
+
+  .requestCommentEditor .commentBtn,
+  #reply_btn,
+  .deleteComment {
+    display: none !important;
   }
 }
 

@@ -226,11 +226,6 @@ export default {
       this.workComments = event.object.comments;
       this.$refs.addWork.open(event.object, event.mode, event.isDraft,event.allowSave);
     });
-    // The request detail's comments open the task comments drawer on this request
-    this.$root.$on('open-work-detail-drawer', event => {
-      this.work = event.work;
-      this.workComments = event.comments;
-    });
     this.$root.$on('open-workflow-drawer', event => {
       this.$refs.addWorkFlow.open(event.workflow, event.mode);
     });
@@ -415,10 +410,7 @@ export default {
     openWorkDetails(workId) {
       this.$processesService.getWorkById(workId, 'workFlow').then(work => {
         if (work) {
-          this.$processesService.getWorkComments(work.id).then(comments => {
-            work.comments = comments;
-            this.$root.$emit('open-work-detail-drawer', {work, comments});
-          });
+          this.$root.$emit('open-add-work-drawer', {object: work, mode: 'view_work', isDraft: false});
         }
       });
     },

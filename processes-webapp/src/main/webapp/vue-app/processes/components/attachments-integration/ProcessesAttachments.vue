@@ -60,9 +60,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
             :can-access="attachment.acl && attachment.acl.canAccess"
             :allow-to-detach="false"
             :open-in-editor="true"
-            :is-file-editable="!preview && isFileEditable(attachment)"
-            :is-file-fillable="!preview && isFileFillable(attachment)"
-            :is-file-readable="preview && isFileSupported(attachment)"
+            :is-file-editable="!preview && !readonly && isFileEditable(attachment)"
+            :is-file-fillable="!preview && !readonly && isFileFillable(attachment)"
+            :is-file-readable="(preview || readonly) && isFileSupported(attachment)"
             allow-to-preview
             small-attachment-icon />
         </v-list-item-group>
@@ -144,6 +144,11 @@ export default {
     hiddenIds: {
       type: Array,
       default: () => [],
+    },
+    // A sent request's files: each one opens read-only, never to be edited or filled in
+    readonly: {
+      type: Boolean,
+      default: false,
     },
   },
   model: {
