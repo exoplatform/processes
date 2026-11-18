@@ -548,6 +548,10 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     return null;
   }
 
+  /**
+   * {@inheritDoc} Each request names the process it was created for, from its
+   * request record, whichever processes share its project.
+   */
   @Override
   public List<Work> getWorks(long userIdentityId, WorkFilter workFilter, int offset, int limit) throws Exception {
     List<WorkFlow> workFlows = findAllWorkFlows(0, 0);
@@ -568,9 +572,34 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     taskQuery.setOrderBy(orderByList);
     taskQuery.setCreatedBy(ProcessesUtils.getUserNameByIdentityId(identityManager, userIdentityId));
     List<TaskDto> tasks = taskService.findTasks(taskQuery, offset, limit);
-    return (EntityMapper.tasksToWorkList(tasks));
+    return withRequestWorkFlows(EntityMapper.tasksToWorkList(tasks));
   }
 
+  /**
+   * Sets each request of a page read from its tasks to the process its
+   * request record names, the records read in one query: a task alone tells
+   * only its project, which several processes may share. A task with no
+   * record keeps no process.
+   *
+   * @param works the requests read from their tasks
+   * @return the same requests
+   */
+  private List<Work> withRequestWorkFlows(List<Work> works) {
+    List<Long> taskIds = works.stream()
+                              .filter(work -> work != null && work.getWorkFlowId() <= 0)
+                              .map(Work::getId)
+                              .toList();
+    Map<Long, Long> workFlowIds = getRequestWorkFlowIds(taskIds);
+    works.stream()
+         .filter(work -> work != null && workFlowIds.containsKey(work.getId()))
+         .forEach(work -> work.setWorkFlowId(workFlowIds.get(work.getId())));
+    return works;
+  }
+
+  /**
+   * {@inheritDoc} The request names the process it was created for, from its
+   * request record, whichever processes share its project.
+   */
   @Override
   public Work getWorkById(long userIdentityId, long workId) {
     Identity identity = identityManager.getIdentity(userIdentityId);
@@ -591,7 +620,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     } catch (Exception e) {
       LOG.error("Error while getting work");
     }
-    return EntityMapper.taskToWork(taskDto);
+    return withRequestWorkFlow(EntityMapper.taskToWork(taskDto));
   }
 
   /**
@@ -606,13 +635,35 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     return tasksCount;
   }
 
+  /**
+   * {@inheritDoc} The request names the process it was created for, from its
+   * request record, whichever processes share its project.
+   */
   @Override
   public Work getWorkById(long id) {
     try {
-      return EntityMapper.taskToWork(taskService.getTask(id));
+      return withRequestWorkFlow(EntityMapper.taskToWork(taskService.getTask(id)));
     } catch (EntityNotFoundException e) {
       return null;
     }
+  }
+
+  /**
+   * Sets a request read from its task to the process its request record
+   * names: a task alone tells only its project, which several processes may
+   * share. A task with no record keeps no process.
+   *
+   * @param work the request read from its task, or null
+   * @return the same request
+   */
+  private Work withRequestWorkFlow(Work work) {
+    if (work != null && work.getWorkFlowId() <= 0) {
+      Long workFlowId = getRequestWorkFlowId(work.getId());
+      if (workFlowId != null) {
+        work.setWorkFlowId(workFlowId);
+      }
+    }
+    return work;
   }
 
   /**
@@ -723,7 +774,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       return completeRequest(taskDto, work, userId);
     } else {
       TaskDto taskDto = updateWorkTask(work);
-      return EntityMapper.taskToWork(taskDto);
+      return withRequestWorkFlow(EntityMapper.taskToWork(taskDto));
     }
   }
 
@@ -958,7 +1009,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   }
 
   /**
-   * {@inheritDoc}
+   * {@inheritDoc} The request returned names the process it was created for,
+   * from its request record.
    */
   @Override
   public Work updateWorkCompleted(Long workId, boolean completed) {
@@ -972,7 +1024,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     } catch (EntityNotFoundException e) {
       throw new jakarta.persistence.EntityNotFoundException("work not found");
     }
-    return EntityMapper.taskToWork(taskDto);
+    return withRequestWorkFlow(EntityMapper.taskToWork(taskDto));
   }
 
   /**

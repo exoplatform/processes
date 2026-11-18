@@ -29,6 +29,7 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.ws.rs.ext.RuntimeDelegate;
@@ -621,6 +622,53 @@ public class ProcessesStorageImplTest {
   }
 
   /**
+   * A request read by id names the process its request record names, not the
+   * first process of its project: request 22014 was created on process 2 in
+   * project 159, which process 1 also feeds. Both reads, the requester's and
+   * the platform's, set it; a task with no record names no process.
+   * Mutation: drop the record lookup from either read and this test fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  public void aRequestReadByIdNamesTheProcessOfItsRecord() throws Exception {
+    RequestEntity record = new RequestEntity();
+    record.setTaskId(22014L);
+    record.setWorkFlowId(2L);
+    when(requestDAO.find(22014L)).thenReturn(record);
+    TaskDto task = new TaskDto();
+    task.setId(22014L);
+    Work fromTask = new Work();
+    fromTask.setId(22014L);
+    fromTask.setProjectId(159L);
+    ENTITY_MAPPER.when(() -> EntityMapper.taskToWork(task)).thenReturn(fromTask);
+    when(taskService.getTask(22014L)).thenReturn(task);
+
+    assertEquals(2L, processesStorage.getWorkById(22014L).getWorkFlowId());
+
+    TaskDto ownTask = new TaskDto();
+    ownTask.setId(22014L);
+    Work fromOwnTask = new Work();
+    fromOwnTask.setId(22014L);
+    ENTITY_MAPPER.when(() -> EntityMapper.taskToWork(ownTask)).thenReturn(fromOwnTask);
+    Identity identity = mock(Identity.class);
+    when(identity.getRemoteId()).thenReturn("root");
+    when(identityManager.getIdentity(1L)).thenReturn(identity);
+    when(taskService.findTasks(any(TaskQuery.class), eq(0), eq(0))).thenReturn(List.of(ownTask));
+
+    assertEquals(2L, processesStorage.getWorkById(1L, 22014L).getWorkFlowId());
+
+    TaskDto plainTask = new TaskDto();
+    plainTask.setId(500L);
+    Work fromPlainTask = new Work();
+    fromPlainTask.setId(500L);
+    ENTITY_MAPPER.when(() -> EntityMapper.taskToWork(plainTask)).thenReturn(fromPlainTask);
+    when(taskService.getTask(500L)).thenReturn(plainTask);
+
+    assertEquals(0L, processesStorage.getWorkById(500L).getWorkFlowId());
+  }
+
+  /**
    * Builds a new request of process 3 in project 9, whose task Task creates
    * with id 40.
    *
@@ -939,6 +987,75 @@ public class ProcessesStorageImplTest {
     ENTITY_MAPPER.when(() -> EntityMapper.tasksToWorkList(tasks)).thenReturn(works);
     processesStorage.getWorks(1L, workFilter, 0, 0);
     verify(taskService, times(1)).findTasks(any(), anyInt(), anyInt());
+  }
+
+  /**
+   * A request returned by an edit or by its completion names the process its
+   * request record names, not the first process of its project: request 22014
+   * was created on process 2 in a project process 1 also feeds. Mutation:
+   * drop the record lookup from either write and this test fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  public void aRequestReturnedByAWriteNamesTheProcessOfItsRecord() throws Exception {
+    RequestEntity record = new RequestEntity();
+    record.setTaskId(22014L);
+    record.setWorkFlowId(2L);
+    when(requestDAO.find(22014L)).thenReturn(record);
+    TaskDto task = new TaskDto();
+    task.setId(22014L);
+    task.setStatus(status(7L, "Request"));
+    when(taskService.getTask(22014L)).thenReturn(task);
+    when(taskService.updateTask(task)).thenReturn(task);
+    ENTITY_MAPPER.when(() -> EntityMapper.taskToWork(task)).thenAnswer(invocation -> {
+      Work fromTask = new Work();
+      fromTask.setId(22014L);
+      return fromTask;
+    });
+
+    assertEquals(2L, processesStorage.updateWorkCompleted(22014L, true).getWorkFlowId());
+
+    when(identityManager.getIdentity(1L)).thenReturn(mock(Identity.class));
+    when(statusService.getStatuses(9L)).thenReturn(Arrays.asList(status(7L, "Request")));
+    Work edit = new Work();
+    edit.setId(22014L);
+    edit.setProjectId(9L);
+    edit.setStatus("Request");
+    edit.setTitle("edited");
+
+    assertEquals(2L, processesStorage.saveWork(edit, 1L).getWorkFlowId());
+  }
+
+  /**
+   * A listed request names the process its request record names, not the
+   * first process of its project: request 22014 was created on process 2 in a
+   * project process 1 also feeds. The page's records are read in one query,
+   * and a task with no record names no process. Mutation: drop the record
+   * lookup from the list and this test fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  public void aListedRequestNamesTheProcessOfItsRecord() throws Exception {
+    TaskDto requestTask = new TaskDto();
+    requestTask.setId(22014L);
+    TaskDto plainTask = new TaskDto();
+    plainTask.setId(500L);
+    List<TaskDto> tasks = List.of(requestTask, plainTask);
+    when(taskService.findTasks(any(TaskQuery.class), eq(0), eq(10))).thenReturn(tasks);
+    Work request = new Work();
+    request.setId(22014L);
+    Work plain = new Work();
+    plain.setId(500L);
+    ENTITY_MAPPER.when(() -> EntityMapper.tasksToWorkList(tasks)).thenReturn(new ArrayList<>(List.of(request, plain)));
+    when(requestDAO.findWorkFlowIdsByTaskIds(any())).thenReturn(Map.of(22014L, 2L));
+
+    List<Work> works = processesStorage.getWorks(1L, new WorkFilter(), 0, 10);
+
+    assertEquals(2L, works.get(0).getWorkFlowId());
+    assertEquals(0L, works.get(1).getWorkFlowId());
+    verify(requestDAO, times(1)).findWorkFlowIdsByTaskIds(any());
   }
 
   @Test
