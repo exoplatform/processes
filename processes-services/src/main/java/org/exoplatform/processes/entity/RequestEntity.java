@@ -34,6 +34,8 @@ import lombok.NoArgsConstructor;
  */
 @Entity(name = "ProcessesRequest")
 @NamedQuery(name = "ProcessesRequest.deleteByWorkFlowId", query = "DELETE FROM ProcessesRequest r WHERE r.workFlowId = :workFlowId")
+@NamedQuery(name = "ProcessesRequest.findByTaskIds", query = "SELECT r FROM ProcessesRequest r WHERE r.taskId IN :taskIds")
+@NamedQuery(name = "ProcessesRequest.findTaskIdsByWorkFlowId", query = "SELECT r.taskId FROM ProcessesRequest r WHERE r.workFlowId = :workFlowId ORDER BY r.taskId")
 @Table(name = "PROCESSES_REQUEST")
 @Data
 @NoArgsConstructor

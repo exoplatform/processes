@@ -168,6 +168,24 @@ public class WorkFlowDAOTest {
   }
 
   /**
+   * With the manager filter set to false, a membership of any type in a
+   * request creators' group lists the process, as the process ACL grants that
+   * user the right to add a request: a type other than manager, member or '*'
+   * included. Mutation: strip only the manager, member and '*' prefixes from the
+   * memberships matched against the request creators, and the validator's
+   * listing misses the process.
+   */
+  @Test
+  public void aMembershipOfAnyTypeInARequestsCreatorsGroupListsTheProcess() {
+    ProcessesFilter filter = new ProcessesFilter();
+    filter.setManager(false);
+
+    assertEquals(Set.of(salesProcess), findWorkFlows(filter, List.of("jack", "validator:/spaces/marketing")));
+    assertEquals(Set.of(salesProcess), findWorkFlows(filter, List.of("jack", "*:/spaces/marketing")));
+    assertEquals(Set.of(), findWorkFlows(filter, List.of("jack", "validator:/spaces/marketing-team")));
+  }
+
+  /**
    * The text and the enabled filters narrow a user's listing.
    */
   @Test

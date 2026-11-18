@@ -70,6 +70,18 @@ import org.exoplatform.task.service.StatusService;
 import org.exoplatform.task.service.TaskService;
 import org.exoplatform.task.util.ProjectUtil;
 import org.exoplatform.task.util.UserUtil;
+import java.util.Collection;
+import java.util.Collections;
+import jakarta.persistence.criteria.CommonAbstractCriteria;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Predicate;
+import org.exoplatform.task.dao.condition.PredicateCondition;
+import org.exoplatform.task.domain.Task;
+import org.exoplatform.processes.model.WorkDraftRef;
+import org.exoplatform.processes.constant.ProcessesEvents;
+import org.exoplatform.processes.model.ProcessDeletion;
+import java.util.Objects;
 
 public class ProcessesStorageImpl implements ProcessesStorage {
 
@@ -198,6 +210,111 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   public Long getRequestWorkFlowId(long taskId) {
     RequestEntity request = requestDAO.find(taskId);
     return request == null ? null : request.getWorkFlowId();
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Map<Long, Long> getRequestWorkFlowIds(Collection<Long> taskIds) {
+    if (taskIds == null || taskIds.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    return requestDAO.findWorkFlowIdsByTaskIds(taskIds);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<Long> getRequestTaskIds(long workFlowId, Long afterTaskId, int limit) {
+    if (limit <= 0) {
+      throw new IllegalArgumentException("A page of request tasks needs a strictly positive limit");
+    }
+    TaskQuery taskQuery = requestsQuery(workFlowId);
+    if (afterTaskId != null) {
+      taskQuery.add(new PredicateCondition<Task>((cb, query, root) -> cb.greaterThan(root.<Long> get("id"), afterTaskId)));
+    }
+    taskQuery.setOrderBy(List.of(new OrderBy.ASC("id")));
+    try {
+      return taskService.findTasks(taskQuery, 0, limit).stream().map(TaskDto::getId).toList();
+    } catch (Exception e) {
+      throw new IllegalStateException("The request tasks of the process " + workFlowId + " could not be read", e);
+    }
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Set<Long> getRequestProjectIds(long workFlowId) {
+    List<Long> projectIds = taskService.selectTaskField(requestsQuery(workFlowId), "status.project.id");
+    return projectIds == null ? Collections.emptySet() : new HashSet<>(projectIds);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public long countRequests(long workFlowId) {
+    try {
+      return taskService.countTasks(requestsQuery(workFlowId));
+    } catch (Exception e) {
+      throw new IllegalStateException("The request tasks of the process " + workFlowId + " could not be counted", e);
+    }
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Predicate requestOf(CriteriaBuilder cb,
+                             CommonAbstractCriteria query,
+                             Expression<Long> taskId,
+                             Collection<Long> workFlowIds) {
+    return RequestDAO.requestOf(cb, query, taskId, workFlowIds);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Map<Long, WorkDraftRef> getWorkDraftRefs(Collection<Long> draftIds) {
+    if (draftIds == null || draftIds.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    return workDraftDAO.findDraftRefs(draftIds);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<Long> getWorkDraftIds(long workFlowId, Long afterDraftId, int limit) {
+    if (limit <= 0) {
+      throw new IllegalArgumentException("A page of drafts needs a strictly positive limit");
+    }
+    return workDraftDAO.findDraftIdsByWorkflowId(workFlowId, afterDraftId, limit);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public long countWorkDrafts(long workFlowId) {
+    return workDraftDAO.countDraftsByWorkflowId(workFlowId);
+  }
+
+  /**
+   * @param workFlowId the process id
+   * @return a task query restricted to the requests of the process
+   */
+  private TaskQuery requestsQuery(long workFlowId) {
+    TaskQuery taskQuery = new TaskQuery();
+    taskQuery.add(new PredicateCondition<Task>((cb,
+                                                query,
+                                                root) -> RequestDAO.requestOf(cb, query, root.<Long> get("id"), List.of(workFlowId))));
+    return taskQuery;
   }
 
   /**
@@ -431,6 +548,10 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     return null;
   }
 
+  /**
+   * {@inheritDoc} Each request names the process it was created for, from its
+   * request record, whichever processes share its project.
+   */
   @Override
   public List<Work> getWorks(long userIdentityId, WorkFilter workFilter, int offset, int limit) throws Exception {
     List<WorkFlow> workFlows = findAllWorkFlows(0, 0);
@@ -451,9 +572,34 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     taskQuery.setOrderBy(orderByList);
     taskQuery.setCreatedBy(ProcessesUtils.getUserNameByIdentityId(identityManager, userIdentityId));
     List<TaskDto> tasks = taskService.findTasks(taskQuery, offset, limit);
-    return (EntityMapper.tasksToWorkList(tasks));
+    return withRequestWorkFlows(EntityMapper.tasksToWorkList(tasks));
   }
 
+  /**
+   * Sets each request of a page read from its tasks to the process its
+   * request record names, the records read in one query: a task alone tells
+   * only its project, which several processes may share. A task with no
+   * record keeps no process.
+   *
+   * @param works the requests read from their tasks
+   * @return the same requests
+   */
+  private List<Work> withRequestWorkFlows(List<Work> works) {
+    List<Long> taskIds = works.stream()
+                              .filter(work -> work != null && work.getWorkFlowId() <= 0)
+                              .map(Work::getId)
+                              .toList();
+    Map<Long, Long> workFlowIds = getRequestWorkFlowIds(taskIds);
+    works.stream()
+         .filter(work -> work != null && workFlowIds.containsKey(work.getId()))
+         .forEach(work -> work.setWorkFlowId(workFlowIds.get(work.getId())));
+    return works;
+  }
+
+  /**
+   * {@inheritDoc} The request names the process it was created for, from its
+   * request record, whichever processes share its project.
+   */
   @Override
   public Work getWorkById(long userIdentityId, long workId) {
     Identity identity = identityManager.getIdentity(userIdentityId);
@@ -474,7 +620,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     } catch (Exception e) {
       LOG.error("Error while getting work");
     }
-    return EntityMapper.taskToWork(taskDto);
+    return withRequestWorkFlow(EntityMapper.taskToWork(taskDto));
   }
 
   /**
@@ -489,13 +635,35 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     return tasksCount;
   }
 
+  /**
+   * {@inheritDoc} The request names the process it was created for, from its
+   * request record, whichever processes share its project.
+   */
   @Override
   public Work getWorkById(long id) {
     try {
-      return EntityMapper.taskToWork(taskService.getTask(id));
+      return withRequestWorkFlow(EntityMapper.taskToWork(taskService.getTask(id)));
     } catch (EntityNotFoundException e) {
       return null;
     }
+  }
+
+  /**
+   * Sets a request read from its task to the process its request record
+   * names: a task alone tells only its project, which several processes may
+   * share. A task with no record keeps no process.
+   *
+   * @param work the request read from its task, or null
+   * @return the same request
+   */
+  private Work withRequestWorkFlow(Work work) {
+    if (work != null && work.getWorkFlowId() <= 0) {
+      Long workFlowId = getRequestWorkFlowId(work.getId());
+      if (workFlowId != null) {
+        work.setWorkFlowId(workFlowId);
+      }
+    }
+    return work;
   }
 
   /**
@@ -602,29 +770,106 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       throw new IllegalArgumentException("identity is not exist");
     }
     if (work.getId() == 0) {
-      TaskDto taskDto = createWorkTask(work, identity);
-      recordRequest(taskDto, work.getWorkFlowId(), userId);
-      applyLabels(taskDto, work.getWorkFlowId());
-      ProjectDto projectDto = taskDto.getStatus().getProject();
-      if (work.getDraftId() != null) {
-        processesAttachmentService.moveAttachmentsToEntity(work.getAttachments(),
-                                                           userId,
-                                                           work.getDraftId(),
-                                                           WORK_DRAFT_ENTITY_TYPE,
-                                                           taskDto.getId(),
-                                                           TASK_ENTITY_TYPE,
-                                                           projectDto.getId());
-        deleteWorkDraftById(work.getDraftId());
-      }
-      Work newWork = EntityMapper.taskToWork(taskDto);
-      newWork.setCreatorId(userId);
-      newWork.setWorkFlowId(work.getWorkFlowId());
-      ProcessesUtils.broadcast(listenerService, "exo.process.request.created", newWork, projectDto);
-      return newWork;
+      TaskDto taskDto = createRequestTask(work, identity, userId);
+      return completeRequest(taskDto, work, userId);
     } else {
       TaskDto taskDto = updateWorkTask(work);
-      return EntityMapper.taskToWork(taskDto);
+      return withRequestWorkFlow(EntityMapper.taskToWork(taskDto));
     }
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Work createRequest(Work work, long userId) {
+    Identity identity = identityManager.getIdentity(userId);
+    if (identity == null) {
+      throw new IllegalArgumentException("identity is not exist");
+    }
+    TaskDto taskDto = createRequestTask(work, identity, userId);
+    Work request = EntityMapper.taskToWork(taskDto);
+    request.setCreatorId(userId);
+    request.setWorkFlowId(work.getWorkFlowId());
+    return request;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void removeRequest(long taskId) {
+    try {
+      taskService.removeTask(taskId);
+    } catch (Exception e) {
+      LOG.warn("The task {} of a request whose values were refused could not be removed", taskId, e);
+    }
+    try {
+      RequestEntity request = requestDAO.find(taskId);
+      if (request != null) {
+        requestDAO.delete(request);
+      }
+    } catch (RuntimeException e) {
+      LOG.warn("The record of the request {} whose values were refused could not be removed", taskId, e);
+    }
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Work completeRequest(Work request, Work work, long userId) {
+    TaskDto taskDto;
+    try {
+      taskDto = taskService.getTask(request.getId());
+    } catch (EntityNotFoundException e) {
+      throw new IllegalStateException("The task of the request " + request.getId() + " is gone", e);
+    }
+    return completeRequest(taskDto, work, userId);
+  }
+
+  /**
+   * Creates a new request's task, its record and its labels.
+   *
+   * @param work the new request
+   * @param identity the requester's identity
+   * @param userId the requester's identity id
+   * @return the created task
+   */
+  private TaskDto createRequestTask(Work work, Identity identity, long userId) {
+    TaskDto taskDto = createWorkTask(work, identity);
+    recordRequest(taskDto, work.getWorkFlowId(), userId);
+    applyLabels(taskDto, work.getWorkFlowId());
+    return taskDto;
+  }
+
+  /**
+   * Ends a new request's creation on its task: moves its draft's attachments,
+   * deletes its draft and announces it, then announces the request.
+   *
+   * @param taskDto the request's task
+   * @param work the new request as submitted
+   * @param userId the requester's identity id
+   * @return the created request
+   */
+  private Work completeRequest(TaskDto taskDto, Work work, long userId) {
+    ProjectDto projectDto = taskDto.getStatus().getProject();
+    if (work.getDraftId() != null) {
+      processesAttachmentService.moveAttachmentsToEntity(work.getAttachments(),
+                                                         userId,
+                                                         work.getDraftId(),
+                                                         WORK_DRAFT_ENTITY_TYPE,
+                                                         taskDto.getId(),
+                                                         TASK_ENTITY_TYPE,
+                                                         projectDto.getId());
+      deleteWorkDraftById(work.getDraftId());
+      ProcessesUtils.broadcast(listenerService, ProcessesEvents.REQUEST_DRAFT_DELETED, work.getDraftId(), work.getWorkFlowId());
+    }
+    Work newWork = EntityMapper.taskToWork(taskDto);
+    newWork.setCreatorId(userId);
+    newWork.setWorkFlowId(work.getWorkFlowId());
+    ProcessesUtils.broadcast(listenerService, "exo.process.request.created", newWork, projectDto);
+    return newWork;
   }
 
   /**
@@ -714,8 +959,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    */
   @Override
   @ContainerTransactional(atomic = true)
-  public void deleteWorkflowById(Long workflowId) throws jakarta.persistence.EntityNotFoundException {
-    deleteWorkflowRows(workflowId);
+  public ProcessDeletion deleteWorkflowById(Long workflowId) throws jakarta.persistence.EntityNotFoundException {
+    return deleteWorkflowRows(workflowId);
   }
 
   /**
@@ -726,10 +971,12 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    * the process and its request records as they were.
    *
    * @param workflowId the process id
+   * @return the task ids the process's request records held and the ids of
+   *         its drafts, read in the same transaction as their deletion
    * @throws jakarta.persistence.EntityNotFoundException when the process does
    *           not exist
    */
-  void deleteWorkflowRows(Long workflowId) {
+  ProcessDeletion deleteWorkflowRows(Long workflowId) {
     WorkFlowEntity workFlowEntity = this.workFlowDAO.find(workflowId);
     if (workFlowEntity == null) {
       throw new jakarta.persistence.EntityNotFoundException("Workflow not found");
@@ -738,8 +985,10 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     if (!drafts.isEmpty()) {
       workDraftDAO.deleteAll(drafts);
     }
+    List<Long> requestTaskIds = requestDAO.findTaskIdsByWorkFlowId(workflowId);
     requestDAO.deleteByWorkFlowId(workflowId);
     this.workFlowDAO.delete(workFlowEntity);
+    return new ProcessDeletion(requestTaskIds, drafts.stream().map(WorkEntity::getId).filter(Objects::nonNull).toList());
   }
 
   /**
@@ -760,7 +1009,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   }
 
   /**
-   * {@inheritDoc}
+   * {@inheritDoc} The request returned names the process it was created for,
+   * from its request record.
    */
   @Override
   public Work updateWorkCompleted(Long workId, boolean completed) {
@@ -774,7 +1024,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     } catch (EntityNotFoundException e) {
       throw new jakarta.persistence.EntityNotFoundException("work not found");
     }
-    return EntityMapper.taskToWork(taskDto);
+    return withRequestWorkFlow(EntityMapper.taskToWork(taskDto));
   }
 
   /**
@@ -790,28 +1040,59 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    */
   @Override
   public Work saveWorkDraft(Work work, long userId) {
+    WorkEntity workEntity = saveWorkDraftEntity(work, userId);
+    if (work.getId() == 0) {
+      copyProcessAttachmentsToDraft(workEntity.getId(), work.getWorkFlow(), userId);
+    }
+    return EntityMapper.fromEntity(workEntity);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Work saveWorkDraftRow(Work work, long userId) {
+    return EntityMapper.fromEntity(saveWorkDraftEntity(work, userId));
+  }
+
+  /**
+   * Saves a request draft's row, the server setting its draft state.
+   *
+   * @param work the draft
+   * @param userId the owner's identity id
+   * @return the saved row
+   */
+  private WorkEntity saveWorkDraftEntity(Work work, long userId) {
     Identity identity = identityManager.getIdentity(userId);
     if (identity == null) {
       throw new IllegalArgumentException("identity is not exist");
     }
     WorkEntity workEntity = EntityMapper.toEntity(work);
     workEntity.setModifiedDate(new Date());
+    // The server sets a request draft's state
+    workEntity.setIsDraft(true);
     if (work.getId() == 0) {
       workEntity.setId(null);
       workEntity.setCreatedDate(new Date());
       workEntity.setCreatorId(userId);
       workEntity = workDraftDAO.create(workEntity);
-      processesAttachmentService.copyAttachmentsToEntity(userId,
-                                                         work.getWorkFlow().getId(),
-                                                         WORKFLOW_ENTITY_TYPE,
-                                                         workEntity.getId(),
-                                                         WORK_DRAFT_ENTITY_TYPE,
-                                                         work.getWorkFlow().getProjectId());
     } else {
       workEntity = workDraftDAO.update(workEntity);
     }
+    return workEntity;
+  }
 
-    return EntityMapper.fromEntity(workEntity);
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void copyProcessAttachmentsToDraft(Long draftId, WorkFlow workFlow, long userId) {
+    processesAttachmentService.copyAttachmentsToEntity(userId,
+                                                       workFlow.getId(),
+                                                       WORKFLOW_ENTITY_TYPE,
+                                                       draftId,
+                                                       WORK_DRAFT_ENTITY_TYPE,
+                                                       workFlow.getProjectId());
   }
 
   /**

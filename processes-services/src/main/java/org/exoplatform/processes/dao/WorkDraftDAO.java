@@ -27,6 +27,11 @@ import jakarta.persistence.criteria.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Collection;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+import org.exoplatform.processes.model.WorkDraftRef;
 
 public class WorkDraftDAO extends GenericDAOJPAImpl<WorkEntity, Long> {
 
@@ -74,5 +79,57 @@ public class WorkDraftDAO extends GenericDAOJPAImpl<WorkEntity, Long> {
     List<WorkEntity> resultList = query.getResultList();
     return resultList == null ? Collections.emptyList() : resultList;
 
+  }
+
+  /**
+   * Reads what describes some request drafts, by chunks of 1,000 ids: one
+   * query per chunk. A row that is not a draft is not answered.
+   *
+   * @param draftIds the draft ids
+   * @return draft id → its owner, process, title and dates
+   */
+  public Map<Long, WorkDraftRef> findDraftRefs(Collection<Long> draftIds) {
+    Map<Long, WorkDraftRef> refs = new HashMap<>();
+    List<Long> ids = new ArrayList<>(draftIds);
+    for (int from = 0; from < ids.size(); from += RequestDAO.REQUEST_CHUNK_SIZE) {
+      List<Long> chunk = ids.subList(from, Math.min(from + RequestDAO.REQUEST_CHUNK_SIZE, ids.size()));
+      getEntityManager().createNamedQuery("Work.findDraftRefs", Object[].class)
+                        .setParameter("ids", chunk)
+                        .getResultList()
+                        .forEach(row -> refs.put((Long) row[0],
+                                                 new WorkDraftRef((Long) row[0],
+                                                                  row[1] == null ? 0 : (Long) row[1],
+                                                                  (Long) row[2],
+                                                                  (String) row[3],
+                                                                  (Date) row[4],
+                                                                  (Date) row[5])));
+    }
+    return refs;
+  }
+
+  /**
+   * Reads one page of a process's draft ids, by ascending id.
+   *
+   * @param workflowId the process id
+   * @param afterDraftId the last id of the previous page, or null for the first
+   * @param limit the page size, strictly positive
+   * @return the draft ids of the page
+   */
+  public List<Long> findDraftIdsByWorkflowId(long workflowId, Long afterDraftId, int limit) {
+    return getEntityManager().createNamedQuery("Work.findDraftIdsByWorkflowId", Long.class)
+                             .setParameter("workflowId", workflowId)
+                             .setParameter("afterId", afterDraftId == null ? 0L : afterDraftId)
+                             .setMaxResults(limit)
+                             .getResultList();
+  }
+
+  /**
+   * @param workflowId the process id
+   * @return how many drafts the process has
+   */
+  public long countDraftsByWorkflowId(long workflowId) {
+    return getEntityManager().createNamedQuery("Work.countDraftsByWorkflowId", Long.class)
+                             .setParameter("workflowId", workflowId)
+                             .getSingleResult();
   }
 }

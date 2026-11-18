@@ -3,7 +3,11 @@
     {
       "name": "submit_work_request",
       "replaced_definitions": [
-        "2410f9f21bddc010b503710ce33e78b4945ebf40c5e4c29daad80d9b249af7c0"
+        "2410f9f21bddc010b503710ce33e78b4945ebf40c5e4c29daad80d9b249af7c0",
+        "b44da91deb5c3a16baa1f1aa4682058a93906d57ecb019897ee8cedd446c712f",
+        "6bfd32b490e70f6c95d545ea7dfbca7378399d0648d8999e537c459cd66f65dd",
+        "82e841b90e02b04a5aa29c87302b10f2357355863189f3d93ecfa49a2fb03ee1",
+        "ae731d2d7c38625543a885431086495d90c8e1513a05f662baf3e8da2b3e154a"
       ]
     }
   ]

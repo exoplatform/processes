@@ -66,6 +66,14 @@ public class WorkEntity {
 
   private List<Attachment> attachments;
 
+  /**
+   * The form values a new request or a draft's save sends, as a string holding
+   * a JSON object: form id → field key → array of values. A string, since the
+   * REST provider binds no map of maps; read only on the creation and the
+   * draft paths.
+   */
+  private String           formValues;
+
   public WorkEntity(long id,
                     String title,
                     String description,

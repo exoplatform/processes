@@ -30,6 +30,9 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.commons.utils.CommonsUtils;
+import org.exoplatform.container.PortalContainer;
+import org.exoplatform.processes.Utils.RequestFormValues;
 import org.exoplatform.processes.mcp.model.PendingApprovalModel;
 import org.exoplatform.processes.mcp.model.ProcessModel;
 import org.exoplatform.processes.mcp.model.RequestModel;
@@ -39,6 +42,7 @@ import org.exoplatform.processes.model.WorkFilter;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.service.ProcessTranslationService;
 import org.exoplatform.processes.service.ProcessesService;
+import org.exoplatform.services.attachments.service.AttachmentService;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
@@ -73,6 +77,9 @@ import io.meeds.mcp.server.plugin.McpToolPlugin;
 @Profile("mcp-server")
 public class ProcessesMcpTool implements McpToolPlugin {
 
+  /** The refusal of a request whose process has documents to fill. */
+  static final String            DOCUMENT_TO_FILL       = "processes.request.documentToFill";
+
   private static final String    STATUS_CANCELED        = "Canceled";
 
   private static final String    STATUS_VALIDATED       = "Validated";
@@ -84,6 +91,9 @@ public class ProcessesMcpTool implements McpToolPlugin {
   private static final String[]  PENDING_STATUSES       = { "Request", "RequestInProgress" };
 
   private static final int       MAX_WORKFLOWS          = 200;
+
+  /** The attachment entity type of a process's own documents. */
+  private static final String    WORKFLOW_ENTITY_TYPE   = "workflow";
 
   private static final int       MAX_REQUESTS           = 50;
 
@@ -101,6 +111,8 @@ public class ProcessesMcpTool implements McpToolPlugin {
 
   private final ProcessTranslationService processTranslationService;
 
+  private final AttachmentService attachmentService;
+
   /**
    * @param processesService reads and writes the processes and requests
    * @param taskService reads the pending requests' tasks
@@ -110,19 +122,23 @@ public class ProcessesMcpTool implements McpToolPlugin {
    *          space's listing names only the processes its lookup accepts
    * @param processTranslationService reads a process's texts in the user's
    *          language
+   * @param attachmentService reads the documents a process gives each
+   *          request to fill in
    */
   public ProcessesMcpTool(ProcessesService processesService,
                           TaskService taskService,
                           IdentityManager identityManager,
                           SpaceService spaceService,
                           ProcessSpaceScopeResolver processSpaceScopeResolver,
-                          ProcessTranslationService processTranslationService) {
+                          ProcessTranslationService processTranslationService,
+                          AttachmentService attachmentService) {
     this.processesService = processesService;
     this.taskService = taskService;
     this.identityManager = identityManager;
     this.spaceService = spaceService;
     this.processSpaceScopeResolver = processSpaceScopeResolver;
     this.processTranslationService = processTranslationService;
+    this.attachmentService = attachmentService;
   }
 
   /**
@@ -205,21 +221,28 @@ public class ProcessesMcpTool implements McpToolPlugin {
    * Submits a new work request under a given process type, on behalf of the
    * current user: a task in the process's project, in the initial 'Request'
    * status, named by the fixed rule « Process name - yyyy/MM/dd - Requester
-   * name », followed by the agent's title when it sends one. There is no
-   * structured field map: any request data goes in the description. WRITE
-   * (approval-gated).
+   * name », followed by the agent's title when it sends one. The values of
+   * the process's forms go in formValues, checked before the request is
+   * created and written to its task; a refusal names a Forms or processes
+   * code. WRITE (approval-gated).
    *
    * @param processId a process id from list_processes
    * @param title the agent's optional title, added after the fixed rule
    * @param description the optional details for the approver
+   * @param formValues the optional form values, form id → field key → array of
+   *          values, as the agent sent them, nulls kept
    * @return the created request
    * @throws IllegalAccessException when the user can't add a request to the
    *           process
    * @throws ObjectNotFoundException when the process does not exist
+   * @throws IllegalArgumentException with a refusal code when the values are
+   *           not such a map, or are refused
    */
   public RequestModel submitWorkRequest(long processId,
                                         String title,
-                                        String description) throws IllegalAccessException, ObjectNotFoundException {
+                                        String description,
+                                        Map<String, Object> formValues) throws IllegalAccessException,
+                                                                        ObjectNotFoundException {
     if (processId <= 0) {
       throw new IllegalArgumentException("The 'process_id' parameter is mandatory (a process id from list_processes).");
     }
@@ -246,9 +269,18 @@ public class ProcessesMcpTool implements McpToolPlugin {
           + "the process types available to you.").formatted(processTranslationService.getTitle(workFlow,
                                                                                              getCurrentUserLocale())));
     }
+    if (hasDocumentsToFill(workFlow.getId(), userIdentityId)) {
+      // Its documents are filled in the Process app: no request is created
+      // here, whatever the agent was told
+      throw new IllegalArgumentException(DOCUMENT_TO_FILL);
+    }
     Work work = new Work();
     work.setDescription(StringUtils.trimToEmpty(description));
     work.setWorkFlowId(workFlow.getId());
+    if (formValues != null) {
+      // Copied with its nulls, so that Forms refuses a null instead of it being dropped
+      work.setFormValues(RequestFormValues.fromObject(formValues));
+    }
     // The agent's title goes after the fixed rule: only this tool sends one
     Work created = processesService.createWork(work, userIdentityId, title);
     return toRequestModel(created);
@@ -371,7 +403,44 @@ public class ProcessesMcpTool implements McpToolPlugin {
                             workFlow.isEnabled(),
                             workFlow.getProjectId(),
                             workFlow.getSpaceId(),
-                            workFlow.isCanShowPending());
+                            workFlow.isCanShowPending(),
+                            requestUrl(workFlow.getId()));
+  }
+
+  /**
+   * Tells whether a process gives each request documents to fill in: the
+   * documents attached to the process, which the Process app copies into
+   * each request for its requester to fill.
+   *
+   * Every document of the process counts, whatever the requester may open,
+   * as the Process app copies them all into the request.
+   *
+   * @param workFlowId the process id
+   * @param userIdentityId the requester's identity id, for whom the attachment
+   *          read computes each document's rights
+   * @return true when the process has at least one such document
+   * @throws IllegalAccessException as the attachment read declares it
+   */
+  boolean hasDocumentsToFill(long workFlowId, long userIdentityId) throws IllegalAccessException {
+    return !attachmentService.getAttachmentsByEntity(userIdentityId, workFlowId, WORKFLOW_ENTITY_TYPE).isEmpty();
+  }
+
+  /**
+   * Builds the link that opens a process's request form in the Process app,
+   * as the app's own create-request route reads it, on the portal request's
+   * site, or on the platform's main site for a call that has no portal
+   * request, such as the assistant's.
+   *
+   * @param workFlowId the process id
+   * @return the link, or null when no site is known
+   */
+  String requestUrl(long workFlowId) {
+    String site = CommonsUtils.getCurrentPortalOwner();
+    if (StringUtils.isBlank(site)) {
+      return null;
+    }
+    return CommonsUtils.getCurrentDomain() + "/" + PortalContainer.getCurrentPortalContainerName() + "/" + site + "/processes/"
+        + workFlowId + "/createRequest";
   }
 
   private RequestModel toRequestModel(Work work) {

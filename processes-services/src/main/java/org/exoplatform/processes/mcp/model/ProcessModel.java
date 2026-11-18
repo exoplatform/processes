@@ -20,7 +20,10 @@ package org.exoplatform.processes.mcp.model;
 // list_processes MCP tool. id is the workflow id to pass to submit_work_request;
 // projectId is the underlying Task/Kanban project; canManageRequests is true when
 // the current user can see this process's pending requests (the process has a
-// space, and the user is a member of it or a platform administrator).
+// space, and the user is a member of it or a platform administrator);
+// requestUrl opens the process's request form in the Process app, on the
+// platform's main site for the assistant's calls, or is null when no site is
+// known.
 public record ProcessModel(long id,
                            String title,
                            String description,
@@ -28,5 +31,6 @@ public record ProcessModel(long id,
                            boolean enabled,
                            long projectId,
                            String spaceId,
-                           boolean canManageRequests) {
+                           boolean canManageRequests,
+                           String requestUrl) {
 }

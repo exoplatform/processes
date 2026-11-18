@@ -111,4 +111,16 @@ public class WorkFlowEntity {
    */
   private Map<String, String>         summaryTranslations;
 
+  /**
+   * The form a save chooses for the process's requests: absent to keep the
+   * stored one, 0 for no form, else the form id.
+   */
+  private Long                        requestFormId;
+
+  /**
+   * The forms bound to the process itself, read for a user who can edit it;
+   * null otherwise.
+   */
+  private List<Long>                  requestFormIds;
+
 }

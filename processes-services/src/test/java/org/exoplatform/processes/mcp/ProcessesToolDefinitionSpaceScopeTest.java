@@ -110,8 +110,9 @@ public class ProcessesToolDefinitionSpaceScopeTest {
    * a call naming no process or request, an argument a declaration doesn't
    * accept, and a write the run makes itself, are refused. The process list
    * reads the call's space when it names none, and refuses another space.
-   * Mutants: a declaration dropped, its resolver renamed, its object argument
-   * changed, or an argument added to the accepted ones.
+   * A space-limited submit with form values is refused too. Mutants: a
+   * declaration dropped, its resolver renamed, its object argument changed,
+   * or an argument (form_values among them) added to the accepted ones.
    */
   @Test
   @SuppressWarnings("unchecked")
@@ -136,7 +137,9 @@ public class ProcessesToolDefinitionSpaceScopeTest {
     for (String refused : List.of("{\"process_id\":6,\"title\":\"Leave\"}",
                                   "{\"process_id\":7,\"title\":\"Leave\"}",
                                   "{\"title\":\"Leave\"}",
-                                  "{\"process_id\":5,\"title\":\"Leave\",\"project_id\":7}")) {
+                                  "{\"process_id\":5,\"title\":\"Leave\",\"project_id\":7}",
+                                  // form values are refused in a call limited to a space (spec 55633 §3.8)
+                                  "{\"process_id\":5,\"title\":\"Leave\",\"form_values\":{\"12\":{\"amount\":[150]}}}")) {
       assertThrows(refused, SpaceScopeRefusedException.class,
                    () -> service.enforce("submit_work_request", tools.get("submit_work_request"), refused, proposal));
     }
