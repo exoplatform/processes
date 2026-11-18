@@ -31,6 +31,7 @@ import RequestDrawerActions from './components/RequestDrawerActions.vue';
 import RequestGuideCard from './components/RequestGuideCard.vue';
 import RequestFieldRow from './components/RequestFieldRow.vue';
 import RequestFieldsSection from './components/RequestFieldsSection.vue';
+import RequestDocumentLine from './components/RequestDocumentLine.vue';
 
 import EmptyOrLoading from './components/commons/EmptyOrLoading.vue';
 import CustomCounter from './components/commons/CustomCounter.vue';
@@ -80,6 +81,7 @@ const components = {
   'request-guide-card': RequestGuideCard,
   'request-field-row': RequestFieldRow,
   'request-fields-section': RequestFieldsSection,
+  'request-document-line': RequestDocumentLine,
   'processes-attachments': ProcessesAttachments,
   'empty-or-loading': EmptyOrLoading,
   'custom-counter': CustomCounter,

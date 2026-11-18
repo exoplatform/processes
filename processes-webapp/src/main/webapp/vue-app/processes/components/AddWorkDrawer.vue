@@ -107,39 +107,18 @@
               v-if="processDocuments.length"
               id="requestFillDocumentRow"
               :label="$t('processes.request.documentToFill')"
-              :hint="hasDraft && !documentFilled ? $t('processes.request.documentToFill.notFilled') : null"
               :table="expanded"
               :stacked="!expanded"
               icon="fas fa-file-alt">
-              <v-list class="request-documents pa-0 full-width" dense>
-                <div
+              <div class="full-width">
+                <request-document-line
                   v-for="attachment in (hasDraft ? documentsToFill : processDocuments)"
                   :key="attachment.id"
-                  class="d-flex align-center">
-                <attachment-item
-                  :ref="`documentToFill${attachment.id}`"
                   :attachment="attachment"
-                  :attachments="hasDraft ? documentsToFill : processDocuments"
-                  :can-access="attachment.acl && attachment.acl.canAccess"
-                  :allow-to-detach="false"
-                  :entity-id="hasDraft ? work.id : work.workFlow.id"
-                  :entity-type="hasDraft ? entityType : 'workflow'"
-                  :open-in-editor="true"
-                  :is-file-editable="hasDraft && isDocumentEditable(attachment)"
-                  :is-file-fillable="hasDraft && isDocumentFillable(attachment)"
-                  :is-file-readable="!hasDraft && isDocumentReadable(attachment)"
-                  class="flex-grow-1"
-                  allow-to-preview
-                  small-attachment-icon />
-                <v-btn
-                  class="requestFillDocumentButton primary--text flex-shrink-0 ms-2"
-                  text
-                  small
-                  @click="fillDocument(attachment)">
-                  {{ $t('processes.request.documentToFill.fill') }}
-                </v-btn>
-                </div>
-              </v-list>
+                  :state="hasDraft ? $t(isCopyFilled(attachment) ? 'processes.request.documentToFill.filled' : 'processes.request.documentToFill.notFilled') : null"
+                  @open="openDocument(attachment)"
+                  @fill="fillDocument(attachment)" />
+              </div>
             </request-field-row>
             <request-field-row
               id="requestSupportingDocumentsRow"
@@ -542,11 +521,33 @@ export default {
         this.createDraftForAttachment().catch(() => null);
         return;
       }
-      const item = this.$refs[`documentToFill${attachment.id}`];
-      const component = Array.isArray(item) ? item[0] : item;
-      if (component && typeof component.openFile === 'function') {
-        component.openFile();
+      if (this.isDocumentFillable(attachment)) {
+        this.openDocument(attachment, 'fillform');
+      } else if (this.isDocumentEditable(attachment)) {
+        this.openDocument(attachment, 'edit');
+      } else {
+        this.openDocument(attachment);
       }
+    },
+    /**
+     * Opens a document as the platform's attachments do: in the editor, for
+     * writing or filling when asked and allowed, in its view mode when the
+     * editor supports the type, else in the platform's preview.
+     *
+     * @param {Object} attachment the document
+     * @param {String} [mode] edit or fillform, none to read it
+     * @returns {void}
+     */
+    openDocument(attachment, mode) {
+      const writable = mode && this.hasDraft && attachment.acl && attachment.acl.canEdit;
+      if (this.$documentsUtils && (writable || this.isDocumentReadable(attachment))) {
+        window.open(this.$documentsUtils.getEditorUrl(attachment, writable ? (mode === 'fillform' ? 'fillform' : '') : 'view'), '_blank');
+        return;
+      }
+      document.dispatchEvent(new CustomEvent('open-attachments-preview', {detail: {
+        attachments: [{id: attachment.id, filename: attachment.title, mimetype: attachment.mimetype, downloadUrl: attachment.downloadUrl}],
+        id: attachment.id,
+      }}));
     },
     createDraftForAttachment() {
       return this.saveDraft(true).then(() => {

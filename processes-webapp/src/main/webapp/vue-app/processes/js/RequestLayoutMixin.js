@@ -64,10 +64,7 @@ export default {
      * @returns {Boolean} true once the requester wrote in a document to fill in
      */
     documentFilled() {
-      return this.hasDraft && this.documentsToFill.some(copy => {
-        const original = this.processDocuments.find(attachment => storedName(attachment) === storedName(copy));
-        return original && copy.updated && copy.updated !== original.updated;
-      });
+      return this.hasDraft && this.documentsToFill.some(this.isCopyFilled);
     },
     /**
      * The fill state of the whole section: the form's fields, plus the
@@ -115,6 +112,14 @@ export default {
           }
         })
         .catch(() => null);
+    },
+    /**
+     * @param {Object} copy the request's copy of a process document
+     * @returns {Boolean} true once the requester wrote in it: a copy keeps its original's update date until then
+     */
+    isCopyFilled(copy) {
+      const original = this.processDocuments.find(attachment => storedName(attachment) === storedName(copy));
+      return !!original && !!copy.updated && copy.updated !== original.updated;
     },
     /**
      * Follows the scroll of the drawer's content, which the drawer mounts on
