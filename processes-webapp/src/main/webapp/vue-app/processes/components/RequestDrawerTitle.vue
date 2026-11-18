@@ -23,9 +23,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       :class="{'request-title-line-shown': viewMode || lineShown}"
       class="request-title-line d-flex align-center text-caption text-light-color text-truncate">
       <process-avatar
-        v-if="avatarUrl || processIcon"
         :avatar-url="avatarUrl"
         :icon="processIcon"
+        :title="titleLine"
         class="me-1 flex-shrink-0"
         size="18" />
       <span :style="textDecoration" class="text-truncate">{{ titleLine }}</span>
