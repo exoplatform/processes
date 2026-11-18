@@ -776,10 +776,18 @@ export default {
     setSpace() {
       this.$root.$emit('set-workflow-space',this.workflow.parentSpace );
     },
+    /**
+     * Gives the request creators picker the creators to show: on edit, those
+     * the drawer holds, which start from the process's own and keep what was
+     * changed since, in full screen included.
+     *
+     * @returns {void}
+     */
     setCreators() {
-      if (this.workflow.requestsCreators){
-        this.$root.$emit('set-workflow-creators',this.workflow.requestsCreators );
-        this.workflowRequest = this.workflow.requestsCreators ;
+      const creators = this.editMode ? this.workflowRequest : this.workflow.requestsCreators;
+      if (creators) {
+        this.$root.$emit('set-workflow-creators', creators);
+        this.workflowRequest = creators;
       }
     },
     previousStep() {
@@ -1005,16 +1013,13 @@ export default {
     },
     /**
      * Gives the space and request pickers the process's values, as the
-     * steps' Continue do: the managing space, and the request creators,
-     * those already chosen or else the stored ones.
+     * steps' Continue do: the managing space, and the request creators the
+     * drawer holds, which an edited process starts from its own.
      *
      * @returns {void}
      */
     syncPickers() {
       this.setSpace();
-      if (!this.workflowRequest.length && this.workflow.requestsCreators) {
-        this.workflowRequest = this.workflow.requestsCreators;
-      }
       this.$root.$emit('set-workflow-creators', this.workflowRequest);
     },
     applyItemClass(messageInfo){
