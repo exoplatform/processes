@@ -13,20 +13,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 -->
 <template>
   <div class="d-flex flex-wrap align-center">
-    <request-fill-status
-      v-if="expanded"
-      :fill="fill"
-      :can-submit="canSubmit"
-      :class="expanded ? 'me-4' : 'full-width mb-2'"
-      variant="line" />
-    <span
-      v-if="unfilledDocuments"
-      id="requestUnfilledDocumentsLine"
-      :class="expanded ? 'me-4' : 'full-width mb-2'"
-      class="d-flex align-center text-caption warning--text">
-      <v-icon size="14" class="warning--text me-1">fas fa-exclamation-triangle</v-icon>
-      {{ $t(unfilledDocuments > 1 ? 'processes.request.documentToFill.unfilled' : 'processes.request.documentToFill.unfilledOne', {0: unfilledDocuments}) }}
-    </span>
     <v-spacer />
     <v-btn
       id="saveRequestDraftButton"
@@ -57,25 +43,14 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 <script>
 /**
- * The request drawer's footer: the line naming the required values still
- * missing, « Save as draft », and Submit, which waits for every required
- * value. The line takes the whole first row in the drawer and sits beside
- * the buttons in full screen.
+ * The request drawer's footer: « Save as draft » and Submit, on the right.
+ * Submit waits for every required value, and says which when it is held back.
  */
 export default {
   props: {
-    // How many documents to fill in are not filled yet: a warning, Submit stays allowed
-    unfilledDocuments: {
-      type: Number,
-      default: 0,
-    },
     fill: {
       type: Object,
       default: () => ({total: 0, filled: 0, missing: []}),
-    },
-    expanded: {
-      type: Boolean,
-      default: false,
     },
     saving: {
       type: Boolean,

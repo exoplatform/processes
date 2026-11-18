@@ -31,8 +31,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     </div>
     <request-fill-status
       :fill="fill"
-      class="mb-3"
-      variant="bar" />
+      class="mb-3" />
     <slot></slot>
   </div>
 </template>
@@ -41,7 +40,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 /**
  * The request drawer's « Your request » section: its heading, which says
  * how many required values are missing and how many fields hold a value,
- * the fill track, then the fields: the form's, and the drawer's own rows.
+ * the fill track (once something is filled), then the fields: the form's, and the drawer's own rows.
  */
 export default {
   props: {

@@ -12,40 +12,44 @@ You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 -->
 <template>
-  <v-card
-    id="requestDocumentsCard"
-    class="mb-4"
-    outlined>
-    <div class="d-flex align-center px-3 pt-3">
-      <v-icon size="18" class="icon-default-color me-2">fas fa-file-alt</v-icon>
-      <span class="font-weight-bold">{{ $t('processes.request.documentToFill') }}</span>
-      <v-spacer />
-      <span v-if="hasDraft && documents.length > 1" class="text-caption text-light-color">
+  <request-field-row
+    id="requestDocumentsRow"
+    :label="$t('processes.request.documentToFill')"
+    :stacked="!expanded"
+    :table="expanded"
+    icon="fas fa-file-alt"
+    class="mb-4">
+    <v-card
+      id="requestDocumentsCard"
+      outlined>
+      <div v-if="hasDraft && documents.length > 1" class="text-caption text-light-color px-3 pt-2">
         {{ $t('processes.request.documentToFill.count', {0: filledCount, 1: documents.length}) }}
-      </span>
-    </div>
-    <div :class="expanded && 'requestDocumentsCard-columns'" class="px-3 pb-1">
-      <request-document-line
-        v-for="attachment in documents"
-        :key="attachment.id"
-        :attachment="attachment"
-        :name="nameOf(attachment)"
-        :state="hasDraft ? state(attachment) : null"
-        :filled="hasDraft && isFilled(attachment)"
-        :original="hasDraft"
-        @open="$emit('open', attachment)"
-        @fill="$emit('fill', attachment)"
-        @open-original="$emit('open-original', attachment)" />
-    </div>
-  </v-card>
+      </div>
+      <div :class="expanded && documents.length > 1 && 'requestDocumentsCard-columns'" class="px-3 pb-1">
+        <request-document-line
+          v-for="attachment in documents"
+          :key="attachment.id"
+          :attachment="attachment"
+          :name="nameOf(attachment)"
+          :state="hasDraft ? state(attachment) : null"
+          :filled="hasDraft && isFilled(attachment)"
+          :original="hasDraft"
+          @open="$emit('open', attachment)"
+          @fill="$emit('fill', attachment)"
+          @open-original="$emit('open-original', attachment)" />
+      </div>
+    </v-card>
+  </request-field-row>
 </template>
 
 <script>
 /**
- * The request's documents to fill in, in one outlined card: before the draft
+ * The request's documents to fill in, a row of the « Your request » section
+ * (« Document to fill in ») whose value is an outlined card: before the draft
  * exists, the process's documents; then the request's copies, each with its
  * fill state, and how many are filled when there are several. In full screen
- * its rows are laid out in columns.
+ * the row is on the grid, and the rows of several documents are laid out in
+ * two columns.
  */
 export default {
   props: {

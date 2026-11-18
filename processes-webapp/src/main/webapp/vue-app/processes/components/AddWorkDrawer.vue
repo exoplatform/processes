@@ -98,8 +98,6 @@
     <template slot="footer" v-if="!viewMode">
       <request-drawer-actions
         :fill="requestFill"
-        :unfilled-documents="hasDraft ? documentsToFill.filter(copy => !isCopyFilled(copy)).length : processDocuments.length"
-        :expanded="expanded"
         :saving="saving"
         :saving-draft="savingAsDraft"
         :can-save-draft="canSaveAsDraft"

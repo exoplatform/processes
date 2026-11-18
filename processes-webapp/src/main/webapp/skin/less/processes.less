@@ -305,9 +305,40 @@
       width: 20px !important;
       height: 20px !important;
     }
+    .v-list-item__avatar {
+      margin: 0 8px 0 0 !important;
+    }
+    // Drawn like the documents card's rows: name at body size, start-aligned, « size · type » under it
+    .v-list-item__content {
+      text-align: start;
+    }
     .uploadedFileTitle {
       white-space: normal;
       overflow-wrap: anywhere;
+      text-align: start;
+      font-size: 0.875rem !important;
+      font-weight: 400 !important;
+      line-height: 1.25rem !important;
+    }
+    .uploadedFileMeta {
+      font-size: 0.75rem;
+      text-align: start;
+    }
+    // No source badge, no info button: only a small neutral remove icon
+    .attachmentSourceBadge,
+    .v-list-item__action .fa-info-circle {
+      display: none !important;
+    }
+    .remove-button {
+      .v-btn {
+        height: 20px !important;
+        width: 20px !important;
+      }
+      .v-icon {
+        font-size: 12px !important;
+        color: inherit !important;
+        opacity: 0.6;
+      }
     }
   }
   // The full-screen request's left pane, set off from the main column by the platform's divider

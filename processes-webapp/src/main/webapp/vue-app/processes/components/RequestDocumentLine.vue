@@ -15,14 +15,15 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
   <div class="requestDocumentLine d-flex align-center py-2">
     <v-icon
       :color="icon.color"
-      class="flex-shrink-0 me-2"
+      class="align-self-start flex-shrink-0 me-2"
       size="20"
       aria-hidden="true">
       {{ icon.class }}
     </v-icon>
     <div class="flex-grow-1 text-start" style="min-width: 0">
       <a
-        class="requestDocumentLine-name text-color text-break"
+        :title="title"
+        class="requestDocumentLine-name d-block text-body-2 text-color text-truncate"
         @click="$emit('open')">
         {{ title }}
       </a>
@@ -42,7 +43,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       class="requestFillDocumentButton flex-shrink-0 ms-2"
       color="primary"
       outlined
-      small
       @click="$emit('fill')">
       {{ $t(filled ? 'processes.request.documentToFill.continue' : 'processes.request.documentToFill.fill') }}
     </v-btn>

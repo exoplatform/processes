@@ -15,7 +15,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
   <request-field-row
     id="requestMessageRow"
     :label="$t('processes.work.message.to.manager')"
-    :hint="$t('processes.request.message.hint')"
     icon="fas fa-align-left"
     stacked>
     <rich-editor
