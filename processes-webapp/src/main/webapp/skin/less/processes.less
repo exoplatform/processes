@@ -676,15 +676,15 @@
       margin-top: 4px;
       font-weight: bold;
 
-      &.requestDocumentLine-filled {
-        background-color: ~"color-mix(in srgb, var(--v-success-base) 14%, transparent)" !important;
-        color: var(--v-success-base) !important;
-      }
+      // Filled in green, a required document not filled yet in the error colour: the text takes the platform's colour
+      // class, and the chip's own overlay, drawn in the text colour, gives the light tint (the platform defines no
+      // Vuetify colour variables to mix)
+      &.requestDocumentLine-tinted {
+        background-color: transparent !important;
 
-      // A document to fill in is required: one not filled yet is flagged
-      &.requestDocumentLine-missing {
-        background-color: ~"color-mix(in srgb, var(--v-error-base) 12%, transparent)" !important;
-        color: var(--v-error-base) !important;
+        &::before {
+          opacity: 0.12 !important;
+        }
       }
     }
 

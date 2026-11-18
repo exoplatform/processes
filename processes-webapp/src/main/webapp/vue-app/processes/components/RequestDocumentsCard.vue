@@ -19,6 +19,15 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     outlined>
     <div class="requestDocumentsCard-head d-flex align-center px-3 py-2">
       <span class="font-weight-bold">{{ $t('processes.request.documentToFill') }}</span>
+      <template v-if="filledCount < documents.length">
+        <v-icon
+          class="error--text ms-1"
+          size="6"
+          aria-hidden="true">
+          fa-circle
+        </v-icon>
+        <span class="d-sr-only">{{ $t('processes.request.documentToFill.required') }}</span>
+      </template>
       <span class="ms-auto text-caption text-light-color text-no-wrap">
         {{ $t('processes.request.documentToFill.count', {0: filledCount, 1: documents.length}) }}
       </span>
@@ -40,7 +49,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 /**
  * The request's documents to fill in, in one outlined card: its header says
  * « Document to fill in » and how many are filled, then one row per document,
- * which the request needs filled, so an unfilled one is flagged,
+ * which the request needs filled, so an unfilled one is flagged, and the
+ * header carries the required dot Forms' labels show until all are filled,
  * before the draft exists the process's documents, then the request's copies,
  * each with its fill state. The rows are laid out in columns in full screen.
  */

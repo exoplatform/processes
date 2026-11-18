@@ -28,7 +28,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     </a>
     <span class="requestDocumentLine-meta text-caption text-light-color">{{ meta }}</span>
     <v-chip
-      :class="filled ? 'requestDocumentLine-filled' : 'requestDocumentLine-missing'"
+      :class="stateClass"
       class="requestDocumentLine-state"
       small>
       {{ state }}
@@ -111,6 +111,10 @@ export default {
       const extensions = this.$documentsIconsExtension && this.$documentsIconsExtension[0];
       const icon = extensions && (extensions.get(this.attachment.mimetype) || extensions.get('file'));
       return icon || {class: 'fas fa-file', color: ''};
+    },
+    /** @returns {String} the chip's colour: green once filled, the error colour while the required document is not */
+    stateClass() {
+      return this.filled ? 'requestDocumentLine-tinted success--text' : 'requestDocumentLine-tinted error--text';
     },
     /** @returns {String} the size and the type, joined by a dot */
     meta() {
