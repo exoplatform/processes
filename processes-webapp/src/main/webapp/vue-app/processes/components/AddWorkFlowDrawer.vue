@@ -185,12 +185,7 @@
                 </div>
               </div>
             </div>
-            <v-label
-              class="mt-1"
-              for="status">
-              {{ $t('processes.works.form.label.status') }}
-            </v-label>
-            <div class="d-flex mt-2">
+            <div class="d-flex mt-1">
               <div>
                 {{ requestStatus }}
               </div>
