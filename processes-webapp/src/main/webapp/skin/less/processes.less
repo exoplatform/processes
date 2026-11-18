@@ -344,7 +344,8 @@
   // The full-screen process editor: step 1, the description, in the first column; step 2, the management with the
   // form, step 3, the request makers, and step 4, the documents, in that order, in the second. The description spans
   // the rows of the second column, the last one flexible, so a taller description does not space out the second
-  // column's sections. Row placements are longhands: LESS reads « 1 / span 4 » as a division
+  // column's sections. Each step below another one in the second column is set off from it, while the first steps of
+  // both columns stay aligned at the top. Row placements are longhands: LESS reads « 1 / span 4 » as a division
   .processEditorFull {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -363,10 +364,12 @@
     .processEditorFullRequesters {
       grid-column: 2;
       grid-row-start: 2;
+      margin-top: 32px;
     }
     .processEditorFullDocuments {
       grid-column: 2;
       grid-row-start: 3;
+      margin-top: 32px;
     }
     // Each section opens on the drawer's numbered step, followed by a separator line
     .processEditorStepHeading .v-stepper__header {
@@ -380,6 +383,26 @@
       .v-stepper__label {
         display: flex !important;
       }
+    }
+    // A picker's label row is as tall as a translated field's, whose translation button's padded row sets its height,
+    // and the picker moves up by the difference between the identity suggester's top offset and the outlined text
+    // field's, so the first fields of both columns line up
+    .processEditorStepHeading + .v-label {
+      display: flex;
+      align-items: center;
+      min-height: 32px;
+      + .d-flex {
+        margin-top: -3px;
+      }
+    }
+    // The space and request pickers take the column's width, as the labels and the form fields do
+    .v-autocomplete.identitySuggester {
+      width: 100%;
+    }
+    // An attachment's name starts after its thumbnail: the row's « align-center » also matches the platform's
+    // legacy class of that name, which centres its text
+    .attachment {
+      text-align: start;
     }
   }
   // The full-screen request's left pane, set off from the main column by the platform's divider
