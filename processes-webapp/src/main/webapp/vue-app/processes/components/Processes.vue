@@ -495,9 +495,6 @@ export default {
           // the status changed while the completed requests were loading
           return;
         }
-        works.forEach(work => {
-          work.status = 'completed';
-        });
         this.completedWorks = works || [];
       }).finally(() => this.completedLoads--);
     },

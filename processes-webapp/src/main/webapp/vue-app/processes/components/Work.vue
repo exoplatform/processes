@@ -24,7 +24,6 @@
     :avatar-url="workflowAvatarUrl"
     :allow-cancel="allowCancel"
     @open="openRequest"
-    @resume="openDraft"
     @open-comments="openCommentsDrawer"
     @delete="deleteWork"
     @cancel="cancelWork"

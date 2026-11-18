@@ -70,7 +70,7 @@ export function matchesQuery(work, query, statusLabel) {
   if (!text) {
     return true;
   }
-  const description = (work.description || '').replace(/<\/?[^>]+(>|$)/gi, ' ');
+  const description = plainTextOf(work.description);
   return [work.workFlow && work.workFlow.title, work.title, statusLabel, description]
     .some(value => value && String(value).toLowerCase().includes(text));
 }
@@ -108,4 +108,46 @@ export function statusesOf(works) {
     .forEach(workflow => workflow.statuses.forEach(status => status && status.name && statuses.add(status.name)));
   (works || []).forEach(work => work.status && statuses.add(work.status));
   return Array.from(statuses);
+}
+
+/**
+ * Reads the text of a request's message, without its markup.
+ *
+ * @param {String} html the message, as HTML
+ * @returns {String} its text, with runs of white space as one space
+ */
+export function plainTextOf(html) {
+  if (!html) {
+    return '';
+  }
+  const text = new DOMParser().parseFromString(html, 'text/html').body.textContent || '';
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Turns a group key, which may hold a status name a project wrote with spaces, into a hook for
+ * ids and classes.
+ *
+ * @param {String} key the group key
+ * @returns {String} the key in lower case, each run of other characters than letters and digits as a dash
+ */
+export function hookKeyOf(key) {
+  return String(key || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '');
+}
+
+/**
+ * Sorts requests by date or by status label, without changing the given list.
+ *
+ * @param {Array} works the requests
+ * @param {String} sortBy date or status
+ * @param {Boolean} sortDesc whether the order is descending
+ * @param {Function} statusLabelOf gives a request's status label
+ * @returns {Array} a sorted copy
+ */
+export function sortWorks(works, sortBy, sortDesc, statusLabelOf) {
+  const direction = sortDesc ? -1 : 1;
+  const compare = sortBy === 'status'
+    ? (a, b) => statusLabelOf(a).localeCompare(statusLabelOf(b)) || createdTimeOf(b) - createdTimeOf(a)
+    : (a, b) => createdTimeOf(a) - createdTimeOf(b);
+  return (works || []).slice().sort((a, b) => direction * compare(a, b));
 }

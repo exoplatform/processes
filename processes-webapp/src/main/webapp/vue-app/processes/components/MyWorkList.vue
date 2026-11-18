@@ -21,20 +21,10 @@
       :never-requested="isEmpty"
       :filtered="!!(filter.query || filter.workflowId || filter.status)"
       @clear="clearFilters" />
-    <div
+    <my-requests-table
       v-else
       id="myRequestsList"
-      class="px-1">
-      <my-work-group
-        v-for="group in groups"
-        :key="group.key"
-        :works="group.works"
-        :label="group.label"
-        :group-key="group.key"
-        :is-draft="group.isDraft"
-        :cap="group.cap"
-        :hint="group.hint" />
-    </div>
+      :groups="groups" />
     <work-detail-drawer />
   </div>
 </template>

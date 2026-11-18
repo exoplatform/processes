@@ -475,22 +475,37 @@
 
 // « My requests »: rows grouped by status, and the request detail drawer
 .ProcessesApplication {
-  .my-request-row {
-    min-height: 56px;
-    overflow: hidden;
-    cursor: pointer;
-
-    .indicator {
-      top: 0;
+  .my-requests-table {
+    table {
+      table-layout: fixed;
     }
 
-    .my-request-row-process {
-      flex-basis: 0;
-      min-width: 0;
+    .my-request-col-request {
+      min-width: 280px;
     }
 
-    .my-request-row-comments {
-      min-width: 56px;
+    .my-request-row {
+      cursor: pointer;
+
+      td {
+        max-width: 0;
+      }
+
+      .my-request-cell-actions {
+        max-width: none;
+      }
+    }
+
+    .my-request-group-row td {
+      height: 40px;
+    }
+  }
+
+  // a menu button clicked with the mouse keeps no focus ring, a keyboard focus keeps its own
+  .my-request-menu-button,
+  .workflow-card-menu-button {
+    &:focus:not(:focus-visible)::before {
+      opacity: 0 !important;
     }
   }
 
@@ -509,22 +524,6 @@
     }
   }
 
-  // on a phone, a row keeps its process, its date and its action
-  @media (max-width: 399px) {
-    .my-request-row .my-request-row-status {
-      display: none !important;
-    }
-  }
-
-  .my-request-draft-badge {
-    font-size: 10.5px;
-    font-weight: bold;
-    letter-spacing: .04em;
-    line-height: 18px;
-    border-radius: 3px;
-    color: @textLightColor;
-    background-color: @greyColorLighten1Opacity2;
-  }
 
   // @primaryColor is a CSS custom property, which less colour functions cannot read
   .my-requests-empty-icon {
