@@ -13,19 +13,25 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 -->
 <!--
   The image choice of an App Center application, copied from its editor row
-  (preview, icon, Upload and reset) until the platform shares one; the upload
-  is cropped to a square by the platform's crop drawer.
+  (ApplicationImageInput and its ApplicationIcon preview: preview, Choose and
+  Upload) until the platform shares one. With nothing chosen, the preview shows
+  the icon App Center gives a new application. The upload is cropped to a
+  square by the platform's crop drawer; choosing an icon replaces the image,
+  and uploading replaces the icon.
 -->
 <template>
   <div id="processImageInput" class="d-flex flex-nowrap align-center">
     <v-avatar
-      :size="previewSize + 4"
-      class="flex-grow-0 flex-shrink-0 me-4"
+      :height="previewSize + 4"
+      :min-width="previewSize"
+      :width="previewSize + 8"
+      class="d-flex justify-center align-center flex-grow-0 flex-shrink-0 me-4"
       tile>
       <v-img
         v-if="previewUrl"
         :src="previewUrl"
         :max-height="previewSize"
+        :height="previewSize"
         :max-width="previewSize"
         contain
         eager />
@@ -33,7 +39,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         v-else
         :size="previewSize"
         class="icon-default-color">
-        {{ localIcon || 'far fa-square' }}
+        {{ localIcon || 'fa-dot-circle' }}
       </v-icon>
     </v-avatar>
     <font-icon-input
@@ -46,18 +52,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     <v-btn
       id="processImageUploadButton"
       class="btn primary"
+      border
       outlined
       @click="$refs.imageCropDrawer.open()">
       {{ $t('processes.workflow.image.upload') }}
-    </v-btn>
-    <v-btn
-      v-if="!isDefault"
-      id="processImageResetButton"
-      :title="$t('processes.workflow.image.reset')"
-      class="ms-2"
-      icon
-      @click="reset">
-      <v-icon size="24">fa-undo</v-icon>
     </v-btn>
     <image-crop-drawer
       ref="imageCropDrawer"
@@ -112,10 +110,6 @@ export default {
         && `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/illustration/${this.workflow.id}?v=${this.illustration.lastUpdated || ''}`
         || null;
     },
-    /** @returns {Boolean} true when the process has neither an image nor an icon */
-    isDefault() {
-      return !this.previewUrl && !this.localIcon;
-    },
   },
   watch: {
     icon: {
@@ -163,16 +157,6 @@ export default {
         mimeType,
         fileSize: Math.round((image.src.length - image.src.indexOf(',') - 1) * 3 / 4),
       });
-    },
-    /**
-     * Removes the process's image and icon.
-     *
-     * @returns {void}
-     */
-    reset() {
-      this.imageData = null;
-      this.localIcon = null;
-      this.$emit('update:illustration', null);
     },
     /**
      * Shows the crop drawer's alerts, such as a file too big, in the
