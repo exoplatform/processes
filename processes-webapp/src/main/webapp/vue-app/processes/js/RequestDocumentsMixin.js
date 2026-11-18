@@ -17,16 +17,50 @@
 
 // How long the request's copy of a document is waited for after the draft's creation
 const COPY_TIMEOUT_MS = 10000;
+// How long the draft's documents wait before they are read again when the requester comes back, so the focus and
+// visibility events of one return read them once
+const RETURN_REFRESH_DELAY_MS = 500;
 
 /**
  * The request drawer's documents: opening and filling in the process's
  * documents and their copies in the requester's draft, and the attach button
  * of the message editor. The drawer provides RequestDraftMixin and
  * RequestLayoutMixin, and its messageRow ref, the message row component
- * holding the attachments list.
+ * holding the attachments list. While the drawer is open on a draft, the
+ * draft's documents are read again when the requester comes back to the page,
+ * from the editor's tab for instance, so a copy filled there shows filled.
  */
 export default {
+  data: () => ({returnRefreshTimer: null}),
+  mounted() {
+    window.addEventListener('focus', this.refreshOnReturn);
+    document.addEventListener('visibilitychange', this.refreshOnReturn);
+  },
+  beforeDestroy() {
+    window.removeEventListener('focus', this.refreshOnReturn);
+    document.removeEventListener('visibilitychange', this.refreshOnReturn);
+    window.clearTimeout(this.returnRefreshTimer);
+  },
   methods: {
+    /**
+     * Reads the draft's documents again once the requester is back on the
+     * page, while the drawer is open on a draft: the events of one return
+     * are gathered into one read.
+     *
+     * @returns {void}
+     */
+    refreshOnReturn() {
+      if (document.visibilityState === 'hidden' || this.viewMode || !this.hasDraft || !this.$refs.work?.drawer) {
+        return;
+      }
+      window.clearTimeout(this.returnRefreshTimer);
+      this.returnRefreshTimer = window.setTimeout(() => {
+        this.returnRefreshTimer = null;
+        if (this.hasDraft && this.$refs.work?.drawer) {
+          this.$root.$emit('init-list-attachments', {entityId: this.work.id, entityType: this.entityType});
+        }
+      }, RETURN_REFRESH_DELAY_MS);
+    },
     /**
      * @param {Object} attachment a document to fill in
      * @returns {Boolean} true when the editor may open it for writing
