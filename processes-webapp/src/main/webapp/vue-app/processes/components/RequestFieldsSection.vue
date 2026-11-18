@@ -65,9 +65,9 @@ export default {
     },
   },
   computed: {
-    /** @returns {Number} how many required values are still missing */
+    /** @returns {Number} how many required items are still missing: the required values and the documents to fill in */
     missingCount() {
-      return (this.fill.missing || []).length;
+      return this.fill.requiredMissing ?? (this.fill.missing || []).length;
     },
   },
 };

@@ -40,6 +40,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 /**
  * The request's documents to fill in, in one outlined card: its header says
  * « Document to fill in » and how many are filled, then one row per document,
+ * which the request needs filled, so an unfilled one is flagged,
  * before the draft exists the process's documents, then the request's copies,
  * each with its fill state. The rows are laid out in columns in full screen.
  */

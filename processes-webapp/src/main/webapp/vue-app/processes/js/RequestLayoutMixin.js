@@ -55,10 +55,11 @@ export default {
     },
     /**
      * The request's required items: the form's required fields as the
-     * section reports them, plus each document to fill in; each part is
-     * given apart too. The optional fields and message are not counted.
+     * section reports them, plus each document to fill in, which the request
+     * needs filled too; each part is given apart, and requiredMissing counts
+     * what is left of both. The optional fields and message are not counted.
      *
-     * @returns {Object} {total, filled, missing, fieldsTotal, fieldsFilled, documentsTotal, documentsFilled}
+     * @returns {Object} {total, filled, missing, requiredMissing, fieldsTotal, fieldsFilled, documentsTotal, documentsFilled}
      */
     requestFill() {
       const fill = this.sectionsFill;
@@ -70,6 +71,7 @@ export default {
         total: fieldsTotal + documentsTotal,
         filled: fieldsFilled + documentsFilled,
         missing: fill.missing || [],
+        requiredMissing: (fill.missing || []).length + documentsTotal - documentsFilled,
         fieldsTotal,
         fieldsFilled,
         documentsTotal,

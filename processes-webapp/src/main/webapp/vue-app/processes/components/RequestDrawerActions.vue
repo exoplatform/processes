@@ -44,7 +44,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 <script>
 /**
  * The request drawer's footer: « Save as draft » and Submit, on the right.
- * Submit waits for every required value, and says which when it is held back.
+ * Submit waits for every required value and every document to fill in, and
+ * says what is left when it is held back.
  */
 export default {
   props: {
@@ -71,17 +72,25 @@ export default {
   },
   computed: {
     /**
-     * @returns {Number} how many required values are still missing
+     * @returns {Number} how many required items are still missing: the required values and the documents to fill in
      */
     requiredMissing() {
-      return (this.fill.missing || []).length;
+      return this.fill.requiredMissing ?? (this.fill.missing || []).length;
     },
     /**
-     * @returns {String} the tooltip of a Submit held back by missing values
+     * @returns {Number} how many documents to fill in are still unfilled
+     */
+    documentsMissing() {
+      return (this.fill.documentsTotal || 0) - (this.fill.documentsFilled || 0);
+    },
+    /**
+     * @returns {String} the tooltip of a Submit held back: the document alone, the value alone, or how many items
      */
     submitTip() {
-      const key = this.requiredMissing > 1 ? 'processes.request.fill.submitTip' : 'processes.request.fill.submitTipOne';
-      return this.$t(key, {0: this.requiredMissing});
+      if (this.requiredMissing === 1) {
+        return this.$t(this.documentsMissing ? 'processes.request.fill.submitTipDocument' : 'processes.request.fill.submitTipOne');
+      }
+      return this.$t('processes.request.fill.submitTip', {0: this.requiredMissing});
     },
   },
 };

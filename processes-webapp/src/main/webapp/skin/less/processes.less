@@ -680,6 +680,12 @@
         background-color: ~"color-mix(in srgb, var(--v-success-base) 14%, transparent)" !important;
         color: var(--v-success-base) !important;
       }
+
+      // A document to fill in is required: one not filled yet is flagged
+      &.requestDocumentLine-missing {
+        background-color: ~"color-mix(in srgb, var(--v-error-base) 12%, transparent)" !important;
+        color: var(--v-error-base) !important;
+      }
     }
 
     .requestDocumentLine-button {

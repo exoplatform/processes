@@ -28,7 +28,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     </a>
     <span class="requestDocumentLine-meta text-caption text-light-color">{{ meta }}</span>
     <v-chip
-      :class="filled && 'requestDocumentLine-filled'"
+      :class="filled ? 'requestDocumentLine-filled' : 'requestDocumentLine-missing'"
       class="requestDocumentLine-state"
       small>
       {{ state }}
