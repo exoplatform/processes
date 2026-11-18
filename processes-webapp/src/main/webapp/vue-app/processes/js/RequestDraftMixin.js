@@ -253,7 +253,7 @@ export default {
      */
     markRefused(refusal) {
       if (refusal && refusal.fieldKey && this.requestSections()) {
-        this.requestSections().markRefused(refusal.fieldKey, refusal.code);
+        this.requestSections().markRefused(refusal.fieldKey, refusal.code, refusal.formId || null);
       }
     },
     /**

@@ -179,13 +179,14 @@ export default {
       this.call('saved');
     },
     /**
-     * Shows a field the server refused, in the sections that hold it.
+     * Shows a field the server refused: in the form it names, else in every section holding its key.
      * @param {String} fieldKey the refused field's key
      * @param {String} code the refusal's code
+     * @param {String} [formId] the refused field's form, when the refusal names it
      * @returns {void}
      */
-    markRefused(fieldKey, code) {
-      this.call('markRefused', fieldKey, code);
+    markRefused(fieldKey, code, formId) {
+      this.call('markRefused', fieldKey, code, formId);
     },
     /**
      * Makes the sections forget what was typed.

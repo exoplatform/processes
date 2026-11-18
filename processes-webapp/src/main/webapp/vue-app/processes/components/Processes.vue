@@ -621,18 +621,20 @@ export default {
       });
     },
     /**
-     * Reads a refused save's error: its message is the code of a 400, or the
-     * code and the refused field's key as code:fieldKey. A code holds no
-     * colon, so the first one separates them.
+     * Reads a refused save's error: its message is the code of a 400, then,
+     * for a refused field, its form's id and its key (code:formId:fieldKey)
+     * or its key alone (code:fieldKey). A code holds no colon and a form id
+     * is a number, so splitting on colons tells them apart.
      *
      * @param {Error} error the error of the save
-     * @returns {Object} the code and the field's key, null when none
+     * @returns {Object} the code, the field's form id and its key, null when none
      */
     refusal(error) {
-      const message = error && error.message || '';
-      const index = message.indexOf(':');
-      return index < 0 ? {code: message, fieldKey: null}
-        : {code: message.substring(0, index), fieldKey: message.substring(index + 1)};
+      const parts = (error && error.message || '').split(':');
+      if (parts.length >= 3) {
+        return {code: parts[0], formId: parts[1], fieldKey: parts.slice(2).join(':')};
+      }
+      return {code: parts[0], formId: null, fieldKey: parts.length === 2 ? parts[1] : null};
     },
     /**
      * Gives the label Forms registers for one of its codes: the one worded
