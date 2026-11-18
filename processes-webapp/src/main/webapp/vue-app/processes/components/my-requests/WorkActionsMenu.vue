@@ -14,7 +14,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 <template>
   <v-menu
     v-model="showMenu"
-    content-class="my-request-menu"
+    content-class="my-request-menu menu-close-content"
     bottom
     offset-y
     left>
@@ -84,7 +84,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 </template>
 
 <script>
+import MenuCloseMixin from '../../js/MenuCloseMixin.js';
+
 export default {
+  mixins: [MenuCloseMixin],
   props: {
     work: {
       type: Object,
@@ -108,9 +111,6 @@ export default {
       default: false,
     },
   },
-  data: () => ({
-    showMenu: false,
-  }),
   computed: {
     /**
      * Tells whether the requester may archive the request, or unarchive it: a sent request

@@ -16,7 +16,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     <v-menu
       v-model="showMenu"
       :disabled="isMobile"
-      content-class="workflow-card-menu"
+      content-class="workflow-card-menu menu-close-content"
       transition="slide-x-reverse-transition"
       bottom
       offset-y
@@ -92,7 +92,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 </template>
 
 <script>
+import MenuCloseMixin from '../js/MenuCloseMixin.js';
+
 export default {
+  mixins: [MenuCloseMixin],
   props: {
     workflow: {
       type: Object,
@@ -101,7 +104,6 @@ export default {
   },
   data: () => ({
     MOBILE_WIDTH: 600,
-    showMenu: false,
   }),
   computed: {
     isMobile() {
