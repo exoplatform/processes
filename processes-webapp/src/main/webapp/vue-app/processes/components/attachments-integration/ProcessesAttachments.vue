@@ -22,6 +22,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         indeterminate />
     </div>
     <div v-else>
+      <div :class="actionsEnd ? 'd-flex justify-end align-center' : 'd-inline'">
       <v-icon
         color="primary"
         small>
@@ -42,13 +43,14 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
           </v-icon>
         </v-btn>
       </a>
+      </div>
       <create-document-from
         v-if="allowDocFormCreation"
         :drive="drive"
         :entity-type="entityType"
         :entity-id="entityId"
         :edit-mode="editMode" />
-      <v-list dense>
+      <v-list v-if="shownAttachments.length" dense>
         <v-list-item-group>
           <attachment-item
             v-for="attachment in shownAttachments.slice(0, 2)"
@@ -133,8 +135,13 @@ export default {
       type: Number,
       default: null
     },
-    // The names of the documents another list shows, left out of this one
-    hiddenNames: {
+    // Puts the attachments link at the end of its line
+    actionsEnd: {
+      type: Boolean,
+      default: false,
+    },
+    // The ids of the documents another list shows, left out of this one
+    hiddenIds: {
       type: Array,
       default: () => [],
     },
@@ -166,7 +173,7 @@ export default {
       return this.shownAttachments.length > 0 ? `(${this.shownAttachments.length})` : '';
     },
     shownAttachments() {
-      return (this.attachments || []).filter(attachment => !this.hiddenNames.includes(attachment.title));
+      return (this.attachments || []).filter(attachment => !this.hiddenIds.includes(attachment.id));
     }
   },
   created() {

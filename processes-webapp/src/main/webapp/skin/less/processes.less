@@ -289,16 +289,29 @@
     max-height: 20px;
     opacity: 1;
   }
+  // The request drawer's documents show their file icon at the size of a row's icon
+  .request-documents {
+    .v-list-item__avatar {
+      min-width: 20px !important;
+      width: 20px !important;
+      height: 20px !important;
+    }
+    .fileType .v-icon {
+      font-size: 20px !important;
+      height: 20px !important;
+      width: 20px !important;
+    }
+    .attachmentThumbnail {
+      width: 20px !important;
+      height: 20px !important;
+    }
+    .uploadedFileTitle {
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+  }
   .request-guide {
     border-left: 3px solid @primaryColor;
-  }
-  .request-field-label {
-    flex: 0 0 calc(100% / 3 + 31px);
-    max-width: calc(100% / 3 + 31px);
-    line-height: 24px;
-  }
-  .request-field-value {
-    min-width: 0;
   }
   .v-autocomplete.identitySuggester {
     width: 290px;

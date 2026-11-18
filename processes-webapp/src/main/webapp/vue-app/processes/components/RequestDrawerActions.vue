@@ -14,6 +14,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 <template>
   <div class="d-flex flex-wrap align-center">
     <request-fill-status
+      v-if="expanded"
       :fill="fill"
       :can-submit="canSubmit"
       :class="expanded ? 'me-4' : 'full-width mb-2'"

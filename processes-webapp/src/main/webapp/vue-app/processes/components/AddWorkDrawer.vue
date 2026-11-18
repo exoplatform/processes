@@ -1,13 +1,14 @@
 <template>
   <exo-drawer
     @closed="close"
+    @opened="watchContentScroll"
     @expand-updated="expanded = $event"
     ref="work"
     :allow-expand="!viewMode"
     class="ProcessesApplication"
     right>
     <template v-if="expanded && !viewMode" #fullAppLeftTitle>
-      <div class="light-grey-background-color d-flex align-center align-self-stretch flex-grow-1 mx-n4 px-4 text-truncate">
+      <div class="d-flex align-center align-self-stretch flex-grow-1 text-truncate">
         {{ work.workFlow.title }}
       </div>
     </template>
@@ -24,8 +25,6 @@
       <request-guide-card
         :workflow="work.workFlow"
         :avatar-url="workflowAvatarUrl"
-        :documents="processDocuments"
-        :readable="isDocumentReadable"
         class="ma-4"
         expanded />
     </template>
@@ -54,8 +53,6 @@
           ref="guide"
           :workflow="work.workFlow"
           :avatar-url="workflowAvatarUrl"
-          :documents="processDocuments"
-          :readable="isDocumentReadable"
           class="mb-5" />
         <div
           class="pb-4"
@@ -91,21 +88,15 @@
               id="requestMessageRow"
               :label="$t('processes.work.message.to.manager')"
               :hint="$t('processes.request.message.hint')"
-              icon="fas fa-align-left">
-              <p
-                v-if="!showEditor"
-                @click="showRequestEditor"
-                v-sanitized-html="workDescription || $t('processes.work.message.to.manager.placeholder')"
-                :class="workDescription ? '' : 'text-light-color'"
-                class="text-break clickable px-2 py-2 mb-0">
-              </p>
-              <div v-else>
+              icon="fas fa-align-left"
+              stacked>
+              <div class="full-width">
                 <request-editor
                   @blur="blurOnDescriptionComposer"
                   required
                   ref="requestEditor"
                   id="request-editor"
-                  :auto-focus="true"
+                  :auto-focus="false"
                   :placeholder="$t('processes.works.form.placeholder.workDetail')"
                   v-model="work.description" />
                 <custom-counter
@@ -118,36 +109,46 @@
               v-if="processDocuments.length"
               id="requestFillDocumentRow"
               :label="$t('processes.request.documentToFill')"
+              :hint="hasDraft && !documentFilled ? $t('processes.request.documentToFill.notFilled') : null"
+              :table="expanded"
+              :stacked="!expanded"
               icon="fas fa-file-alt">
-              <v-list class="pa-0" dense>
-                <attachment-item
+              <v-list class="request-documents pa-0 full-width" dense>
+                <div
                   v-for="attachment in (hasDraft ? documentsToFill : processDocuments)"
                   :key="attachment.id"
+                  class="d-flex align-center">
+                <attachment-item
+                  :ref="`documentToFill${attachment.id}`"
                   :attachment="attachment"
                   :attachments="hasDraft ? documentsToFill : processDocuments"
                   :can-access="attachment.acl && attachment.acl.canAccess"
                   :allow-to-detach="false"
+                  :entity-id="hasDraft ? work.id : work.workFlow.id"
+                  :entity-type="hasDraft ? entityType : 'workflow'"
                   :open-in-editor="true"
                   :is-file-editable="hasDraft && isDocumentEditable(attachment)"
                   :is-file-fillable="hasDraft && isDocumentFillable(attachment)"
                   :is-file-readable="!hasDraft && isDocumentReadable(attachment)"
+                  class="flex-grow-1"
                   allow-to-preview
                   small-attachment-icon />
+                <v-btn
+                  class="requestFillDocumentButton primary--text flex-shrink-0 ms-2"
+                  text
+                  small
+                  @click="fillDocument(attachment)">
+                  {{ $t('processes.request.documentToFill.fill') }}
+                </v-btn>
+                </div>
               </v-list>
-              <v-btn
-                v-if="!hasDraft"
-                id="requestFillDocumentButton"
-                class="primary--text px-2"
-                small
-                text
-                @click="createDraftForAttachment().catch(() => null)">
-                {{ $t('processes.request.documentToFill.fill') }}
-              </v-btn>
             </request-field-row>
             <request-field-row
               id="requestSupportingDocumentsRow"
               :label="$t('processes.request.supportingDocuments')"
               :hint="$t('processes.request.supportingDocuments.hint')"
+              :table="expanded"
+              :stacked="!expanded"
               icon="fas fa-paperclip">
               <processes-attachments
                 ref="supportingDocuments"
@@ -156,10 +157,11 @@
                 :edit-mode="this.editDraft"
                 :entity-id="work.id"
                 :entity-type="entityType"
-                :hidden-names="processDocumentNames"
+                :hidden-ids="documentsToFillIds"
+                :actions-end="!expanded"
                 :preview-workflow-id="!hasDraft && work.workFlow && work.workFlow.id || null"
                 :prepare-entity="createDraftForAttachment"
-                class="px-2 py-2" />
+                class="request-documents px-2 py-2 full-width" />
             </request-field-row>
           </request-fields-section>
         </v-form>
@@ -242,7 +244,6 @@ export default {
       rules: {
         maxLength: len => v => (v || '').length <= len || this.$t('processes.work.form.description.maxLength.message', {0: len}),
       },
-      showEditor: false,
       openKey: 0,
       // Codes refusing what the drawer sent for a field, not a value the user typed
       unfixableFieldCodes: [
@@ -317,18 +318,8 @@ export default {
     }
   },
   watch: {
-    showEditor(value) {
-      if (value) {
-        setTimeout(() => {
-          this.$refs.requestEditor.setFocus();
-        }, 200);
-      }
-    }
   },
   methods: {
-    showRequestEditor() {
-      this.showEditor = !this.showEditor;
-    },
     /**
      * Opens the drawer on a new request of a process, a draft to edit, or a
      * request or draft to view.
@@ -354,7 +345,6 @@ export default {
         this.editDraft = true;
         this.$root.$emit('update-url-path', 'draftDetails', `/myRequests/draftDetails/${this.work.id}`);
         this.$root.$on('can-show-request-editor',() => {
-          this.showEditor = true;
           window.setTimeout(() => {
             this.$refs?.requestEditor?.setFocus();
           }, 200);
@@ -441,7 +431,7 @@ export default {
         return;
       }
       if (code === 'processes.request.draftInvalid') {
-        this.showEditor = true;
+        window.setTimeout(() => this.$refs?.requestEditor?.setFocus(), 200);
         this.$root.$emit('show-alert', {type: 'error', message: this.$t('processes.work.form.description.maxLength.message', {0: this.maxLength})});
       }
       const draftPath = `/myRequests/draftDetails/${this.work.id}`;
@@ -463,7 +453,6 @@ export default {
       } else {
         this.$root.$emit('update-url-path', 'processes', '');
       }
-      this.showEditor = false;
     },
     resetInputs() {
       this.work = {
@@ -483,7 +472,7 @@ export default {
       this.submitWork();
     },
     /**
-     * Saves the draft when the message editor loses the focus, and hides it.
+     * Saves the draft when the message editor loses the focus.
      *
      * @returns {void}
      */
@@ -491,7 +480,6 @@ export default {
       if (!this.viewMode && this.hasDraft) {
         this.saveDraft().catch(() => null);
       }
-      this.showEditor = false;
     },
     /**
      * Creates the draft the attachments need, the user's first input being
@@ -519,6 +507,25 @@ export default {
      */
     isDocumentReadable(attachment) {
       return !!this.$refs.supportingDocuments && this.$refs.supportingDocuments.isFileSupported(attachment);
+    },
+    /**
+     * Fills in a document: before the draft exists, creates it, which copies
+     * the process's documents into it; then opens the requester's copy in
+     * the editor.
+     *
+     * @param {Object} attachment a process document, or the draft's copy of it
+     * @returns {void}
+     */
+    fillDocument(attachment) {
+      if (!this.hasDraft) {
+        this.createDraftForAttachment().catch(() => null);
+        return;
+      }
+      const item = this.$refs[`documentToFill${attachment.id}`];
+      const component = Array.isArray(item) ? item[0] : item;
+      if (component && typeof component.openFile === 'function') {
+        component.openFile();
+      }
     },
     createDraftForAttachment() {
       return this.saveDraft(true).then(() => {

@@ -15,14 +15,17 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
   <div id="requestGuideCard" class="request-guide light-grey-background-color application-border-radius pa-3">
     <div ref="nameRow" class="d-flex align-center mb-2">
       <v-avatar
-        :color="avatarUrl ? '' : 'primary lighten-4'"
-        class="me-3 flex-shrink-0"
+        :class="!showIllustration && 'workflow-card-avatar-placeholder primary--text'"
+        class="workflow-card-avatar me-3 flex-shrink-0"
         size="32">
-        <v-img v-if="avatarUrl" :src="avatarUrl" />
-        <span v-else class="primary--text font-weight-bold">{{ initial }}</span>
+        <v-img
+          v-if="showIllustration"
+          :src="avatarUrl"
+          @error="illustrationFailed = true" />
+        <span v-else class="font-weight-bold">{{ initial }}</span>
       </v-avatar>
-      <div class="text-truncate">
-        <div class="font-weight-bold text-break">{{ workflow.title }}</div>
+      <div class="text-start text-truncate">
+        <div v-if="!expanded" class="font-weight-bold text-break">{{ workflow.title }}</div>
         <div v-if="spaceName" class="text-caption text-light-color text-truncate">{{ spaceName }}</div>
       </div>
     </div>
@@ -43,7 +46,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       id="requestReferenceDocuments"
       class="text-body-2">
       <span class="text-light-color">{{ $t('processes.request.guide.referenceDocuments') }}</span>
-      <v-list class="pa-0 transparent" dense>
+      <v-list class="request-documents pa-0 transparent" dense>
         <attachment-item
           v-for="attachment in documents"
           :key="attachment.id"
@@ -51,6 +54,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
           :attachments="documents"
           :can-access="attachment.acl && attachment.acl.canAccess"
           :allow-to-detach="false"
+          :entity-id="workflow.id"
+          entity-type="workflow"
           :open-in-editor="true"
           :is-file-readable="readable(attachment)"
           allow-to-preview
@@ -63,7 +68,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 <script>
 /**
  * The read-only guide at the top of the request drawer, and its full-screen
- * left pane: the process with its managing space, its description, a
+ * left pane, where the pane's title already names the process: the process
+ * with its managing space, its description, a
  * « How to complete my request? » block holding its summary, open in full
  * screen, and the process's own documents, which the requester may read.
  */
@@ -91,7 +97,12 @@ export default {
       default: () => false,
     },
   },
+  data: () => ({illustrationFailed: false}),
   computed: {
+    /** @returns {Boolean} true when the process's illustration is shown, its initial otherwise, as on the home cards */
+    showIllustration() {
+      return !!this.avatarUrl && !this.illustrationFailed;
+    },
     /** @returns {String} the managing space's name, null when the process has none */
     spaceName() {
       return this.workflow.parentSpace && this.workflow.parentSpace.displayName || null;
@@ -101,11 +112,9 @@ export default {
       return (this.workflow.title || '?').trim().charAt(0).toUpperCase();
     },
   },
-  methods: {
-    /** @returns {Number} the offset, in the drawer's content, under which the process's name row ends */
-    nameRowBottom() {
-      const row = this.$refs.nameRow;
-      return row ? this.$el.offsetTop + row.offsetTop + row.offsetHeight : 0;
+  watch: {
+    avatarUrl() {
+      this.illustrationFailed = false;
     },
   },
 };
