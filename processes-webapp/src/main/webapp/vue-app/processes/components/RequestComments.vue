@@ -49,8 +49,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       :id="`requestCommentEditor-${task.id}`"
       class="requestCommentEditor"
       show-comment-editor
-      @validity-updated="valid = $event"
-      @attachments-edited="attachmentsEdited = true"
+      @validity-updated="editorChanged"
+      @attachments-edited="editorChanged"
       @addNewComment="post" />
   </div>
 </template>
@@ -71,8 +71,7 @@ export default {
   data: () => ({
     comments: [],
     message: '',
-    valid: true,
-    attachmentsEdited: false,
+    editorChanges: 0,
     posting: false,
     editorKey: 0,
     composing: false,
@@ -87,17 +86,22 @@ export default {
       return this.task.taskId || this.task.id;
     },
     /**
-     * Tells whether a comment can be posted, as the task's own composer does: a valid message, with text
-     * or an image, and no post under way.
+     * Tells whether a comment can be posted: the task composer allows it (a valid message, with text or an
+     * image) and no post is under way. The composer's own rule is read, re-read whenever it reports a change.
      *
      * @returns {Boolean} true when the footer's « Comment » action is enabled
      */
     canPost() {
-      const written = !!this.$utils.htmlToText(this.message || '').trim();
-      return this.composing && !this.posting && this.valid && (written || this.attachmentsEdited);
+      // read so that the rule is computed again when the message, its validity or its images change
+      const changes = this.editorChanges + (this.message || '').length;
+      const editor = changes >= 0 && this.composing && this.$refs.editor;
+      return !!editor && !this.posting && !editor.postDisabled;
     },
   },
   watch: {
+    composing() {
+      this.editorChanged();
+    },
     canPost: {
       immediate: true,
       handler(value) {
@@ -109,6 +113,14 @@ export default {
     this.load();
   },
   methods: {
+    /**
+     * Notes that the composer reported a change of its message's validity or images, which its rule reads.
+     *
+     * @returns {void}
+     */
+    editorChanged() {
+      this.$nextTick(() => this.editorChanges++);
+    },
     /**
      * Loads the task's comments.
      *
@@ -145,7 +157,6 @@ export default {
           posted = true;
           this.comments.push(created);
           this.message = '';
-          this.attachmentsEdited = false;
           this.$root.$emit('update-task-comments', this.comments.length, this.taskId);
           return editor.saveAttachments(created.comment.id);
         })
@@ -158,6 +169,7 @@ export default {
           this.posting = false;
           if (posted) {
             this.editorKey++;
+            this.editorChanged();
           }
         });
     },

@@ -59,6 +59,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
             :attachments="shownAttachments"
             :can-access="attachment.acl && attachment.acl.canAccess"
             :allow-to-detach="false"
+            :entity-id="readonly && entityId ? String(entityId) : ''"
             :open-in-editor="true"
             :is-file-editable="!preview && !readonly && isFileEditable(attachment)"
             :is-file-fillable="!preview && !readonly && isFileFillable(attachment)"

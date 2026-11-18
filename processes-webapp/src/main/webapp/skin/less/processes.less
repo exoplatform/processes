@@ -678,6 +678,12 @@
   }
 }
 
+// a sent request's files: the platform's attachment row centres its text, which a full-screen
+// width pushes away from the file's icon
+#requestDetailMessage .attachment {
+  text-align: start;
+}
+
 // a sent request's comments: the drawer's footer posts them, and a sent request's comments are
 // neither answered in a thread nor deleted from its view
 #requestComments {

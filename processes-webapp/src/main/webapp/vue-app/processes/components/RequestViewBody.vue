@@ -57,14 +57,18 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       readonly
       @open="$emit('open-document', $event)"
       @open-original="$emit('open-original', $event)" />
-    <div id="requestDetailMessage" class="requestViewBody-message mb-5">
-      <div class="text-header mb-2">{{ $t('processes.work.message.to.manager') }}</div>
+    <!-- the message and its files; with neither, no block shows, but the list stays mounted, since it
+         loads the request's files, among them the documents to fill in the card shows -->
+    <div
+      id="requestDetailMessage"
+      :class="hasMessage && 'mb-5'"
+      class="requestViewBody-message">
+      <div v-if="hasMessage" class="text-header mb-2">{{ $t('processes.work.message.to.manager') }}</div>
       <div
         v-if="work.description"
         v-sanitized-html="work.description"
         class="work-description rich-editor-content"></div>
-      <div v-else class="text-light-color">{{ $t('processes.work.description.empty') }}</div>
-      <div v-if="messageFiles.length" class="text-subtitle mt-3">{{ $t('processes.request.attachedFiles') }}</div>
+      <div v-if="work.description && messageFiles.length" class="text-subtitle mt-3">{{ $t('processes.request.attachedFiles') }}</div>
       <!-- the request's files but its documents to fill in, listed with no add link: the request is sent -->
       <processes-attachments
         ref="attachments"
@@ -185,6 +189,14 @@ export default {
      */
     taskId() {
       return this.work && (this.work.taskId || this.work.id) || null;
+    },
+    /**
+     * Tells whether the request has a message block to show: its text, or files attached with it.
+     *
+     * @returns {Boolean} true when the request has either
+     */
+    hasMessage() {
+      return !!this.work.description || this.messageFiles.length > 0;
     },
     /**
      * Gives the forms' sections what they need: the process, the request, its task, and that the
