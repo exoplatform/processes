@@ -19,7 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     outlined>
     <div class="requestDocumentsCard-head d-flex align-center px-3 py-2">
       <span class="font-weight-bold">{{ $t('processes.request.documentToFill') }}</span>
-      <template v-if="filledCount < documents.length">
+      <template v-if="!readonly && filledCount < documents.length">
         <v-icon
           class="error--text ms-1"
           size="6"

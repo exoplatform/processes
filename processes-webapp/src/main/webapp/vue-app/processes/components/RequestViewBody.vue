@@ -68,9 +68,19 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         v-if="work.description"
         v-sanitized-html="work.description"
         class="work-description rich-editor-content"></div>
-      <div v-if="work.description && messageFiles.length" class="text-subtitle mt-3">{{ $t('processes.request.attachedFiles') }}</div>
-      <!-- the request's files but its documents to fill in, listed with no add link: the request is sent -->
+      <!-- the message's files as the platform shows an entity's attachments, read-only: the request is sent,
+           and its documents to fill in stay in their card -->
+      <attachment-app
+        v-if="attachmentAppReady && messageFiles.length"
+        :key="`requestFiles${openKey}`"
+        :entity-id="String(work.id)"
+        :entity-type="entityType"
+        :excluded-ids="documentIds"
+        class="mt-2"
+        readonly />
+      <!-- not shown: it loads the request's files, which the document card and the platform list read -->
       <processes-attachments
+        v-show="false"
         ref="attachments"
         v-model="attachmentList"
         :workflow-parent-space="workflowParentSpace"
@@ -214,9 +224,16 @@ export default {
       };
     }
   },
+  data: () => ({
+    attachmentAppReady: !!Vue.options.components.AttachmentApp,
+  }),
   created() {
     // Loads the modules whose name contains ProcessRequestDetailExtension, which register the forms' sections
     this.$utils.includeExtensions('ProcessRequestDetailExtension');
+    // the platform's attachment list, which the task drawer shows, is registered by the Documents integration
+    if (!this.attachmentAppReady) {
+      window.require(['SHARED/AttachmentIntegration'], () => this.attachmentAppReady = true);
+    }
   },
   methods: {
     /**

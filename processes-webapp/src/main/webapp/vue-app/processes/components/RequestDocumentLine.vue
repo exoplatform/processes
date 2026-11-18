@@ -128,9 +128,13 @@ export default {
       const icon = extensions && (extensions.get(this.attachment.mimetype) || extensions.get('file'));
       return icon || {class: 'fas fa-file', color: ''};
     },
-    /** @returns {String} the chip's colour: green once filled, the error colour while the required document is not */
+    /** @returns {String} the chip's colour: green once filled, the error colour while the required document is not, none on a sent request */
     stateClass() {
-      return this.filled ? 'requestDocumentLine-tinted success--text' : 'requestDocumentLine-tinted error--text';
+      if (this.filled) {
+        return 'requestDocumentLine-tinted success--text';
+      }
+      // a sent request's copy not provided is a fact to read, not something left to do: no error tint
+      return this.readonly ? '' : 'requestDocumentLine-tinted error--text';
     },
     /** @returns {String} the size and the type, joined by a dot */
     meta() {
