@@ -13,7 +13,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 -->
 <template>
   <div id="requestFieldsSection">
-    <div class="d-flex flex-wrap align-center mb-1">
+    <div v-if="!hideHeader" class="d-flex flex-wrap align-center mb-1">
       <span class="text-subtitle-1 font-weight-bold me-2">{{ $t('processes.request.section.title') }}</span>
       <span
         v-if="missingCount"
@@ -47,6 +47,11 @@ export default {
     fill: {
       type: Object,
       default: () => ({total: 0, filled: 0, missing: []}),
+    },
+    // In full screen, the drawer's header carries the section's title and count
+    hideHeader: {
+      type: Boolean,
+      default: false,
     },
   },
   computed: {

@@ -12,7 +12,20 @@ You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 -->
 <template>
-  <div class="d-flex flex-column text-truncate">
+  <div v-if="expanded && !viewMode" class="d-flex align-center flex-grow-1 text-truncate">
+    <span class="text-truncate">{{ $t('processes.request.section.title') }}</span>
+    <v-spacer />
+    <span
+      v-if="missingCount"
+      class="d-flex align-center text-caption error--text me-3">
+      <v-icon class="error--text me-1" size="6">fa-circle</v-icon>
+      {{ $t('processes.request.section.missing', {0: missingCount}) }}
+    </span>
+    <span v-if="fill.total" class="text-caption text-light-color me-2">
+      {{ $t('processes.request.fill.count', {0: fill.filled, 1: fill.total}) }}
+    </span>
+  </div>
+  <div v-else class="d-flex flex-column text-truncate">
     <span>{{ $t(viewMode ? 'processes.works.work.label' : 'processes.request.newTitle') }}</span>
     <div
       v-if="!expanded"
@@ -33,6 +46,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 <script>
 export default {
   props: {
+    // The request's fill state, whose missing values and count the full-screen header shows
+    fill: {
+      type: Object,
+      default: () => ({total: 0, filled: 0, missing: []}),
+    },
     /** The request being shown: its process, and whether it is completed */
     work: {
       type: Object,
@@ -58,6 +76,10 @@ export default {
     }
   },
   computed: {
+    /** @returns {Number} how many required values are still missing */
+    missingCount() {
+      return (this.fill.missing || []).length;
+    },
     /** @returns {String} the header's process line: the process, then its managing space */
     titleLine() {
       const workflow = this.work && this.work.workFlow || {};

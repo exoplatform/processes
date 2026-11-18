@@ -35,6 +35,7 @@
         :avatar-url="workflowAvatarUrl"
         :view-mode="viewMode"
         :line-shown="titleLineShown"
+        :fill="requestFill"
         :expanded="expanded" />
     </template>
     <template slot="content">
@@ -58,7 +59,7 @@
           v-model="valid"
           ref="form"
           id="add-work-form">
-          <request-fields-section :fill="requestFill">
+          <request-fields-section :fill="requestFill" :hide-header="expanded">
             <processes-extension-sections
               ref="requestSections"
               :key="`requestSections${openKey}`"
