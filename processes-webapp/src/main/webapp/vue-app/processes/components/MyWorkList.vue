@@ -25,7 +25,6 @@
       v-else
       id="myRequestsList"
       :groups="groups" />
-    <work-detail-drawer />
   </div>
 </template>
 
@@ -35,6 +34,11 @@ import MyWorkListUpdatesMixin from '../js/MyWorkListUpdatesMixin.js';
 
 export default {
   mixins: [MyWorkListUpdatesMixin],
+  created() {
+    // Loads the modules whose name contains ProcessRequestDetailExtension, which register the rows'
+    // summaries and the sent request's forms
+    this.$utils.includeExtensions('ProcessRequestDetailExtension');
+  },
   props: {
     works: {
       type: Array,
