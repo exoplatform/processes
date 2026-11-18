@@ -63,21 +63,41 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       id="requestDetailMessage"
       :class="hasMessage && 'mb-5'"
       class="requestViewBody-message">
-      <div v-if="hasMessage" class="text-header mb-2">{{ $t('processes.work.message.to.manager') }}</div>
-      <div
-        v-if="work.description"
-        v-sanitized-html="work.description"
-        class="work-description rich-editor-content"></div>
-      <!-- the message's files as the platform shows an entity's attachments, read-only: the request is sent,
-           and its documents to fill in stay in their card -->
-      <attachment-app
-        v-if="attachmentAppReady && messageFiles.length"
-        :key="`requestFiles${openKey}`"
-        :entity-id="String(work.id)"
-        :entity-type="entityType"
-        :excluded-ids="documentIds"
-        class="mt-2"
-        readonly />
+      <template v-if="hasMessageText">
+        <div class="text-header mb-2">{{ $t('processes.work.message.to.manager') }}</div>
+        <div
+          v-sanitized-html="work.description"
+          class="work-description rich-editor-content"></div>
+      </template>
+      <!-- the message's files as the task drawer shows a task's attachments, read-only: the platform's link to
+           the list drawer, then its cards; the request is sent, and its documents to fill in stay in their card -->
+      <template v-if="attachmentAppReady && messageFiles.length">
+        <attachment-app
+          :key="`requestFiles${openKey}`"
+          :entity-id="String(work.id)"
+          :entity-type="entityType"
+          :excluded-ids="documentIds"
+          :class="hasMessageText && 'mt-2'"
+          readonly>
+          <template #attachmentsList></template>
+          <template #attachedFilesList="{attachments}">
+            <div class="attachmentsPreview v-card__text ms-3 pa-0">
+              <a
+                v-if="attachments.length"
+                class="viewAllAttachments primary--text font-weight-bold text-decoration-underline">
+                {{ $t('attachments.view.all') }} ({{ attachments.length }})
+              </a>
+            </div>
+          </template>
+        </attachment-app>
+        <notes-attachment-carousel
+          :key="`requestCards${openKey}`"
+          :entity-id="String(work.id)"
+          :entity-type="entityType"
+          :space-id="workflowParentSpace && workflowParentSpace.id || null"
+          :excluded-ids="documentIds"
+          readonly />
+      </template>
       <!-- not shown: it loads the request's files, which the document card and the platform list read -->
       <processes-attachments
         v-show="false"
@@ -206,7 +226,17 @@ export default {
      * @returns {Boolean} true when the request has either
      */
     hasMessage() {
-      return !!this.work.description || this.messageFiles.length > 0;
+      return this.hasMessageText || this.messageFiles.length > 0;
+    },
+    /**
+     * Tells whether the message holds text or an image: an editor left empty stores an empty paragraph,
+     * which takes no heading.
+     *
+     * @returns {Boolean} true when the message has content to show
+     */
+    hasMessageText() {
+      const description = this.work && this.work.description || '';
+      return /<img\b/i.test(description) || !!description.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
     },
     /**
      * Gives the forms' sections what they need: the process, the request, its task, and that the
@@ -225,14 +255,15 @@ export default {
     }
   },
   data: () => ({
-    attachmentAppReady: !!Vue.options.components.AttachmentApp,
+    attachmentAppReady: !!Vue.options.components.AttachmentApp && !!Vue.options.components['notes-attachment-carousel'],
   }),
   created() {
     // Loads the modules whose name contains ProcessRequestDetailExtension, which register the forms' sections
     this.$utils.includeExtensions('ProcessRequestDetailExtension');
-    // the platform's attachment list, which the task drawer shows, is registered by the Documents integration
+    // the task drawer's attachments: the list's link, registered by the Documents integration, and the cards,
+    // registered by the Documents attachment application
     if (!this.attachmentAppReady) {
-      window.require(['SHARED/AttachmentIntegration'], () => this.attachmentAppReady = true);
+      window.require(['SHARED/AttachmentIntegration', 'PORTLET/documents-portlet/AttachmentApp'], () => this.attachmentAppReady = true);
     }
   },
   methods: {
