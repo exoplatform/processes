@@ -75,6 +75,7 @@ export default {
         'processes.label.invalidName',
         'processes.space.notFound',
         'processes.workflow.formUnsupported',
+        'forms.form.otherSpace',
       ],
       requestSaveErrorCodes: [
         'processes.request.formValuesInvalid',
@@ -540,8 +541,9 @@ export default {
     },
     /**
      * Words a refused process save: the message of the code the server
-     * answered with a 400, worded for an update where its cause differs, or
-     * the generic message of the save otherwise.
+     * answered with a 400, worded for an update where its cause differs, the
+     * process editor's own wording first, then Forms' label for a Forms code,
+     * or the generic message of the save otherwise.
      *
      * @param {Error} error the error of the save
      * @param {String} action add or update
@@ -549,11 +551,8 @@ export default {
      */
     saveErrorMessage(error, action) {
       const code = this.refusal(error).code;
-      if (this.formsRefusalMessage(code)) {
-        return this.formsRefusalMessage(code);
-      }
       if (!this.workflowSaveErrorCodes.includes(code)) {
-        return this.$t(`processes.workflow.${action}.error.message`);
+        return this.formsRefusalMessage(code) || this.$t(`processes.workflow.${action}.error.message`);
       }
       // On an update, an ineligible project means the managing space changed
       // while the process keeps its project
