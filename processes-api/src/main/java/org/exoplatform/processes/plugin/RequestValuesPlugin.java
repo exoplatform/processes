@@ -136,4 +136,24 @@ public interface RequestValuesPlugin {
    *           the process
    */
   void setProcessForm(long workFlowId, Long formId, Identity editor) throws IllegalAccessException;
+
+  /**
+   * Checks the forms of an existing task project an editor chose for a
+   * process's requesters to fill, before any write of the process's save:
+   * each one must be a form the project gives its tasks, which the editor may
+   * see. A plugin that does not know the choice refuses any form, so that no
+   * choice is stored unchecked.
+   *
+   * @param workFlowId the process id, or null for a new process
+   * @param projectId the id of the task project the process stores its
+   *          requests on
+   * @param formIds the chosen form ids, distinct, never empty
+   * @param editor the editor's identity
+   * @throws IllegalAccessException when the editor may not choose the forms
+   *           of that project
+   * @throws IllegalArgumentException when a form is not one the project gives
+   */
+  default void checkRequesterForms(Long workFlowId, long projectId, List<Long> formIds, Identity editor) throws IllegalAccessException {
+    throw new IllegalArgumentException("processes.workflow.formUnsupported");
+  }
 }

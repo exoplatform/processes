@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.io.StringReader;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
@@ -65,5 +66,35 @@ class WorkFlowEntityJsonTest {
     assertEquals(Map.of("en", "Leave", "fr", "Congés", "pt-BR", "Férias"), workFlow.getTitleTranslations());
     assertEquals(Map.of("fr", "Demander un congé"), workFlow.getDescriptionTranslations());
     assertNull(workFlow.getSummaryTranslations());
+    assertNull("a body that does not state the requester forms keeps the stored ones", workFlow.getRequesterFormIds());
+  }
+
+  /**
+   * The project forms a save body chooses for the process's requesters are
+   * bound by the REST resource's own JSON reader as form ids, and reach the
+   * process the Service checks; an empty list stays empty, so the Service
+   * removes them. Mutant: the field left out of the builder, and the Service
+   * sees no choice.
+   *
+   * @throws Exception when the body can't be bound
+   */
+  @Test
+  void theEditorsSaveBodyBindsItsRequesterForms() throws Exception {
+    assertEquals(List.of(63L, 64L), EntityBuilder.fromEntity(bind("{\"id\":9,\"title\":\"Leave\",\"requesterFormIds\":[63,64]}"))
+                                                 .getRequesterFormIds());
+    assertEquals(List.of(), EntityBuilder.fromEntity(bind("{\"id\":9,\"title\":\"Leave\",\"requesterFormIds\":[]}"))
+                                         .getRequesterFormIds());
+  }
+
+  /**
+   * @param body a save body
+   * @return the REST entity the resource's JSON reader binds it to
+   * @throws Exception when the body can't be bound
+   */
+  private static WorkFlowEntity bind(String body) throws Exception {
+    JsonParserImpl parser = new JsonParserImpl();
+    JsonDefaultHandler handler = new JsonDefaultHandler();
+    parser.parse(new StringReader(body), handler);
+    return ObjectBuilder.createObject(WorkFlowEntity.class, handler.getJsonObject());
   }
 }

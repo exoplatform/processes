@@ -334,6 +334,7 @@ public class ProcessesRestTest {
                                                         null,
                                                         null,
                                                         null,
+                                                        null,
                                                         null);
   }
 
@@ -699,9 +700,10 @@ public class ProcessesRestTest {
 
   /**
    * A process's own forms are read for its editor only: a requester who may
-   * not edit it reads the process with no form ids, the editor-only read
-   * never called, and an editor reads them. Mutation: drop the edit check and
-   * the requester's read gets the form ids.
+   * not edit it reads the process with no form ids and no requester forms,
+   * the editor-only read never called, and an editor reads both. Mutation:
+   * drop the edit check and the requester's read gets the form ids; set the
+   * requester forms outside it and the requester reads them.
    *
    * @throws Exception on an unexpected refusal
    */
@@ -712,6 +714,7 @@ public class ProcessesRestTest {
     workFlow.setId(1L);
     org.exoplatform.processes.model.ProcessPermission acl = new org.exoplatform.processes.model.ProcessPermission();
     workFlow.setAcl(acl);
+    workFlow.setRequesterFormIds(List.of(63L));
     when(processesService.getWorkFlow(1L, 1L)).thenReturn(workFlow);
     when(processesService.getProcessFormIds(1L, 1L)).thenReturn(List.of(38L));
     WorkFlowEntity requesterRead = new WorkFlowEntity();
@@ -719,6 +722,7 @@ public class ProcessesRestTest {
 
     assertEquals(Response.Status.OK.getStatusCode(), processesRest.getWorkFlowById(1L, "", false).getStatus());
     assertEquals(null, requesterRead.getRequestFormIds());
+    assertEquals(null, requesterRead.getRequesterFormIds());
     verify(processesService, never()).getProcessFormIds(anyLong(), anyLong());
 
     acl.setCanEdit(true);
@@ -727,6 +731,7 @@ public class ProcessesRestTest {
 
     assertEquals(Response.Status.OK.getStatusCode(), processesRest.getWorkFlowById(1L, "", false).getStatus());
     assertEquals(List.of(38L), editorRead.getRequestFormIds());
+    assertEquals(List.of(63L), editorRead.getRequesterFormIds());
   }
 
   /**
