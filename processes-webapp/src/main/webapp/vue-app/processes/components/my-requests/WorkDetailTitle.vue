@@ -22,7 +22,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         <v-img v-if="avatarUrl" :src="avatarUrl" />
         <span v-else class="font-weight-bold">{{ processTitle.charAt(0).toUpperCase() }}</span>
       </v-avatar>
-      <span class="text-truncate">{{ subtitle }}</span>
+      <!-- the process only: the requester is not shown the process's managing space -->
+      <span class="text-truncate">{{ processTitle }}</span>
     </span>
   </div>
 </template>
@@ -43,15 +44,6 @@ export default {
      */
     processTitle() {
       return this.workFlow && this.workFlow.title || '';
-    },
-    /**
-     * Names the request's process and its managing space, « Expense claim · Finance ».
-     *
-     * @returns {String} the subtitle
-     */
-    subtitle() {
-      const spaceName = this.workFlow && this.workFlow.parentSpace && this.workFlow.parentSpace.displayName;
-      return spaceName ? `${this.processTitle} · ${spaceName}` : this.processTitle;
     },
     /**
      * Builds the URL of the process illustration, when the process has one.
