@@ -55,9 +55,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         <process-avatar
           :avatar-url="avatarUrl"
           :icon="work.workFlow && work.workFlow.image"
-          :title="processTitle"
           class="my-request-row-avatar flex-shrink-0 me-2"
-          initial-class="caption font-weight-bold"
           size="24" />
         <span class="text-truncate">{{ processTitle }}</span>
       </div>

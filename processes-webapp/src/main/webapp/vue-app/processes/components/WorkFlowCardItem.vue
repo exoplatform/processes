@@ -21,7 +21,6 @@
           <process-avatar
             :avatar-url="avatarUrl"
             :icon="workflow.image"
-            :title="workflow.title"
             class="workflow-card-avatar flex-shrink-0 me-3"
             size="40" />
           <div

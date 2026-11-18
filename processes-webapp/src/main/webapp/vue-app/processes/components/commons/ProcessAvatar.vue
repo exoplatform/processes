@@ -25,15 +25,18 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       class="primary--text">
       {{ icon }}
     </v-icon>
-    <span
+    <v-icon
       v-else
-      :class="initialClass">
-      {{ initial }}
-    </span>
+      :size="iconSize"
+      class="icon-default-color">
+      {{ defaultIcon }}
+    </v-icon>
   </v-avatar>
 </template>
 
 <script>
+import {PROCESS_DEFAULT_ICON} from '../../js/ProcessDefaultIcon.js';
+
 export default {
   props: {
     /** The URL of the process's image, null when it has none */
@@ -46,23 +49,14 @@ export default {
       type: String,
       default: null,
     },
-    /** The process title, whose first letter shows when it has no image and no icon */
-    title: {
-      type: String,
-      default: null,
-    },
     size: {
       type: [Number, String],
       default: 40,
     },
-    /** The class of the title's first letter */
-    initialClass: {
-      type: String,
-      default: 'font-weight-bold',
-    },
   },
   data: () => ({
     imageFailed: false,
+    defaultIcon: PROCESS_DEFAULT_ICON,
   }),
   computed: {
     /** @returns {Boolean} true when the image shows, as the process has one that loads */
@@ -72,10 +66,6 @@ export default {
     /** @returns {Number} the icon's size, a little smaller than the avatar */
     iconSize() {
       return Math.round(Number(this.size) * 0.55);
-    },
-    /** @returns {String} the first letter of the process title */
-    initial() {
-      return (this.title || '').trim().charAt(0).toUpperCase();
     },
   },
   watch: {

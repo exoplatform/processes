@@ -18,7 +18,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       <process-avatar
         :avatar-url="avatarUrl"
         :icon="workFlow && workFlow.image"
-        :title="processTitle"
         class="flex-shrink-0 me-1"
         size="18" />
       <!-- the process only: the requester is not shown the process's managing space -->

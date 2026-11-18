@@ -15,7 +15,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
   The image choice of an App Center application, copied from its editor row
   (ApplicationImageInput and its ApplicationIcon preview: preview, Choose and
   Upload) until the platform shares one. With nothing chosen, the preview shows
-  the icon App Center gives a new application. The upload is cropped to a
+  the default icon a process shows everywhere else. The upload is cropped to a
   square by the platform's crop drawer; choosing an icon replaces the image,
   and uploading replaces the icon.
 -->
@@ -39,7 +39,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         v-else
         :size="previewSize"
         class="icon-default-color">
-        {{ localIcon || 'fa-dot-circle' }}
+        {{ localIcon || defaultIcon }}
       </v-icon>
     </v-avatar>
     <font-icon-input
@@ -68,6 +68,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 </template>
 
 <script>
+import {PROCESS_DEFAULT_ICON} from '../../js/ProcessDefaultIcon.js';
+
 export default {
   props: {
     /** The process being edited, whose stored image the preview shows */
@@ -90,6 +92,7 @@ export default {
     },
   },
   data: () => ({
+    defaultIcon: PROCESS_DEFAULT_ICON,
     previewSize: 34,
     maxFileSize: 1048576,
     cropOptions: {

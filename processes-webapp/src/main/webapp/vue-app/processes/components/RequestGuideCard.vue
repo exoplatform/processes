@@ -22,7 +22,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       <process-avatar
         :avatar-url="avatarUrl"
         :icon="workflow.image"
-        :title="workflow.title || '?'"
         class="workflow-card-avatar me-3 flex-shrink-0"
         size="32" />
       <div class="text-start font-weight-bold text-break">{{ workflow.title }}</div>

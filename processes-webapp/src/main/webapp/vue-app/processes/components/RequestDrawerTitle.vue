@@ -25,7 +25,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       <process-avatar
         :avatar-url="avatarUrl"
         :icon="processIcon"
-        :title="titleLine"
         class="me-1 flex-shrink-0"
         size="18" />
       <span :style="textDecoration" class="text-truncate">{{ titleLine }}</span>
