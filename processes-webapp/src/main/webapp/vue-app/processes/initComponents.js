@@ -26,6 +26,17 @@ import WorkActionsMenu from './components/my-requests/WorkActionsMenu.vue';
 import WorkDetailDrawer from './components/my-requests/WorkDetailDrawer.vue';
 import WorkDetailTitle from './components/my-requests/WorkDetailTitle.vue';
 import ProcessesExtensionSections from './components/ProcessesExtensionSections.vue';
+import RequestFillStatus from './components/RequestFillStatus.vue';
+import RequestDrawerActions from './components/RequestDrawerActions.vue';
+import RequestGuideCard from './components/RequestGuideCard.vue';
+import RequestProgressChecklist from './components/RequestProgressChecklist.vue';
+import RequestFieldRow from './components/RequestFieldRow.vue';
+import RequestFieldsSection from './components/RequestFieldsSection.vue';
+import RequestDocumentLine from './components/RequestDocumentLine.vue';
+import RequestDocumentsCard from './components/RequestDocumentsCard.vue';
+import RequestDrawerTitle from './components/RequestDrawerTitle.vue';
+import RequestMessageRow from './components/RequestMessageRow.vue';
+import RequestViewBody from './components/RequestViewBody.vue';
 
 import EmptyOrLoading from './components/commons/EmptyOrLoading.vue';
 import CustomCounter from './components/commons/CustomCounter.vue';
@@ -70,6 +81,17 @@ const components = {
   'work-detail-drawer': WorkDetailDrawer,
   'work-detail-title': WorkDetailTitle,
   'processes-extension-sections': ProcessesExtensionSections,
+  'request-fill-status': RequestFillStatus,
+  'request-drawer-actions': RequestDrawerActions,
+  'request-guide-card': RequestGuideCard,
+  'request-progress-checklist': RequestProgressChecklist,
+  'request-field-row': RequestFieldRow,
+  'request-fields-section': RequestFieldsSection,
+  'request-document-line': RequestDocumentLine,
+  'request-documents-card': RequestDocumentsCard,
+  'request-drawer-title': RequestDrawerTitle,
+  'request-message-row': RequestMessageRow,
+  'request-view-body': RequestViewBody,
   'processes-attachments': ProcessesAttachments,
   'empty-or-loading': EmptyOrLoading,
   'custom-counter': CustomCounter,

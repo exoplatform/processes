@@ -22,6 +22,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         indeterminate />
     </div>
     <div v-else>
+      <div v-if="!listOnly" class="d-inline">
       <v-icon
         color="primary"
         small>
@@ -42,19 +43,20 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
           </v-icon>
         </v-btn>
       </a>
+      </div>
       <create-document-from
         v-if="allowDocFormCreation"
         :drive="drive"
         :entity-type="entityType"
         :entity-id="entityId"
         :edit-mode="editMode" />
-      <v-list dense>
+      <v-list v-if="shownAttachments.length" dense>
         <v-list-item-group>
           <attachment-item
-            v-for="attachment in attachments.slice(0, 2)"
+            v-for="attachment in (listOnly ? shownAttachments : shownAttachments.slice(0, 2))"
             :key="attachment.id"
             :attachment="attachment"
-            :attachments="attachments"
+            :attachments="shownAttachments"
             :can-access="attachment.acl && attachment.acl.canAccess"
             :allow-to-detach="false"
             :open-in-editor="true"
@@ -132,7 +134,17 @@ export default {
     previewWorkflowId: {
       type: Number,
       default: null
-    }
+    },
+    // Shows the documents alone, every one, the actions being the host's
+    listOnly: {
+      type: Boolean,
+      default: false,
+    },
+    // The ids of the documents another list shows, left out of this one
+    hiddenIds: {
+      type: Array,
+      default: () => [],
+    },
   },
   model: {
     prop: 'files',
@@ -158,7 +170,10 @@ export default {
       };
     },
     attachmentsLength() {
-      return this.attachments && this.attachments.length > 0 ? `(${this.attachments.length})` : '';
+      return this.shownAttachments.length > 0 ? `(${this.shownAttachments.length})` : '';
+    },
+    shownAttachments() {
+      return (this.attachments || []).filter(attachment => !this.hiddenIds.includes(attachment.id));
     }
   },
   created() {
