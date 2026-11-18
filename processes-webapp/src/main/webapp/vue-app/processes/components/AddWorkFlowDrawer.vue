@@ -159,7 +159,7 @@
               :max-length="summaryMaxLength"
               :value="workflow.summary" />
             <v-label for="processImageInput">
-              {{ $t('processes.works.form.label.illustration') }}
+              {{ $t('processes.workflow.image.label') }}
             </v-label>
             <process-image-input
               :key="`image-${formKey}`"
