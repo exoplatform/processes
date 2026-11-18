@@ -14,8 +14,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 <template>
   <div
     id="requestGuideCard"
-    :class="expanded ? 'white' : 'light-grey-background-color'"
-    class="request-guide application-border-radius pa-3">
+    :class="expanded ? 'pa-1' : 'request-guide light-grey-background-color application-border-radius pa-3'">
     <div ref="nameRow" class="d-flex align-center mb-2">
       <v-avatar
         :class="!showIllustration && 'workflow-card-avatar-placeholder primary--text'"
@@ -36,10 +35,13 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       v-if="workflow.description"
       v-sanitized-html="workflow.description"
       class="text-body-2 text-break mb-2"></p>
+    <div v-if="expanded && workflow.summary" id="requestGuideHelp" class="mb-2">
+      <div class="text-subtitle-2 font-weight-bold mb-1">{{ $t('processes.work.complete.request.question') }}</div>
+      <p v-sanitized-html="workflow.summary" class="text-body-2 text-break mb-0"></p>
+    </div>
     <details
-      v-if="workflow.summary"
+      v-else-if="workflow.summary"
       id="requestGuideHelp"
-      :open="expanded"
       class="mb-2">
       <summary class="primary--text font-weight-bold clickable">{{ $t('processes.work.complete.request.question') }}</summary>
       <p v-sanitized-html="workflow.summary" class="text-body-2 text-break mt-2 mb-0"></p>
@@ -71,8 +73,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 <script>
 /**
  * The read-only guide at the top of the request drawer, and its full-screen
- * left pane, where the pane's title already names the process: the process
- * with its managing space, its description, a
+ * left pane, where the pane's title already names the process and the guide
+ * sits on the pane itself, no card, its help shown open: the process with its
+ * managing space, its description, a
  * « How to complete my request? » block holding its summary, open in full
  * screen, and the process's own documents, which the requester may read.
  */
