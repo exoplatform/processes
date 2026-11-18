@@ -33,6 +33,9 @@ import RequestFieldRow from './components/RequestFieldRow.vue';
 import RequestFieldsSection from './components/RequestFieldsSection.vue';
 import RequestDocumentLine from './components/RequestDocumentLine.vue';
 import RequestDocumentsCard from './components/RequestDocumentsCard.vue';
+import RequestDrawerTitle from './components/RequestDrawerTitle.vue';
+import RequestMessageRow from './components/RequestMessageRow.vue';
+import RequestViewBody from './components/RequestViewBody.vue';
 
 import EmptyOrLoading from './components/commons/EmptyOrLoading.vue';
 import CustomCounter from './components/commons/CustomCounter.vue';
@@ -84,6 +87,9 @@ const components = {
   'request-fields-section': RequestFieldsSection,
   'request-document-line': RequestDocumentLine,
   'request-documents-card': RequestDocumentsCard,
+  'request-drawer-title': RequestDrawerTitle,
+  'request-message-row': RequestMessageRow,
+  'request-view-body': RequestViewBody,
   'processes-attachments': ProcessesAttachments,
   'empty-or-loading': EmptyOrLoading,
   'custom-counter': CustomCounter,
