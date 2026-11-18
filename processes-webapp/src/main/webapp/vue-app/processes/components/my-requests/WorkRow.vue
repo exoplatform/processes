@@ -39,11 +39,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       <my-request-status-chip
         :status="work.status"
         :is-draft="isDraft"
+        v-if="!wide"
         :is-completed="work.completed"
-        class="d-sm-none mt-1"
+        class="mt-1"
         x-small />
     </td>
-    <td class="my-request-cell-comments d-none d-sm-table-cell">
+    <td v-if="wide" class="my-request-cell-comments">
       <v-btn
         v-if="!isDraft && commentsCount > 0"
         :title="$t('processes.myRequests.comments')"
@@ -55,7 +56,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         {{ commentsCount }}
       </v-btn>
     </td>
-    <td class="my-request-cell-process d-none d-md-table-cell">
+    <td v-if="large" class="my-request-cell-process">
       <div class="d-flex align-center text-truncate">
         <v-avatar
           :class="!avatarUrl && 'workflow-card-avatar-placeholder primary--text'"
@@ -70,7 +71,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     <td class="my-request-cell-date text-no-wrap">
       <custom-date-format :timestamp="createdTime" class="text-light-color" />
     </td>
-    <td class="my-request-cell-status d-none d-sm-table-cell">
+    <td v-if="wide" class="my-request-cell-status">
       <my-request-status-chip
         :status="work.status"
         :is-draft="isDraft"
@@ -90,7 +91,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 </template>
 
 <script>
-import {plainTextOf} from '../../js/MyRequestsFilters.js';
+import {LARGE_WIDTH, WIDE_WIDTH, plainTextOf} from '../../js/MyRequestsFilters.js';
 
 export default {
   props: {
@@ -116,6 +117,24 @@ export default {
     },
   },
   computed: {
+    /**
+     * Tells whether the screen is wide enough for the comments and the status cells, the same
+     * test as the table's columns.
+     *
+     * @returns {Boolean} true from 600px
+     */
+    wide() {
+      return this.$vuetify.breakpoint.width >= WIDE_WIDTH;
+    },
+    /**
+     * Tells whether the screen is wide enough for the process cell, the same test as the table's
+     * columns.
+     *
+     * @returns {Boolean} true from 960px
+     */
+    large() {
+      return this.$vuetify.breakpoint.width >= LARGE_WIDTH;
+    },
     /**
      * Builds the row's hook, the request id or the draft id: the two are counted apart.
      *

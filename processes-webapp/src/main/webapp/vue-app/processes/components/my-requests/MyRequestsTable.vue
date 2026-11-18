@@ -83,7 +83,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 </template>
 
 <script>
-import {hookKeyOf, sortWorks} from '../../js/MyRequestsFilters.js';
+import {LARGE_WIDTH, WIDE_WIDTH, hookKeyOf, sortWorks} from '../../js/MyRequestsFilters.js';
 
 export default {
   props: {
@@ -98,19 +98,32 @@ export default {
   }),
   computed: {
     /**
-     * Lists the columns, with the classes that hide them on narrow screens, the same as their cells'.
+     * Tells whether the screen is wide enough for the comments and the status columns.
+     *
+     * @returns {Boolean} true from 600px
+     */
+    wide() {
+      return this.$vuetify.breakpoint.width >= WIDE_WIDTH;
+    },
+    /**
+     * Lists the columns shown at the screen's width: from 600px the comments and the status, from
+     * 960px the process. A hidden column is left out rather than hidden with a class: the table
+     * renders one `col` per header, and under its fixed layout a `col` whose cells are hidden would
+     * still take a share of the width from the Request column.
      *
      * @returns {Array} the headers
      */
     headers() {
+      const wide = this.wide;
+      const large = this.$vuetify.breakpoint.width >= LARGE_WIDTH;
       return [
         {text: this.$t('processes.myRequests.column.request'), value: 'request', sortable: false, class: 'my-request-col-request text-no-wrap'},
-        {text: this.$t('processes.myRequests.column.comments'), value: 'comments', sortable: false, width: 72, class: 'd-none d-sm-table-cell text-no-wrap'},
-        {text: this.$t('processes.myRequests.column.process'), value: 'process', sortable: false, width: 200, class: 'd-none d-md-table-cell text-no-wrap'},
+        wide && {text: this.$t('processes.myRequests.column.comments'), value: 'comments', sortable: false, width: 72, class: 'text-no-wrap'},
+        large && {text: this.$t('processes.myRequests.column.process'), value: 'process', sortable: false, width: 200, class: 'text-no-wrap'},
         {text: this.$t('processes.myRequests.column.date'), value: 'date', width: 110, class: 'text-no-wrap'},
-        {text: this.$t('processes.myRequests.column.status'), value: 'status', width: 130, class: 'd-none d-sm-table-cell text-no-wrap'},
+        wide && {text: this.$t('processes.myRequests.column.status'), value: 'status', width: 130, class: 'text-no-wrap'},
         {text: '', value: 'actions', sortable: false, width: 48},
-      ];
+      ].filter(Boolean);
     },
     /**
      * Flattens the groups into the table's rows: each group's header row (none for the flat list's
@@ -142,6 +155,20 @@ export default {
         }
       });
       return rows;
+    },
+  },
+  watch: {
+    /**
+     * Sorts by date again when the Status column leaves on a narrowing screen, so the order never
+     * follows a column the table no longer shows.
+     *
+     * @param {Boolean} wide whether the Status column shows
+     * @returns {void}
+     */
+    wide(wide) {
+      if (!wide && this.options.sortBy[0] === 'status') {
+        this.options = {...this.options, sortBy: ['date'], sortDesc: [true]};
+      }
     },
   },
   methods: {

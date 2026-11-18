@@ -27,6 +27,15 @@ export const CAPPED_STATUSES = ['Validated', 'Refused'];
 export const CAPPED_GROUP_SIZE = 5;
 
 /**
+ * The viewport widths from which « My requests » shows more columns: the comments and the status
+ * from 600px, the process from 960px, the platform's sm and md thresholds. They are compared with
+ * `$vuetify.breakpoint.width`, never read from the breakpoint names, which the platform's Vuetify
+ * preset shifts (its `xs` threshold is 0, so `xsOnly` is never true).
+ */
+export const WIDE_WIDTH = 600;
+export const LARGE_WIDTH = 960;
+
+/**
  * Reads the id of a request's process.
  *
  * @param {Object} work the request or the draft
