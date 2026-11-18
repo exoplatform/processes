@@ -24,7 +24,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       :loading="savingDraft"
       :disabled="!canSaveDraft"
       class="btn me-2"
-      text
       @click="$emit('save-draft')">
       <v-icon size="16" class="me-1">far fa-save</v-icon>
       {{ $t('processes.work.saveDraft.label') }}

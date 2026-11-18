@@ -21,55 +21,42 @@
       </v-btn>
     </template>
     <template v-if="expanded && !viewMode" #fullAppLeftContent>
-      <div id="requestProcessAbout" class="pa-4">
-        <p class="text-subtitle-2 text-uppercase text-light-color mb-2">{{ $t('processes.request.about') }}</p>
-        <p v-sanitized-html="work.workFlow.summary" class="text-break"></p>
-      </div>
+      <request-guide-card
+        :workflow="work.workFlow"
+        :avatar-url="workflowAvatarUrl"
+        :documents="processDocuments"
+        :readable="isDocumentReadable"
+        class="ma-4"
+        expanded />
     </template>
     <template slot="title">
-      <v-container
-        class="pa-0"
-        no-gutters>
-        <v-row
-          class="pa-0"
-          align="center">
-          <v-col
-            cols="3">
-            <span>{{ $t('processes.works.work.label') }}</span>
-          </v-col>
-          <v-col
-            cols="8"
-            class="pa-0 text-align-start">
-            <p class="work-title white--text text-truncate pa-2">
-              <v-avatar
-                v-if="workflowAvatarUrl"
-                class="me-1"
-                color="blue"
-                size="18px">
-                <v-img :src="workflowAvatarUrl" />
-              </v-avatar>
-              <span
-                :style="textDecoration"
-                class="white--text">
-                {{ this.work.workFlow.title }}
-              </span>
-            </p>
-          </v-col>
-        </v-row>
-      </v-container>
+      <div class="d-flex flex-column text-truncate">
+        <span>{{ $t(viewMode ? 'processes.works.work.label' : 'processes.request.newTitle') }}</span>
+        <div
+          v-if="!expanded"
+          id="requestTitleLine"
+          :class="{'request-title-line-shown': viewMode || titleLineShown}"
+          class="request-title-line d-flex align-center text-caption text-light-color text-truncate">
+          <v-avatar
+            v-if="workflowAvatarUrl"
+            class="me-1 flex-shrink-0"
+            size="18">
+            <v-img :src="workflowAvatarUrl" />
+          </v-avatar>
+          <span :style="textDecoration" class="text-truncate">{{ titleLine }}</span>
+        </div>
+      </div>
     </template>
     <template slot="content">
       <div class="pa-4">
-        <p
-          v-if="!viewMode"
-          class="ml-2 mr-2 font-weight-bold">
-          {{ $t('processes.work.complete.request.question') }}
-        </p>
-        <p
-          v-if="!viewMode"
-          v-sanitized-html="work.workFlow.summary"
-          class="pa-1 ml-2 mr-2 text-caption text-light-color text-truncate-6 text-break">
-        </p>
+        <request-guide-card
+          v-if="!viewMode && !expanded"
+          ref="guide"
+          :workflow="work.workFlow"
+          :avatar-url="workflowAvatarUrl"
+          :documents="processDocuments"
+          :readable="isDocumentReadable"
+          class="mb-5" />
         <div
           class="pb-4"
           v-if="viewMode">
@@ -80,45 +67,41 @@
           <v-label class="mb-1">
             {{ $t('processes.works.form.label.requestDate') }}
           </v-label>
-          <div class="grey--text mt-2">
+          <div class="text-caption text-light-color mt-2">
             <custom-date-format :timestamp="work.createdTime.time" />
           </div>
         </div>
-        <v-divider />
-        <div
+        <v-divider v-if="viewMode" />
+        <v-form
           v-if="!viewMode"
-          class="mt-5 mb-8">
-          <v-form
-            v-model="valid"
-            ref="form"
-            id="add-work-form">
-            <request-fill-status
-              :fill="sectionsFill"
-              class="mt-5"
-              variant="bar" />
+          v-model="valid"
+          ref="form"
+          id="add-work-form">
+          <request-fields-section :fill="requestFill">
             <processes-extension-sections
               ref="requestSections"
               :key="`requestSections${openKey}`"
-              :params="{workflowId: work.workFlow && work.workFlow.id || null, draftId: hasDraft && work.id || null}"
+              :params="{workflowId: work.workFlow && work.workFlow.id || null, draftId: hasDraft && work.id || null, hideHeader: true}"
               hook-id="requestDrawerSections"
               name="ProcessRequestDrawer"
               type="request-drawer-section"
-              class="mt-5"
               @changed="onSectionsChanged"
               @fill="onSectionsFill" />
-            <div class="work-message">
-              <p class="mt-5 font-weight-bold">{{ $t('processes.work.message.to.manager') }}</p>
+            <request-field-row
+              id="requestMessageRow"
+              :label="$t('processes.work.message.to.manager')"
+              :hint="$t('processes.request.message.hint')"
+              icon="fas fa-align-left">
               <p
                 v-if="!showEditor"
                 @click="showRequestEditor"
                 v-sanitized-html="workDescription || $t('processes.work.message.to.manager.placeholder')"
                 :class="workDescription ? '' : 'text-light-color'"
-                class="text-break">
+                class="text-break clickable px-2 py-2 mb-0">
               </p>
               <div v-else>
                 <request-editor
                   @blur="blurOnDescriptionComposer"
-                  class="ml-2 mr-2"
                   required
                   ref="requestEditor"
                   id="request-editor"
@@ -130,24 +113,56 @@
                   :value="work.description"
                   :max-length="maxLength" />
               </div>
-            </div>
-            <div class="mt-7">
-              <v-divider />
-              <p class="mt-5 font-weight-bold">{{ $t('processes.works.form.label.documents') }}</p>
-              <p class="text-caption text-light-color">
-                {{ $t('processes.work.add.attachment.info.message') }}
-              </p>
+            </request-field-row>
+            <request-field-row
+              v-if="processDocuments.length"
+              id="requestFillDocumentRow"
+              :label="$t('processes.request.documentToFill')"
+              icon="fas fa-file-alt">
+              <v-list class="pa-0" dense>
+                <attachment-item
+                  v-for="attachment in (hasDraft ? documentsToFill : processDocuments)"
+                  :key="attachment.id"
+                  :attachment="attachment"
+                  :attachments="hasDraft ? documentsToFill : processDocuments"
+                  :can-access="attachment.acl && attachment.acl.canAccess"
+                  :allow-to-detach="false"
+                  :open-in-editor="true"
+                  :is-file-editable="hasDraft && isDocumentEditable(attachment)"
+                  :is-file-fillable="hasDraft && isDocumentFillable(attachment)"
+                  :is-file-readable="!hasDraft && isDocumentReadable(attachment)"
+                  allow-to-preview
+                  small-attachment-icon />
+              </v-list>
+              <v-btn
+                v-if="!hasDraft"
+                id="requestFillDocumentButton"
+                class="primary--text px-2"
+                small
+                text
+                @click="createDraftForAttachment().catch(() => null)">
+                {{ $t('processes.request.documentToFill.fill') }}
+              </v-btn>
+            </request-field-row>
+            <request-field-row
+              id="requestSupportingDocumentsRow"
+              :label="$t('processes.request.supportingDocuments')"
+              :hint="$t('processes.request.supportingDocuments.hint')"
+              icon="fas fa-paperclip">
               <processes-attachments
+                ref="supportingDocuments"
                 v-model="attachments"
                 :workflow-parent-space="workflowParentSpace"
                 :edit-mode="this.editDraft"
                 :entity-id="work.id"
                 :entity-type="entityType"
+                :hidden-names="processDocumentNames"
                 :preview-workflow-id="!hasDraft && work.workFlow && work.workFlow.id || null"
-                :prepare-entity="createDraftForAttachment" />
-            </div>
-          </v-form>
-        </div>
+                :prepare-entity="createDraftForAttachment"
+                class="px-2 py-2" />
+            </request-field-row>
+          </request-fields-section>
+        </v-form>
         <div
           v-if="viewMode"
           class="mt-5 mb-6">
@@ -167,7 +182,7 @@
           <v-label for="attachment">
             {{ $t('processes.works.form.label.attachment') }}
           </v-label>
-          <p class="font-weight-regular grey--text darken-1 font-italic mt-1">
+          <p class="text-caption text-light-color mt-1">
             {{ $t('processes.work.add.attachment.info.message') }}
           </p>
           <processes-attachments
@@ -188,7 +203,7 @@
     </template>
     <template slot="footer" v-if="!viewMode">
       <request-drawer-actions
-        :fill="sectionsFill"
+        :fill="requestFill"
         :expanded="expanded"
         :saving="saving"
         :saving-draft="savingAsDraft"
@@ -203,9 +218,10 @@
 <script>
 import RequestDraftMixin from '../js/RequestDraftMixin.js';
 import RequestDrawerExtrasMixin from '../js/RequestDrawerExtrasMixin.js';
+import RequestLayoutMixin from '../js/RequestLayoutMixin.js';
 
 export default {
-  mixins: [RequestDraftMixin, RequestDrawerExtrasMixin],
+  mixins: [RequestDraftMixin, RequestDrawerExtrasMixin, RequestLayoutMixin],
 
   data () {
     return {
@@ -285,6 +301,12 @@ export default {
     workflowParentSpace() {
       return this.work && this.work.workflow && this.work.workflow.parentSpace;
     },
+    /** @returns {String} the header's process line: the process, then its managing space */
+    titleLine() {
+      const workflow = this.work && this.work.workFlow || {};
+      const space = workflow.parentSpace && workflow.parentSpace.displayName;
+      return space ? `${workflow.title} · ${space}` : workflow.title;
+    },
     textDecoration() {
       return this.work && this.work.completed && 'text-decoration:line-through' || '';
     },
@@ -348,6 +370,7 @@ export default {
       }
       this.initDraftState();
       this.initExtrasState();
+      this.initLayoutState();
       if (mode === 'create_work') {
         // Until the first input creates the draft, which gets copies of them, the process's own documents show read-only
         this.$root.$emit('init-list-attachments', {entityId: this.work.workFlow.id, entityType: 'workflow', preview: true});
@@ -476,6 +499,27 @@ export default {
      *
      * @returns {Promise} settled once the draft exists
      */
+    /**
+     * @param {Object} attachment a document to fill in
+     * @returns {Boolean} true when the editor may open it for writing
+     */
+    isDocumentEditable(attachment) {
+      return !!this.$refs.supportingDocuments && this.$refs.supportingDocuments.isFileEditable(attachment);
+    },
+    /**
+     * @param {Object} attachment a document to fill in
+     * @returns {Boolean} true when it is a form to fill
+     */
+    isDocumentFillable(attachment) {
+      return !!this.$refs.supportingDocuments && this.$refs.supportingDocuments.isFileFillable(attachment);
+    },
+    /**
+     * @param {Object} attachment a process document
+     * @returns {Boolean} true when the editor supports it, so it opens there in view mode
+     */
+    isDocumentReadable(attachment) {
+      return !!this.$refs.supportingDocuments && this.$refs.supportingDocuments.isFileSupported(attachment);
+    },
     createDraftForAttachment() {
       return this.saveDraft(true).then(() => {
         if (!this.hasDraft) {

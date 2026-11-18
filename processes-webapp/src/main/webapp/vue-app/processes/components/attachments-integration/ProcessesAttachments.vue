@@ -51,10 +51,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       <v-list dense>
         <v-list-item-group>
           <attachment-item
-            v-for="attachment in attachments.slice(0, 2)"
+            v-for="attachment in shownAttachments.slice(0, 2)"
             :key="attachment.id"
             :attachment="attachment"
-            :attachments="attachments"
+            :attachments="shownAttachments"
             :can-access="attachment.acl && attachment.acl.canAccess"
             :allow-to-detach="false"
             :open-in-editor="true"
@@ -132,7 +132,12 @@ export default {
     previewWorkflowId: {
       type: Number,
       default: null
-    }
+    },
+    // The names of the documents another list shows, left out of this one
+    hiddenNames: {
+      type: Array,
+      default: () => [],
+    },
   },
   model: {
     prop: 'files',
@@ -158,7 +163,10 @@ export default {
       };
     },
     attachmentsLength() {
-      return this.attachments && this.attachments.length > 0 ? `(${this.attachments.length})` : '';
+      return this.shownAttachments.length > 0 ? `(${this.shownAttachments.length})` : '';
+    },
+    shownAttachments() {
+      return (this.attachments || []).filter(attachment => !this.hiddenNames.includes(attachment.title));
     }
   },
   created() {

@@ -28,6 +28,9 @@ import WorkDetailTitle from './components/my-requests/WorkDetailTitle.vue';
 import ProcessesExtensionSections from './components/ProcessesExtensionSections.vue';
 import RequestFillStatus from './components/RequestFillStatus.vue';
 import RequestDrawerActions from './components/RequestDrawerActions.vue';
+import RequestGuideCard from './components/RequestGuideCard.vue';
+import RequestFieldRow from './components/RequestFieldRow.vue';
+import RequestFieldsSection from './components/RequestFieldsSection.vue';
 
 import EmptyOrLoading from './components/commons/EmptyOrLoading.vue';
 import CustomCounter from './components/commons/CustomCounter.vue';
@@ -74,6 +77,9 @@ const components = {
   'processes-extension-sections': ProcessesExtensionSections,
   'request-fill-status': RequestFillStatus,
   'request-drawer-actions': RequestDrawerActions,
+  'request-guide-card': RequestGuideCard,
+  'request-field-row': RequestFieldRow,
+  'request-fields-section': RequestFieldsSection,
   'processes-attachments': ProcessesAttachments,
   'empty-or-loading': EmptyOrLoading,
   'custom-counter': CustomCounter,

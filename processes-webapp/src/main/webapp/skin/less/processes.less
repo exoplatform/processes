@@ -277,13 +277,28 @@
     max-width: 85%;
   }
 
-  .work-title {
-    background: rgba(150, 182, 219, 0.67) 0 0 no-repeat padding-box;
-    border-radius: 19px;
-    max-width: 90%;
-    width: fit-content;
-    top: 5px;
-    position: relative;
+  // The request drawer's header line: shown once the guide's process name scrolled out of view
+  .request-title-line {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    font-weight: normal;
+    transition: max-height .18s ease, opacity .18s ease;
+  }
+  .request-title-line-shown {
+    max-height: 20px;
+    opacity: 1;
+  }
+  .request-guide {
+    border-left: 3px solid @primaryColor;
+  }
+  .request-field-label {
+    flex: 0 0 calc(100% / 3 + 31px);
+    max-width: calc(100% / 3 + 31px);
+    line-height: 24px;
+  }
+  .request-field-value {
+    min-width: 0;
   }
   .v-autocomplete.identitySuggester {
     width: 290px;
