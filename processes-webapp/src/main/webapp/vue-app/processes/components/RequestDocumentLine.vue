@@ -37,8 +37,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       class="requestFillDocumentButton requestDocumentLine-button font-weight-bold"
       color="primary"
       outlined
-      @click="$emit('fill')">
-      {{ $t(filled ? 'processes.request.documentToFill.continue' : 'processes.request.documentToFill.fill') }}
+      @click="$emit(readonly ? 'open' : 'fill')">
+      {{ $t(buttonLabelKey) }}
     </v-btn>
     <v-menu
       ref="menu"
@@ -100,8 +100,24 @@ export default {
       type: String,
       default: null,
     },
+    /** A sent request's copy: the button opens it, read-only, rather than filling it */
+    readonly: {
+      type: Boolean,
+      default: false,
+    },
   },
   computed: {
+    /**
+     * Picks the button's label: « Open » on a sent request, else « Continue » once filled, or « Fill in ».
+     *
+     * @returns {String} the label's key
+     */
+    buttonLabelKey() {
+      if (this.readonly) {
+        return 'processes.request.documentToFill.open';
+      }
+      return this.filled ? 'processes.request.documentToFill.continue' : 'processes.request.documentToFill.fill';
+    },
     /** @returns {String} the document's name */
     title() {
       return this.name || this.attachment.title || this.attachment.name || '';
@@ -112,9 +128,13 @@ export default {
       const icon = extensions && (extensions.get(this.attachment.mimetype) || extensions.get('file'));
       return icon || {class: 'fas fa-file', color: ''};
     },
-    /** @returns {String} the chip's colour: green once filled, the error colour while the required document is not */
+    /** @returns {String} the chip's colour: green once filled, the error colour while the required document is not, none on a sent request */
     stateClass() {
-      return this.filled ? 'requestDocumentLine-tinted success--text' : 'requestDocumentLine-tinted error--text';
+      if (this.filled) {
+        return 'requestDocumentLine-tinted success--text';
+      }
+      // a sent request's copy not provided is a fact to read, not something left to do: no error tint
+      return this.readonly ? '' : 'requestDocumentLine-tinted error--text';
     },
     /** @returns {String} the size and the type, joined by a dot */
     meta() {

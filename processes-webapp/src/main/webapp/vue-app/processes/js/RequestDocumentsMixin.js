@@ -80,7 +80,9 @@ export default {
      * @returns {Boolean} true when the editor supports it, so it opens there in view mode
      */
     isDocumentReadable(attachment) {
-      return !!this.$refs.messageRow && this.$refs.messageRow.isFileSupported(attachment);
+      // the message row while composing, the view body on a sent request
+      const host = this.$refs.messageRow || this.$refs.viewBody;
+      return !!host && host.isFileSupported(attachment);
     },
     /**
      * Fills in a document, always in a new tab, the drawer staying open. Once

@@ -4,7 +4,7 @@
     @opened="watchContentScroll"
     @expand-updated="expanded = $event"
     ref="work"
-    :allow-expand="!viewMode"
+    :allow-expand="!viewDraft"
     full-app-left-class="request-full-left grey-lighten1-background-opacity-5"
     class="ProcessesApplication"
     right>
@@ -13,7 +13,12 @@
         {{ work.workFlow.title }}
       </div>
     </template>
-    <template v-if="!viewMode && !$vuetify.breakpoint.smAndDown" #expandAction>
+    <template v-else-if="expanded && viewMode" #fullAppLeftTitle>
+      <div class="d-flex align-center align-self-stretch flex-grow-1 text-truncate">
+        {{ work.workFlow && work.workFlow.title }}
+      </div>
+    </template>
+    <template v-if="!viewDraft && !$vuetify.breakpoint.smAndDown" #expandAction>
       <v-btn
         id="requestExpandButton"
         :title="$refs.work && $refs.work.expandTooltip"
@@ -31,6 +36,23 @@
       <request-progress-checklist
         :fill="requestFill"
         class="mx-4 mb-4" />
+    </template>
+    <!-- a sent request in full screen: the process's guide on the grey pane, its help open -->
+    <template v-else-if="expanded && viewMode" #fullAppLeftContent>
+      <request-guide-card
+        :workflow="work.workFlow"
+        :avatar-url="workflowAvatarUrl"
+        class="ma-4"
+        expanded />
+    </template>
+    <!-- a sent request's actions: Copy link, Open the task, Archive, Cancel request while pending -->
+    <template v-if="viewMode && !viewDraft" #titleIcons>
+      <work-actions-menu
+        :work="work"
+        :allow-cancel="allowCancel"
+        :task-link="taskLink"
+        @archive="archiveViewedWork"
+        @cancel="cancelViewedWork" />
     </template>
     <template slot="title">
       <request-drawer-title
@@ -50,12 +72,22 @@
           class="mb-5" />
         <request-view-body
           v-if="viewMode"
+          ref="viewBody"
           v-model="attachments"
           :work="work"
           :view-draft="viewDraft"
           :edit-draft="editDraft"
           :entity-type="entityType"
-          :workflow-parent-space="workflowParentSpace" />
+          :workflow-parent-space="workflowParentSpace"
+          :documents="documentsToFill"
+          :is-filled="isCopyFilled"
+          :name-of="copy => originalOf(copy).title"
+          :task-link="taskLink"
+          :expanded="expanded"
+          :open-key="openKey"
+          @open-document="openDocument($event)"
+          @open-original="openDocument(originalOf($event))"
+          @can-comment="canComment = $event" />
         <v-form
           v-if="!viewMode"
           v-model="valid"
@@ -98,6 +130,18 @@
         </v-form>
       </div>
     </template>
+    <template v-if="viewMode && !viewDraft" #footer>
+      <div class="d-flex justify-end">
+        <v-btn
+          id="requestCommentButton"
+          :disabled="!canComment"
+          color="primary"
+          elevation="0"
+          @click="postViewComment">
+          {{ $t('processes.request.comments.post') }}
+        </v-btn>
+      </div>
+    </template>
     <template slot="footer" v-if="!viewMode">
       <request-drawer-actions
         :fill="requestFill"
@@ -118,10 +162,11 @@ import RequestDraftMixin from '../js/RequestDraftMixin.js';
 import RequestDrawerExtrasMixin from '../js/RequestDrawerExtrasMixin.js';
 import RequestLayoutMixin from '../js/RequestLayoutMixin.js';
 import RequestOpenMixin from '../js/RequestOpenMixin.js';
+import RequestViewMixin from '../js/RequestViewMixin.js';
 import '../js/RequestEditorExtension.js';
 
 export default {
-  mixins: [RequestDraftMixin, RequestDrawerExtrasMixin, RequestLayoutMixin, RequestDocumentsMixin, RequestCloseMixin, RequestOpenMixin],
+  mixins: [RequestDraftMixin, RequestDrawerExtrasMixin, RequestLayoutMixin, RequestDocumentsMixin, RequestCloseMixin, RequestOpenMixin, RequestViewMixin],
 
   data () {
     return {

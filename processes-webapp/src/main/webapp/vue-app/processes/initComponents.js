@@ -23,8 +23,6 @@ import MyRequestStatusChip from './components/my-requests/MyRequestStatusChip.vu
 import MyWorkListEmpty from './components/my-requests/MyWorkListEmpty.vue';
 import WorkRow from './components/my-requests/WorkRow.vue';
 import WorkActionsMenu from './components/my-requests/WorkActionsMenu.vue';
-import WorkDetailDrawer from './components/my-requests/WorkDetailDrawer.vue';
-import WorkDetailTitle from './components/my-requests/WorkDetailTitle.vue';
 import ProcessesExtensionSections from './components/ProcessesExtensionSections.vue';
 import RequestFillStatus from './components/RequestFillStatus.vue';
 import RequestDrawerActions from './components/RequestDrawerActions.vue';
@@ -37,6 +35,7 @@ import RequestDocumentsCard from './components/RequestDocumentsCard.vue';
 import RequestDrawerTitle from './components/RequestDrawerTitle.vue';
 import RequestMessageRow from './components/RequestMessageRow.vue';
 import RequestViewBody from './components/RequestViewBody.vue';
+import RequestComments from './components/RequestComments.vue';
 
 import EmptyOrLoading from './components/commons/EmptyOrLoading.vue';
 import CustomCounter from './components/commons/CustomCounter.vue';
@@ -80,8 +79,6 @@ const components = {
   'my-work-list-empty': MyWorkListEmpty,
   'work-row': WorkRow,
   'work-actions-menu': WorkActionsMenu,
-  'work-detail-drawer': WorkDetailDrawer,
-  'work-detail-title': WorkDetailTitle,
   'processes-extension-sections': ProcessesExtensionSections,
   'request-fill-status': RequestFillStatus,
   'request-drawer-actions': RequestDrawerActions,
@@ -94,6 +91,7 @@ const components = {
   'request-drawer-title': RequestDrawerTitle,
   'request-message-row': RequestMessageRow,
   'request-view-body': RequestViewBody,
+  'request-comments': RequestComments,
   'processes-attachments': ProcessesAttachments,
   'empty-or-loading': EmptyOrLoading,
   'custom-counter': CustomCounter,

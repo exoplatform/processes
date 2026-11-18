@@ -67,7 +67,7 @@ export default {
   },
   methods: {
     /**
-     * Opens a draft to resume it, or a sent request in the request detail drawer.
+     * Opens a draft to resume it, or a sent request in the request drawer, read-only.
      *
      * @returns {void}
      */
@@ -75,7 +75,7 @@ export default {
       if (this.isDraft) {
         this.openDraft();
       } else {
-        this.$root.$emit('open-work-detail-drawer', {work: this.workObject, comments: this.comments});
+        this.$root.$emit('open-add-work-drawer', {object: this.workObject, mode: 'view_work', isDraft: false});
       }
     },
     openDraft() {

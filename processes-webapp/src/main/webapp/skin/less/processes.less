@@ -676,9 +676,20 @@
   .my-requests-empty-description {
     max-width: 420px;
   }
+}
 
-  .work-detail-subtitle {
-    margin-top: 2px;
+// a sent request's comments: the drawer's footer posts them, and a sent request's comments are
+// neither answered in a thread nor deleted from its view
+#requestComments {
+  .requestCommentPrompt {
+    border-radius: 4px;
+    cursor: text;
+  }
+
+  .requestCommentEditor .commentBtn,
+  #reply_btn,
+  .deleteComment {
+    display: none !important;
   }
 }
 
@@ -758,5 +769,13 @@
     .requestDocumentLine-state {
       margin-top: 0;
     }
+  }
+}
+
+// A request's attachment cards start on the content's edge, under the link and the form sections, in the drawer
+// as in full screen: the carousel centres its row, and a single card, when the pane is wider than the cards
+#requestDetailMessage {
+  .note-files-parent, .note-file-item.mx-auto {
+    margin-inline-start: 0 !important;
   }
 }

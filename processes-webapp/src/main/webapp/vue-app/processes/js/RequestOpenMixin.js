@@ -100,6 +100,7 @@ export default {
       this.initDraftState();
       this.initExtrasState();
       this.initLayoutState();
+      this.initViewState();
       if (mode === 'create_work') {
         // Until the first input creates the draft, which gets copies of them, the process's own documents show read-only
         this.$root.$emit('init-list-attachments', {entityId: this.work.workFlow.id, entityType: 'workflow', preview: true});
