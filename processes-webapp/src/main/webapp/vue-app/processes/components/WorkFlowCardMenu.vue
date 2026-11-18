@@ -16,6 +16,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     <v-menu
       v-model="showMenu"
       :disabled="isMobile"
+      ref="menu"
       content-class="workflow-card-menu"
       transition="slide-x-reverse-transition"
       bottom
@@ -56,6 +57,16 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
           </v-list-item-title>
         </v-list-item>
         <v-list-item
+          class="workflow-card-toggle-enabled"
+          @click="toggleEnabled">
+          <v-list-item-title class="subtitle-2">
+            <v-icon size="13" class="processes-work-menu-icon me-1">
+              {{ workflow.enabled && 'mdi-close-circle-outline' || 'mdi-check-circle-outline' }}
+            </v-icon>
+            {{ workflow.enabled && $t('processes.workflow.disable.label') || $t('processes.workflow.enable.label') }}
+          </v-list-item-title>
+        </v-list-item>
+        <v-list-item
           v-if="workflow.acl && workflow.acl.canDelete"
           class="workflow-card-delete"
           @click="deleteWorkflow">
@@ -68,8 +79,13 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         </v-list-item>
       </v-list>
     </v-menu>
+    <workflow-enable-toggle
+      ref="enableToggle"
+      :workflow="workflow" />
     <process-mobile-action-drawer
       ref="mobileActionDrawer"
+      :enabled="workflow.enabled"
+      @toggleEnabled="toggleEnabled"
       @editWorkflow="editWorkflow"
       @deleteWorkflow="deleteWorkflow"
       @copyLink="copyLink" />
@@ -77,7 +93,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 </template>
 
 <script>
+import MenuCloseMixin from '../js/MenuCloseMixin.js';
+
 export default {
+  mixins: [MenuCloseMixin],
   props: {
     workflow: {
       type: Object,
@@ -86,7 +105,6 @@ export default {
   },
   data: () => ({
     MOBILE_WIDTH: 600,
-    showMenu: false,
   }),
   computed: {
     isMobile() {
@@ -111,6 +129,14 @@ export default {
      */
     editWorkflow() {
       this.$root.$emit('open-workflow-drawer', {workflow: this.workflow, mode: 'edit_workflow'});
+    },
+    /**
+     * Enables this process, or disables it once confirmed.
+     *
+     * @returns {void}
+     */
+    toggleEnabled() {
+      this.$refs.enableToggle.toggle();
     },
     /**
      * Asks the confirmation of the deletion of this process.

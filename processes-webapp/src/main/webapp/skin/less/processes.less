@@ -67,14 +67,6 @@
     text-align: center !important;
   }
 
-  .request-title {
-    cursor: pointer;
-  }
-
-  .work-card {
-    height: 55px;
-  }
-
   .float-e {
     float: right ~'; /** orientation=lt */ ';
     float: left ~'; /** orientation=rt */ ';
@@ -124,32 +116,8 @@
     resize: none;
   }
 
-  .work-title-text-mobile {
-    top: 2px;
-  }
-
-  .work-title-text {
-    top: -2px;
-  }
-
-  .work-title-text-no-avatar {
-    top: 10px;
-  }
-
-  .work-mobile-date {
-    color: @greyColorLighten1Default;
-  }
-
   .align-items-center {
     align-items: center;
-  }
-
-  .work-avatar-mobile {
-    top: 12px;
-  }
-
-  .work-avatar-wrapper {
-    min-height: 61px;
   }
 
   .card-footer-btn {
@@ -241,25 +209,6 @@
 
   .work-controls {
     max-width: inherit;
-  }
-
-  .work-status-col {
-    height: 48px;
-  }
-
-  .complete-btn {
-    left: 10px ~'; /** orientation=lt */ ';
-    right: 10px ~'; /** orientation=rt */ ';
-    width: 23px;
-    height: 23px;
-    top: 0;
-    bottom: 0;
-    margin: auto;
-    position: absolute;
-  }
-
-  .complete-btn-mobile {
-    top: -22px !important;
   }
 
   .panel-custom-header {
@@ -451,18 +400,6 @@
     font-size: 20px;
   }
 
-  .custom-icon-size {
-    font-size: 20px !important;
-  }
-
-  .custom-icon-color {
-    color: @iconColor;
-  }
-
-  .size-icon-btn {
-    height: 20px !important;
-  }
-
   #myWorks {
     min-height: 600px;
   }
@@ -513,17 +450,6 @@
     }
   }
 
-  .mobile-filter-btn {
-    min-width: 45px !important;
-    margin-left: 4px ~'; /** orientation=lt */ ';
-    margin-right: 4px ~'; /** orientation=rt */ ';
-  }
-
-  .wmf-list-item-content {
-    margin-left: -8px ~'; /** orientation=lt */ ';
-    margin-right: -8px ~'; /** orientation=rt */ ';
-  }
-  
   .work-message{
     position: relative;
     .cke_bottom, .cke_top {
@@ -547,15 +473,94 @@
   font-size: 13px;
 }
 
-.work-description-tooltip {
-  max-width: 388px;
+// « My requests »: rows grouped by status, and the request detail drawer
+.ProcessesApplication {
+  .my-requests-table {
+    table {
+      table-layout: fixed;
+    }
 
-  ul li {
-    list-style-position: inside;
-    list-style-type: disc;
+    // the table keeps the Request column's minimum beside the fixed columns shown at each width,
+    // and scrolls sideways rather than squeeze it: 200px beside 360px from 600px, so a tablet's
+    // card holds the whole row, and 240px beside 560px from 960px, with Process
+    @media (min-width: 600px) {
+      table {
+        min-width: 560px;
+      }
+
+      .my-request-col-request {
+        min-width: 200px;
+      }
+    }
+
+    @media (min-width: 960px) {
+      table {
+        min-width: 800px;
+      }
+
+      .my-request-col-request {
+        min-width: 240px;
+      }
+    }
+
+    .my-request-row {
+      cursor: pointer;
+
+      td {
+        max-width: 0;
+      }
+
+      .my-request-cell-actions {
+        max-width: none;
+      }
+    }
+
+    .my-request-group-row td {
+      height: 40px;
+    }
   }
 
-  p:last-child {
-    margin-bottom: 0 !important;
+  // the text filter's icon comes first, then the advanced filter button: the toolbar renders its
+  // right slot before the icon, in a wrapper that grows in compact mode, so the wrapper keeps its
+  // width and the icon is ordered first; the open text filter still grows across the toolbar
+  #myRequestsToolbar #applicationToolbarRight {
+    > div.flex-grow-1:not(#applicationToolbarFilter) {
+      flex-grow: 0 !important;
+    }
+
+    #applicationToolbarConeButton {
+      order: -1;
+    }
+  }
+
+  // a menu button clicked with the mouse keeps no focus ring, a keyboard focus keeps its own
+  .my-request-menu-button,
+  .workflow-card-menu-button {
+    &:focus:not(:focus-visible)::before {
+      opacity: 0 !important;
+    }
+  }
+
+  // a status chip: its colour's text and a light tint of it, drawn by the chip's own overlay in
+  // the text colour, with no outline; a canceled request keeps the outline and no tint
+  .v-chip.my-request-status-chip-tinted.v-chip--outlined {
+    border-color: transparent !important;
+
+    &::before {
+      opacity: 0.12 !important;
+    }
+  }
+
+  // @primaryColor is a CSS custom property, which less colour functions cannot read
+  .my-requests-empty-icon {
+    background-color: @greyColorLighten1Opacity2;
+  }
+
+  .my-requests-empty-description {
+    max-width: 420px;
+  }
+
+  .work-detail-subtitle {
+    margin-top: 2px;
   }
 }
