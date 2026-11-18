@@ -565,11 +565,6 @@
     min-height: 56px;
     overflow: hidden;
     cursor: pointer;
-    transition: box-shadow .4s cubic-bezier(0.25,0.8,0.25,1);
-
-    &:hover {
-      box-shadow: 0 2px 8px rgba(0,0,0,0.14);
-    }
 
     .indicator {
       top: 0;
@@ -582,6 +577,28 @@
 
     .my-request-row-comments {
       min-width: 56px;
+    }
+  }
+
+  // the process filter, in the toolbar's right slot, sits between the text filter and the status select
+  #myRequestsToolbar {
+    #applicationToolbarBackButton {
+      order: -2;
+    }
+
+    #applicationToolbarFilter {
+      order: -1;
+    }
+
+    .my-requests-process-filter {
+      max-width: 240px;
+    }
+  }
+
+  // on a phone, a row keeps its process, its date and its action
+  @media (max-width: 399px) {
+    .my-request-row .my-request-row-status {
+      display: none !important;
     }
   }
 

@@ -15,7 +15,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
   <v-card
     :id="rowId"
     :aria-label="title"
-    class="my-request-row position-relative d-flex align-center mb-2 ps-4 pe-2 py-2"
+    class="my-request-row hover-elevation position-relative d-flex align-center mb-2 ps-4 pe-2 py-2"
     role="link"
     tabindex="0"
     outlined
@@ -52,6 +52,16 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
           :timestamp="createdTime"
           class="caption text-light-color" />
       </div>
+    </div>
+    <!-- Extension point ProcessRequestRow / request-row-summary: a few of the request's form values -->
+    <div
+      :id="`requestRowSummary-${work.id}`"
+      class="my-request-row-summary d-none d-md-flex flex-shrink-1 text-truncate mx-2">
+      <extension-registry-components
+        :params="{work, isDraft}"
+        name="ProcessRequestRow"
+        type="request-row-summary"
+        strict-type />
     </div>
     <div class="my-request-row-status flex-shrink-0 mx-2">
       <request-status
