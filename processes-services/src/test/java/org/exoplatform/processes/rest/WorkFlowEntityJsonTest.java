@@ -66,7 +66,7 @@ class WorkFlowEntityJsonTest {
     assertEquals(Map.of("en", "Leave", "fr", "Congés", "pt-BR", "Férias"), workFlow.getTitleTranslations());
     assertEquals(Map.of("fr", "Demander un congé"), workFlow.getDescriptionTranslations());
     assertNull(workFlow.getSummaryTranslations());
-    assertNull("a body that does not state the requester forms keeps the stored ones", workFlow.getRequesterFormIds());
+    assertNull(workFlow.getRequesterFormIds(), "a body that does not state the requester forms keeps the stored ones");
   }
 
   /**
