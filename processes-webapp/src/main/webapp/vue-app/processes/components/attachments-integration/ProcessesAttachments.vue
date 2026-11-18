@@ -84,6 +84,8 @@ export default {
       listRequest: 0,
       isLoading: false,
       subscribedDocuments: new Map(),
+      // The ids of the documents whose detach is under way, so that a second click sends no second detach
+      detaching: [],
       supportedDocuments: null
     };
   },
@@ -169,6 +171,8 @@ export default {
         defaultFolder: 'Documents',
         sourceApp: 'processesApp',
         attachments: JSON.parse(JSON.stringify(this.attachments)),
+        // the documents another list shows are neither listed nor detached there
+        excludedIds: this.hiddenIds,
         spaceId: this.workflowParentSpace && this.workflowParentSpace.id,
         attachToEntity: this.editMode,
         openAttachmentsInEditor: true,
@@ -357,15 +361,17 @@ export default {
      * @returns {Promise} settled once the document is detached, or its failure shown
      */
     detachAttachment(attachment) {
-      if (!attachment || !attachment.id) {
+      if (!attachment || !attachment.id || this.detaching.includes(attachment.id)) {
         return Promise.resolve();
       }
+      this.detaching.push(attachment.id);
       const detached = this.editMode && this.entityId
         ? this.$processesAttachmentService.removeEntityAttachment(this.entityType, this.entityId, attachment.id)
         : Promise.resolve();
       return detached
         .then(() => document.dispatchEvent(new CustomEvent('attachment-removed', {detail: attachment})))
-        .catch(() => this.$root.$emit('show-alert', {type: 'error', message: this.$t('processes.work.attachment.detach.error')}));
+        .catch(() => this.$root.$emit('show-alert', {type: 'error', message: this.$t('processes.work.attachment.detach.error')}))
+        .finally(() => this.detaching.splice(this.detaching.indexOf(attachment.id), 1));
     },
     /**
      * Opens the drawer that adds a document to the entity, once it exists.
