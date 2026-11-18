@@ -85,6 +85,15 @@
               type="request-drawer-section"
               @changed="onSectionsChanged"
               @fill="onSectionsFill" />
+            <request-documents-card
+              v-if="processDocuments.length"
+              :documents="hasDraft ? documentsToFill : processDocuments"
+              :has-draft="hasDraft"
+              :is-filled="isCopyFilled"
+              :expanded="expanded"
+              @open="openDocument($event)"
+              @fill="fillDocument($event)"
+              @open-original="openDocument(originalOf($event))" />
             <request-field-row
               id="requestMessageRow"
               :label="$t('processes.work.message.to.manager')"
@@ -100,42 +109,9 @@
                 :tag-enabled="false"
                 ck-editor-type="processesRequest"
                 class="full-width"
+                content-link-enabled
                 disable-suggester
                 @ready="bindEditorBlur" />
-            </request-field-row>
-            <request-field-row
-              v-if="processDocuments.length"
-              id="requestFillDocumentRow"
-              :label="$t('processes.request.documentToFill')"
-              :table="expanded"
-              :stacked="!expanded"
-              icon="fas fa-file-alt">
-              <div class="full-width">
-                <request-document-line
-                  v-for="attachment in (hasDraft ? documentsToFill : processDocuments)"
-                  :key="attachment.id"
-                  :attachment="attachment"
-                  :state="hasDraft ? $t(isCopyFilled(attachment) ? 'processes.request.documentToFill.filled' : 'processes.request.documentToFill.notFilled') : null"
-                  @open="openDocument(attachment)"
-                  @fill="fillDocument(attachment)" />
-              </div>
-            </request-field-row>
-            <request-field-row
-              id="requestSupportingDocumentsRow"
-              :label="$t('processes.request.supportingDocuments')"
-              :hint="$t('processes.request.supportingDocuments.hint')"
-              :table="expanded"
-              :stacked="!expanded"
-              icon="fas fa-paperclip">
-              <template #action>
-                <button
-                  id="requestAddAttachmentButton"
-                  type="button"
-                  class="primary--text border-radius px-2"
-                  @click="$refs.supportingDocuments.openAddDocumentDrawer()">
-                  {{ $t('processes.request.supportingDocuments.add') }}
-                </button>
-              </template>
               <processes-attachments
                 ref="supportingDocuments"
                 v-model="attachments"
@@ -144,10 +120,10 @@
                 :entity-id="work.id"
                 :entity-type="entityType"
                 :hidden-ids="documentsToFillIds"
-                list-only
                 :preview-workflow-id="!hasDraft && work.workFlow && work.workFlow.id || null"
                 :prepare-entity="createDraftForAttachment"
-                class="request-documents full-width" />
+                class="request-documents full-width mt-1"
+                list-only />
             </request-field-row>
           </request-fields-section>
         </v-form>
@@ -192,6 +168,7 @@
     <template slot="footer" v-if="!viewMode">
       <request-drawer-actions
         :fill="requestFill"
+        :unfilled-documents="hasDraft ? documentsToFill.filter(copy => !isCopyFilled(copy)).length : processDocuments.length"
         :expanded="expanded"
         :saving="saving"
         :saving-draft="savingAsDraft"
@@ -207,6 +184,7 @@
 import RequestDraftMixin from '../js/RequestDraftMixin.js';
 import RequestDrawerExtrasMixin from '../js/RequestDrawerExtrasMixin.js';
 import RequestLayoutMixin from '../js/RequestLayoutMixin.js';
+import '../js/RequestEditorExtension.js';
 
 export default {
   mixins: [RequestDraftMixin, RequestDrawerExtrasMixin, RequestLayoutMixin],
@@ -244,6 +222,7 @@ export default {
     };
   },
   created(){
+    document.addEventListener('open-request-attachments', this.openRequestAttachments);
     // Loads the modules whose name contains ProcessRequestExtension, which register their sections
     this.$utils.includeExtensions('ProcessRequestExtension');
     this.$root.$on('work-added', event => {
@@ -269,9 +248,14 @@ export default {
       }
     });
   },
+  beforeDestroy() {
+    document.removeEventListener('open-request-attachments', this.openRequestAttachments);
+  },
   computed: {
+    /** @returns {Boolean} true when the requester added or removed a document: the copies to fill in do not count */
     attachmentsChanged() {
-      return this.attachmentsUpdated && JSON.stringify(this.updatedAttachments) !== JSON.stringify(this.attachments);
+      const added = list => JSON.stringify((list || []).filter(attachment => !this.documentsToFillIds.includes(attachment.id)));
+      return this.attachmentsUpdated && added(this.updatedAttachments) !== added(this.attachments);
     },
     workDescription() {
       return this.work && this.work.description || '';
@@ -548,6 +532,24 @@ export default {
         attachments: [{id: attachment.id, filename: attachment.title, mimetype: attachment.mimetype, downloadUrl: attachment.downloadUrl}],
         id: attachment.id,
       }}));
+    },
+    /**
+     * Opens the drawer adding a document, the message editor's attach button
+     * being pressed: the draft is created first when there is none.
+     *
+     * @returns {void}
+     */
+    openRequestAttachments() {
+      if (!this.viewMode && this.$refs.work && this.$refs.work.drawer && this.$refs.supportingDocuments) {
+        this.$refs.supportingDocuments.openAddDocumentDrawer();
+      }
+    },
+    /**
+     * @param {Object} copy the request's copy of a process document
+     * @returns {Object} the process's original of it, the copy itself when none matches
+     */
+    originalOf(copy) {
+      return this.processDocuments.find(attachment => this.storedName(attachment) === this.storedName(copy)) || copy;
     },
     createDraftForAttachment() {
       return this.saveDraft(true).then(() => {

@@ -53,33 +53,18 @@ export default {
     documentsToFillIds() {
       return this.documentsToFill.map(attachment => attachment.id);
     },
-    /** @returns {Number} how many documents the requester added */
-    supportingDocumentsCount() {
-      return (this.attachments || []).length - this.documentsToFill.length;
-    },
-    /**
-     * A copy keeps its original's dates until it is written, so a copy whose
-     * update date differs from its original's was filled in.
-     *
-     * @returns {Boolean} true once the requester wrote in a document to fill in
-     */
-    documentFilled() {
-      return this.hasDraft && this.documentsToFill.some(this.isCopyFilled);
-    },
     /**
      * The fill state of the whole section: the form's fields, plus the
-     * message, the documents to fill in when the process has any, and the
-     * supporting documents, none of them required.
+     * message and each document to fill in, none of them required.
      *
      * @returns {Object} {total, filled, missing}
      */
     requestFill() {
       const fill = this.sectionsFill;
-      const hasDocuments = this.processDocuments.length > 0;
+      const filledDocuments = this.hasDraft ? this.documentsToFill.filter(this.isCopyFilled).length : 0;
       return {
-        total: fill.total + 2 + (hasDocuments ? 1 : 0),
-        filled: fill.filled + (this.descriptionHasText ? 1 : 0) + (this.documentFilled ? 1 : 0)
-          + (this.supportingDocumentsCount > 0 ? 1 : 0),
+        total: fill.total + 1 + this.processDocuments.length,
+        filled: fill.filled + (this.descriptionHasText ? 1 : 0) + filledDocuments,
         missing: fill.missing || [],
       };
     },
@@ -117,18 +102,32 @@ export default {
      * @param {Object} copy the request's copy of a process document
      * @returns {Boolean} true once the requester wrote in it: a copy keeps its original's update date until then
      */
+    /**
+     * @param {Object} attachment a listed document
+     * @returns {String} its stored file name
+     */
+    storedName(attachment) {
+      return storedName(attachment);
+    },
     isCopyFilled(copy) {
       const original = this.processDocuments.find(attachment => storedName(attachment) === storedName(copy));
       return !!original && !!copy.updated && copy.updated !== original.updated;
     },
     /**
      * Follows the scroll of the drawer's content, which the drawer mounts on
-     * its first opening: called once it is opened.
+     * its first opening: called once it is opened, and again shortly while
+     * the content is not mounted yet.
      *
+     * @param {Number} [attempt] how many times the content was looked for
      * @returns {void}
      */
-    watchContentScroll() {
+    watchContentScroll(attempt = 0) {
       const content = this.$refs.work && this.$refs.work.$el && this.$refs.work.$el.querySelector('.drawerContent');
+      if (!content && attempt < 10) {
+        // The drawer tells it is opened before it mounts its content
+        window.setTimeout(() => this.watchContentScroll(attempt + 1), 150);
+        return;
+      }
       if (content && content !== this.scrolledContent) {
         // Not reactive: the element whose scroll is followed
         this.scrolledContent = content;

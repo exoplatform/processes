@@ -12,7 +12,7 @@ You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 -->
 <template>
-  <div class="requestDocumentLine d-flex align-start py-1">
+  <div class="requestDocumentLine d-flex align-center py-2">
     <v-icon
       :color="icon.color"
       class="flex-shrink-0 me-2"
@@ -26,14 +26,48 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         @click="$emit('open')">
         {{ title }}
       </a>
-      <div class="text-caption text-light-color">{{ meta }}</div>
+      <div class="d-flex flex-wrap align-center">
+        <span class="text-caption text-light-color me-2">{{ meta }}</span>
+        <v-chip
+          v-if="state"
+          :color="filled ? 'success' : ''"
+          :outlined="!filled"
+          class="requestDocumentLine-state"
+          x-small>
+          {{ state }}
+        </v-chip>
+      </div>
     </div>
-    <button
-      class="requestFillDocumentButton primary--text border-radius flex-shrink-0 px-2"
-      type="button"
+    <v-btn
+      class="requestFillDocumentButton flex-shrink-0 ms-2"
+      color="primary"
+      outlined
+      small
       @click="$emit('fill')">
-      {{ $t('processes.request.documentToFill.fill') }}
-    </button>
+      {{ $t(filled ? 'processes.request.documentToFill.continue' : 'processes.request.documentToFill.fill') }}
+    </v-btn>
+    <v-menu
+      v-if="original"
+      bottom
+      left
+      offset-y>
+      <template #activator="{ on, attrs }">
+        <v-btn
+          :aria-label="$t('processes.request.documentToFill.actions')"
+          class="flex-shrink-0 ms-1"
+          icon
+          small
+          v-bind="attrs"
+          v-on="on">
+          <v-icon size="16" class="icon-default-color">fas fa-ellipsis-v</v-icon>
+        </v-btn>
+      </template>
+      <v-list dense>
+        <v-list-item @click="$emit('open-original')">
+          <v-list-item-title>{{ $t('processes.request.documentToFill.openOriginal') }}</v-list-item-title>
+        </v-list-item>
+      </v-list>
+    </v-menu>
   </div>
 </template>
 
@@ -42,10 +76,11 @@ const BYTES_IN_KB = 1024;
 const BYTES_IN_MB = 1024 * 1024;
 
 /**
- * One document to fill in, on a compact line: its type icon at a row icon's
- * size, its name, which opens it, its size, type and fill state in a caption,
- * and « Fill in » at the line's end, drawn as the form's « + Add ». The type
- * icon is the one the platform's attachments show.
+ * One document to fill in, a row of the documents card: its type icon, the
+ * one the platform's attachments give its type, its name, which opens it, its
+ * size and type, its fill state as a chip once the request has its copy,
+ * « Fill in » (« Continue » once filled) and, when the copy exists, a menu
+ * opening the process's original.
  */
 export default {
   props: {
@@ -53,10 +88,19 @@ export default {
       type: Object,
       required: true,
     },
-    // « Filled » or « Not filled yet », none before the request has its copy
+    // « Not started » or « Filled · 2 min ago », none before the request has its copy
     state: {
       type: String,
       default: null,
+    },
+    filled: {
+      type: Boolean,
+      default: false,
+    },
+    // True when the row is the request's copy, whose original the menu opens
+    original: {
+      type: Boolean,
+      default: false,
     },
   },
   computed: {
@@ -70,10 +114,10 @@ export default {
       const icon = extensions && (extensions.get(this.attachment.mimetype) || extensions.get('file'));
       return icon || {class: 'fas fa-file', color: ''};
     },
-    /** @returns {String} the size, the type and the fill state, joined by a dot */
+    /** @returns {String} the size and the type, joined by a dot */
     meta() {
       const extension = this.title.includes('.') ? this.title.split('.').pop().toUpperCase() : '';
-      return [this.humanizedSize(), extension, this.state].filter(Boolean).join(' · ');
+      return [this.humanizedSize(), extension].filter(Boolean).join(' · ');
     },
   },
   methods: {

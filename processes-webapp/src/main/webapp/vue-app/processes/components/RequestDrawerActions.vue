@@ -19,6 +19,14 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       :can-submit="canSubmit"
       :class="expanded ? 'me-4' : 'full-width mb-2'"
       variant="line" />
+    <span
+      v-if="unfilledDocuments"
+      id="requestUnfilledDocumentsLine"
+      :class="expanded ? 'me-4' : 'full-width mb-2'"
+      class="d-flex align-center text-caption warning--text">
+      <v-icon size="14" class="warning--text me-1">fas fa-exclamation-triangle</v-icon>
+      {{ $t(unfilledDocuments > 1 ? 'processes.request.documentToFill.unfilled' : 'processes.request.documentToFill.unfilledOne', {0: unfilledDocuments}) }}
+    </span>
     <v-spacer />
     <v-btn
       id="saveRequestDraftButton"
@@ -56,6 +64,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 export default {
   props: {
+    // How many documents to fill in are not filled yet: a warning, Submit stays allowed
+    unfilledDocuments: {
+      type: Number,
+      default: 0,
+    },
     fill: {
       type: Object,
       default: () => ({total: 0, filled: 0, missing: []}),

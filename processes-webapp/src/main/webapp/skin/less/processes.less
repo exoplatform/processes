@@ -314,6 +314,12 @@
   .request-full-left {
     border-inline-end: 1px solid @borderColor !important;
   }
+  // In full screen, the documents to fill in are laid out in columns
+  .requestDocumentsCard-columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 24px;
+  }
   .request-guide {
     border-left: 3px solid @primaryColor;
   }
