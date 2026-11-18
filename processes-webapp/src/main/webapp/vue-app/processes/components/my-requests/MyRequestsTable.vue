@@ -24,6 +24,16 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     disable-pagination
     disable-filtering
     hide-default-footer>
+    <!-- the Comments column is 72px wide: its header shows the icon its cells show, and the th
+         keeps the label as its aria-label -->
+    <template #[`header.comments`]="{ header }">
+      <v-icon
+        :title="header.text"
+        class="my-request-comments-header"
+        size="16">
+        mdi-chat-outline
+      </v-icon>
+    </template>
     <template #item="{ item }">
       <!-- each row keyed: Vuetify sets no key on rows an #item slot renders -->
       <tr
@@ -94,17 +104,19 @@ export default {
      */
     headers() {
       return [
-        {text: this.$t('processes.myRequests.column.request'), value: 'request', sortable: false, class: 'my-request-col-request'},
-        {text: this.$t('processes.myRequests.column.process'), value: 'process', sortable: false, width: 200, class: 'd-none d-md-table-cell'},
+        {text: this.$t('processes.myRequests.column.request'), value: 'request', sortable: false, class: 'my-request-col-request text-no-wrap'},
+        {text: this.$t('processes.myRequests.column.comments'), value: 'comments', sortable: false, width: 72, class: 'd-none d-sm-table-cell text-no-wrap'},
+        {text: this.$t('processes.myRequests.column.process'), value: 'process', sortable: false, width: 200, class: 'd-none d-md-table-cell text-no-wrap'},
         {text: this.$t('processes.myRequests.column.date'), value: 'date', width: 110, class: 'text-no-wrap'},
-        {text: this.$t('processes.myRequests.column.status'), value: 'status', width: 130, class: 'd-none d-sm-table-cell'},
-        {text: this.$t('processes.myRequests.column.comments'), value: 'comments', sortable: false, width: 72, class: 'd-none d-sm-table-cell'},
+        {text: this.$t('processes.myRequests.column.status'), value: 'status', width: 130, class: 'd-none d-sm-table-cell text-no-wrap'},
         {text: '', value: 'actions', sortable: false, width: 48},
       ];
     },
     /**
-     * Flattens the groups into the table's rows: each group's header row, its requests sorted by the
-     * chosen column, a « Show N more » row while a capped group hides some, and its hint row.
+     * Flattens the groups into the table's rows: each group's header row (none for the flat list's
+     * single group), its requests sorted by the chosen column, a « Show N more » row while a capped
+     * group hides some, and its hint row. A request of the flat list is a draft when its group's
+     * `drafts` holds it.
      *
      * @returns {Array} the rows, each with a unique key and a type
      */
@@ -114,10 +126,14 @@ export default {
       const rows = [];
       this.groups.forEach(group => {
         const hook = hookKeyOf(group.key);
-        const works = sortWorks(group.works, sortBy, sortDesc, this.statusLabelOf);
+        const isDraft = work => !!group.isDraft || !!(group.drafts && group.drafts.has(work));
+        const statusLabelOf = work => (isDraft(work) ? this.$t('processes.myWorks.status.draftLabel') : this.statusLabelOf(work));
+        const works = sortWorks(group.works, sortBy, sortDesc, statusLabelOf);
         const shown = group.cap && !this.expanded[group.key] ? works.slice(0, group.cap) : works;
-        rows.push({key: `header-${group.key}`, type: 'header', hook, label: group.label, count: works.length});
-        shown.forEach(work => rows.push({key: `${group.isDraft ? 'draft' : 'work'}-${work.id}`, type: 'work', work, isDraft: !!group.isDraft}));
+        if (!group.flat) {
+          rows.push({key: `header-${group.key}`, type: 'header', hook, label: group.label, count: works.length});
+        }
+        shown.forEach(work => rows.push({key: `${isDraft(work) ? 'draft' : 'work'}-${work.id}`, type: 'work', work, isDraft: isDraft(work)}));
         if (shown.length < works.length) {
           rows.push({key: `more-${group.key}`, type: 'more', hook, groupKey: group.key, hidden: works.length - shown.length});
         }

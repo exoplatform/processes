@@ -43,6 +43,18 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         class="d-sm-none mt-1"
         x-small />
     </td>
+    <td class="my-request-cell-comments d-none d-sm-table-cell">
+      <v-btn
+        v-if="!isDraft && commentsCount > 0"
+        :title="$t('processes.myRequests.comments')"
+        class="my-request-comments-button text-light-color px-1"
+        small
+        text
+        @click.stop="$emit('open-comments')">
+        <v-icon size="16" class="me-1">mdi-chat-outline</v-icon>
+        {{ commentsCount }}
+      </v-btn>
+    </td>
     <td class="my-request-cell-process d-none d-md-table-cell">
       <div class="d-flex align-center text-truncate">
         <v-avatar
@@ -63,18 +75,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         :status="work.status"
         :is-draft="isDraft"
         :is-completed="work.completed" />
-    </td>
-    <td class="my-request-cell-comments d-none d-sm-table-cell">
-      <v-btn
-        v-if="!isDraft && commentsCount > 0"
-        :title="$t('processes.myRequests.comments')"
-        class="my-request-comments-button text-light-color px-1"
-        small
-        text
-        @click.stop="$emit('open-comments')">
-        <v-icon size="16" class="me-1">mdi-chat-outline</v-icon>
-        {{ commentsCount }}
-      </v-btn>
     </td>
     <td class="my-request-cell-actions text-end">
       <work-actions-menu

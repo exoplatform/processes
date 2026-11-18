@@ -17,6 +17,7 @@ import WorkflowFormAttendeeItem from './components/WorkflowFormAttendeeItem.vue'
 import AddWorkDrawer from './components/AddWorkDrawer.vue';
 import RequestEditor from './components/RequestEditor.vue';
 import MyWorkListToolbar from './components/my-requests/MyWorkListToolbar.vue';
+import MyRequestsFilterDrawer from './components/my-requests/MyRequestsFilterDrawer.vue';
 import MyRequestsTable from './components/my-requests/MyRequestsTable.vue';
 import MyRequestStatusChip from './components/my-requests/MyRequestStatusChip.vue';
 import MyWorkListEmpty from './components/my-requests/MyWorkListEmpty.vue';
@@ -59,6 +60,7 @@ const components = {
   'add-work-drawer': AddWorkDrawer,
   'request-editor': RequestEditor,
   'my-work-list-toolbar': MyWorkListToolbar,
+  'my-requests-filter-drawer': MyRequestsFilterDrawer,
   'my-requests-table': MyRequestsTable,
   'my-request-status-chip': MyRequestStatusChip,
   'my-work-list-empty': MyWorkListEmpty,

@@ -15,10 +15,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
   <span class="my-request-status d-inline-flex align-center text-no-wrap">
     <v-chip
       :color="color"
-      :text-color="textColor"
+      :class="tinted && 'my-request-status-chip-tinted'"
       :x-small="xSmall"
       :small="!xSmall"
-      class="my-request-status-chip">
+      class="my-request-status-chip font-weight-bold"
+      outlined>
       {{ label }}
     </v-chip>
     <v-tooltip v-if="isArchived" bottom>
@@ -80,39 +81,50 @@ export default {
       return translation === key && (this.status || '') || translation;
     },
     /**
-     * Picks the chip's theme colour for the state: a draft is neutral, a decided request
-     * success or error, a pending request or one in progress warning, any other status grey.
+     * Picks the chip's colour for the state, from the Material palette Vuetify ships, in a shade
+     * of each hue dark enough for its 12px text to reach 4.5:1 on the chip's light tint over a
+     * white row: a draft and any other status neutral grey, a pending request or one in progress
+     * deep orange, a decided request green or red, a canceled one grey.
      *
-     * @returns {String} a Vuetify theme colour
+     * @returns {String} a Vuetify colour
      */
     color() {
       if (this.isDraft) {
-        return 'grey lighten-2';
+        return 'grey darken-2';
       }
-      switch (String(this.status || '').toLowerCase()) {
+      switch (this.statusKey) {
       case 'accepted':
       case 'done':
       case 'validated':
-        return 'success';
+        return 'green darken-4';
       case 'request':
       case 'pending':
       case 'requestinprogress':
       case 'waitingon':
       case 'inprogress':
-        return 'warning';
+        return 'deep-orange darken-4';
       case 'refused':
-        return 'error';
+        return 'red darken-4';
       default:
-        return 'grey';
+        return 'grey darken-2';
       }
     },
     /**
-     * Picks the label's colour: dark on the light draft chip, white on the others.
+     * Tells whether the chip takes a light tint of its colour: every state but a canceled request,
+     * which keeps an outline only.
      *
-     * @returns {String} a colour
+     * @returns {Boolean} true when the chip is tinted
      */
-    textColor() {
-      return this.isDraft ? 'grey darken-3' : 'white';
+    tinted() {
+      return this.isDraft || this.statusKey !== 'canceled';
+    },
+    /**
+     * Reads the status in lower case, for the colour choices.
+     *
+     * @returns {String} the status, or an empty string
+     */
+    statusKey() {
+      return String(this.status || '').toLowerCase();
     },
   },
 };

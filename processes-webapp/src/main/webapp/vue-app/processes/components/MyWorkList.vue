@@ -61,7 +61,7 @@ export default {
     }
   },
   data: () => ({
-    filter: {query: null, workflowId: null, status: null},
+    filter: {query: null, workflowId: null, status: null, grouped: false},
     toolbarKey: 0,
   }),
   computed: {
@@ -99,12 +99,35 @@ export default {
       return !this.allWorks.length && !this.showWorkFilter;
     },
     /**
-     * Builds the shown groups: the drafts, each status in the order the processes list them,
+     * Builds what the table shows: by default one flat list of every kept request, drafts included,
+     * or, when « Group by status » is chosen, the status groups.
+     *
+     * @returns {Array} the groups, as {key, label, works, isDraft, cap, hint}, or the flat list's
+     *   single group, as {key, flat, works, drafts, hint}
+     */
+    groups() {
+      if (this.filter.grouped) {
+        return this.statusGroups;
+      }
+      const works = this.statusGroups.flatMap(group => group.works);
+      if (!works.length) {
+        return [];
+      }
+      return [{
+        key: 'all',
+        flat: true,
+        works,
+        drafts: new Set(this.draftList),
+        hint: this.isDraftsOnlyProcess && this.$t('processes.myRequests.draftsOnly') || null,
+      }];
+    },
+    /**
+     * Builds the status groups: the drafts, each status in the order the processes list them,
      * then the completed requests, each filtered and sorted most recent first, without the empty ones.
      *
      * @returns {Array} the groups, as {key, label, works, isDraft, cap, hint}
      */
-    groups() {
+    statusGroups() {
       const status = this.filter.status;
       const groups = [];
       if (!status || status === 'drafts') {
@@ -161,7 +184,7 @@ export default {
         && matchesQuery(work, this.filter.query, this.statusI18n(work.status));
     },
     /**
-     * Resets the text, the process and the status filters, and the toolbar that holds them.
+     * Resets the text, the process and the status filters, the grouping, and the toolbar that holds them.
      *
      * @returns {void}
      */
@@ -169,7 +192,7 @@ export default {
       if (this.filter.status) {
         this.$root.$emit('work-filter-changed', {status: null});
       }
-      this.filter = {query: null, workflowId: null, status: null};
+      this.filter = {query: null, workflowId: null, status: null, grouped: false};
       this.toolbarKey++;
     },
     /**

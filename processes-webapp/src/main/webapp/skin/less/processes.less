@@ -523,18 +523,13 @@
     }
   }
 
-  // the process filter, in the toolbar's right slot, sits between the text filter and the status select
-  #myRequestsToolbar {
-    #applicationToolbarBackButton {
-      order: -2;
-    }
+  // a status chip: its colour's text and a light tint of it, drawn by the chip's own overlay in
+  // the text colour, with no outline; a canceled request keeps the outline and no tint
+  .v-chip.my-request-status-chip-tinted.v-chip--outlined {
+    border-color: transparent !important;
 
-    #applicationToolbarFilter {
-      order: -1;
-    }
-
-    .my-requests-process-filter {
-      max-width: 240px;
+    &::before {
+      opacity: 0.12 !important;
     }
   }
 
