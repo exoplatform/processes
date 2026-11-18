@@ -176,7 +176,7 @@ export default {
     hasChanges() {
       return this.sections().some(this.sectionChanged);
     },
-    /** Tells the sections that the values they last gave were saved. @returns {void} */
+    /** @returns {void} once the sections are told that the values they last gave were saved */
     saved() {
       this.call('saved');
     },
@@ -190,7 +190,7 @@ export default {
     markRefused(fieldKey, code, formId) {
       this.call('markRefused', fieldKey, code, formId);
     },
-    /** Makes the sections forget what was typed. @returns {void} */
+    /** @returns {void} once the sections forgot what was typed */
     reset() {
       this.call('reset');
     },
