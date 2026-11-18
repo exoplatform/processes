@@ -185,12 +185,7 @@
                 </div>
               </div>
             </div>
-            <v-label
-              class="mt-1"
-              for="status">
-              {{ $t('processes.works.form.label.status') }}
-            </v-label>
-            <div class="d-flex mt-2">
+            <div class="d-flex mt-1">
               <div>
                 {{ requestStatus }}
               </div>
@@ -264,6 +259,15 @@
             v-model="labels"
             :project-id="projectMode === 'EXISTING' && projectId || null"
             :space-id="managingSpaceId" />
+          <processes-extension-sections
+            ref="editorSections"
+            :key="`editorSections${formKey}`"
+            :params="{workflow, spaceId: managingSpaceId}"
+            hook-id="processEditorSections"
+            name="ProcessEditor"
+            type="process-editor-section"
+            class="mt-4"
+            @changed="sectionsChanged = $event" />
           <v-card-actions class="d-flex flex-row mt-4 ms-2 px-0">
             <v-btn class="btn" @click="previousStep">
               <v-icon size="18" class="me-2">
@@ -447,9 +451,12 @@ export default {
       labelsRead: false,
       formKey: 0,
       originalProjectChoice: null,
+      sectionsChanged: false,
     };
   },
   created(){
+    // Loads the modules whose name contains ProcessEditorExtension, which register their sections
+    this.$utils.includeExtensions('ProcessEditorExtension');
     this.$root.$on('workflow-added', () => {
       this.saving = false;
       this.resetInputs();
@@ -480,9 +487,13 @@ export default {
     workflowParentSpace() {
       return this.workflow && this.workflow.parentSpace;
     },
+    /**
+     * @returns {Boolean} true when closing asks for confirmation: the form
+     *          changed, the project choice changed, or a section holds a change
+     */
     confirmClose() {
       return this.valid && (JSON.stringify(this.workflow) !== JSON.stringify(this.oldWorkflow)
-        || this.projectChoiceString() !== this.originalProjectChoice);
+        || this.projectChoiceString() !== this.originalProjectChoice || this.sectionsChanged);
     },
     workflowChanged() {
       return  this.workflow && this.originalWorkflowString && this.workflow.parentSpace;
@@ -621,6 +632,7 @@ export default {
       // A new key recreates the project choice and the labels field, so each
       // opening lists the projects and labels afresh
       this.formKey++;
+      this.sectionsChanged = false;
       if (workflow) {
         this.workflow = Object.assign({}, workflow);
         this.workflowEnabled = workflow.enabled;
@@ -728,7 +740,8 @@ export default {
      * Builds the body of a save, the one place the form's fields are put
      * together. On create it states the project mode, the project and the
      * labels; on edit it states no project mode, so the process keeps its
-     * project, and labels only when they were read.
+     * project, and labels only when they were read. The sections other
+     * add-ons register add their fields, the request form's included.
      *
      * @return {Object} the process to save
      */
@@ -736,7 +749,7 @@ export default {
       const payload = Object.assign({}, this.workflow, {
         requestsCreators: this.workflowRequest,
         illustrativeAttachment: this.illustrativeImage,
-      });
+      }, this.$refs.editorSections && this.$refs.editorSections.fields() || {});
       delete payload.labels;
       delete payload.projectMode;
       if (!this.editMode) {
