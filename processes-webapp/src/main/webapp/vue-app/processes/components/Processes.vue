@@ -197,6 +197,10 @@ export default {
         if (event.filter === 'manager') {
           this.manager = true;
           this.enabled = true;
+        } else if (event.filter === 'deactivated') {
+          // a user who edits a process finds the ones they disabled, to enable them again
+          this.manager = true;
+          this.enabled = false;
         } else {
           this.manager = false;
           this.enabled = true;
@@ -335,8 +339,12 @@ export default {
         filter.enabled = true;
         filter.manager = false;
         this.query = '';
-        this.$processesService.getWorkFlows(filter).then(workflows =>{
-          this.showProcessFilter = workflows.length > 0;});
+        Promise.all([
+          this.$processesService.getWorkFlows(filter),
+          this.$processesService.getWorkFlows({manager: true}, 0, 1),
+        ]).then(([workflows, managedWorkflows]) => {
+          this.showProcessFilter = workflows.length > 0 || managedWorkflows.length > 0;
+        });
       }
     },
     handleTabChanges() {
@@ -442,11 +450,12 @@ export default {
       this.loading = !this.loadingMore;
       return this.$processesService.getWorkFlows(filter, this.offset, this.limit + 1, expand).then(workflows => {
         this.hasMoreTypes = workflows && workflows.length > this.limit;
-        if (this.hasMoreTypes) {
-          this.workflows.push(...workflows.slice(0, -1));
-        } else {
-          this.workflows.push(...workflows || []);
+        let page = this.hasMoreTypes ? workflows.slice(0, -1) : workflows || [];
+        if (!this.isManager && filter.enabled === false) {
+          // the disabled processes a user sees are the ones they may edit
+          page = page.filter(workflow => workflow.acl && workflow.acl.canEdit);
         }
+        this.workflows.push(...page);
       })
         .finally(() => {
           this.loading = false;
