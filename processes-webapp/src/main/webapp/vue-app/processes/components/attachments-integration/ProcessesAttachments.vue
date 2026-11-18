@@ -164,6 +164,12 @@ export default {
     },
   },
   computed: {
+    /**
+     * Builds the configuration Documents' drawers open with: the entity, its files, whether they are attached to
+     * it, and excludedIds, the documents to fill in, which the drawers neither list nor detach.
+     *
+     * @returns {Object} the drawers' opening configuration
+     */
     attachmentDrawerParams() {
       return {
         entityType: this.entityType,
@@ -353,9 +359,9 @@ export default {
       });
     },
     /**
-     * Detaches a document, as the Documents attachment application does: from the entity first when the
-     * list attaches its documents to it (a draft), then from the list, through the attachment-removed
-     * event every list of the page follows.
+     * Detaches a document: from the entity first when the list attaches its documents to it (a draft), as
+     * the Documents drawer does, then from the list, through the attachment-removed event every list of the
+     * page follows.
      *
      * @param {Object} attachment the document
      * @returns {Promise} settled once the document is detached, or its failure shown
