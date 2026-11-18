@@ -21,7 +21,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       class="my-request-status-chip">
       {{ label }}
     </v-chip>
-    <v-tooltip v-if="isCompleted" bottom>
+    <v-tooltip v-if="isArchived" bottom>
       <template #activator="{ on, attrs }">
         <v-icon
           :aria-label="$t('processes.myRequests.archived')"
@@ -58,6 +58,14 @@ export default {
     },
   },
   computed: {
+    /**
+     * Tells whether the request is archived: completed without being canceled, whose chip says so.
+     *
+     * @returns {Boolean} true when the archive icon shows
+     */
+    isArchived() {
+      return this.isCompleted && this.status !== 'Canceled';
+    },
     /**
      * Reads the chip's label: « Draft », or the translated task status.
      *

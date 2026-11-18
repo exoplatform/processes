@@ -115,12 +115,12 @@ export default {
   computed: {
     /**
      * Tells whether the requester may archive the request, or unarchive it: a sent request
-     * that is archived, or not decided (Validated or Refused).
+     * that is not decided (Validated or Refused), since the server reopens no decided request.
      *
      * @returns {Boolean} true when Archive or Unarchive is offered
      */
     canArchive() {
-      return !this.isDraft && (this.work.completed || !['Validated', 'Refused'].includes(this.work.status));
+      return !this.isDraft && !['Validated', 'Refused'].includes(this.work.status);
     },
     /**
      * Tells whether the request may still be canceled: sent, not done, not decided.

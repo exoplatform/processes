@@ -33,10 +33,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     <template v-if="work.id" #content>
       <div class="pa-4">
         <div class="d-flex align-center mb-4">
-          <request-status
+          <my-request-status-chip
             :is-completed="work.completed"
             :status="work.status"
-            class="ms-n2 me-2" />
+            class="me-2" />
           <custom-date-format
             :timestamp="work.createdTime && work.createdTime.time"
             :message="$t('processes.myRequests.sentOn')"
