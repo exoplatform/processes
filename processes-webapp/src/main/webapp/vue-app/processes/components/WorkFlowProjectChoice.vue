@@ -122,6 +122,13 @@ export default {
     selectedProject() {
       return this.projects.find(project => project.id === this.projectId);
     },
+    /**
+     * @returns {String} the name of the project chosen, once it is listed;
+     *          null otherwise
+     */
+    selectedProjectName() {
+      return this.selectedProject && this.selectedProject.name || null;
+    },
     otherProcesses() {
       const workflows = this.selectedProject && this.selectedProject.workflows || [];
       return workflows.filter(workflow => workflow.id !== this.workflowId).map(workflow => workflow.title);
@@ -130,6 +137,14 @@ export default {
   watch: {
     spaceId: 'listProjects',
     mode: 'listProjects',
+    // The host names the project with it, such as the request forms section,
+    // on create and, once the stored project is listed, on edit
+    selectedProjectName: {
+      immediate: true,
+      handler(name) {
+        this.$emit('update:projectName', name);
+      },
+    },
   },
   created() {
     this.listProjects();
