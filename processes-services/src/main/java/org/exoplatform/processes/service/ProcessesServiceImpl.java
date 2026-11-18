@@ -457,8 +457,7 @@ public class ProcessesServiceImpl implements ProcessesService {
    */
   @Override
   public List<Long> getRequesterFormIds(long workFlowId) {
-    WorkFlow workFlow = processesStorage.getWorkFlowById(workFlowId, null);
-    return workFlow == null || workFlow.getRequesterFormIds() == null ? Collections.emptyList() : workFlow.getRequesterFormIds();
+    return processesStorage.getRequesterFormIds(workFlowId);
   }
 
   /**

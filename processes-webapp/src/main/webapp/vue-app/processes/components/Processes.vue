@@ -75,6 +75,7 @@ export default {
         'processes.label.invalidName',
         'processes.space.notFound',
         'processes.workflow.formUnsupported',
+        'processes.workflow.requesterFormInvalid',
         'forms.form.otherSpace',
       ],
       requestSaveErrorCodes: [

@@ -500,20 +500,16 @@ public class ProcessesServiceProcessFormTest {
   }
 
   /**
-   * The forms add-on reads a process's requester forms with no user: the
-   * stored ones, or none for a process stored before them or gone. Mutation:
-   * answer null for a process with none, and this test fails.
+   * The forms add-on reads a process's requester forms with no user, through
+   * the storage's narrow read, never a whole process with its labels.
+   * Mutation: read the whole process, and the narrow read is never called.
    */
   @Test
   public void theRequesterFormsAreReadForTheFormsAddOn() {
-    WorkFlow stored = storedWorkFlow(true);
-    stored.setRequesterFormIds(List.of(63L, 64L));
-    when(processesStorage.getWorkFlowById(WORKFLOW_ID, null)).thenReturn(stored);
-    when(processesStorage.getWorkFlowById(8L, null)).thenReturn(storedWorkFlow(true));
+    when(processesStorage.getRequesterFormIds(WORKFLOW_ID)).thenReturn(List.of(63L, 64L));
 
     assertEquals(List.of(63L, 64L), processesService.getRequesterFormIds(WORKFLOW_ID));
-    assertEquals(List.of(), processesService.getRequesterFormIds(8L));
-    assertEquals(List.of(), processesService.getRequesterFormIds(9L));
+    verify(processesStorage, never()).getWorkFlowById(eq(WORKFLOW_ID), isNull());
   }
 
   private WorkFlow newWorkFlow(ProjectMode projectMode) {

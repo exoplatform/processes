@@ -128,7 +128,8 @@ public class WorkFlow {
    * requesters fill when they create a request; the project's other forms are
    * filled by its members on the request's task. Null when a save does not
    * state it, the stored choice being kept; empty when the requesters fill
-   * none of them. The forms add-on checks each id before a save stores it.
+   * none of them. The forms add-on checks each newly chosen id before a save
+   * stores it; a stored one sent again is kept.
    */
   private List<Long>                  requesterFormIds;
 

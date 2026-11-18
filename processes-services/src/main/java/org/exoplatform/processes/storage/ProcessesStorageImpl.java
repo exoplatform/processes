@@ -451,6 +451,14 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   }
 
   /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<Long> getRequesterFormIds(long workFlowId) {
+    return readRequesterFormIds(workFlowDAO.find(workFlowId));
+  }
+
+  /**
    * Gives the requester form ids a save writes: those the Service checked,
    * else, when the caller states none, the stored ones of an update, or none.
    *
