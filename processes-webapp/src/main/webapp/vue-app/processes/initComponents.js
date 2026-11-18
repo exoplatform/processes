@@ -3,6 +3,7 @@ import WorkFlowList from './components/WorkFlowList.vue';
 import WorkFlowCardItem from './components/WorkFlowCardItem.vue';
 import WorkFlowListToolbar from './components/WorkFlowListToolbar.vue';
 import WorkFlowCardMenu from './components/WorkFlowCardMenu.vue';
+import WorkFlowEnableToggle from './components/WorkFlowEnableToggle.vue';
 import WorkFlowEmptyState from './components/WorkFlowEmptyState.vue';
 import MyWorkList from './components/MyWorkList.vue';
 import Work from './components/Work.vue';
@@ -15,6 +16,15 @@ import WorkFlowProjectItem from './components/WorkFlowProjectItem.vue';
 import WorkflowFormAttendeeItem from './components/WorkflowFormAttendeeItem.vue';
 import AddWorkDrawer from './components/AddWorkDrawer.vue';
 import RequestEditor from './components/RequestEditor.vue';
+import MyWorkListToolbar from './components/my-requests/MyWorkListToolbar.vue';
+import MyRequestsFilterDrawer from './components/my-requests/MyRequestsFilterDrawer.vue';
+import MyRequestsTable from './components/my-requests/MyRequestsTable.vue';
+import MyRequestStatusChip from './components/my-requests/MyRequestStatusChip.vue';
+import MyWorkListEmpty from './components/my-requests/MyWorkListEmpty.vue';
+import WorkRow from './components/my-requests/WorkRow.vue';
+import WorkActionsMenu from './components/my-requests/WorkActionsMenu.vue';
+import WorkDetailDrawer from './components/my-requests/WorkDetailDrawer.vue';
+import WorkDetailTitle from './components/my-requests/WorkDetailTitle.vue';
 
 import EmptyOrLoading from './components/commons/EmptyOrLoading.vue';
 import CustomCounter from './components/commons/CustomCounter.vue';
@@ -25,9 +35,6 @@ import CreateDocumentForm from './components/attachments-integration/CreateDocum
 import ProcessesAttachments from './components/attachments-integration/ProcessesAttachments.vue';
 
 import ProcessMobileActionDrawer from './components/mobile/ProcessMobileActionDrawer.vue';
-import MobileFilter from './components/mobile/MobileFilter.vue';
-import WorkBodyMobile from './components/mobile/WorkBodyMobile.vue';
-import WorkBody from './components/WorkBody.vue';
 
 import * as processesService from './js/ProcessesService.js';
 import * as ProcessesAttachmentService from './js/ProcessesAttachmentService.js';
@@ -39,6 +46,7 @@ const components = {
   'workflow-card-item': WorkFlowCardItem,
   'workflow-list-toolbar': WorkFlowListToolbar,
   'workflow-card-menu': WorkFlowCardMenu,
+  'workflow-enable-toggle': WorkFlowEnableToggle,
   'workflow-empty-state': WorkFlowEmptyState,
   'my-work-list': MyWorkList,
   'work': Work,
@@ -51,16 +59,22 @@ const components = {
   'workflow-form-attendee-item': WorkflowFormAttendeeItem,
   'add-work-drawer': AddWorkDrawer,
   'request-editor': RequestEditor,
+  'my-work-list-toolbar': MyWorkListToolbar,
+  'my-requests-filter-drawer': MyRequestsFilterDrawer,
+  'my-requests-table': MyRequestsTable,
+  'my-request-status-chip': MyRequestStatusChip,
+  'my-work-list-empty': MyWorkListEmpty,
+  'work-row': WorkRow,
+  'work-actions-menu': WorkActionsMenu,
+  'work-detail-drawer': WorkDetailDrawer,
+  'work-detail-title': WorkDetailTitle,
   'processes-attachments': ProcessesAttachments,
   'empty-or-loading': EmptyOrLoading,
   'custom-counter': CustomCounter,
   'custom-date-format': CustomDateFormat,
   'request-status': RequestStatus,
   'create-document-from': CreateDocumentForm,
-  'process-mobile-action-drawer': ProcessMobileActionDrawer,
-  'mobile-filter': MobileFilter,
-  'work-body-mobile': WorkBodyMobile,
-  'work-body': WorkBody
+  'process-mobile-action-drawer': ProcessMobileActionDrawer
 };
 
 for (const key in components) {

@@ -40,6 +40,16 @@
           </v-list-item-title>
         </v-list-item>
         <v-list-item
+          class="workflow-card-toggle-enabled"
+          @click="toggleEnabled">
+          <v-list-item-title>
+            <v-icon dense class="processes-work-menu-icon">
+              {{ enabled && 'mdi-close-circle-outline' || 'mdi-check-circle-outline' }}
+            </v-icon>
+            <span>{{ enabled && $t('processes.workflow.disable.label') || $t('processes.workflow.enable.label') }}</span>
+          </v-list-item-title>
+        </v-list-item>
+        <v-list-item
           @click="deleteWorkflow">
           <v-list-item-title>
             <v-icon dense class="processes-work-menu-icon">
@@ -56,12 +66,27 @@
 <script>
 
 export default {
+  props: {
+    enabled: {
+      type: Boolean,
+      default: false,
+    },
+  },
   methods: {
     open() {
       this.$refs.actionDrawer.open();
     },
     editWorkflow() {
       this.$emit('editWorkflow');
+      this.close();
+    },
+    /**
+     * Asks the card to enable or disable its process.
+     *
+     * @returns {void}
+     */
+    toggleEnabled() {
+      this.$emit('toggleEnabled');
       this.close();
     },
     deleteWorkflow(){
