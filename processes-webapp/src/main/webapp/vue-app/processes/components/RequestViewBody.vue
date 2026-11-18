@@ -229,14 +229,14 @@ export default {
       return this.hasMessageText || this.messageFiles.length > 0;
     },
     /**
-     * Tells whether the message holds text or an image: an editor left empty stores an empty paragraph,
-     * which takes no heading.
+     * Tells whether the message holds text, an image or an embed: an editor left empty stores an empty
+     * paragraph, which takes no heading.
      *
      * @returns {Boolean} true when the message has content to show
      */
     hasMessageText() {
       const description = this.work && this.work.description || '';
-      return /<img\b/i.test(description) || !!description.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+      return /<(img|iframe|video|oembed)\b/i.test(description) || !!description.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
     },
     /**
      * Gives the forms' sections what they need: the process, the request, its task, and that the
@@ -257,6 +257,12 @@ export default {
   data: () => ({
     attachmentAppReady: !!Vue.options.components.AttachmentApp && !!Vue.options.components['notes-attachment-carousel'],
   }),
+  /**
+   * Loads the forms' sections and, when the page has not loaded them yet, the Documents modules that show
+   * the request's files.
+   *
+   * @returns {void}
+   */
   created() {
     // Loads the modules whose name contains ProcessRequestDetailExtension, which register the forms' sections
     this.$utils.includeExtensions('ProcessRequestDetailExtension');
