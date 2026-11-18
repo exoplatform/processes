@@ -37,7 +37,7 @@
               :works="works"
               :work-drafts="workDrafts"
               :completed-works="completedWorks"
-              :loading="loading"
+              :loading="worksLoading"
               :show-work-filter="requestSubmitted || allWorkDrafts.length > 0" />
           </v-tab-item>
         </v-tabs-items>
@@ -97,6 +97,7 @@ export default {
       hasMoreTypes: false,
       isManager: false,
       managesWorkflow: null,
+      worksLoading: false,
       confirmTitle: this.$t('processes.workflow.action.confirmation.label'),
       confirmMessage: '',
       dialogAction: null,
@@ -407,8 +408,9 @@ export default {
       if (value === 1) {
         window.history.pushState('myRequests', '', `${spacePath != null ? spacePath : baseProcessPath}/processes/myRequests`);
         if (!this.myRequestsTabVisited) {
-          this.getWorkDrafts();
-          this.getWorks();
+          // « My requests » waits for both loads before it says the list is empty
+          this.worksLoading = true;
+          Promise.all([this.getWorkDrafts(), this.getWorks()]).finally(() => this.worksLoading = false);
           this.myRequestsTabVisited = 1;
         }
       } else {
@@ -485,7 +487,8 @@ export default {
       const filter = {
         completed: true
       };
-      this.$processesService.getWorks(filter, 0, 0, expand).then(works => {
+      this.worksLoading = true;
+      return this.$processesService.getWorks(filter, 0, 0, expand).then(works => {
         if (this.status !== 'completed') {
           // the status changed while the completed requests were loading
           return;
@@ -494,7 +497,7 @@ export default {
           work.status = 'completed';
         });
         this.completedWorks = works || [];
-      });
+      }).finally(() => this.worksLoading = false);
     },
     getWorkDrafts() {
       const expand = '';

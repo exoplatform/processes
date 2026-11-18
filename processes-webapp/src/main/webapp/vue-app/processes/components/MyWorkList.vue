@@ -12,7 +12,7 @@
       :hide-filters="isEmpty"
       @change="filter = $event" />
     <div
-      v-if="loading && !allWorks.length"
+      v-if="loading && !shownCount"
       class="d-flex justify-center py-10">
       <v-progress-circular color="primary" indeterminate />
     </div>
@@ -122,7 +122,7 @@ export default {
       }
       if (status !== 'drafts' && status !== 'completed') {
         statusesOf(this.workList).filter(name => !status || name === status).forEach(name => groups.push({
-          key: name,
+          key: `status-${name}`,
           label: this.statusI18n(name),
           works: this.workList.filter(work => work.status === name),
           cap: CAPPED_STATUSES.includes(name) ? CAPPED_GROUP_SIZE : 0,
