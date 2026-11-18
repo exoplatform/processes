@@ -25,7 +25,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         <span v-else class="font-weight-bold">{{ initial }}</span>
       </v-avatar>
       <div class="text-start text-truncate">
-        <div v-if="!expanded" class="font-weight-bold text-break">{{ workflow.title }}</div>
+        <div v-if="!expanded || !spaceName" class="font-weight-bold text-break">{{ workflow.title }}</div>
         <div v-if="spaceName" class="text-caption text-light-color text-truncate">{{ spaceName }}</div>
       </div>
     </div>

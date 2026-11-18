@@ -90,6 +90,7 @@
               :documents="hasDraft ? documentsToFill : processDocuments"
               :has-draft="hasDraft"
               :is-filled="isCopyFilled"
+              :name-of="copy => hasDraft ? originalOf(copy).title : null"
               :expanded="expanded"
               @open="openDocument($event)"
               @fill="fillDocument($event)"

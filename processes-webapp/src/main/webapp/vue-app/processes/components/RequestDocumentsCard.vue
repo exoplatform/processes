@@ -29,6 +29,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         v-for="attachment in documents"
         :key="attachment.id"
         :attachment="attachment"
+        :name="nameOf(attachment)"
         :state="hasDraft ? state(attachment) : null"
         :filled="hasDraft && isFilled(attachment)"
         :original="hasDraft"
@@ -64,6 +65,11 @@ export default {
     expanded: {
       type: Boolean,
       default: false,
+    },
+    // Gives the name a row shows: a copy shows its original's
+    nameOf: {
+      type: Function,
+      default: () => null,
     },
   },
   computed: {

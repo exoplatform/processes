@@ -89,6 +89,16 @@ export default {
       if (this.viewMode || !workflowId) {
         return;
       }
+      if (!this.work.workFlow.parentSpace) {
+        // A reopened draft's process comes without its managing space, which the header line and the guide name
+        this.$processesService.getWorkflowById(workflowId, 'all')
+          .then(workflow => {
+            if (openKey === this.openKey && workflow && workflow.parentSpace) {
+              this.$set(this.work.workFlow, 'parentSpace', workflow.parentSpace);
+            }
+          })
+          .catch(() => null);
+      }
       this.$processesAttachmentService.getEntityAttachments('workflow', workflowId)
         .then(attachments => {
           if (openKey === this.openKey) {

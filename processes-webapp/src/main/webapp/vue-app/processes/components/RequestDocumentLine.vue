@@ -48,6 +48,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     </v-btn>
     <v-menu
       v-if="original"
+      ref="menu"
+      v-model="showMenu"
       bottom
       left
       offset-y>
@@ -72,6 +74,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 </template>
 
 <script>
+import MenuCloseMixin from '../js/MenuCloseMixin.js';
+
 const BYTES_IN_KB = 1024;
 const BYTES_IN_MB = 1024 * 1024;
 
@@ -83,6 +87,7 @@ const BYTES_IN_MB = 1024 * 1024;
  * opening the process's original.
  */
 export default {
+  mixins: [MenuCloseMixin],
   props: {
     attachment: {
       type: Object,
@@ -97,6 +102,11 @@ export default {
       type: Boolean,
       default: false,
     },
+    // The name shown, the original's for a request's copy, whose own title carries the requester and the date
+    name: {
+      type: String,
+      default: null,
+    },
     // True when the row is the request's copy, whose original the menu opens
     original: {
       type: Boolean,
@@ -106,7 +116,7 @@ export default {
   computed: {
     /** @returns {String} the document's name */
     title() {
-      return this.attachment.title || this.attachment.name || '';
+      return this.name || this.attachment.title || this.attachment.name || '';
     },
     /** @returns {Object} the icon class and colour the platform gives the document's type */
     icon() {
