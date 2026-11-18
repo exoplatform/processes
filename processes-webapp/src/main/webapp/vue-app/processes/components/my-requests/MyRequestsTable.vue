@@ -25,8 +25,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     disable-filtering
     hide-default-footer>
     <template #item="{ item }">
+      <!-- each row keyed: Vuetify sets no key on rows an #item slot renders -->
       <tr
         v-if="item.type === 'header'"
+        :key="item.key"
         :id="`myRequestsGroup-${item.hook}`"
         :class="`my-request-group-${item.hook}`"
         class="my-request-group-row">
@@ -34,7 +36,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
           {{ item.label }} ({{ item.count }})
         </td>
       </tr>
-      <tr v-else-if="item.type === 'more'" class="my-request-more-row">
+      <tr
+        v-else-if="item.type === 'more'"
+        :key="item.key"
+        class="my-request-more-row">
         <td :colspan="headers.length">
           <v-btn
             :id="`myRequestsShowMore-${item.hook}`"
@@ -47,7 +52,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
           </v-btn>
         </td>
       </tr>
-      <tr v-else-if="item.type === 'hint'" class="my-request-hint-row">
+      <tr
+        v-else-if="item.type === 'hint'"
+        :key="item.key"
+        class="my-request-hint-row">
         <td
           id="myRequestsDraftsOnlyHint"
           :colspan="headers.length"
@@ -57,6 +65,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       </tr>
       <work
         v-else
+        :key="item.key"
         :work="item.work"
         :is-draft="item.isDraft" />
     </template>

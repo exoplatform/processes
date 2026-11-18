@@ -146,8 +146,9 @@ export function hookKeyOf(key) {
  */
 export function sortWorks(works, sortBy, sortDesc, statusLabelOf) {
   const direction = sortDesc ? -1 : 1;
+  // by status, the requests of one status stay most recent first, whatever the direction
   const compare = sortBy === 'status'
-    ? (a, b) => statusLabelOf(a).localeCompare(statusLabelOf(b)) || createdTimeOf(b) - createdTimeOf(a)
-    : (a, b) => createdTimeOf(a) - createdTimeOf(b);
-  return (works || []).slice().sort((a, b) => direction * compare(a, b));
+    ? (a, b) => direction * statusLabelOf(a).localeCompare(statusLabelOf(b)) || createdTimeOf(b) - createdTimeOf(a)
+    : (a, b) => direction * (createdTimeOf(a) - createdTimeOf(b));
+  return (works || []).slice().sort(compare);
 }

@@ -480,6 +480,14 @@
       table-layout: fixed;
     }
 
+    // a fixed layout ignores a cell's min-width: from 600px, the table keeps the Request column's
+    // 280px and scrolls sideways rather than squeeze it
+    @media (min-width: 600px) {
+      table {
+        min-width: 680px;
+      }
+    }
+
     .my-request-col-request {
       min-width: 280px;
     }
@@ -523,7 +531,6 @@
       max-width: 240px;
     }
   }
-
 
   // @primaryColor is a CSS custom property, which less colour functions cannot read
   .my-requests-empty-icon {
