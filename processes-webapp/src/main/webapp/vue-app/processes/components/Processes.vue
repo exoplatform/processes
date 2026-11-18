@@ -37,7 +37,7 @@
               :works="works"
               :work-drafts="workDrafts"
               :completed-works="completedWorks"
-              :loading="worksLoading"
+              :loading="worksLoading || completedLoads > 0"
               :show-work-filter="requestSubmitted || allWorkDrafts.length > 0" />
           </v-tab-item>
         </v-tabs-items>
@@ -98,6 +98,7 @@ export default {
       isManager: false,
       managesWorkflow: null,
       worksLoading: false,
+      completedLoads: 0,
       confirmTitle: this.$t('processes.workflow.action.confirmation.label'),
       confirmMessage: '',
       dialogAction: null,
@@ -487,7 +488,8 @@ export default {
       const filter = {
         completed: true
       };
-      this.worksLoading = true;
+      // counted, not flagged: a quick Completed, All, Completed starts a second load before the first answers
+      this.completedLoads++;
       return this.$processesService.getWorks(filter, 0, 0, expand).then(works => {
         if (this.status !== 'completed') {
           // the status changed while the completed requests were loading
@@ -497,7 +499,7 @@ export default {
           work.status = 'completed';
         });
         this.completedWorks = works || [];
-      }).finally(() => this.worksLoading = false);
+      }).finally(() => this.completedLoads--);
     },
     getWorkDrafts() {
       const expand = '';
