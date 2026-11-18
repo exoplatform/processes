@@ -15,7 +15,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
   <application-toolbar
     id="myRequestsToolbar"
     :hide-right="hideFilters"
-    :hide-cone-button="!$vuetify.breakpoint.mobile"
+    :hide-cone-button="$vuetify.breakpoint.mdAndUp"
     :filters-count="filtersCount"
     :right-text-filter="{placeholder: $t('processes.myRequests.filter.query')}"
     :right-select-box="{
