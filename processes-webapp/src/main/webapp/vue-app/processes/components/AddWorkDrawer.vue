@@ -14,10 +14,10 @@
     <template v-if="!viewMode && !$vuetify.breakpoint.smAndDown" #expandAction>
       <v-btn
         id="requestExpandButton"
-        :title="$t(expanded ? 'label.collapse' : 'label.expand')"
+        :title="$refs.work && $refs.work.expandTooltip"
         icon
         @click="$refs.work.toogleExpand()">
-        <v-icon size="20">{{ expanded ? 'fas fa-compress-alt' : 'fas fa-expand-alt' }}</v-icon>
+        <v-icon v-text="$refs.work && $refs.work.expandIcon" size="20" />
       </v-btn>
     </template>
     <template v-if="expanded && !viewMode" #fullAppLeftContent>
@@ -68,7 +68,7 @@
         <p
           v-if="!viewMode"
           v-sanitized-html="work.workFlow.summary"
-          class="pa-1 ml-2 mr-2 font-weight-regular text-caption text-truncate-6 text-break grey--text darken-1 font-italic">
+          class="pa-1 ml-2 mr-2 text-caption text-light-color text-truncate-6 text-break">
         </p>
         <div
           class="pb-4"
@@ -112,8 +112,8 @@
                 v-if="!showEditor"
                 @click="showRequestEditor"
                 v-sanitized-html="workDescription || $t('processes.work.message.to.manager.placeholder')"
-                :class="workDescription?'':'grey--text'"
-                class="text--darken-1 text-break">
+                :class="workDescription ? '' : 'text-light-color'"
+                class="text-break">
               </p>
               <div v-else>
                 <request-editor
@@ -134,7 +134,7 @@
             <div class="mt-7">
               <v-divider />
               <p class="mt-5 font-weight-bold">{{ $t('processes.works.form.label.documents') }}</p>
-              <p class="font-weight-regular text-caption grey--text darken-1 font-italic">
+              <p class="text-caption text-light-color">
                 {{ $t('processes.work.add.attachment.info.message') }}
               </p>
               <processes-attachments

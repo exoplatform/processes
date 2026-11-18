@@ -23,7 +23,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     height="4"
     rounded />
   <div
-    v-else-if="variant === 'line' && fill.total"
+    v-else-if="variant === 'line' && fill.total && (missingCount || canSubmit)"
     id="requestMissingLine"
     :class="missingCount ? 'error--text' : 'success--text'"
     :title="missingText"
@@ -44,8 +44,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
  * drawer's sections report ({total, filled, missing}): the bar is a track of
  * the fields holding a value, with no text since the form's own header
  * already says « x of y filled »; the line names the required values still
- * missing, or says the request is ready. Renders nothing when the request has
- * no form.
+ * missing, or says the request is ready once Submit is enabled, and shows
+ * nothing otherwise. Renders nothing when the request has no form.
  */
 export default {
   props: {
@@ -56,6 +56,10 @@ export default {
     variant: {
       type: String,
       default: 'bar',
+    },
+    canSubmit: {
+      type: Boolean,
+      default: false,
     },
   },
   computed: {
