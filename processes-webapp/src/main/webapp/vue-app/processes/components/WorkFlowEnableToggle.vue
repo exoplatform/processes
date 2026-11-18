@@ -69,7 +69,7 @@ export default {
         return Promise.resolve();
       }
       this.saving = true;
-      return this.$processesService.getWorkflowById(this.workflow.id, '')
+      return this.$processesService.getWorkflowById(this.workflow.id, '', false)
         .then(storedWorkflow => {
           const payload = Object.assign({}, storedWorkflow, {
             enabled,
