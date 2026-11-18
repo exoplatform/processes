@@ -138,6 +138,7 @@ export default {
       return {
         'workflow-card-disabled': !this.workflow.enabled,
         'workflow-card-requestable': !this.requestDisabledReason,
+        'hover-elevation': !this.requestDisabledReason,
       };
     },
     cardAriaLabel() {
