@@ -13,7 +13,16 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 -->
 <template>
   <div
-    v-if="noMatch"
+    v-if="mode === 'noOpen'"
+    id="myRequestsNoOpen"
+    class="d-flex flex-column align-center text-center text-light-color py-10 px-4">
+    <h3 class="text-color text-h6 mb-1">
+      {{ $t('processes.myRequests.empty.noOpen') }}
+    </h3>
+    <p class="mb-0">{{ $t('processes.myRequests.empty.noOpenHint') }}</p>
+  </div>
+  <div
+    v-else-if="mode === 'noMatch'"
     id="myRequestsNoMatch"
     class="d-flex flex-column align-center text-center text-light-color py-10 px-4">
     <h3 class="text-color text-h6 mb-1">
@@ -56,9 +65,26 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 <script>
 export default {
   props: {
-    noMatch: {
+    neverRequested: {
       type: Boolean,
       default: false,
+    },
+    filtered: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  computed: {
+    /**
+     * Tells which state shows: no request ever, no request matching the filters, or no open request.
+     *
+     * @returns {String} none, noMatch or noOpen
+     */
+    mode() {
+      if (this.neverRequested) {
+        return 'none';
+      }
+      return this.filtered ? 'noMatch' : 'noOpen';
     },
   },
 };

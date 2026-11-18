@@ -82,7 +82,7 @@ export default {
      * @returns {String} the key in lower case, each run of other characters than letters and digits as a dash
      */
     hookKey() {
-      return String(this.groupKey || '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      return String(this.groupKey || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '');
     },
     /**
      * Lists the requests the group shows: all of them, or the first ones of a capped group

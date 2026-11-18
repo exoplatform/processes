@@ -342,7 +342,11 @@ export default {
         this.query = '';
         // whether the user manages a process is read once: the toolbar then offers its « Disabled » view
         this.managesWorkflow = this.managesWorkflow || this.$processesService.getWorkFlows({manager: true}, 0, 1)
-          .then(managedWorkflows => managedWorkflows.length > 0);
+          .then(managedWorkflows => managedWorkflows.length > 0)
+          .catch(() => {
+            this.managesWorkflow = null;
+            return false;
+          });
         Promise.all([this.$processesService.getWorkFlows(filter), this.managesWorkflow])
           .then(([workflows, managesWorkflow]) => {
             this.showProcessFilter = workflows.length > 0 || managesWorkflow;

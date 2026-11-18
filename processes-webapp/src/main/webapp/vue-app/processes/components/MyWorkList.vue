@@ -12,13 +12,14 @@
       :hide-filters="isEmpty"
       @change="filter = $event" />
     <div
-      v-if="isEmpty && isLoading"
+      v-if="loading && !allWorks.length"
       class="d-flex justify-center py-10">
       <v-progress-circular color="primary" indeterminate />
     </div>
     <my-work-list-empty
-      v-else-if="isEmpty || !shownCount"
-      :no-match="!isEmpty"
+      v-else-if="!shownCount"
+      :never-requested="isEmpty"
+      :filtered="!!(filter.query || filter.workflowId || filter.status)"
       @clear="clearFilters" />
     <div
       v-else
@@ -82,9 +83,6 @@ export default {
     },
     completedWorkList() {
       return this.completedWorks || [];
-    },
-    isLoading() {
-      return this.loading || false;
     },
     /**
      * Lists every request and draft the application loaded, whatever the filters.
