@@ -18,13 +18,15 @@
 /**
  * Closes a `v-menu` on a click outside it and on Escape, wherever on the page they happen.
  *
- * The platform's Vuetify (2.3) listens for a menu's outside click on the page's first
- * `[data-app]` only. The page holds one Vuetify application per portlet, so a click in this
- * application, outside the first one, never reaches it and the menu stays open. As social's
- * menus do, the document is listened to while the menu is open.
+ * Vuetify 2's own outside-click detection listens on the page's first `[data-app]`, which holds
+ * none of a portlet's own DOM, so a click in this application never reaches it
+ * (`domains/platform-ui.md` §14). The document is listened to while the menu is open, on
+ * `click`, never `mousedown` (`best-practices/frontend-vue.md`, *Closing a menu*): the menus
+ * using this mixin have a Vuetify activator opened on click, which stops its own click before
+ * it reaches the document, as social's `ActivityHeadMenu.vue` does.
  *
- * The component binds its menu with `v-model="showMenu"`, and may name its menu content
- * with the `menu-close-content` class, so a click inside it keeps the menu open.
+ * The component binds its menu with `v-model="showMenu"` and names its menu content with the
+ * `menu-close-content` class: a click inside it is left to the menu, which closes on an item click.
  */
 export default {
   data: () => ({
@@ -33,13 +35,8 @@ export default {
   watch: {
     showMenu(value) {
       if (value) {
-        // the click that opened the menu is still propagating: listen once it is done
-        window.setTimeout(() => {
-          if (this.showMenu) {
-            document.addEventListener('mousedown', this.closeMenuOnOutsideClick, true);
-            document.addEventListener('keydown', this.closeMenuOnEscape, true);
-          }
-        });
+        document.addEventListener('click', this.closeMenuOnOutsideClick);
+        document.addEventListener('keydown', this.closeMenuOnEscape);
       } else {
         this.removeMenuCloseListeners();
       }
@@ -50,9 +47,9 @@ export default {
   },
   methods: {
     /**
-     * Closes the menu when the press is neither on its button nor in its content.
+     * Closes the menu when the click is neither on its button nor in its content.
      *
-     * @param {MouseEvent} event the press
+     * @param {MouseEvent} event the click
      * @returns {void}
      */
     closeMenuOnOutsideClick(event) {
@@ -80,8 +77,8 @@ export default {
      * @returns {void}
      */
     removeMenuCloseListeners() {
-      document.removeEventListener('mousedown', this.closeMenuOnOutsideClick, true);
-      document.removeEventListener('keydown', this.closeMenuOnEscape, true);
+      document.removeEventListener('click', this.closeMenuOnOutsideClick);
+      document.removeEventListener('keydown', this.closeMenuOnEscape);
     },
   },
 };
