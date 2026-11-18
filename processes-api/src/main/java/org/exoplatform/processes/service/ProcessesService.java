@@ -178,7 +178,7 @@ public interface ProcessesService {
 
   /**
    * Creates a request, from a new work object or from an existing draft, in
-   * the stored task project of the process its {@link Work#getWorkFlowId()}
+   * the stored task project of the process its {@code workFlowId}
    * names, whatever project id it carries, and records it as a request of
    * that process. Its task is named by the fixed rule « Process name -
    * yyyy/MM/dd - Requester name », whatever title the work carries.
