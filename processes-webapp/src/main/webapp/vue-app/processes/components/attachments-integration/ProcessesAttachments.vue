@@ -349,6 +349,25 @@ export default {
       });
     },
     /**
+     * Detaches a document, as the Documents attachment application does: from the entity first when the
+     * list attaches its documents to it (a draft), then from the list, through the attachment-removed
+     * event every list of the page follows.
+     *
+     * @param {Object} attachment the document
+     * @returns {Promise} settled once the document is detached, or its failure shown
+     */
+    detachAttachment(attachment) {
+      if (!attachment || !attachment.id) {
+        return Promise.resolve();
+      }
+      const detached = this.editMode && this.entityId
+        ? this.$processesAttachmentService.removeEntityAttachment(this.entityType, this.entityId, attachment.id)
+        : Promise.resolve();
+      return detached
+        .then(() => document.dispatchEvent(new CustomEvent('attachment-removed', {detail: attachment})))
+        .catch(() => this.$root.$emit('show-alert', {type: 'error', message: this.$t('processes.work.attachment.detach.error')}));
+    },
+    /**
      * Opens the drawer that adds a document to the entity, once it exists.
      *
      * @returns {void}

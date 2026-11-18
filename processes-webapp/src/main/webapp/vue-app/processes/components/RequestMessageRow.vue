@@ -30,7 +30,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       content-link-enabled
       disable-suggester
       @ready="$emit('ready')" />
+    <!-- the list holds the attachments and their events; the task drawer's cards show them -->
     <processes-attachments
+      v-show="false"
       ref="supportingDocuments"
       v-model="attachmentList"
       :workflow-parent-space="workflowParentSpace"
@@ -42,11 +44,32 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       :prepare-entity="prepareEntity"
       class="request-documents full-width mt-1"
       list-only />
+    <template v-if="cardsReady && cardFiles.length">
+      <div class="attachmentsPreview mt-2">
+        <a
+          class="viewAllAttachments primary--text font-weight-bold text-decoration-underline"
+          role="button"
+          tabindex="0"
+          @click="openAttachmentDrawer"
+          @keydown.enter.prevent="openAttachmentDrawer">
+          {{ $t('attachments.view.all') }} ({{ cardFiles.length }})
+        </a>
+      </div>
+      <notes-attachment-carousel
+        :files="cardFiles"
+        :space-id="workflowParentSpace && workflowParentSpace.id || null"
+        class="request-documents-cards mt-2"
+        allow-to-detach
+        @detach="detachAttachment" />
+    </template>
   </div>
 </template>
 
 <script>
 export default {
+  data: () => ({
+    cardsReady: !!Vue.options.components['notes-attachment-carousel'],
+  }),
   props: {
     /** The request's message, v-model */
     value: {
@@ -119,6 +142,25 @@ export default {
       set(list) {
         this.$emit('update:attachments', list);
       }
+    },
+    /**
+     * Lists the attachments the cards show: the attached ones, but the documents to fill in.
+     *
+     * @returns {Array} the attachments shown as cards
+     */
+    cardFiles() {
+      const hiddenIds = (this.hiddenIds || []).map(String);
+      return (this.attachments || []).filter(attachment => attachment && attachment.id && !hiddenIds.includes(String(attachment.id)));
+    }
+  },
+  /**
+   * Loads the Documents module that registers the task drawer's cards, when the page has not loaded it yet.
+   *
+   * @returns {void}
+   */
+  created() {
+    if (!this.cardsReady) {
+      window.require(['PORTLET/documents-portlet/AttachmentApp'], () => this.cardsReady = true);
     }
   },
   methods: {
@@ -187,6 +229,27 @@ export default {
     openAddDocumentDrawer() {
       if (this.$refs.supportingDocuments) {
         this.$refs.supportingDocuments.openAddDocumentDrawer();
+      }
+    },
+    /**
+     * Opens the list of the attachments, where they can be added, detached or edited.
+     *
+     * @returns {void}
+     */
+    openAttachmentDrawer() {
+      if (this.$refs.supportingDocuments) {
+        this.$refs.supportingDocuments.openAttachmentDrawer();
+      }
+    },
+    /**
+     * Detaches the attachment a card names, through the list that holds them.
+     *
+     * @param {Object} attachment the attachment
+     * @returns {void}
+     */
+    detachAttachment(attachment) {
+      if (this.$refs.supportingDocuments) {
+        this.$refs.supportingDocuments.detachAttachment(attachment);
       }
     }
   }

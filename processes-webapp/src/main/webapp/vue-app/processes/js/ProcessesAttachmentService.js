@@ -55,6 +55,25 @@ export function createNewFormDoc(title, templateName, pathDrive, path, entityTyp
   });
 }
 
+/**
+ * Detaches a document from an entity.
+ *
+ * @param {String} entityType the entity's type
+ * @param {String|Number} entityId the entity's id
+ * @param {String} attachmentId the document's id
+ * @returns {Promise} settled once the document is detached, rejected when it is not
+ */
+export function removeEntityAttachment(entityType, entityId, attachmentId) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/attachments/${entityType}/${entityId}/${attachmentId}`, {
+    credentials: 'include',
+    method: 'DELETE',
+  }).then((resp) => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error removing entity\'s linked attachment');
+    }
+  });
+}
+
 export function getEntityAttachments(entityType, entityId) {
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/attachments/${entityType}/${entityId}`, {
     credentials: 'include',
