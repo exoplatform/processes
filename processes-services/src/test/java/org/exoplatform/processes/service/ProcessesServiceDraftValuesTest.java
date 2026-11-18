@@ -17,6 +17,7 @@
 package org.exoplatform.processes.service;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -31,6 +32,8 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -236,6 +239,60 @@ public class ProcessesServiceDraftValuesTest {
                                                                                 boolean.class)
                                                                      .getAnnotation(ContainerTransactional.class);
     assertTrue(transactional != null && transactional.atomic());
+  }
+
+  /**
+   * An update keeps the stored draft's creator, creation and modification
+   * dates and task, whether the body leaves them out or forges them, with or
+   * without values. Mutation: drop any one of the resets and this test fails.
+   *
+   * @throws Exception on an unexpected refusal
+   */
+  @Test
+  public void anUpdateKeepsTheStoredCreatorDatesAndTask() throws Exception {
+    Date created = new Date(1_000_000L);
+    Date modified = new Date(2_000_000L);
+    when(processesStorage.getWorkDraftyId(DRAFT_ID)).thenReturn(new Work(DRAFT_ID, "d", "", USER_ID, created, modified, null, true, storedProcess));
+    when(processesStorage.saveWorkDraft(any(), eq(USER_ID))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    Work missing = new Work(DRAFT_ID, "renamed", "", 0, null, null, null, true, storedProcess);
+    missing.setFormValues(VALUES);
+    processesService.updateWorkDraft(missing, USER_ID);
+    Work forged = new Work(DRAFT_ID, "renamed again", "", 99L, new Date(5L), new Date(6L), 4242L, true, storedProcess);
+    processesService.updateWorkDraft(forged, USER_ID);
+
+    ArgumentCaptor<Work> withValues = ArgumentCaptor.forClass(Work.class);
+    verify(processesStorage).saveWorkDraftRow(withValues.capture(), eq(USER_ID));
+    ArgumentCaptor<Work> withoutValues = ArgumentCaptor.forClass(Work.class);
+    verify(processesStorage).saveWorkDraft(withoutValues.capture(), eq(USER_ID));
+    for (Work saved : List.of(withValues.getValue(), withoutValues.getValue())) {
+      assertEquals(USER_ID, saved.getCreatorId());
+      assertEquals(created, saved.getCreatedDate());
+      assertEquals(modified, saved.getModifiedDate());
+      assertNull(saved.getTaskId());
+    }
+  }
+
+  /**
+   * A values-only update that echoes the draft as the read returns it (task id
+   * 0, its dates, another state, an empty attachment list, a status) writes its
+   * values and no row. Mutation:
+   * compare the whole draft instead of its title and description and this test
+   * fails.
+   *
+   * @throws Exception on an unexpected refusal
+   */
+  @Test
+  public void aValuesOnlyUpdateEchoingTheReadWritesNoRow() throws Exception {
+    Work echoed = new Work(DRAFT_ID, "d", "", USER_ID, new Date(7L), new Date(8L), 0L, false, storedProcess);
+    echoed.setAttachments(new ArrayList<>());
+    echoed.setStatus("Request");
+    echoed.setFormValues(VALUES);
+
+    processesService.updateWorkDraft(echoed, USER_ID);
+
+    verify(plugin).writeDraftValues(eq(WORKFLOW_ID), eq(DRAFT_ID), eq(VALUES), any(Identity.class));
+    verify(processesStorage, never()).saveWorkDraftRow(any(), anyLong());
   }
 
   private Work newDraft() {

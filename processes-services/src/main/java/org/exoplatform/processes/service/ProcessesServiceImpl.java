@@ -1089,13 +1089,18 @@ public class ProcessesServiceImpl implements ProcessesService {
     }
 
     Work oldWork = getOwnWorkDraft(work.getId(), userId);
-    // The draft keeps its creator and its process, whatever the client sent
+    // The draft keeps its stored creator, process, dates and task, whatever the
+    // client sent: only its title and description are the client's
     work.setCreatorId(oldWork.getCreatorId());
     work.setWorkFlow(oldWork.getWorkFlow());
+    work.setCreatedDate(oldWork.getCreatedDate());
+    work.setModifiedDate(oldWork.getModifiedDate());
+    work.setTaskId(oldWork.getTaskId());
     // The server sets a request draft's state
     work.setIsDraft(true);
     Map<Long, Map<String, List<Object>>> formValues = draftFormValues(work);
-    boolean rowChanged = !oldWork.equals(work);
+    boolean rowChanged = !Objects.equals(oldWork.getTitle(), work.getTitle())
+        || !Objects.equals(oldWork.getDescription(), work.getDescription());
     if (!rowChanged && formValues.isEmpty()) {
       throw new IllegalArgumentException("there are no changes to save");
     }
