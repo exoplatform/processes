@@ -65,11 +65,18 @@ public class ProcessesToolDefinitionUpgradeTest {
   private static final String FORM_ID_DIGEST     = "82e841b90e02b04a5aa29c87302b10f2357355863189f3d93ecfa49a2fb03ee1";
 
   /**
+   * The text naming every form a request carries, before a process with
+   * documents to fill was handed to the Process app: the text that hands it
+   * off replaces it.
+   */
+  private static final String BOARD_FORMS_DIGEST = "ae731d2d7c38625543a885431086495d90c8e1513a05f662baf3e8da2b3e154a";
+
+  /**
    * The text Forms on processes (EXO-94526) ships, as `jq -jcS
    * '{description, input_schema}' | shasum -a 256` gives it: the next change
    * of this tool lists it.
    */
-  private static final String CURRENT_DIGEST     = "ae731d2d7c38625543a885431086495d90c8e1513a05f662baf3e8da2b3e154a";
+  private static final String CURRENT_DIGEST     = "757e20e45e52d23ed8cbc915a2778cd8660dbe451496a70bd23e665e018c0f64";
 
   /**
    * The title is optional and its description says where it goes and that it
@@ -111,6 +118,7 @@ public class ProcessesToolDefinitionUpgradeTest {
     assertTrue(replaced.toString(), replaced.contains(TITLE_DIGEST));
     assertTrue(replaced.toString(), replaced.contains(FORM_VALUES_DIGEST));
     assertTrue(replaced.toString(), replaced.contains(FORM_ID_DIGEST));
+    assertTrue(replaced.toString(), replaced.contains(BOARD_FORMS_DIGEST));
 
     JsonNode definition = definition();
     ObjectNode text = JsonMapper.shared().createObjectNode();
@@ -129,8 +137,10 @@ public class ProcessesToolDefinitionUpgradeTest {
    * board's included, and to the required fields of every form. A field's
    * refusal names its form id before its key, or its key alone. Mutation:
    * form_values required, listed in allowed_args, the old sentence restored,
-   * the refusal's form id dropped, or the board's forms left out, and this
-   * test fails.
+   * the refusal's form id dropped, the board's forms left out, or the hand-off
+   * of a process with documents to fill dropped, and this test fails. That
+   * process is not submitted here: the tool refuses it and the agent gives the
+   * user the process's link to finish in the Process app.
    *
    * @throws Exception never
    */
@@ -155,6 +165,8 @@ public class ProcessesToolDefinitionUpgradeTest {
     assertTrue(description, description.contains("forms.value.required:<formId>:<key>") && description.contains("the key alone"));
     assertTrue(description, description.contains("those of its board") && description.contains("lists every form the request carries")
         && description.contains("every required field of every form"));
+    assertTrue(description, description.contains("processes.request.documentToFill") && description.contains("'requestUrl'")
+        && description.contains("Process app"));
   }
 
   /**

@@ -27,18 +27,25 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Properties;
 
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
@@ -47,6 +54,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.MockedStatic;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.processes.Utils.RequestFormValues;
@@ -58,7 +66,11 @@ import org.exoplatform.processes.model.WorkFilter;
 import org.exoplatform.processes.model.ProcessPermission;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.service.ProcessTranslationService;
+import org.exoplatform.commons.utils.CommonsUtils;
+import org.exoplatform.container.PortalContainer;
 import org.exoplatform.processes.service.ProcessesService;
+import org.exoplatform.services.attachments.model.Attachment;
+import org.exoplatform.services.attachments.service.AttachmentService;
 import org.exoplatform.services.resources.LocaleConfig;
 import org.exoplatform.services.resources.LocaleConfigService;
 import org.exoplatform.services.security.ConversationState;
@@ -95,6 +107,8 @@ public class ProcessesMcpToolTest {
 
   private ProcessTranslationService processTranslationService;
 
+  private AttachmentService attachmentService;
+
   private ProcessesMcpTool tool;
 
   @Before
@@ -110,12 +124,14 @@ public class ProcessesMcpToolTest {
     when(localeConfigService.getDefaultLocaleConfig()).thenReturn(defaultLocaleConfig);
     when(defaultLocaleConfig.getLocale()).thenReturn(Locale.ENGLISH);
     processTranslationService = new ProcessTranslationService(translationService, localeConfigService);
+    attachmentService = mock(AttachmentService.class);
     tool = spy(new ProcessesMcpTool(processesService,
                                     taskService,
                                     identityManager,
                                     spaceService,
                                     processSpaceScopeResolver,
-                                    processTranslationService));
+                                    processTranslationService,
+                                    attachmentService));
     // The user reads the platform in its default language unless a test says otherwise
     doReturn(Locale.ENGLISH).when(tool).getCurrentUserLocale();
 
@@ -429,6 +445,94 @@ public class ProcessesMcpToolTest {
     assertNull(captor.getValue().getTitle());
     assertEquals("the request names its process, which decides its project", 5L, captor.getValue().getWorkFlowId());
     assertEquals("", captor.getValue().getDescription());
+  }
+
+  /**
+   * A process with documents to fill is refused before any request is
+   * created, its documents read for the requester, and a process without any
+   * is submitted. Mutation: drop the check, or create the request
+   * before it, and this test fails.
+   *
+   * @throws Exception on an unexpected refusal
+   */
+  @Test
+  public void submitWorkRequestRefusesAProcessWithDocumentsToFill() throws Exception {
+    WorkFlow workFlow = workFlow(5L, 42L);
+    workFlow.setAcl(new ProcessPermission(false, false, false, true));
+    when(processesService.getWorkFlow(5L, 1L)).thenReturn(workFlow);
+    when(attachmentService.getAttachmentsByEntity(1L, 5L, "workflow")).thenReturn(List.of(new Attachment()));
+
+    assertEquals(ProcessesMcpTool.DOCUMENT_TO_FILL,
+                 assertThrows(IllegalArgumentException.class, () -> tool.submitWorkRequest(5L, null, "details", null)).getMessage());
+    verify(processesService, never()).createWork(any(Work.class), anyLong(), any());
+
+    when(attachmentService.getAttachmentsByEntity(1L, 5L, "workflow")).thenReturn(List.of());
+    when(processesService.createWork(any(Work.class), eq(1L), any())).thenReturn(new Work());
+
+    tool.submitWorkRequest(5L, null, "details", null);
+
+    verify(processesService).createWork(any(Work.class), eq(1L), isNull());
+  }
+
+  /**
+   * A listed process carries the link that opens its request form in the
+   * Process app, where a process with documents to fill is submitted.
+   * Mutation: leave the link out and this test fails.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void aListedProcessCarriesItsRequestUrl() throws Exception {
+    when(processesService.getWorkFlows(any(ProcessesFilter.class), anyInt(), anyInt(), anyLong())).thenReturn(List.of(workFlow(5L, 42L)));
+    doReturn("http://localhost:8080/portal/dw/processes/5/createRequest").when(tool).requestUrl(5L);
+
+    assertEquals("http://localhost:8080/portal/dw/processes/5/createRequest", tool.listProcesses(null).get(0).requestUrl());
+  }
+
+  /**
+   * The link opens the Process app's create-request route on the site the
+   * platform names, its main site for the assistant's calls, and is null when
+   * no site is known rather than naming a null site. Mutation: build the link
+   * whatever the site, and this test fails.
+   */
+  @Test
+  public void theRequestUrlOpensTheCreateRequestRouteOnAKnownSiteOnly() {
+    try (MockedStatic<CommonsUtils> commonsUtils = mockStatic(CommonsUtils.class);
+         MockedStatic<PortalContainer> portalContainer = mockStatic(PortalContainer.class)) {
+      commonsUtils.when(CommonsUtils::getCurrentDomain).thenReturn("http://localhost:8080");
+      portalContainer.when(PortalContainer::getCurrentPortalContainerName).thenReturn("portal");
+      commonsUtils.when(CommonsUtils::getCurrentPortalOwner).thenReturn("dw");
+
+      assertEquals("http://localhost:8080/portal/dw/processes/5/createRequest", tool.requestUrl(5L));
+
+      commonsUtils.when(CommonsUtils::getCurrentPortalOwner).thenReturn(null);
+
+      assertNull(tool.requestUrl(5L));
+    }
+  }
+
+  /**
+   * The refusal of a process with documents to fill reads, in the chat, as
+   * its reason: the chat names a coded failure by the text of
+   * AiAgentChat.answer.refused. followed by its code, which processes ships in
+   * its own bundle of the chat's name, and by the step's name alone when no
+   * bundle has it. The text holds its reason, no code and no final stop, the
+   * chat adding its own. Mutation: the key removed or renamed, or the code
+   * changed without it, and this test fails.
+   *
+   * @throws Exception when the bundle cannot be read
+   */
+  @Test
+  public void theDocumentToFillRefusalHasItsReasonInTheChatBundle() throws Exception {
+    Properties bundle = new Properties();
+    try (InputStream input = Files.newInputStream(Path.of("..", "processes-webapp", "src", "main", "resources", "locale", "portlet",
+                                                          "AiAgentChat_en.properties"))) {
+      bundle.load(new InputStreamReader(input, StandardCharsets.UTF_8));
+    }
+    String reason = bundle.getProperty("AiAgentChat.answer.refused." + ProcessesMcpTool.DOCUMENT_TO_FILL);
+
+    assertTrue(String.valueOf(reason), reason != null && reason.contains("Process app") && !reason.contains("processes.")
+        && !reason.endsWith("."));
   }
 
   /**
