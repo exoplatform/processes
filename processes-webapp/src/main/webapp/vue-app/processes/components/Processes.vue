@@ -238,23 +238,16 @@ export default {
     this.$root.$on('update-work-draft', draft => {
       this.updateWorkDraft(draft);
     });
+    // « My requests » filters the loaded requests itself: only the completed ones load on demand
     this.$root.$on('work-filter-changed', event => {
-      this.completedWorks = [];
-      this.works = [];
-      this.workDrafts = [];
       this.status = event.status;
-      this.query = event.query;
-      if (this.status === 'drafts') {
-        this.getWorkDrafts();
-      } else if (this.status === null) {
-        this.getWorkDrafts();
-        this.getWorks();
-      } else if (this.status === 'completed') {
+      if (this.status === 'completed') {
         this.getCompletedWorks();
       } else {
-        this.getWorks();
+        this.completedWorks = [];
       }
     });
+    this.$root.$on('processes-show-tab', tab => this.tab = tab);
     document.addEventListener('Task-comments-drawer-closed', () => {
       const urlInst = window.location.href;
       if (urlInst.includes('comments')) {
@@ -461,15 +454,7 @@ export default {
         });
     },
     getWorks() {
-      const filter = {};
-      if (this.query) {
-        filter.query = this.query;
-      }
-      filter.status = this.status;
-      filter.completed = this.status === 'completed';
-      if (filter.completed) {
-        filter.status = null;
-      }
+      const filter = {completed: false};
       const expand = 'workFlow';
       this.limit = this.limit || this.pageSize;
       this.loading = true;
@@ -485,9 +470,6 @@ export default {
       const filter = {
         completed: true
       };
-      if (this.query) {
-        filter.query = this.query;
-      }      
       this.$processesService.getWorks(filter, 0, 0, expand).then(works => {
         works.forEach(work => {
           work.status = 'completed';
@@ -508,14 +490,7 @@ export default {
             this.handleUpdateUrlPath('draftDetails', `/myRequests/draftDetails/${draft.id}`);
           }
         }
-        if (this.query){
-          this.workDrafts = this.allWorkDrafts.filter(elem=>{
-            return elem.description && elem.description.replace(/\s/g,'').replace(/<\/?[^>]+(>|$)/gi, '').includes(this.query.replace(/\s/g,''));
-          });
-        }
-        else {
-          this.workDrafts = this.allWorkDrafts;
-        }
+        this.workDrafts = this.allWorkDrafts;
       }).finally(() => this.loading = false);
     },
     displayMessage(alert) {

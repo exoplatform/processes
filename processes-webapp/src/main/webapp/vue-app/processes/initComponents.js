@@ -18,6 +18,7 @@ import AddWorkDrawer from './components/AddWorkDrawer.vue';
 import RequestEditor from './components/RequestEditor.vue';
 import MyWorkListToolbar from './components/my-requests/MyWorkListToolbar.vue';
 import MyWorkGroup from './components/my-requests/MyWorkGroup.vue';
+import MyWorkListEmpty from './components/my-requests/MyWorkListEmpty.vue';
 import WorkRow from './components/my-requests/WorkRow.vue';
 import WorkActionsMenu from './components/my-requests/WorkActionsMenu.vue';
 import WorkDetailDrawer from './components/my-requests/WorkDetailDrawer.vue';
@@ -61,6 +62,7 @@ const components = {
   'request-editor': RequestEditor,
   'my-work-list-toolbar': MyWorkListToolbar,
   'my-work-group': MyWorkGroup,
+  'my-work-list-empty': MyWorkListEmpty,
   'work-row': WorkRow,
   'work-actions-menu': WorkActionsMenu,
   'work-detail-drawer': WorkDetailDrawer,

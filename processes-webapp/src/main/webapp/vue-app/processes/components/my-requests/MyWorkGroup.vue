@@ -13,6 +13,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 -->
 <template>
   <section
+    :id="`myRequestsGroup-${groupKey}`"
     :class="`my-request-group-${groupKey}`"
     class="my-request-group">
     <h4 class="my-request-group-header d-flex align-center text-light-color font-weight-regular subtitle-2 mt-4 mb-2">
@@ -20,10 +21,26 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       <v-divider />
     </h4>
     <work
-      v-for="work in works"
+      v-for="work in shownWorks"
       :key="work.id"
       :work="work"
       :is-draft="isDraft" />
+    <v-btn
+      v-if="hiddenCount"
+      :id="`myRequestsShowMore-${groupKey}`"
+      class="my-requests-show-more text-none mb-2"
+      color="primary"
+      small
+      text
+      @click="expanded = true">
+      {{ $t('processes.myRequests.showMore', {0: hiddenCount}) }}
+    </v-btn>
+    <p
+      v-if="hint"
+      id="myRequestsDraftsOnlyHint"
+      class="my-requests-group-hint caption text-light-color mb-2 ms-1">
+      {{ hint }}
+    </p>
   </section>
 </template>
 
@@ -45,6 +62,36 @@ export default {
     isDraft: {
       type: Boolean,
       default: false,
+    },
+    cap: {
+      type: Number,
+      default: 0,
+    },
+    hint: {
+      type: String,
+      default: null,
+    },
+  },
+  data: () => ({
+    expanded: false,
+  }),
+  computed: {
+    /**
+     * Lists the requests the group shows: all of them, or the first ones of a capped group
+     * until « Show N more » is clicked.
+     *
+     * @returns {Array} the shown requests
+     */
+    shownWorks() {
+      return this.cap && !this.expanded ? this.works.slice(0, this.cap) : this.works;
+    },
+    /**
+     * Counts the requests a capped group hides.
+     *
+     * @returns {Number} the hidden count, 0 when all are shown
+     */
+    hiddenCount() {
+      return this.works.length - this.shownWorks.length;
     },
   },
 };

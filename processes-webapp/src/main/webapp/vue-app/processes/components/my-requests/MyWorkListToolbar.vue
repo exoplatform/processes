@@ -14,15 +14,40 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 <template>
   <application-toolbar
     id="myRequestsToolbar"
-    :right-text-filter="{placeholder: $t('processes.work.filter.query.placeholder')}"
+    :hide-right="hideFilters"
+    :right-text-filter="{placeholder: $t('processes.myRequests.filter.query')}"
     :right-select-box="{
       selected: filter,
       items: filterItems,
+      ariaLabel: $t('processes.myRequests.filter.status'),
     }"
     @filter-text-input-end-typing="updateQuery"
     @filter-select-change="updateFilter">
     <template #left>
-      <span class="my-requests-count text-light-color subtitle-2">{{ countLabel }}</span>
+      <span
+        v-if="!hideFilters"
+        id="myRequestsCount"
+        class="my-requests-count text-light-color subtitle-2"
+        aria-live="polite">
+        {{ countLabel }}
+      </span>
+    </template>
+    <template #right>
+      <select
+        id="myRequestsProcessFilter"
+        v-model="workflowId"
+        :aria-label="$t('processes.myRequests.filter.process')"
+        class="my-requests-process-filter flex-grow-0 ignore-vuetify-classes py-2 height-auto width-auto text-truncate my-auto ms-4"
+        @change="emitFilter">
+        <option :value="ALL_FILTER">{{ $t('processes.myRequests.filter.allProcesses') }}</option>
+        <option
+          v-for="process in processes"
+          :id="`myRequestsProcessFilterItem-${process.id}`"
+          :key="process.id"
+          :value="process.id">
+          {{ $t('processes.myRequests.filter.processItem', {0: process.title, 1: process.count}) }}
+        </option>
+      </select>
     </template>
   </application-toolbar>
 </template>
@@ -34,7 +59,11 @@ export default {
       type: Array,
       default: () => [],
     },
-    requestsCount: {
+    processes: {
+      type: Array,
+      default: () => [],
+    },
+    totalCount: {
       type: Number,
       default: 0,
     },
@@ -42,10 +71,19 @@ export default {
       type: Number,
       default: 0,
     },
+    shownCount: {
+      type: Number,
+      default: 0,
+    },
+    hideFilters: {
+      type: Boolean,
+      default: false,
+    },
   },
   data: () => ({
     ALL_FILTER: 'all',
     filter: 'all',
+    workflowId: 'all',
     query: null,
   }),
   computed: {
@@ -66,14 +104,26 @@ export default {
       return items;
     },
     /**
-     * Says how many requests and drafts the list shows, « 5 requests · 1 draft ».
+     * Tells whether a filter is applied.
+     *
+     * @returns {Boolean} true when a text, a process or a status is chosen
+     */
+    filtered() {
+      return !!this.query || this.workflowId !== this.ALL_FILTER || this.filter !== this.ALL_FILTER;
+    },
+    /**
+     * Says how many requests the list holds, « 13 requests · 2 drafts », or how many of them
+     * the filters keep, « 2 of 13 requests ».
      *
      * @returns {String} the count
      */
     countLabel() {
-      const requests = this.requestsCount === 1
+      if (this.filtered) {
+        return this.$t('processes.myRequests.count.filtered', {0: this.shownCount, 1: this.totalCount});
+      }
+      const requests = this.totalCount === 1
         ? this.$t('processes.myRequests.count.request')
-        : this.$t('processes.myRequests.count.requests', {0: this.requestsCount});
+        : this.$t('processes.myRequests.count.requests', {0: this.totalCount});
       if (!this.draftsCount) {
         return requests;
       }
@@ -105,15 +155,17 @@ export default {
       this.emitFilter();
     },
     /**
-     * Sends the status and the text to the application, which reloads the requests, and tells
-     * the list whether a filter is applied, so its empty state says « no match ».
+     * Sends the text, the process and the status to the list, which filters the requests it
+     * holds, and tells the application the status, which loads the completed requests only
+     * when « completed » is chosen.
      *
      * @returns {void}
      */
     emitFilter() {
       const status = this.filter === this.ALL_FILTER ? null : this.filter;
-      this.$emit('change', {filtered: !!this.query || !!status});
-      this.$root.$emit('work-filter-changed', {status, query: this.query});
+      const workflowId = this.workflowId === this.ALL_FILTER ? null : this.workflowId;
+      this.$emit('change', {query: this.query, workflowId, status});
+      this.$root.$emit('work-filter-changed', {status});
     },
     /**
      * Translates a task status name, or keeps the name when no translation exists.
