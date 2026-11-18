@@ -480,11 +480,17 @@
       table-layout: fixed;
     }
 
-    // a fixed layout ignores a cell's min-width: from 600px, the table keeps the Request column's
-    // 280px and scrolls sideways rather than squeeze it
+    // the table keeps the Request column's 280px beside the fixed columns shown at each width
+    // (360px from 600px, 560px from 960px with Process) and scrolls sideways rather than squeeze it
     @media (min-width: 600px) {
       table {
         min-width: 680px;
+      }
+    }
+
+    @media (min-width: 960px) {
+      table {
+        min-width: 880px;
       }
     }
 
