@@ -158,66 +158,17 @@
             <custom-counter
               :max-length="summaryMaxLength"
               :value="workflow.summary" />
-            <v-label for="illustrative">
-              {{ $t('processes.works.form.label.illustration') }}
-              <small class="grey--text">
-                ( {{ $t('processes.workflow.illustrative.imageSize.info.message1') }} )
-              </small>
+            <v-label for="processImageInput">
+              {{ $t('processes.workflow.image.label') }}
             </v-label>
-            <small class="grey--text">
-              {{ $t('processes.workflow.illustrative.imageSize.info.message2') }}
-            </small>
-            <div
-              class="addIllustrative d-flex ma-auto">
-              <a
-                v-if="!illustrativeImage"
-                class="addIllustrativeLabel my-auto d-flex primary--text not-clickable font-weight-bold mb-5">
-                <v-icon size="14" color="primary">
-                  fa-paperclip
-                </v-icon>
-                <a
-                  class="text-decoration-underline ma-auto ms-2"
-                  @click="uploadFile">{{ $t('processes.workflow.illustrative.add') }}</a>
-                <v-file-input
-                  id="avatarInput"
-                  v-model="illustrativeInput"
-                  show-size
-                  ref="avatarInput"
-                  prepend-icon="fa-plus"
-                  color="primary"
-                  size="16"
-                  class="addIllustrativeButton clickable primary--text ma-0 mt-0 pt-0"
-                  accept="image/*"
-                  clearable
-                  @change="handleUpload" />
-              </a>
-              <div v-if="illustrativeImage" class="d-flex width-full mb-5">
-                <div class="d-flex illustrativeName">
-                  <v-icon
-                    size="20">
-                    fas fa-file-image
-                  </v-icon>
-                  <div
-                    v-sanitized-html="illustrativeImage.fileName"
-                    class="text--secondary text-truncate ms-2">
-                  </div>
-                </div>
-                <v-spacer />
-                <div class="ma-auto">
-                  <v-btn
-                    class="d-flex"
-                    outlined
-                    x-small
-                    height="24"
-                    width="24"
-                    @click="deleteIllustrative">
-                    <v-icon
-                      small
-                      class="fas fa-unlink error--text" />
-                  </v-btn>
-                </div>
-              </div>
-            </div>
+            <process-image-input
+              :key="`image-${formKey}`"
+              :workflow="workflow"
+              :icon="workflow.image"
+              :illustration="illustrativeImage"
+              class="mt-2 mb-5"
+              @update:icon="setIcon"
+              @update:illustration="illustrativeImage = $event" />
             <div class="d-flex mt-1">
               <div>
                 {{ requestStatus }}
@@ -531,8 +482,7 @@ export default {
         permissions: null,
       },
       workflowRequest: [],
-      illustrativeImage: {},
-      illustrativeInput: {},
+      illustrativeImage: null,
       confirmCloseLabels: {
         title: this.$t('processes.workflow.action.confirmation.label'),
         message: this.$t('processes.workflow.cancelCreation.confirm.message'),
@@ -662,9 +612,6 @@ export default {
     'workflow.summary'(value) {
       this.$refs.summaryTranslation?.setValue(value);
     },
-    illustrativeInput(value) {
-      this.handleUpload(value);
-    },
     originalWorkflowString() {
       this.showSpaceAlertMessage = false;
       this.validSpace = false;
@@ -682,51 +629,36 @@ export default {
     }
   },
   methods: {
-    uploadFile(){
-      const fileUpload = document.getElementById('avatarInput');
-      if (fileUpload != null) {
-        fileUpload.click();
-      }
-    },
     formInitialized() {
       this.originalWorkflowString = JSON.stringify(this.workflow);
     },
-    handleUpload(image) {
-      if (!image) {
-        this.illustrativeImage = null;
-        return;
-      }
-      if (image.size > 100000) {
-        this.$root.$emit('show-alert',{type: 'error', message: this.$t('processes.workflow.illustrative.imageSize.error.message')});
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = e => {
-        this.illustrativeImage = {
-          id: this.workflow.illustrativeAttachment
-           && this.workflow.illustrativeAttachment.id
-           || null,
-          fileName: image.name,
-          fileBody: e.target.result
-                 && e.target.result.length >23
-                 && e.target.result || null,
-          mimeType: image.type,
-          fileSize: image.size,
-          lastUpdated: this.workflow.illustrativeAttachment
-                    && this.workflow.illustrativeAttachment.lastUpdated
-                    || null,
-        };
-      };
-      reader.readAsDataURL(image);
+    /**
+     * Sets the process's icon, which the form may not hold yet.
+     *
+     * @param {String} icon the icon name, null for none
+     * @returns {void}
+     */
+    setIcon(icon) {
+      this.$set(this.workflow, 'image', icon || null);
     },
-    toIllustrativeInput(object) {
-      if (!object.fileName) {
-        this.illustrativeInput = null;
-        return;
+    /**
+     * Gives the stored image to keep on save, null when the process has none.
+     *
+     * @param {Object} illustrativeAttachment the process's stored image
+     * @returns {Object} the image to send back unchanged
+     */
+    toKeptIllustration(illustrativeAttachment) {
+      if (!illustrativeAttachment || !illustrativeAttachment.id) {
+        return null;
       }
-      this.illustrativeInput = new File([], object.fileName, {
-        type: object.mimeType,
-      });
+      return {
+        id: illustrativeAttachment.id,
+        fileName: illustrativeAttachment.fileName || 'illustration',
+        fileBody: null,
+        mimeType: illustrativeAttachment.mimeType,
+        fileSize: illustrativeAttachment.fileSize,
+        lastUpdated: illustrativeAttachment.lastUpdated || null,
+      };
     },
     /**
      * Opens the drawer: on edit, from the process as read by its id, which
@@ -784,9 +716,10 @@ export default {
         this.workflow = Object.assign({}, workflow);
         this.workflowEnabled = workflow.enabled;
         this.editMode = mode === 'edit_workflow';
+        this.illustrativeImage = null;
         if (this.editMode) {
           this.oldWorkflow = Object.assign({}, this.workflow);
-          this.toIllustrativeInput(workflow.illustrativeAttachment);
+          this.illustrativeImage = this.toKeptIllustration(workflow.illustrativeAttachment);
         }
       } else {
         this.resetInputs();
@@ -830,8 +763,8 @@ export default {
       // than undefined: a translation field sends back '' once it is mounted,
       // and a change from undefined to '' counts as typed, so the required
       // rules would show their error before anything was typed
-      this.workflow = {enabled: true, parentSpace: null, title: '', description: '', summary: ''};
-      this.illustrativeInput = null;
+      this.workflow = {enabled: true, parentSpace: null, title: '', description: '', summary: '', image: null};
+      this.illustrativeImage = null;
       this.workflowRequest = [];
       this.projectMode = 'NEW';
       this.projectId = null;
@@ -1035,10 +968,6 @@ export default {
         this.workflowRequest = this.workflow.requestsCreators;
       }
       this.$root.$emit('set-workflow-creators', this.workflowRequest);
-    },
-    deleteIllustrative(){
-      this.illustrativeInput = null;
-      this.illustrativeImage = null;
     },
     applyItemClass(messageInfo){
       window.setTimeout(() => {

@@ -16,8 +16,10 @@
  */
 package org.exoplatform.processes.Utils;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -77,5 +79,21 @@ public class ProcessesUtilsTest {
     project.setManager(new HashSet<>(managers));
     project.setParticipator(new HashSet<>(participators));
     return project;
+  }
+
+  /**
+   * Only an icon name the icon picker gives, of at most 100 characters, is a
+   * process icon. Mutation: drop the length check and the long-name assertion
+   * fails.
+   */
+  @Test
+  public void isProcessIcon() {
+    assertTrue(ProcessesUtils.isProcessIcon("fas fa-cog"));
+    assertTrue(ProcessesUtils.isProcessIcon("fa-question-circle"));
+    assertFalse(ProcessesUtils.isProcessIcon(null));
+    assertFalse(ProcessesUtils.isProcessIcon("https://example.org/logo.png"));
+    assertFalse(ProcessesUtils.isProcessIcon("fa-cog\" onclick=\"x"));
+    assertFalse(ProcessesUtils.isProcessIcon("fa-" + "a".repeat(98)));
+    assertTrue(ProcessesUtils.isProcessIcon("fa-" + "a".repeat(97)));
   }
 }

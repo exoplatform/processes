@@ -46,6 +46,12 @@
                 <module>translationField</module>
             </depends>
             <depends>
+                <module>imageCropper</module>
+            </depends>
+            <depends>
+                <module>fontIcons</module>
+            </depends>
+            <depends>
                 <module>commons-cometd3</module>
                 <as>cCometd</as>
             </depends>

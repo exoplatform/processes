@@ -42,6 +42,8 @@ import EmptyOrLoading from './components/commons/EmptyOrLoading.vue';
 import CustomCounter from './components/commons/CustomCounter.vue';
 import CustomDateFormat from './components/commons/CustomDateFormat.vue';
 import RequestStatus from './components/commons/RequestStatus.vue';
+import ProcessAvatar from './components/commons/ProcessAvatar.vue';
+import ProcessImageInput from './components/commons/ProcessImageInput.vue';
 
 import CreateDocumentForm from './components/attachments-integration/CreateDocumentForm.vue';
 import ProcessesAttachments from './components/attachments-integration/ProcessesAttachments.vue';
@@ -97,6 +99,8 @@ const components = {
   'custom-counter': CustomCounter,
   'custom-date-format': CustomDateFormat,
   'request-status': RequestStatus,
+  'process-avatar': ProcessAvatar,
+  'process-image-input': ProcessImageInput,
   'create-document-from': CreateDocumentForm,
   'process-mobile-action-drawer': ProcessMobileActionDrawer
 };
