@@ -22,7 +22,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     <td class="my-request-cell-request">
       <div class="my-request-title text-truncate">{{ requestTitle }}</div>
       <!-- Extension point ProcessRequestRow / request-row-summary: a few of the request's form values.
-           Its modules load with the detail drawer's: their name contains ProcessRequestDetailExtension -->
+           « My requests » loads its modules: their name contains ProcessRequestDetailExtension -->
       <div :id="`requestRowSummary-${work.id}`" class="my-request-row-summary text-truncate">
         <extension-registry-components
           :params="{work, isDraft}"

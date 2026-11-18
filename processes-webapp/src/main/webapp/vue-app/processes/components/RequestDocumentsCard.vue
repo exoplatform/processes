@@ -19,7 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     outlined>
     <div class="requestDocumentsCard-head d-flex align-center px-3 py-2">
       <span class="font-weight-bold">{{ $t('processes.request.documentToFill') }}</span>
-      <template v-if="filledCount < documents.length">
+      <template v-if="!readonly && filledCount < documents.length">
         <v-icon
           class="error--text ms-1"
           size="6"
@@ -38,7 +38,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       :attachment="attachment"
       :name="nameOf(attachment)"
       :state="state(attachment)"
-      :filled="hasDraft && isFilled(attachment)"
+      :filled="(hasDraft || readonly) && isFilled(attachment)"
+      :readonly="readonly"
       @open="$emit('open', attachment)"
       @fill="$emit('fill', attachment)"
       @open-original="$emit('open-original', attachment)" />
@@ -78,11 +79,16 @@ export default {
       type: Function,
       default: () => null,
     },
+    /** A sent request's documents: each row opens its copy, read-only, and says whether it was filled */
+    readonly: {
+      type: Boolean,
+      default: false,
+    },
   },
   computed: {
     /** @returns {Number} how many copies the requester filled */
     filledCount() {
-      return this.hasDraft ? this.documents.filter(this.isFilled).length : 0;
+      return this.hasDraft || this.readonly ? this.documents.filter(this.isFilled).length : 0;
     },
   },
   methods: {
@@ -91,10 +97,24 @@ export default {
      * @returns {String} « Not started », or « Filled » with how long ago it was written
      */
     state(copy) {
+      if (this.readonly) {
+        return this.isFilled(copy)
+          ? this.$t('processes.request.documentToFill.filledAgo', {0: this.shortDate(copy.updated)})
+          : this.$t('processes.request.documentToFill.notProvided');
+      }
       if (!this.hasDraft || !this.isFilled(copy)) {
         return this.$t('processes.request.documentToFill.notStarted');
       }
       return this.$t('processes.request.documentToFill.filledAgo', {0: this.relativeTime(copy.updated)});
+    },
+    /**
+     * Writes the day a sent request's copy was last written, as « 12 Nov ».
+     *
+     * @param {String|Number} date the copy's last update
+     * @returns {String} the day and the month, in the viewer's language
+     */
+    shortDate(date) {
+      return new Date(date).toLocaleDateString(eXo.env.portal.language || 'en', {day: 'numeric', month: 'short'});
     },
     /**
      * @param {String} date an ISO date
