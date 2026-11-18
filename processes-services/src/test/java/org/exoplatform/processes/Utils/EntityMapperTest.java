@@ -134,6 +134,9 @@ public class EntityMapperTest {
     when(organizationService.getGroupHandler()).thenReturn(groupHandler);
     WorkFlowEntity workFlowEntity = new WorkFlowEntity();
     workFlowEntity.setId(1L);
+    workFlowEntity.setCreatorId(1L);
+    workFlowEntity.setModifierId(1L);
+    workFlowEntity.setProjectId(1L);
     workFlowEntity.setImage("fas fa-cog");
     assertEquals("fas fa-cog", EntityMapper.fromEntity(workFlowEntity, null).getImage());
     workFlowEntity.setImage("https://example.org/logo.png");
