@@ -47,7 +47,9 @@ public class EntityMapper {
                         workFlowEntity.getTitle(),
                         workFlowEntity.getDescription(),
                         workFlowEntity.getSummary(),
-                        workFlowEntity.getImage(),
+                        // Only an icon name reads back: another stored value
+                        // shows no icon
+                        ProcessesUtils.isProcessIcon(workFlowEntity.getImage()) ? workFlowEntity.getImage() : null,
                         workFlowEntity.getHelpLink(),
                         workFlowEntity.isEnabled(),
                         workFlowEntity.getCreatorId(),

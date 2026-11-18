@@ -15,13 +15,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
   <div class="work-detail-title d-flex flex-column text-truncate">
     <span>{{ $t('processes.works.work.label') }}</span>
     <span class="work-detail-subtitle d-flex align-center caption text-light-color text-truncate">
-      <v-avatar
-        :class="!avatarUrl && 'workflow-card-avatar-placeholder primary--text'"
+      <process-avatar
+        :avatar-url="avatarUrl"
+        :icon="workFlow && workFlow.image"
+        :title="processTitle"
         class="flex-shrink-0 me-1"
-        size="18">
-        <v-img v-if="avatarUrl" :src="avatarUrl" />
-        <span v-else class="font-weight-bold">{{ processTitle.charAt(0).toUpperCase() }}</span>
-      </v-avatar>
+        size="18" />
       <!-- the process only: the requester is not shown the process's managing space -->
       <span class="text-truncate">{{ processTitle }}</span>
     </span>

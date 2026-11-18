@@ -218,6 +218,7 @@ public class ProcessesServiceImpl implements ProcessesService {
     if (workFlow.getIllustrativeAttachment() != null) {
       workFlow.getIllustrativeAttachment().setId(null);
     }
+    applyIcon(workFlow, null);
     workFlow.setAttachments(processesAttachmentService.selectProcessAttachments(userId, 0, 0, workFlow.getAttachments()));
     // Every label is checked before the first write; a new project has no
     // label to choose yet
@@ -254,6 +255,30 @@ public class ProcessesServiceImpl implements ProcessesService {
     processesStorage.linkWorkFlowAttachments(savedWorkFlow, workFlow.getAttachments(), userId);
     saveTranslations(savedWorkFlow, workFlow);
     return savedWorkFlow;
+  }
+
+  /**
+   * Makes a process show either an icon or an image, never both: a new image
+   * sent replaces the icon, and an icon chosen replaces the stored image.
+   *
+   * @param workFlow the process to save, whose image field holds the icon name
+   * @param storedIllustrationId the id of the process's stored image, null when
+   *          it has none
+   * @throws IllegalArgumentException when the icon is not an icon name
+   */
+  private void applyIcon(WorkFlow workFlow, Long storedIllustrationId) {
+    String icon = StringUtils.trimToNull(workFlow.getImage());
+    if (icon != null && !ProcessesUtils.isProcessIcon(icon)) {
+      throw new IllegalArgumentException("processes.icon.invalid");
+    }
+    IllustrativeAttachment illustration = workFlow.getIllustrativeAttachment();
+    if (illustration != null && illustration.getFileBody() != null) {
+      icon = null;
+    } else if (icon != null) {
+      // An illustration with no file name is removed by the storage
+      workFlow.setIllustrativeAttachment(new IllustrativeAttachment(storedIllustrationId));
+    }
+    workFlow.setImage(icon);
   }
 
   /**
@@ -678,6 +703,7 @@ public class ProcessesServiceImpl implements ProcessesService {
     if (workFlow.getIllustrativeAttachment() != null) {
       workFlow.getIllustrativeAttachment().setId(storedIllustration == null ? null : storedIllustration.getId());
     }
+    applyIcon(workFlow, storedIllustration == null ? null : storedIllustration.getId());
     // Labels not sent stay as stored; labels sent replace them, each checked
     // to be of the process's project before the first write
     List<LabelChoice> labelChoices = null;

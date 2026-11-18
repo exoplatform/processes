@@ -18,20 +18,12 @@
         @keydown.native.enter.self="openRequest"
         @keydown.native.space.self.prevent="openRequest">
         <div class="workflow-card-head d-flex align-center text-start ps-3 pe-2 pt-3">
-          <v-avatar
-            :class="!showIllustration && 'workflow-card-avatar-placeholder primary--text'"
+          <process-avatar
+            :avatar-url="avatarUrl"
+            :icon="workflow.image"
+            :title="workflow.title"
             class="workflow-card-avatar flex-shrink-0 me-3"
-            size="40">
-            <v-img
-              v-if="showIllustration"
-              :src="avatarUrl"
-              @error="illustrationFailed = true" />
-            <span
-              v-else
-              class="font-weight-bold">
-              {{ initial }}
-            </span>
-          </v-avatar>
+            size="40" />
           <div
             :title="workflow.title"
             class="workflow-card-title flex-grow-1 font-weight-bold">
@@ -100,19 +92,12 @@ export default {
   },
   data: () => ({
     openRequestsCount: null,
-    illustrationFailed: false,
   }),
   computed: {
     avatarUrl() {
       return this.workflow && this.workflow.illustrativeAttachment
                            && this.workflow.illustrativeAttachment.id
                            && `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/illustration/${this.workflow.id}?v=${this.workflow.illustrativeAttachment.lastUpdated}`;
-    },
-    showIllustration() {
-      return this.avatarUrl && !this.illustrationFailed;
-    },
-    initial() {
-      return (this.workflow.title || '').trim().charAt(0).toUpperCase();
     },
     canManage() {
       return this.isProcessesManager || (this.workflow.acl && this.workflow.acl.canEdit);
@@ -148,11 +133,6 @@ export default {
     },
     projectLink() {
       return `${eXo.env.portal.context}/${eXo.env.portal.portalName}/tasks/projectDetail/${this.workflow.projectId}`;
-    },
-  },
-  watch: {
-    avatarUrl() {
-      this.illustrationFailed = false;
     },
   },
   created() {

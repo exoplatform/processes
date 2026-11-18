@@ -1,5 +1,7 @@
 package org.exoplatform.processes.Utils;
 
+import java.util.regex.Pattern;
+
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.services.listener.ListenerService;
@@ -29,6 +31,29 @@ public class ProcessesUtils {
   public static final String MEMBER_MEMBERSHIP_TYPE  = "member";
 
   private static final Log   LOG                     = ExoLogger.getLogger(ProcessesUtils.class);
+
+  /**
+   * The longest icon name a process stores in its image field
+   */
+  public static final int     PROCESS_ICON_MAX_LENGTH = 100;
+
+  /**
+   * The shape of an icon name the icon picker gives, such as « fas fa-cog »
+   */
+  private static final Pattern PROCESS_ICON_PATTERN   = Pattern.compile("^fa[a-z0-9 -]+$");
+
+  /**
+   * Checks whether a value stored in a process's image field is an icon name.
+   * Any other value, such as one an API client stored before the field held
+   * icons, is no icon.
+   *
+   * @param value the stored value
+   * @return true when the value is an icon name of at most
+   *         {@link #PROCESS_ICON_MAX_LENGTH} characters
+   */
+  public static boolean isProcessIcon(String value) {
+    return value != null && value.length() <= PROCESS_ICON_MAX_LENGTH && PROCESS_ICON_PATTERN.matcher(value).matches();
+  }
 
   /**
    * Checks whether a user administers every process: a member of

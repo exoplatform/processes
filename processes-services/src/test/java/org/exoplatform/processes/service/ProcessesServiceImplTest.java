@@ -488,6 +488,68 @@ public class ProcessesServiceImplTest {
   }
 
   /**
+   * An icon chosen on update removes the stored image, and a new image sent
+   * replaces the icon: a process shows one of them, never both. Mutation: drop
+   * either branch of the exclusion and its assertion fails.
+   */
+  @Test
+  public void updateWorkflowShowsAnIconOrAnImageNeverBoth() throws Exception {
+    WorkFlow storedWorkFlow = new WorkFlow();
+    storedWorkFlow.setId(WORKFLOW_ID);
+    storedWorkFlow.setIllustrativeAttachment(new IllustrativeAttachment(55L));
+    storedWorkFlow.setAcl(new ProcessPermission(true, true, false, false));
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, PARTICIPANT_ID)).thenReturn(storedWorkFlow);
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setId(WORKFLOW_ID);
+    workFlow.setImage(" fas fa-cog ");
+    workFlow.setIllustrativeAttachment(new IllustrativeAttachment(55L, "image.png", "image/png", 10L, null));
+
+    processesService.updateWorkFlow(workFlow, PARTICIPANT_ID);
+
+    ArgumentCaptor<WorkFlow> saved = ArgumentCaptor.forClass(WorkFlow.class);
+    verify(processesStorage).saveWorkFlow(saved.capture(), anyLong());
+    assertEquals("fas fa-cog", saved.getValue().getImage());
+    assertEquals(Long.valueOf(55L), saved.getValue().getIllustrativeAttachment().getId());
+    assertNull(saved.getValue().getIllustrativeAttachment().getFileName());
+
+    IllustrativeAttachment newImage = new IllustrativeAttachment(null, "image.png", "image/png", 10L, null);
+    newImage.setFileBody("data:image/png;base64,AA==");
+    workFlow.setImage("fas fa-cog");
+    workFlow.setIllustrativeAttachment(newImage);
+    processesService.updateWorkFlow(workFlow, PARTICIPANT_ID);
+    verify(processesStorage, times(2)).saveWorkFlow(saved.capture(), anyLong());
+    assertNull(saved.getValue().getImage());
+    assertEquals("image.png", saved.getValue().getIllustrativeAttachment().getFileName());
+  }
+
+  /**
+   * A new process with an icon gets no image, and an icon value that is no icon
+   * name is refused before any write. Mutation: drop the icon check and the
+   * refusal assertion fails.
+   */
+  @Test
+  public void createWorkflowTakesOnlyAnIconName() throws Exception {
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setImage("fas fa-cog");
+    workFlow.setIllustrativeAttachment(new IllustrativeAttachment(99L, "image.png", "image/png", 10L, null));
+
+    processesService.createWorkFlow(workFlow, PROCESSES_ADMIN_ID);
+
+    ArgumentCaptor<WorkFlow> saved = ArgumentCaptor.forClass(WorkFlow.class);
+    verify(processesStorage).saveWorkFlow(saved.capture(), anyLong());
+    assertEquals("fas fa-cog", saved.getValue().getImage());
+    assertNull(saved.getValue().getIllustrativeAttachment().getId());
+    assertNull(saved.getValue().getIllustrativeAttachment().getFileName());
+
+    WorkFlow invalid = new WorkFlow();
+    invalid.setImage("fa-cog\" onmouseover=\"alert(1)");
+    IllegalArgumentException refusal = assertThrows(IllegalArgumentException.class,
+                                                    () -> processesService.createWorkFlow(invalid, PROCESSES_ADMIN_ID));
+    assertEquals("processes.icon.invalid", refusal.getMessage());
+    verify(processesStorage).saveWorkFlow(any(), anyLong());
+  }
+
+  /**
    * A user reads a process by its id only when they participate in it or may
    * add a request to it, and only as an active user; the platform's own read,
    * with no user, is not refused. Mutation: drop the visibility check, or the

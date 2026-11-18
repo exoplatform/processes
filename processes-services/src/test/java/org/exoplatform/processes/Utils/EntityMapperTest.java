@@ -124,6 +124,27 @@ public class EntityMapperTest {
   }
 
   /**
+   * A process's image field reads back as its icon only when it holds an icon
+   * name; another value an API client stored shows no icon, and an icon name is
+   * saved as it is. Mutation: drop the read guard and the URL assertion fails.
+   */
+  @Test
+  public void theImageFieldReadsBackOnlyAnIconName() {
+    COMMONS_UTILS.when(() -> CommonsUtils.getService(OrganizationService.class)).thenReturn(organizationService);
+    when(organizationService.getGroupHandler()).thenReturn(groupHandler);
+    WorkFlowEntity workFlowEntity = new WorkFlowEntity();
+    workFlowEntity.setId(1L);
+    workFlowEntity.setImage("fas fa-cog");
+    assertEquals("fas fa-cog", EntityMapper.fromEntity(workFlowEntity, null).getImage());
+    workFlowEntity.setImage("https://example.org/logo.png");
+    assertNull(EntityMapper.fromEntity(workFlowEntity, null).getImage());
+
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setImage("far fa-address-book");
+    assertEquals("far fa-address-book", EntityMapper.toEntity(workFlow).getImage());
+  }
+
+  /**
    * A workflow permission entry grants exactly its group, membership or user,
    * never a group or a user whose name merely contains it. Mutation: go back
    * to a String contains match and the sales_team, johnny and processes-x
