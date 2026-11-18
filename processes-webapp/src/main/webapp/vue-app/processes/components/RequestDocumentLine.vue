@@ -12,42 +12,35 @@ You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 -->
 <template>
-  <div class="requestDocumentLine d-flex align-center py-2">
+  <div class="requestDocumentLine">
     <v-icon
       :color="icon.color"
-      class="align-self-start flex-shrink-0 me-2"
+      class="requestDocumentLine-icon"
       size="20"
       aria-hidden="true">
       {{ icon.class }}
     </v-icon>
-    <div class="flex-grow-1 text-start" style="min-width: 0">
-      <a
-        :title="title"
-        class="requestDocumentLine-name d-block text-body-2 text-color text-truncate"
-        @click="$emit('open')">
-        {{ title }}
-      </a>
-      <div class="d-flex flex-wrap align-center">
-        <span class="text-caption text-light-color me-2">{{ meta }}</span>
-        <v-chip
-          v-if="state"
-          :color="filled ? 'success' : ''"
-          :outlined="!filled"
-          class="requestDocumentLine-state"
-          x-small>
-          {{ state }}
-        </v-chip>
-      </div>
-    </div>
+    <a
+      :title="title"
+      class="requestDocumentLine-name text-body-2 text-color"
+      @click="$emit('open')">
+      {{ title }}
+    </a>
+    <span class="requestDocumentLine-meta text-caption text-light-color">{{ meta }}</span>
+    <v-chip
+      :class="filled && 'requestDocumentLine-filled'"
+      class="requestDocumentLine-state"
+      small>
+      {{ state }}
+    </v-chip>
     <v-btn
-      class="requestFillDocumentButton flex-shrink-0 ms-2"
+      class="requestFillDocumentButton requestDocumentLine-button font-weight-bold"
       color="primary"
       outlined
       @click="$emit('fill')">
       {{ $t(filled ? 'processes.request.documentToFill.continue' : 'processes.request.documentToFill.fill') }}
     </v-btn>
     <v-menu
-      v-if="original"
       ref="menu"
       v-model="showMenu"
       bottom
@@ -56,7 +49,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       <template #activator="{ on, attrs }">
         <v-btn
           :aria-label="$t('processes.request.documentToFill.actions')"
-          class="flex-shrink-0 ms-1"
+          class="requestDocumentLine-menu"
           icon
           small
           v-bind="attrs"
@@ -82,9 +75,9 @@ const BYTES_IN_MB = 1024 * 1024;
 /**
  * One document to fill in, a row of the documents card: its type icon, the
  * one the platform's attachments give its type, its name, which opens it, its
- * size and type, its fill state as a chip once the request has its copy,
- * « Fill in » (« Continue » once filled) and, when the copy exists, a menu
- * opening the process's original.
+ * size and type, its fill state as a chip, « Fill in » (« Continue » once
+ * filled) and a menu opening the process's original, which is the row's own
+ * document until the request has its copy.
  */
 export default {
   mixins: [MenuCloseMixin],
@@ -93,10 +86,10 @@ export default {
       type: Object,
       required: true,
     },
-    // « Not started » or « Filled · 2 min ago », none before the request has its copy
+    // « Not started » or « Filled · 2 min ago »
     state: {
       type: String,
-      default: null,
+      default: '',
     },
     filled: {
       type: Boolean,
@@ -106,11 +99,6 @@ export default {
     name: {
       type: String,
       default: null,
-    },
-    // True when the row is the request's copy, whose original the menu opens
-    original: {
-      type: Boolean,
-      default: false,
     },
   },
   computed: {
