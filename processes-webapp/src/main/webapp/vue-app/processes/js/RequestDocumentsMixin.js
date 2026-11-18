@@ -96,7 +96,9 @@ export default {
      * @returns {void}
      */
     showDocumentInTab(tab, attachment, mode) {
-      const writable = mode && this.hasDraft && attachment.acl && attachment.acl.canEdit;
+      // A process's original only ever opens to be read: only the request's copy is written
+      const isOriginal = this.processDocuments.some(processDocument => processDocument.id === attachment.id);
+      const writable = mode && !isOriginal && this.hasDraft && attachment.acl && attachment.acl.canEdit;
       if (this.$documentsUtils && (writable || this.isDocumentReadable(attachment))) {
         const url = this.$documentsUtils.getEditorUrl(attachment, writable ? (mode === 'fillform' ? 'fillform' : '') : 'view');
         if (tab) {
@@ -131,7 +133,10 @@ export default {
      * @returns {Promise<Object>} the copy, rejected when it does not show up within ten seconds
      */
     waitForCopy(original) {
-      const findCopy = () => this.documentsToFill.find(copy => this.storedName(copy) === this.storedName(original));
+      // Right after the draft's creation the list may still hold the process's originals, which are no copy
+      const originalIds = this.processDocuments.map(attachment => attachment.id);
+      const findCopy = () => this.documentsToFill.find(copy => !originalIds.includes(copy.id)
+        && this.storedName(copy) === this.storedName(original));
       const found = findCopy();
       if (found) {
         return Promise.resolve(found);

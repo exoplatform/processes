@@ -63,9 +63,10 @@ export default {
     requestFill() {
       const fill = this.sectionsFill;
       const filledDocuments = this.hasDraft ? this.documentsToFill.filter(this.isCopyFilled).length : 0;
+      // Only the form's required fields count, the documents to fill in with them
       return {
-        total: fill.total + this.processDocuments.length,
-        filled: fill.filled + filledDocuments,
+        total: (fill.requiredTotal ?? fill.total ?? 0) + this.processDocuments.length,
+        filled: (fill.requiredFilled ?? fill.filled ?? 0) + filledDocuments,
         missing: fill.missing || [],
       };
     },

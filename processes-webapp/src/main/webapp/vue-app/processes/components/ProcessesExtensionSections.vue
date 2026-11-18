@@ -141,13 +141,15 @@ export default {
         }
       });
     },
-    /** @returns {Object} the sections' fill states added up: {total, filled, missing}, the fields shown, those holding a value, the required ones holding none */
+    /** @returns {Object} the sections' fill states added up: {total, filled, requiredTotal, requiredFilled, missing}; a section without required counts gives all its fields as required */
     fillState() {
-      return this.call('fillState').reduce((sum, fill) => ({
-        total: sum.total + (fill && fill.total || 0),
-        filled: sum.filled + (fill && fill.filled || 0),
-        missing: sum.missing.concat(fill && fill.missing || []),
-      }), {total: 0, filled: 0, missing: []});
+      return this.call('fillState').filter(Boolean).reduce((sum, fill) => ({
+        total: sum.total + (fill.total || 0),
+        filled: sum.filled + (fill.filled || 0),
+        requiredTotal: sum.requiredTotal + (fill.requiredTotal ?? fill.total ?? 0),
+        requiredFilled: sum.requiredFilled + (fill.requiredFilled ?? fill.filled ?? 0),
+        missing: sum.missing.concat(fill.missing || []),
+      }), {total: 0, filled: 0, requiredTotal: 0, requiredFilled: 0, missing: []});
     },
     /**
      * Calls a method on every section that has it.
