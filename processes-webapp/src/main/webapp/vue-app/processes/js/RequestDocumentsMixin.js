@@ -49,29 +49,41 @@ export default {
       return !!this.$refs.messageRow && this.$refs.messageRow.isFileSupported(attachment);
     },
     /**
-     * Fills in a document, always in a new tab, the drawer staying open. The
-     * tab is opened at once, inside the click, since a popup opened after
-     * asynchronous work is blocked. Before the draft exists, creates it, which
-     * copies the process's documents into it, and waits for the requester's
-     * copy of this one; then the tab goes to the copy in the editor.
+     * Fills in a document, always in a new tab, the drawer staying open. Once
+     * the draft exists, the copy opens in the editor at once, inside the
+     * click. Before, the tab is opened blank inside the click, since a popup
+     * opened after asynchronous work is blocked; then the draft is created,
+     * which copies the process's documents into it, and once the requester's
+     * copy of this one shows up the tab goes to it in the editor.
      *
      * @param {Object} attachment a process document, or the draft's copy of it
      * @returns {Promise} settled once the tab shows the document, or was closed on a failure
      */
     fillDocument(attachment) {
+      if (this.hasDraft) {
+        // The copy is known: the editor opens at once, inside the click, since a blank tab told where to go in the
+        // same turn stays blank
+        this.showDocumentInTab(null, attachment, this.fillMode(attachment));
+        return Promise.resolve();
+      }
       const tab = window.open('', '_blank');
-      const copy = this.hasDraft
-        ? Promise.resolve(attachment)
-        : this.createDraftForAttachment().then(() => this.waitForCopy(attachment));
-      return copy
-        .then(target => {
-          const mode = this.isDocumentFillable(target) ? 'fillform' : this.isDocumentEditable(target) ? 'edit' : null;
-          this.showDocumentInTab(tab, target, mode);
-        })
+      return this.createDraftForAttachment()
+        .then(() => this.waitForCopy(attachment))
+        .then(target => this.showDocumentInTab(tab, target, this.fillMode(target)))
         .catch(() => {
           this.closeDocumentTab(tab);
           this.$root.$emit('show-alert', {type: 'error', message: this.$t('processes.workDraft.save.error.message')});
         });
+    },
+    /**
+     * @param {Object} attachment the request's copy
+     * @returns {String} fillform for a form, edit for another document the editor writes, null to read it
+     */
+    fillMode(attachment) {
+      if (this.isDocumentFillable(attachment)) {
+        return 'fillform';
+      }
+      return this.isDocumentEditable(attachment) ? 'edit' : null;
     },
     /**
      * Opens a document in a new tab, the drawer staying open: in the editor,
@@ -83,7 +95,8 @@ export default {
      * @returns {void}
      */
     openDocument(attachment, mode) {
-      this.showDocumentInTab(window.open('', '_blank'), attachment, mode);
+      // Opened inside the click with its address: a blank tab told where to go in the same turn stays blank
+      this.showDocumentInTab(null, attachment, mode);
     },
     /**
      * Shows a document in a tab opened by the click: the editor's url when it
