@@ -26,7 +26,8 @@
     <my-requests-table
       v-else
       id="myRequestsList"
-      :groups="groups" />
+      :groups="groups"
+      @sorted-otherwise="sortedOtherwise = $event" />
   </div>
 </template>
 
@@ -84,6 +85,7 @@ export default {
   data: () => ({
     filter: {query: null, workflowId: null, status: null, grouped: false},
     toolbarKey: 0,
+    sortedOtherwise: false,
   }),
   computed: {
     draftList() {
@@ -123,13 +125,14 @@ export default {
       return this.workList.filter(work => FINISHED_STATUSES.includes(work.status)).length;
     },
     /**
-     * Tells whether a text or a process filter is chosen: the completed requests then all load, so
-     * the filter reads every one of them.
+     * Tells whether a text or a process filter is chosen, or the rows are sorted otherwise than
+     * newest first: the completed requests then all load, so the filter or the order reads every
+     * one of them.
      *
-     * @returns {Boolean} true when a text or a process is chosen
+     * @returns {Boolean} true when a text or a process is chosen, or another order
      */
     narrowed() {
-      return !!(this.filter.query || this.filter.workflowId);
+      return !!(this.filter.query || this.filter.workflowId) || this.sortedOtherwise;
     },
     /**
      * Lists the processes of the loaded requests, with their counts, for the process filter.
@@ -231,8 +234,8 @@ export default {
   },
   watch: {
     /**
-     * Loads every remaining completed request once a text or a process filter is chosen, so the
-     * filter reads all of them, as it did when they loaded at once.
+     * Loads every remaining completed request once a text or a process filter, or another order, is
+     * chosen, so the filter or the order reads all of them, as it did when they loaded at once.
      *
      * @returns {void}
      */

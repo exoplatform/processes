@@ -179,6 +179,17 @@ export default {
   },
   watch: {
     /**
+     * Tells the list whether the rows are sorted otherwise than newest first: the completed
+     * requests load page by page, newest first, so any other order needs them all.
+     *
+     * @param {Object} options the table's sort options
+     * @returns {void}
+     */
+    options(options) {
+      const newestFirst = (options.sortBy[0] || 'date') === 'date' && !!options.sortDesc[0];
+      this.$emit('sorted-otherwise', !newestFirst);
+    },
+    /**
      * Sorts by date again when the Status column leaves on a narrowing screen, so the order never
      * follows a column the table no longer shows.
      *
