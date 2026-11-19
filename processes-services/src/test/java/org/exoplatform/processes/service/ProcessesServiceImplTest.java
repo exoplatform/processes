@@ -13,6 +13,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -36,10 +37,12 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.processes.model.WorkFlowLabel;
+import org.exoplatform.processes.Utils.EntityMapper;
 import org.exoplatform.task.dto.LabelDto;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.task.service.LabelService;
@@ -338,6 +341,36 @@ public class ProcessesServiceImplTest {
    * managers of that other project. Mutation: drop any of the three resets and
    * this test fails.
    */
+  /**
+   * An update of a process whose stored request makers include a group the
+   * group store fails to read is refused before the first write: no label is
+   * created and nothing is saved. Mutation: drop the check, or move it after
+   * the writes, and this test fails.
+   *
+   * @throws Exception never, the mocks throw only where stubbed
+   */
+  @Test
+  public void anUpdateThatCantReadAStoredGroupWritesNothing() throws Exception {
+    WorkFlow storedWorkFlow = new WorkFlow();
+    storedWorkFlow.setId(WORKFLOW_ID);
+    storedWorkFlow.setProjectId(PROCESS_PROJECT_ID);
+    storedWorkFlow.setAcl(new ProcessPermission(true, true, false, false));
+    storedWorkFlow.setManager(new HashSet<>(Collections.singletonList("/broken/group")));
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, PARTICIPANT_ID)).thenReturn(storedWorkFlow);
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setId(WORKFLOW_ID);
+    workFlow.setDescription("new description");
+    workFlow.setLabels(Collections.singletonList(new WorkFlowLabel(0L, "Urgent")));
+
+    try (MockedStatic<EntityMapper> entityMapper = mockStatic(EntityMapper.class)) {
+      entityMapper.when(() -> EntityMapper.isDisplayableCreator("/broken/group")).thenThrow(new IllegalStateException("store down"));
+
+      assertThrows(IllegalStateException.class, () -> processesService.updateWorkFlow(workFlow, PARTICIPANT_ID));
+    }
+    verify(labelService, never()).createLabel(any());
+    verify(processesStorage, never()).saveWorkFlow(any(), anyLong());
+  }
+
   @Test
   public void updateWorkflowKeepsTheStoredProjectAndCreation() throws Exception {
     java.util.Date createdDate = new java.util.Date(1000L);

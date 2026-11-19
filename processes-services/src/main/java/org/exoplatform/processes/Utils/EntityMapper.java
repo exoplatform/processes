@@ -101,24 +101,37 @@ public class EntityMapper {
    *           save can't tell whether the user removed it, so it is not saved
    */
   public static boolean isDisplayableCreator(String manager) {
+    if (StringUtils.isBlank(manager)) {
+      return false;
+    }
+    if (toSpaceIdentity(manager) != null) {
+      return true;
+    }
     try {
-      return readCreatorIdentity(manager) != null;
+      return toGroupIdentity(manager) != null;
     } catch (Exception e) {
-      throw new IllegalStateException("The request maker " + manager + " of a process could not be read", e);
+      throw new IllegalStateException("The request maker " + manager + " of a process could not be read as a group", e);
     }
   }
 
   /**
-   * Reads one stored request maker as the identity the editor shows, an entry
+   * Reads one stored request maker as the identity the editor shows, a group
    * the group store fails to read being left out.
    *
    * @param manager a stored request maker
    * @return the space or group identity, or null when it is neither a space
-   *         nor a group the platform finds, or can't be read
+   *         nor a group the platform finds, or the group can't be read
    */
   private static CreatorIdentityEntity toCreatorIdentity(String manager) {
+    if (StringUtils.isBlank(manager)) {
+      return null;
+    }
+    CreatorIdentityEntity spaceIdentity = toSpaceIdentity(manager);
+    if (spaceIdentity != null) {
+      return spaceIdentity;
+    }
     try {
-      return readCreatorIdentity(manager);
+      return toGroupIdentity(manager);
     } catch (Exception e) {
       LOG.warn("Cannot read the request maker {} of a process as a group: {}", manager, e.getMessage());
       LOG.debug("Cannot read the request maker {} of a process as a group", manager, e);
@@ -127,29 +140,35 @@ public class EntityMapper {
   }
 
   /**
-   * Reads one stored request maker as the identity the editor shows.
+   * Reads one stored request maker as the space whose group it names.
    *
    * @param manager a stored request maker
-   * @return the space or group identity, or null when it is neither a space
-   *         nor a group the platform finds
-   * @throws Exception when the group store fails to answer
+   * @return the space identity, or null when it names no space
    */
-  private static CreatorIdentityEntity readCreatorIdentity(String manager) throws Exception {
-    if (StringUtils.isBlank(manager)) {
-      return null;
-    }
+  private static CreatorIdentityEntity toSpaceIdentity(String manager) {
     SpaceService spaceService = CommonsUtils.getService(SpaceService.class);
     Space space = spaceService.getSpaceByGroupId(manager);
-    if (space != null) {
-      ProfileEntity profile = new ProfileEntity(
-                                                StringUtils.isNotEmpty(space.getAvatarUrl()) ? space.getAvatarUrl()
-                                                                                             : "/portal/rest/v1/social/spaces/"
-                                                                                                 + space.getPrettyName()
-                                                                                                 + "/avatar",
-                                                space.getDisplayName());
-      IdentityEntity identityEntity = new IdentityEntity("", space.getPrettyName(), "space", profile);
-      return new CreatorIdentityEntity(identityEntity);
+    if (space == null) {
+      return null;
     }
+    ProfileEntity profile = new ProfileEntity(
+                                              StringUtils.isNotEmpty(space.getAvatarUrl()) ? space.getAvatarUrl()
+                                                                                           : "/portal/rest/v1/social/spaces/"
+                                                                                               + space.getPrettyName()
+                                                                                               + "/avatar",
+                                              space.getDisplayName());
+    IdentityEntity identityEntity = new IdentityEntity("", space.getPrettyName(), "space", profile);
+    return new CreatorIdentityEntity(identityEntity);
+  }
+
+  /**
+   * Reads one stored request maker as the group it names.
+   *
+   * @param manager a stored request maker
+   * @return the group identity, or null when no group has that id
+   * @throws Exception when the group store fails to answer
+   */
+  private static CreatorIdentityEntity toGroupIdentity(String manager) throws Exception {
     GroupHandler groupHandler = CommonsUtils.getService(OrganizationService.class).getGroupHandler();
     Group group = groupHandler.findGroupById(manager);
     if (group == null) {
