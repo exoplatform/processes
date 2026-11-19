@@ -345,6 +345,8 @@ class ProcessesProjectMoveTest {
     assertEquals(2, longValue("MOVE_ATTEMPTS"));
     assertEquals(now + 120_000L, longValue("MOVE_NEXT_ATTEMPT"));
     assertEquals(3600L, moveService.retryDelaySeconds(100));
+    assertEquals(3600L, moveService.retryDelaySeconds(63), "the capped exponent keeps the product from overflowing to 0");
+    assertEquals(3600L, moveService.retryDelaySeconds(64), "the capped exponent keeps the product from overflowing to 0");
     assertEquals(60L, moveService.retryDelaySeconds(1));
   }
 
