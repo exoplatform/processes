@@ -608,8 +608,8 @@ public class ProcessesRest implements ResourceContainer {
   }
 
   /**
-   * Counts the open or completed requests of the process that a task project
-   * feeds, the one of lowest id when several do, for a user who may see them.
+   * Counts the open or completed requests of every process a task project
+   * feeds, for a user who may see the request counts of one of them.
    *
    * @param projectId the task project id
    * @param isCompleted whether to count the completed requests or the open ones
@@ -624,8 +624,8 @@ public class ProcessesRest implements ResourceContainer {
   @RolesAllowed("users")
   @Path("/countWorks/{projectId}")
   @Operation(
-          summary = "Count the requests of the process of a task project by completed and uncompleted status",
-          description = "Deprecated: use GET /workflows/{workflowId}/requests/count. Counts the requests of the process of lowest id the project feeds, for a user who may see them",
+          summary = "Count the requests of the processes of a task project by completed and uncompleted status",
+          description = "Deprecated: use GET /workflows/{workflowId}/requests/count. Counts the requests of every process the project feeds, for a user who may see the request counts of one of them",
           method = "GET",
           deprecated = true)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Request fulfilled"),
@@ -634,7 +634,6 @@ public class ProcessesRest implements ResourceContainer {
           @ApiResponse(responseCode = "404", description = "Object not found"),
           @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
           @ApiResponse(responseCode = "500", description = "Internal server error"),})
-  @SuppressWarnings("removal")
   public Response countWorksByWorkflow(@Parameter(description = "Tasks project id", required = true)
                                        @PathParam("projectId") Long projectId,
                                        @Parameter(description = "Processes properties to expand.")
@@ -646,11 +645,18 @@ public class ProcessesRest implements ResourceContainer {
     if (projectId == null || isCompleted == null) {
       return Response.status(Response.Status.BAD_REQUEST).entity("Project id is mandatory").build();
     }
-    WorkFlow workFlow = processesService.getWorkFlowByProjectId(projectId);
-    if (workFlow == null) {
+    try {
+      long count = processesService.countProjectRequests(projectId, isCompleted, currentIdentityId);
+      return Response.ok(String.valueOf(count)).type(MediaType.TEXT_PLAIN).cacheControl(PER_USER_CACHE_CONTROL).build();
+    } catch (ObjectNotFoundException e) {
       return Response.status(Response.Status.NOT_FOUND).entity("workflow not found").build();
+    } catch (IllegalAccessException e) {
+      LOG.debug("User '{}' isn't allowed to count the requests of the project '{}'", currentIdentityId, projectId, e);
+      return Response.status(Response.Status.FORBIDDEN).build();
+    } catch (Exception e) {
+      LOG.error("Error while counting the requests of the project '{}'", projectId, e);
+      return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
     }
-    return countRequests(workFlow.getId(), isCompleted, currentIdentityId);
   }
 
   /**

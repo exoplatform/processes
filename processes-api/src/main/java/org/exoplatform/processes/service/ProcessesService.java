@@ -505,6 +505,22 @@ public interface ProcessesService {
                                                                              IllegalAccessException;
 
   /**
+   * Counts the requests of every process feeding a task project, open,
+   * completed or all, for a user who may read the request counts of at least
+   * one of them (see {@link #countRequests(long, Boolean, long)}).
+   *
+   * @param projectId the task project id
+   * @param completed true to count the completed requests, false the open
+   *          ones, null to count them all
+   * @param userIdentityId the identity id of the user asking
+   * @return the number of request tasks of those processes in that state
+   * @throws ObjectNotFoundException when no process feeds the project
+   * @throws IllegalAccessException when the user may read the counts of none
+   */
+  long countProjectRequests(long projectId, Boolean completed, long userIdentityId) throws ObjectNotFoundException,
+                                                                                    IllegalAccessException;
+
+  /**
    * Reads the space that manages a process: its stored space when it still
    * exists, else the first space that manages its task project. It is the platform's own read, with no user's permission: a caller that serves a user checks first that
    * user's right on the process with {@link #getWorkFlow(long, Long)} given the user's identity id, and never

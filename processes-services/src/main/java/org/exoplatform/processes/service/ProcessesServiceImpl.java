@@ -458,6 +458,31 @@ public class ProcessesServiceImpl implements ProcessesService {
   }
 
   /**
+   * {@inheritDoc}
+   */
+  @Override
+  public long countProjectRequests(long projectId, Boolean completed, long userIdentityId) throws ObjectNotFoundException,
+                                                                                           IllegalAccessException {
+    org.exoplatform.services.security.Identity aclIdentity = getAclIdentity(userIdentityId);
+    List<Long> workFlowIds = processesStorage.getWorkFlowIdsByProjectId(projectId);
+    if (workFlowIds.isEmpty()) {
+      throw new ObjectNotFoundException("No process feeds the project " + projectId);
+    }
+    boolean allowed = false;
+    for (Long workFlowId : workFlowIds) {
+      WorkFlow workFlow = processesStorage.getWorkFlowById(workFlowId, userIdentityId);
+      if (workFlow != null && canCountRequests(aclIdentity, workFlow)) {
+        allowed = true;
+        break;
+      }
+    }
+    if (!allowed) {
+      throw new IllegalAccessException("User " + userIdentityId + " can't count the requests of the project " + projectId);
+    }
+    return processesStorage.countRequests(workFlowIds, completed);
+  }
+
+  /**
    * Tells whether a user may read the request counts of a process: a
    * processes administrator, a user who can edit the process, or a user who
    * sees its pending requests, by the rule of the process list read on the

@@ -1570,6 +1570,40 @@ public class ProcessesServiceImplTest {
   }
 
   /**
+   * The request count of a project, which the deprecated endpoint answers,
+   * counts the requests of every process feeding it, for a user who may read
+   * the counts of one of them; a user who may read none is refused, and a
+   * project no process feeds is not found. Mutation: count the first process
+   * only, gate on the first process only, or drop the gate, and this test
+   * fails.
+   *
+   * @throws Exception never, the mocks throw only where stubbed
+   */
+  @Test
+  public void theRequestCountOfAProjectCountsEveryProcessFeedingIt() throws Exception {
+    long otherWorkFlowId = WORKFLOW_ID + 1;
+    when(processesStorage.getWorkFlowIdsByProjectId(PROCESS_PROJECT_ID)).thenReturn(List.of(WORKFLOW_ID, otherWorkFlowId));
+    when(processesStorage.getWorkFlowIdsByProjectId(OTHER_PROJECT_ID)).thenReturn(List.of());
+    WorkFlow hidden = new WorkFlow();
+    hidden.setId(WORKFLOW_ID);
+    hidden.setProjectId(PROCESS_PROJECT_ID);
+    hidden.setAcl(new ProcessPermission(false, false, false, true));
+    WorkFlow edited = new WorkFlow();
+    edited.setId(otherWorkFlowId);
+    edited.setProjectId(PROCESS_PROJECT_ID);
+    edited.setAcl(new ProcessPermission(true, true, false, true));
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, PROJECT_MANAGER_ID)).thenReturn(hidden);
+    when(processesStorage.getWorkFlowById(otherWorkFlowId, PROJECT_MANAGER_ID)).thenReturn(edited);
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, NON_MEMBER_ID)).thenReturn(hidden);
+    when(processesStorage.getWorkFlowById(otherWorkFlowId, NON_MEMBER_ID)).thenReturn(hidden);
+    when(processesStorage.countRequests(List.of(WORKFLOW_ID, otherWorkFlowId), false)).thenReturn(5L);
+
+    assertEquals(5L, processesService.countProjectRequests(PROCESS_PROJECT_ID, false, PROJECT_MANAGER_ID));
+    assertThrows(IllegalAccessException.class, () -> processesService.countProjectRequests(PROCESS_PROJECT_ID, false, NON_MEMBER_ID));
+    assertThrows(ObjectNotFoundException.class, () -> processesService.countProjectRequests(OTHER_PROJECT_ID, false, PROJECT_MANAGER_ID));
+  }
+
+  /**
    * Runs one work write as every kind of user, refusals first: an unknown
    * work is not found; a task of a non-process project, a non-member, a
    * member of another space, a participant of the process space who isn't

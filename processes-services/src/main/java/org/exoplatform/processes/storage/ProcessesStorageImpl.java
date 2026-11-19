@@ -283,6 +283,31 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    * {@inheritDoc}
    */
   @Override
+  public long countRequests(Collection<Long> workFlowIds, Boolean completed) {
+    TaskQuery taskQuery = new TaskQuery();
+    taskQuery.add(new PredicateCondition<Task>((cb, query, root) -> RequestDAO.requestOf(cb, query, root.<Long> get("id"), workFlowIds)));
+    if (completed != null) {
+      taskQuery.setCompleted(completed);
+    }
+    try {
+      return taskService.countTasks(taskQuery);
+    } catch (Exception e) {
+      throw new IllegalStateException("The request tasks of the processes " + workFlowIds + " could not be counted", e);
+    }
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<Long> getWorkFlowIdsByProjectId(long projectId) {
+    return workFlowDAO.findWorkFlowIdsByProjectId(projectId);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
   public Predicate requestOf(CriteriaBuilder cb,
                              CommonAbstractCriteria query,
                              Expression<Long> taskId,

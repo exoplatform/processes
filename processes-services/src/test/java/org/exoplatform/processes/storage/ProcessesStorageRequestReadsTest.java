@@ -220,6 +220,26 @@ public class ProcessesStorageRequestReadsTest {
   }
 
   /**
+   * The requests of several processes are counted in one count, all of them
+   * when no state is asked, the open ones when asked. Mutation: add a state
+   * when none is asked and this test fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  public void theRequestsOfSeveralProcessesAreCountedAtOnce() throws Exception {
+    when(taskService.countTasks(any(TaskQuery.class))).thenReturn(5, 2);
+
+    assertEquals(5L, processesStorage.countRequests(List.of(7L, 8L), null));
+    assertEquals(2L, processesStorage.countRequests(List.of(7L, 8L), false));
+
+    ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
+    verify(taskService, org.mockito.Mockito.times(2)).countTasks(query.capture());
+    assertEquals(1, conditions(query.getAllValues().get(0)).size());
+    assertEquals(2, conditions(query.getAllValues().get(1)).size());
+  }
+
+  /**
    * A process's deletion answers the task ids its request records held, read
    * before the records are deleted, in the same transaction. Mutation: read
    * them after the deletion and the answer is empty.
