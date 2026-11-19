@@ -259,7 +259,7 @@ public class EntityBuilderTest {
    */
   @Test
   @SuppressWarnings("removal")
-  public void aListReadsEachProcessOnce() {
+  public void aListReadsEachProcessOnce() throws Exception {
     COMMONS_UTILS.when(() -> CommonsUtils.getService(StatusService.class)).thenReturn(mock(StatusService.class));
     WorkFlow process = new WorkFlow();
     process.setId(8L);
