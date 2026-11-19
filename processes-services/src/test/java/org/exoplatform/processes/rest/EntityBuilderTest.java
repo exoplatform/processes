@@ -253,6 +253,63 @@ public class EntityBuilderTest {
   }
 
   /**
+   * A list of requests reads each process once, however many of its requests
+   * the list holds, and a request whose process is not found reads it once
+   * too. Mutation: read the process per request and this test fails.
+   */
+  @Test
+  @SuppressWarnings("removal")
+  public void aListReadsEachProcessOnce() throws Exception {
+    COMMONS_UTILS.when(() -> CommonsUtils.getService(StatusService.class)).thenReturn(mock(StatusService.class));
+    WorkFlow process = new WorkFlow();
+    process.setId(8L);
+    when(processesService.getWorkFlow(8L, null)).thenReturn(process);
+    List<Work> works = new ArrayList<>();
+    for (long id = 1; id <= 3; id++) {
+      Work work = new Work();
+      work.setId(id);
+      work.setProjectId(10L);
+      work.setWorkFlowId(8L);
+      works.add(work);
+    }
+    for (long id = 4; id <= 5; id++) {
+      Work orphan = new Work();
+      orphan.setId(id);
+      orphan.setProjectId(20L);
+      works.add(orphan);
+    }
+
+    List<WorkEntity> entities = EntityBuilder.toWorkEntityList(processesService, works, "workFlow", null);
+
+    assertEquals(5, entities.size());
+    assertEquals(8L, entities.get(2).getWorkFlow().getId());
+    assertNull(entities.get(4).getWorkFlow());
+    org.mockito.Mockito.verify(processesService, org.mockito.Mockito.times(1)).getWorkFlow(8L, null);
+    org.mockito.Mockito.verify(processesService, org.mockito.Mockito.times(1)).getWorkFlowByProjectId(20L);
+  }
+
+  /**
+   * A request's comments count is shown as the list read it, and a count a
+   * client sends is never read into the request it builds: the count is the
+   * server's. Mutation: copy the count from the REST body, or leave it out of
+   * the REST view, and this test fails.
+   */
+  @Test
+  public void theCommentsCountIsTheServersOnly() {
+    Work work = new Work();
+    work.setId(1L);
+    work.setCommentsCount(4);
+    assertEquals(Integer.valueOf(4), EntityBuilder.toWorkEntity(processesService, work, "").getCommentsCount());
+
+    WorkEntity body = new WorkEntity();
+    body.setId(1L);
+    body.setCommentsCount(99);
+    assertNull(EntityBuilder.toWork(processesService, body).getCommentsCount());
+    assertNull(EntityBuilder.toNewWork(processesService, body).getCommentsCount());
+    assertNull(EntityBuilder.fromEntity(body).getCommentsCount());
+  }
+
+  /**
    * A process is shown with its stored space, which the update checks against,
    * and a process stored before it had one with its project's space, so the
    * editor sends back the space the update expects. Mutation: show the

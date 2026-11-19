@@ -73,6 +73,7 @@ import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.StatusService;
+import org.exoplatform.task.service.CommentService;
 import org.exoplatform.task.service.TaskService;
 
 /**
@@ -164,7 +165,8 @@ public class ProcessesStorageDeletionTest {
                                        mock(ProcessesAttachmentService.class),
                                        mock(FileService.class),
                                        mock(UserACL.class),
-                                       labelService);
+                                       labelService,
+                                       mock(CommentService.class));
   }
 
   /**

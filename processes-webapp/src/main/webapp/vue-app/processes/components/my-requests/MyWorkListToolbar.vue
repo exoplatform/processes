@@ -33,7 +33,19 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         </span>
       </template>
       <template v-if="!filterExpand" #right>
-        <div class="ms-2">
+        <div class="ms-2 d-flex align-center">
+          <v-btn
+            v-if="archivableCount"
+            id="myRequestsArchiveAllButton"
+            :aria-label="$t('processes.myRequests.archiveAll.hint')"
+            :title="$t('processes.myRequests.archiveAll.hint')"
+            class="my-requests-archive-all text-none me-2"
+            small
+            text
+            @click="$emit('archive-all')">
+            <v-icon class="icon-default-color" size="18">mdi-archive-outline</v-icon>
+            <span class="d-none d-sm-inline ps-1">{{ $t('processes.myRequests.archiveAll') }}</span>
+          </v-btn>
           <v-btn
             id="myRequestsAdvancedFilterButton"
             :aria-label="advancedFilterLabel"
@@ -88,6 +100,13 @@ export default {
     hideFilters: {
       type: Boolean,
       default: false,
+    },
+    /**
+     * How many open requests « Archive all » would archive: the button shows only when some.
+     */
+    archivableCount: {
+      type: Number,
+      default: 0,
     },
   },
   data: () => ({

@@ -17,6 +17,7 @@
 package org.exoplatform.processes.rest;
 
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -76,6 +77,9 @@ public class ProcessesRest implements ResourceContainer {
   private static final CacheControl  PER_USER_CACHE_CONTROL      = new CacheControl();
 
   private static final String              ONLY_CURRENT_USER_MESSAGE = "Only the current user can be queried";
+
+  /** The expansion that adds each listed request's comments count */
+  private static final String              COMMENTS_COUNT_EXPAND     = "commentsCount";
 
   private static final String              WORKFLOW_NOT_FOUND_MESSAGE = "Workflow not found";
 
@@ -335,11 +339,90 @@ public class ProcessesRest implements ResourceContainer {
       if (completed != null) {
         workFilter.setCompleted(completed);
       }
+      if (StringUtils.isNotBlank(expand)
+          && Arrays.asList(StringUtils.split(expand.replace(" ", ""), ",")).contains(COMMENTS_COUNT_EXPAND)) {
+        workFilter.setWithCommentsCount(true);
+      }
       List<Work> works = processesService.getWorks(userIdentityId, workFilter, offset, limit);
       return Response.ok(EntityBuilder.toWorkEntityList(processesService, works, expand, getLocale())).build();
     } catch (Exception e) {
       LOG.warn("Error retrieving list of works", e);
       return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
+  /**
+   * Counts the current user's requests that match a completion and a status, as
+   * the list of {@code GET /works} holds them.
+   *
+   * @param userId the current user's identity id, or null
+   * @param completed whether the requests are archived, or null for both
+   * @param status the status name, or null for any
+   * @return the count, as plain text, or the refusal status
+   */
+  @GET
+  @Produces(MediaType.TEXT_PLAIN)
+  @RolesAllowed("users")
+  @Path("/works/count")
+  @Operation(
+          summary = "Counts the current user's requests",
+          description = "Counts the requests the current user created, by completion and status",
+          method = "GET")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "403", description = "Forbidden operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"), })
+  public Response countWorks(@Parameter(description = "Identity technical identifier") @QueryParam("userId") Long userId,
+                             @Parameter(description = "work completed property") @QueryParam("completed") Boolean completed,
+                             @Parameter(description = "Works status") @QueryParam("status") String status) {
+    long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    if (currentIdentityId == 0) {
+      return Response.status(Response.Status.UNAUTHORIZED).build();
+    }
+    if (userId != null && userId != currentIdentityId) {
+      return Response.status(Response.Status.FORBIDDEN).entity(ONLY_CURRENT_USER_MESSAGE).build();
+    }
+    try {
+      WorkFilter workFilter = new WorkFilter();
+      workFilter.setCompleted(completed);
+      workFilter.setStatus(status);
+      int count = processesService.countWorks(currentIdentityId, workFilter);
+      return Response.ok(String.valueOf(count)).type(MediaType.TEXT_PLAIN).cacheControl(PER_USER_CACHE_CONTROL).build();
+    } catch (Exception e) {
+      LOG.warn("Error counting the requests of the user {}", currentIdentityId, e);
+      return Response.serverError().entity("The requests could not be counted").build();
+    }
+  }
+
+  /**
+   * Archives every request of the current user that is not archived yet and
+   * whose status is final: Validated, Refused or Canceled.
+   *
+   * @return how many requests were archived, as plain text, or the refusal
+   *         status
+   */
+  @POST
+  @Produces(MediaType.TEXT_PLAIN)
+  @RolesAllowed("users")
+  @Path("/works/archive")
+  @Operation(
+          summary = "Archives the current user's finished requests",
+          description = "Archives every request the current user created that is Validated, Refused or Canceled and not archived yet",
+          method = "POST")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"), })
+  public Response archiveFinishedWorks() {
+    long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    if (currentIdentityId == 0) {
+      return Response.status(Response.Status.UNAUTHORIZED).build();
+    }
+    try {
+      int archived = processesService.archiveFinishedWorks(currentIdentityId);
+      return Response.ok(String.valueOf(archived)).type(MediaType.TEXT_PLAIN).build();
+    } catch (Exception e) {
+      LOG.warn("Error archiving the finished requests of the user {}", currentIdentityId, e);
+      return Response.serverError().entity("The requests could not be archived").build();
     }
   }
 

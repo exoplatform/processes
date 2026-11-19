@@ -76,6 +76,9 @@ public class ProcessesServiceImpl implements ProcessesService {
 
   private static final Set<String> DECIDED_STATUSES    = Set.of("Validated", "Refused");
 
+  /** The statuses after which a request changes no more, which « Archive all » archives */
+  private static final Set<String> FINISHED_STATUSES   = Set.of("Validated", "Refused", "Canceled");
+
   /** The statuses of a process's task project, in their column order */
   private static final List<String> PROCESS_STATUSES   = List.of("Request", "RequestInProgress", "Validated", "Refused", "Canceled");
 
@@ -1197,6 +1200,75 @@ public class ProcessesServiceImpl implements ProcessesService {
   public List<Work> getWorks(long userIdentityId, WorkFilter workFilter, int offset, int limit) throws Exception {
 
     return processesStorage.getWorks(userIdentityId, workFilter, offset, limit);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public int countWorks(long userIdentityId, WorkFilter workFilter) throws Exception {
+    return processesStorage.countWorks(userIdentityId, workFilter);
+  }
+
+  /**
+   * {@inheritDoc} The user's open requests are read once to select the
+   * candidates; at each one's turn the request is read again and archived only
+   * if it is still not archived and still finished, so a request an earlier
+   * turn of the run changed is left. That read goes through the Task add-on
+   * within the same request as the selection, which may serve its tasks from
+   * the request's persistence context: a change another user commits while
+   * the run lasts is not guaranteed to be seen, the window being the run's
+   * duration. The archive then goes through
+   * {@link #updateWorkCompleted(Long, boolean, long)}, which checks the user's
+   * right on the request. Each archive stands alone, as a single archive does:
+   * a failure other than a refusal, the re-read's included, stops the run and
+   * leaves the requests already archived archived.
+   */
+  @Override
+  public int archiveFinishedWorks(long userIdentityId) throws Exception {
+    WorkFilter filter = new WorkFilter();
+    filter.setCompleted(false);
+    List<Work> candidates = processesStorage.getWorks(userIdentityId, filter, 0, 0);
+    int archived = 0;
+    for (Work candidate : candidates) {
+      if (isUnarchivedAndFinished(candidate) && archiveIfStillFinished(candidate.getId(), userIdentityId)) {
+        archived++;
+      }
+    }
+    return archived;
+  }
+
+  /**
+   * Archives a request as a user when, read now, it is still not archived and
+   * still finished.
+   *
+   * @param workId the request id
+   * @param userIdentityId the user's identity id
+   * @return true when the request was archived, false when it changed, is gone,
+   *         or the user may not archive it
+   */
+  private boolean archiveIfStillFinished(long workId, long userIdentityId) {
+    if (!isUnarchivedAndFinished(processesStorage.getWorkById(workId))) {
+      return false;
+    }
+    try {
+      updateWorkCompleted(workId, true, userIdentityId);
+      return true;
+    } catch (ObjectNotFoundException | IllegalAccessException e) {
+      LOG.debug("The request {} isn't archived for the user {}", workId, userIdentityId, e);
+      return false;
+    }
+  }
+
+  /**
+   * Tells whether a request is one « Archive all » archives.
+   *
+   * @param work the request, or null
+   * @return true when it exists, is not archived and its status is final
+   */
+  private static boolean isUnarchivedAndFinished(Work work) {
+    // Set.of refuses a null lookup: a task that left its project has no status
+    return work != null && !work.isCompleted() && work.getStatus() != null && FINISHED_STATUSES.contains(work.getStatus());
   }
 
   /**

@@ -173,6 +173,29 @@ public interface ProcessesService {
   List<Work> getWorks(long userIdentityId, WorkFilter workFilter, int offset, int limit) throws Exception;
 
   /**
+   * Counts the requests a user created that match a filter, as
+   * {@link #getWorks(long, WorkFilter, int, int)} lists them.
+   *
+   * @param userIdentityId the creator's identity id
+   * @param workFilter the filter: status, text and completion
+   * @return the count
+   * @throws Exception when the Task add-on fails to count
+   */
+  int countWorks(long userIdentityId, WorkFilter workFilter) throws Exception;
+
+  /**
+   * Archives every request the user created that is not archived yet and whose
+   * status is final: Validated, Refused or Canceled. Each request is archived
+   * through {@link #updateWorkCompleted(Long, boolean, long)} as that user; one
+   * refused, gone or no longer finished at its turn is skipped.
+   *
+   * @param userIdentityId the creator's identity id
+   * @return how many requests were archived
+   * @throws Exception when the requests cannot be listed
+   */
+  int archiveFinishedWorks(long userIdentityId) throws Exception;
+
+  /**
    * Reads the first process feeding a task project.
    *
    * @param projectId the task project id

@@ -59,11 +59,13 @@ import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.domain.Priority;
+import org.exoplatform.task.dto.CommentsSummaryDto;
 import org.exoplatform.task.dto.LabelDto;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
+import org.exoplatform.task.service.CommentService;
 import org.exoplatform.task.service.LabelService;
 import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.StatusService;
@@ -113,6 +115,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
 
   private final LabelService               labelService;
 
+  private final CommentService             commentService;
+
   /**
    * Builds the processes storage.
    *
@@ -129,6 +133,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    * @param fileService the file service
    * @param userACL the platform ACL
    * @param labelService the Task add-on's label service
+   * @param commentService the Task add-on's comment service
    */
   @SuppressWarnings("java:S107")
   public ProcessesStorageImpl(WorkFlowDAO workFlowDAO,
@@ -143,7 +148,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
                               ProcessesAttachmentService processesAttachmentService,
                               FileService fileService,
                               UserACL userACL,
-                              LabelService labelService) {
+                              LabelService labelService,
+                              CommentService commentService) {
     this.workFlowDAO = workFlowDAO;
     this.workDraftDAO = workDraftDAO;
     this.requestDAO = requestDAO;
@@ -157,6 +163,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     this.fileService = fileService;
     this.userACL = userACL;
     this.labelService = labelService;
+    this.commentService = commentService;
   }
 
   @Override
@@ -638,6 +645,55 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    */
   @Override
   public List<Work> getWorks(long userIdentityId, WorkFilter workFilter, int offset, int limit) throws Exception {
+    TaskQuery taskQuery = toWorksQuery(userIdentityId, workFilter);
+    List<OrderBy> orderByList = new ArrayList<>();
+    orderByList.add(new OrderBy("id", false));
+    taskQuery.setOrderBy(orderByList);
+    List<TaskDto> tasks = taskService.findTasks(taskQuery, offset, limit);
+    List<Work> works = withRequestWorkFlows(EntityMapper.tasksToWorkList(tasks));
+    if (Boolean.TRUE.equals(workFilter.getWithCommentsCount())) {
+      setCommentsCounts(works);
+    }
+    return works;
+  }
+
+  /**
+   * Sets each request's comments count, replies included, as the request
+   * drawer counts them, read for the whole page at once.
+   *
+   * @param works the requests of a page
+   */
+  private void setCommentsCounts(List<Work> works) {
+    List<Long> taskIds = works.stream().filter(Objects::nonNull).map(Work::getId).toList();
+    if (taskIds.isEmpty()) {
+      return;
+    }
+    Map<Long, CommentsSummaryDto> summaries = commentService.getCommentsSummaries(taskIds);
+    works.stream().filter(Objects::nonNull).forEach(work -> {
+      CommentsSummaryDto summary = summaries == null ? null : summaries.get(work.getId());
+      // a task without comments is absent from the summaries
+      work.setCommentsCount(summary == null ? 0 : Math.toIntExact(summary.getCount()));
+    });
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public int countWorks(long userIdentityId, WorkFilter workFilter) throws Exception {
+    return taskService.countTasks(toWorksQuery(userIdentityId, workFilter));
+  }
+
+  /**
+   * Builds the query of the request tasks a user created: the tasks a request
+   * record names, by that creator, with the filter's status, text and
+   * completion.
+   *
+   * @param userIdentityId the creator's identity id
+   * @param workFilter the filter
+   * @return the task query, unordered
+   */
+  private TaskQuery toWorksQuery(long userIdentityId, WorkFilter workFilter) {
     TaskQuery taskQuery = new TaskQuery();
     taskQuery.add(new PredicateCondition<Task>((cb, query, root) -> RequestDAO.isRequest(cb, query, root.<Long> get("id"))));
     if (workFilter.getStatus() != null) {
@@ -649,12 +705,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     if (workFilter.getCompleted() != null) {
       taskQuery.setCompleted(workFilter.getCompleted());
     }
-    List<OrderBy> orderByList = new ArrayList<>();
-    orderByList.add(new OrderBy("id", false));
-    taskQuery.setOrderBy(orderByList);
     taskQuery.setCreatedBy(ProcessesUtils.getUserNameByIdentityId(identityManager, userIdentityId));
-    List<TaskDto> tasks = taskService.findTasks(taskQuery, offset, limit);
-    return withRequestWorkFlows(EntityMapper.tasksToWorkList(tasks));
+    return taskQuery;
   }
 
   /**

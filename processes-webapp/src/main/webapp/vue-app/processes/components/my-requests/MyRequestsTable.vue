@@ -15,7 +15,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
   <v-data-table
     :headers="headers"
     :items="items"
-    :options.sync="options"
+    :options="options"
+    @update:options="$emit('update:options', $event)"
     :custom-sort="keepOrder"
     :mobile-breakpoint="0"
     class="data-table-light-border my-requests-table"
@@ -63,6 +64,22 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         </td>
       </tr>
       <tr
+        v-else-if="item.type === 'older'"
+        :key="item.key"
+        class="my-request-older-row">
+        <td :colspan="headers.length">
+          <v-btn
+            id="myRequestsShowOlderCompleted"
+            class="my-requests-show-older text-none"
+            color="primary"
+            small
+            text
+            @click="$root.$emit('load-more-completed-works')">
+            {{ $t('processes.myRequests.showOlderCompleted') }}
+          </v-btn>
+        </td>
+      </tr>
+      <tr
         v-else-if="item.type === 'hint'"
         :key="item.key"
         class="my-request-hint-row">
@@ -91,9 +108,16 @@ export default {
       type: Array,
       default: () => [],
     },
+    /**
+     * The sort options, which the list holds so they outlive the table, shown again after a
+     * loading or an empty state; synced with `.sync`.
+     */
+    options: {
+      type: Object,
+      default: () => ({sortBy: ['date'], sortDesc: [true]}),
+    },
   },
   data: () => ({
-    options: {sortBy: ['date'], sortDesc: [true]},
     expanded: {},
   }),
   computed: {
@@ -128,8 +152,9 @@ export default {
     /**
      * Flattens the groups into the table's rows: each group's header row (none for the flat list's
      * single group), its requests sorted by the chosen column, a « Show N more » row while a capped
-     * group hides some, and its hint row. A request of the flat list is a draft when its group's
-     * `drafts` holds it.
+     * group hides some, a « Show older completed requests » row while older completed requests
+     * remain to load, and its hint row. A header counts the server's total when the group gives
+     * one. A request of the flat list is a draft when its group's `drafts` holds it.
      *
      * @returns {Array} the rows, each with a unique key and a type
      */
@@ -144,11 +169,14 @@ export default {
         const works = sortWorks(group.works, sortBy, sortDesc, statusLabelOf);
         const shown = group.cap && !this.expanded[group.key] ? works.slice(0, group.cap) : works;
         if (!group.flat) {
-          rows.push({key: `header-${group.key}`, type: 'header', hook, label: group.label, count: works.length});
+          rows.push({key: `header-${group.key}`, type: 'header', hook, label: group.label, count: group.total == null ? works.length : group.total});
         }
         shown.forEach(work => rows.push({key: `${isDraft(work) ? 'draft' : 'work'}-${work.id}`, type: 'work', work, isDraft: isDraft(work)}));
         if (shown.length < works.length) {
           rows.push({key: `more-${group.key}`, type: 'more', hook, groupKey: group.key, hidden: works.length - shown.length});
+        }
+        if (group.hasMore) {
+          rows.push({key: `older-${group.key}`, type: 'older'});
         }
         if (group.hint) {
           rows.push({key: `hint-${group.key}`, type: 'hint', text: group.hint});
@@ -158,17 +186,21 @@ export default {
     },
   },
   watch: {
-    /**
-     * Sorts by date again when the Status column leaves on a narrowing screen, so the order never
-     * follows a column the table no longer shows.
-     *
-     * @param {Boolean} wide whether the Status column shows
-     * @returns {void}
-     */
-    wide(wide) {
-      if (!wide && this.options.sortBy[0] === 'status') {
-        this.options = {...this.options, sortBy: ['date'], sortDesc: [true]};
-      }
+    wide: {
+      /**
+       * Sorts by date again when the Status column is not shown, on a narrowing screen or when the
+       * table mounts on a narrow one with the status sort the list kept, so the order never follows
+       * a column the table no longer shows.
+       *
+       * @param {Boolean} wide whether the Status column shows
+       * @returns {void}
+       */
+      handler(wide) {
+        if (!wide && this.options.sortBy[0] === 'status') {
+          this.$emit('update:options', {...this.options, sortBy: ['date'], sortDesc: [true]});
+        }
+      },
+      immediate: true,
     },
   },
   methods: {

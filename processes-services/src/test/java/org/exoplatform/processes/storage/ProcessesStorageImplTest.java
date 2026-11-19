@@ -99,6 +99,7 @@ import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.StatusService;
+import org.exoplatform.task.service.CommentService;
 import org.exoplatform.task.service.TaskService;
 import org.exoplatform.task.util.ProjectUtil;
 import org.exoplatform.task.util.UserUtil;
@@ -130,6 +131,9 @@ public class ProcessesStorageImplTest {
 
   @Mock
   private IdentityManager            identityManager;
+
+  @Mock
+  private CommentService             commentService;
 
   @Mock
   private TaskService                taskService;
@@ -185,7 +189,8 @@ public class ProcessesStorageImplTest {
                                                      processesAttachmentService,
                                                      fileService,
                                                      userACL,
-                                                     labelService);
+                                                     labelService,
+                                                     commentService);
 
   }
 

@@ -150,6 +150,17 @@ public interface ProcessesStorage {
    */
   List<Work> getWorks(long userIdentityId, WorkFilter workFilter, int offset, int limit) throws Exception;
 
+  /**
+   * Counts the requests a user created that match a filter, as
+   * {@link #getWorks(long, WorkFilter, int, int)} lists them.
+   *
+   * @param userIdentityId the creator's identity id
+   * @param workFilter the filter: status, text and completion
+   * @return the count
+   * @throws Exception when the Task add-on fails to count
+   */
+  int countWorks(long userIdentityId, WorkFilter workFilter) throws Exception;
+
   Work getWorkById(long id);
 
   /**

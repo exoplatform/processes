@@ -77,6 +77,7 @@ import org.exoplatform.services.security.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.spi.SpaceService;
+import org.exoplatform.task.service.CommentService;
 import org.exoplatform.task.service.LabelService;
 import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.StatusService;
@@ -181,7 +182,8 @@ public class ProcessesServiceAtomicSavesTest {
                                        mock(ProcessesAttachmentService.class),
                                        mock(FileService.class),
                                        userACL,
-                                       mock(LabelService.class));
+                                       mock(LabelService.class),
+                                       mock(CommentService.class));
     processesService = new ProcessesServiceImpl(storage, null, identityManager, userACL, null, null, null, null, null, null);
     plugin = mock(RequestValuesPlugin.class);
     processesService.addRequestValuesPlugin(plugin);

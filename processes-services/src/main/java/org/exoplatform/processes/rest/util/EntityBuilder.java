@@ -19,8 +19,10 @@ package org.exoplatform.processes.rest.util;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.apache.commons.collections.CollectionUtils;
@@ -443,6 +445,27 @@ public class EntityBuilder {
    * @return the REST view, or null when no request is given
    */
   public static WorkEntity toWorkEntity(ProcessesService processesService, Work work, String expand, Locale locale) {
+    return toWorkEntity(processesService, work, expand, locale, null);
+  }
+
+  /**
+   * Builds the REST view of a request, its expanded process in a reader's
+   * language, read once per list when a map of the views already built is
+   * given.
+   *
+   * @param processesService the processes service
+   * @param work the request
+   * @param expand the properties to expand
+   * @param locale the reader's language, or null for the stored texts
+   * @param workFlows the process views built for the list so far, by process or
+   *          project key, or null to read the process for this request alone
+   * @return the REST view, or null when no request is given
+   */
+  private static WorkEntity toWorkEntity(ProcessesService processesService,
+                                         Work work,
+                                         String expand,
+                                         Locale locale,
+                                         Map<String, WorkFlowEntity> workFlows) {
     if (work == null) {
       return null;
     }
@@ -461,6 +484,7 @@ public class EntityBuilder {
     if (expandProperties.contains("comments")) {
       // TODO: Add comments
     }
+    workEntity.setCommentsCount(work.getCommentsCount());
     workEntity.setAttachments(work.getAttachments());
 
     try {
@@ -469,7 +493,16 @@ public class EntityBuilder {
       LOG.warn("Work description cannot be sanitized", e);
     }
     if (expandProperties.contains("workFlow")) {
-      workEntity.setWorkFlow(toEntity(getWorkFlowOfWork(processesService, work), "", locale));
+      if (workFlows == null) {
+        workEntity.setWorkFlow(toEntity(getWorkFlowOfWork(processesService, work), "", locale));
+      } else {
+        String key = work.getWorkFlowId() > 0 ? "workflow:" + work.getWorkFlowId() : "project:" + work.getProjectId();
+        // a process not found is remembered too, as null, so it is not read again
+        if (!workFlows.containsKey(key)) {
+          workFlows.put(key, toEntity(getWorkFlowOfWork(processesService, work), "", locale));
+        }
+        workEntity.setWorkFlow(workFlows.get(key));
+      }
     }
     return workEntity;
   }
@@ -561,7 +594,11 @@ public class EntityBuilder {
     if (CollectionUtils.isEmpty(works)) {
       return new ArrayList<>(Collections.emptyList());
     } else {
-      return works.stream().map(work -> toWorkEntity(processesService, work, expand, locale)).collect(Collectors.toList());
+      // The requests of one process share its REST view: each process is read once per list
+      Map<String, WorkFlowEntity> workFlows = new HashMap<>();
+      return works.stream()
+                  .map(work -> toWorkEntity(processesService, work, expand, locale, workFlows))
+                  .collect(Collectors.toList());
     }
   }
 

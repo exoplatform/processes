@@ -74,6 +74,51 @@ export function getWorks(itemsFilter, offset, limit, expand) {
 }
 
 /**
+ * Counts the current user's requests, as « My requests » lists them.
+ *
+ * @param {Object} itemsFilter the criteria: completed, status; null values are left out
+ * @return {Promise} the count, as a number
+ */
+export function countWorks(itemsFilter) {
+  const formData = new FormData();
+  Object.keys(itemsFilter || {}).forEach(key => {
+    const value = itemsFilter[key];
+    if (value != null) {
+      formData.append(key, value);
+    }
+  });
+  const params = new URLSearchParams(formData).toString();
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/works/count?${params}`, {
+    method: 'GET',
+    credentials: 'include',
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error while counting the requests');
+    } else {
+      return resp.text().then(text => Number(text) || 0);
+    }
+  });
+}
+
+/**
+ * Archives every request of the current user that is Validated, Refused or Canceled and not archived yet.
+ *
+ * @return {Promise} how many requests were archived, as a number
+ */
+export function archiveFinishedWorks() {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/works/archive`, {
+    method: 'POST',
+    credentials: 'include',
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error while archiving the requests');
+    } else {
+      return resp.text().then(text => Number(text) || 0);
+    }
+  });
+}
+
+/**
  * Creates a process.
  *
  * @param {Object} workflow the process, its null fields left out of the body
