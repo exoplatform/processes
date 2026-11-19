@@ -18,7 +18,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     </v-label>
     <v-radio-group
       :value="mode"
-      :disabled="readOnly"
       class="mt-1 mb-0"
       row
       dense
@@ -40,7 +39,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         :value="projectId"
         :items="projects"
         :loading="loading"
-        :disabled="readOnly || !spaceId"
+        :disabled="!spaceId"
         :placeholder="$t('processes.workflow.project.placeholder')"
         :menu-props="menuProps"
         item-text="name"
@@ -60,7 +59,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         <template #item="{ item }">
           <workflow-project-item :project="item" />
         </template>
-        <template v-if="hasMore && !readOnly" #append-item>
+        <template v-if="hasMore" #append-item>
           <v-list-item
             id="processProjectLoadMore"
             class="primary--text"
@@ -100,10 +99,6 @@ export default {
     workflowId: {
       type: Number,
       default: null,
-    },
-    readOnly: {
-      type: Boolean,
-      default: false,
     },
   },
   data: () => ({
@@ -152,8 +147,9 @@ export default {
   methods: {
     /**
      * Lists the projects of the managing space from the first page, once the
-     * existing-project mode is chosen; on edit, pages on until the stored
-     * project is listed, so the read-only field can name it.
+     * existing-project mode is chosen; with a project already chosen, the
+     * stored one on edit, pages on until it is listed, so the field can name
+     * it.
      *
      * @returns {void}
      */
@@ -168,7 +164,7 @@ export default {
       this.projects = [];
       this.size = 0;
       this.loadSequence++;
-      this.loadProjects(this.readOnly && this.projectId && this.maxPagesToFindStored);
+      this.loadProjects(this.projectId && this.maxPagesToFindStored);
     },
     /**
      * Loads the next page of eligible projects. A response to a load started

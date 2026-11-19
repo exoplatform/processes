@@ -41,6 +41,39 @@
         <type>org.exoplatform.processes.service.ProcessTranslationService</type>
     </component>
 
+    <!-- Moves the requests of a process to the task project a save set, on a
+         thread of its own; its sweep runs on every node, a claim on the
+         process's row keeps one pass per process across the cluster -->
+    <component>
+        <type>org.exoplatform.processes.service.ProcessesProjectMoveService</type>
+        <init-params>
+            <value-param>
+                <name>leaseSeconds</name>
+                <value>${exo.processes.move.leaseSeconds:600}</value>
+            </value-param>
+            <value-param>
+                <name>retryInitialDelaySeconds</name>
+                <value>${exo.processes.move.retry.initialDelaySeconds:60}</value>
+            </value-param>
+            <value-param>
+                <name>retryMaxDelaySeconds</name>
+                <value>${exo.processes.move.retry.maxDelaySeconds:3600}</value>
+            </value-param>
+            <value-param>
+                <name>retryErrorAfterAttempts</name>
+                <value>${exo.processes.move.retry.errorAfterAttempts:10}</value>
+            </value-param>
+            <value-param>
+                <name>verifyDelaySeconds</name>
+                <value>${exo.processes.move.verifyDelaySeconds:600}</value>
+            </value-param>
+            <value-param>
+                <name>sweepPeriodSeconds</name>
+                <value>${exo.processes.move.sweep.periodSeconds:300}</value>
+            </value-param>
+        </init-params>
+    </component>
+
     <component>
         <key>org.exoplatform.processes.service.ProcessesAttachmentService</key>
         <type>org.exoplatform.processes.service.ProcessesAttachmentServiceImpl</type>
@@ -91,6 +124,11 @@
             <name>exo.task.taskCommentCreation</name>
             <set-method>addListener</set-method>
             <type>org.exoplatform.processes.listener.RequestCommentNotificationListener</type>
+        </component-plugin>
+        <component-plugin>
+            <name>exo.process.projectChanged</name>
+            <set-method>addListener</set-method>
+            <type>org.exoplatform.processes.listener.ProcessProjectChangedListener</type>
         </component-plugin>
     </external-component-plugins>
 

@@ -540,17 +540,21 @@ export default {
      *
      * @param {Error} error the error of the save
      * @param {String} action add or update
+     * @param {Object} workflow the process sent, whose project mode tells
+     *          whether the update changed the project
      * @return {String} the message
      */
-    saveErrorMessage(error, action) {
+    saveErrorMessage(error, action, workflow) {
       const code = this.refusal(error).code;
       if (!this.workflowSaveErrorCodes.includes(code)) {
         return this.formsRefusalMessage(code) || this.$t(`processes.workflow.${action}.error.message`);
       }
-      // On an update, an ineligible project means the managing space changed
-      // while the process keeps its project
-      return action === 'update' && code === 'processes.project.notEligible'
-        && this.$t('processes.workflow.updateError.processes.project.notEligible')
+      // On an update that keeps the project, an ineligible project means the
+      // managing space changed with no project of the new space chosen; on one
+      // that changes it, the project chosen can no longer receive the requests
+      const keptProject = !workflow || !workflow.projectMode;
+      return action === 'update' && keptProject && code === 'processes.project.notEligible'
+        && this.$t('processes.workflow.updateError.processes.project.spaceNeedsProject')
         || this.$t(`processes.workflow.saveError.${code}`);
     },
     /**
@@ -725,7 +729,7 @@ export default {
         }
       }).catch(e => {
         this.$root.$emit('workflow-save-failed');
-        this.displayMessage({type: 'error', message: this.saveErrorMessage(e, 'update')});
+        this.displayMessage({type: 'error', message: this.saveErrorMessage(e, 'update', workflow)});
       });
     },
     /**
