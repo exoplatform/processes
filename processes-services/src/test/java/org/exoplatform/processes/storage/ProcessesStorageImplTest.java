@@ -480,6 +480,9 @@ public class ProcessesStorageImplTest {
 
     assertThrows(IllegalStateException.class, () -> processesStorage.saveWorkFlow(workFlow, 1L));
     verify(workFlowDAO, never()).update(sentWhileTheStoreFails);
+    // The class-wide static mock keeps its stubs: none of these may reach
+    // another test
+    ENTITY_MAPPER.reset();
   }
 
   /**

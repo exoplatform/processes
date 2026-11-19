@@ -336,12 +336,6 @@ public class ProcessesServiceImplTest {
   }
 
   /**
-   * The stored project and creation data of a process are kept on update: a
-   * project id sent by the client would re-point the process, and re-assign the
-   * managers of that other project. Mutation: drop any of the three resets and
-   * this test fails.
-   */
-  /**
    * An update that sends the request makers of a process whose stored ones
    * include a group the group store fails to read is refused before the first
    * write: no label is created and nothing is saved. An update that omits
@@ -380,6 +374,12 @@ public class ProcessesServiceImplTest {
     }
   }
 
+  /**
+   * The stored project and creation data of a process are kept on update: a
+   * project id sent by the client would re-point the process, and re-assign the
+   * managers of that other project. Mutation: drop any of the three resets and
+   * this test fails.
+   */
   @Test
   public void updateWorkflowKeepsTheStoredProjectAndCreation() throws Exception {
     java.util.Date createdDate = new java.util.Date(1000L);
