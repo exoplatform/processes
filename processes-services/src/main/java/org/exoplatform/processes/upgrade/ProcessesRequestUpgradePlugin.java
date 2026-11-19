@@ -22,8 +22,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import jakarta.persistence.EntityManager;
+
 import org.apache.commons.lang3.StringUtils;
 
+import org.exoplatform.commons.persistence.impl.EntityManagerService;
 import org.exoplatform.commons.upgrade.UpgradeProductPlugin;
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.processes.Utils.ProcessesUtils;
@@ -82,6 +85,8 @@ public class ProcessesRequestUpgradePlugin extends UpgradeProductPlugin {
 
   private final SpaceService    spaceService;
 
+  private final EntityManagerService entityManagerService;
+
   /**
    * @param initParams the plugin's parameters
    * @param workFlowDAO the processes' storage
@@ -90,6 +95,9 @@ public class ProcessesRequestUpgradePlugin extends UpgradeProductPlugin {
    * @param projectService the Task add-on's projects
    * @param identityManager the social identities
    * @param spaceService the spaces
+   * @param entityManagerService the entity manager of the startup, cleared
+   *          after each page so that a page's flush does not grow with the
+   *          pages before it
    */
   public ProcessesRequestUpgradePlugin(InitParams initParams,
                                        WorkFlowDAO workFlowDAO,
@@ -97,7 +105,8 @@ public class ProcessesRequestUpgradePlugin extends UpgradeProductPlugin {
                                        TaskService taskService,
                                        ProjectService projectService,
                                        IdentityManager identityManager,
-                                       SpaceService spaceService) {
+                                       SpaceService spaceService,
+                                       EntityManagerService entityManagerService) {
     super(initParams);
     this.workFlowDAO = workFlowDAO;
     this.requestDAO = requestDAO;
@@ -105,6 +114,7 @@ public class ProcessesRequestUpgradePlugin extends UpgradeProductPlugin {
     this.projectService = projectService;
     this.identityManager = identityManager;
     this.spaceService = spaceService;
+    this.entityManagerService = entityManagerService;
   }
 
   /**
@@ -228,7 +238,8 @@ public class ProcessesRequestUpgradePlugin extends UpgradeProductPlugin {
   /**
    * Records each task of a project as a request of the one process it feeds,
    * page by page in task id order, leaving the tasks already recorded as they
-   * are.
+   * are. A page's records are written in one transaction, then the entity
+   * manager is cleared, so the run grows linearly with the tasks.
    *
    * @param projectId the task project
    * @param workFlowId the process it feeds
@@ -240,6 +251,7 @@ public class ProcessesRequestUpgradePlugin extends UpgradeProductPlugin {
     do {
       page = findTasks(projectId, afterTaskId);
       Map<Long, Long> recorded = requestDAO.findWorkFlowIdsByTaskIds(page.stream().map(TaskDto::getId).toList());
+      List<RequestEntity> records = new ArrayList<>();
       for (TaskDto task : page) {
         if (recorded.containsKey(task.getId())) {
           count.alreadyRecorded++;
@@ -255,11 +267,18 @@ public class ProcessesRequestUpgradePlugin extends UpgradeProductPlugin {
                    task.getCreatedBy());
           continue;
         }
-        requestDAO.create(new RequestEntity(task.getId(), workFlowId, Long.parseLong(creator.getId())));
-        count.recorded++;
+        records.add(new RequestEntity(task.getId(), workFlowId, Long.parseLong(creator.getId())));
+      }
+      if (!records.isEmpty()) {
+        requestDAO.createAll(records);
+        count.recorded += records.size();
       }
       if (!page.isEmpty()) {
         afterTaskId = page.get(page.size() - 1).getId();
+      }
+      EntityManager entityManager = entityManagerService.getEntityManager();
+      if (entityManager != null) {
+        entityManager.clear();
       }
     } while (page.size() == PAGE_SIZE);
   }

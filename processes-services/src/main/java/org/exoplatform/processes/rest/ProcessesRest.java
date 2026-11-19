@@ -615,7 +615,7 @@ public class ProcessesRest implements ResourceContainer {
    * @param isCompleted whether to count the completed requests or the open ones
    * @return the count as text, or the refusal status
    * @deprecated a task project may be fed by several processes: use
-   *             {@link #countRequests(Long, boolean)}. Since 7.3.0.50, for
+   *             {@link #countRequests(Long, Boolean)}. Since 7.3.0.50, for
    *             removal.
    */
   @Deprecated(since = "7.3.0.50", forRemoval = true)
@@ -654,12 +654,13 @@ public class ProcessesRest implements ResourceContainer {
   }
 
   /**
-   * Counts the open or completed requests of a process, whatever project their
-   * task is in, for a processes administrator, a user who can edit the process
-   * or a user who sees its pending requests.
+   * Counts the requests of a process, open, completed or all, whatever project
+   * their task is in, for a processes administrator, a user who can edit the
+   * process or a user who sees its pending requests.
    *
    * @param workflowId the process id
-   * @param completed whether to count the completed requests or the open ones
+   * @param isCompleted true to count the completed requests, false the open
+   *          ones, absent to count them all
    * @return the count as text, or the refusal status
    */
   @GET
@@ -667,8 +668,8 @@ public class ProcessesRest implements ResourceContainer {
   @RolesAllowed("users")
   @Path("/workflows/{workflowId}/requests/count")
   @Operation(
-          summary = "Counts the open or completed requests of a process",
-          description = "Counts the requests a process created, open or completed, whatever task project they are in, for a processes administrator, a user who can edit the process or a member of its managing space",
+          summary = "Counts the open, completed or all requests of a process",
+          description = "Counts the requests a process created, open, completed or all, whatever task project they are in, for a processes administrator, a user who can edit the process or a member of its managing space",
           method = "GET")
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Request fulfilled"),
           @ApiResponse(responseCode = "400", description = "Invalid query input"),
@@ -678,8 +679,8 @@ public class ProcessesRest implements ResourceContainer {
           @ApiResponse(responseCode = "500", description = "Internal server error"),})
   public Response countRequests(@Parameter(description = "Process id", required = true)
                                 @PathParam("workflowId") Long workflowId,
-                                @Parameter(description = "true to count the completed requests, false the open ones")
-                                @QueryParam("completed") @DefaultValue("false") boolean completed) {
+                                @Parameter(description = "true to count the completed requests, false the open ones, absent to count them all")
+                                @QueryParam("isCompleted") Boolean isCompleted) {
     long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
     if (currentIdentityId == 0) {
       return Response.status(Response.Status.UNAUTHORIZED).build();
@@ -687,18 +688,19 @@ public class ProcessesRest implements ResourceContainer {
     if (workflowId == null) {
       return Response.status(Response.Status.BAD_REQUEST).entity("Process id is mandatory").build();
     }
-    return countRequests(workflowId, completed, currentIdentityId);
+    return countRequests(workflowId, isCompleted, currentIdentityId);
   }
 
   /**
    * Answers the request count of a process for a user, or the refusal status.
    *
    * @param workflowId the process id
-   * @param completed whether to count the completed requests or the open ones
+   * @param completed whether to count the completed requests or the open ones,
+   *          null for all
    * @param currentIdentityId the identity id of the user asking
    * @return the count as text, 403 or 404
    */
-  private Response countRequests(long workflowId, boolean completed, long currentIdentityId) {
+  private Response countRequests(long workflowId, Boolean completed, long currentIdentityId) {
     try {
       long count = processesService.countRequests(workflowId, completed, currentIdentityId);
       return Response.ok(String.valueOf(count)).type(MediaType.TEXT_PLAIN).cacheControl(PER_USER_CACHE_CONTROL).build();

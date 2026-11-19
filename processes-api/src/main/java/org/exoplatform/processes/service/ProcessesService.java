@@ -259,7 +259,7 @@ public interface ProcessesService {
    * @throws Exception when the tasks can't be counted
    * @deprecated a task project may be fed by several processes and hold tasks
    *             created in Tasks: count the requests of one process with
-   *             {@link #countRequests(long, boolean, long)}, which checks the
+   *             {@link #countRequests(long, Boolean, long)}, which checks the
    *             user's permission. Since 7.3.0.50, for removal.
    */
   @Deprecated(since = "7.3.0.50", forRemoval = true)
@@ -487,20 +487,21 @@ public interface ProcessesService {
   long countRequests(long workFlowId);
 
   /**
-   * Counts the open or the completed requests of a process, whatever project
+   * Counts the requests of a process, open, completed or all, whatever project
    * their task is in, for a user who may see them: a processes administrator,
    * a user who can edit the process, or a member of its managing space (its
    * stored space, else its task project's) or a super manager of spaces, who
    * see its pending requests.
    *
    * @param workFlowId the process id
-   * @param completed true to count the completed requests, false the open ones
+   * @param completed true to count the completed requests, false the open
+   *          ones, null to count them all
    * @param userIdentityId the identity id of the user asking
    * @return the number of request tasks of the process in that state
    * @throws ObjectNotFoundException when the process does not exist
    * @throws IllegalAccessException when the user may not see the count
    */
-  long countRequests(long workFlowId, boolean completed, long userIdentityId) throws ObjectNotFoundException,
+  long countRequests(long workFlowId, Boolean completed, long userIdentityId) throws ObjectNotFoundException,
                                                                              IllegalAccessException;
 
   /**

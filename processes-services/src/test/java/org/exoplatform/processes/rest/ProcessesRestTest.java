@@ -570,6 +570,10 @@ public class ProcessesRestTest {
     assertEquals("3", counted.getEntity());
     assertNeitherSharedNorStored(counted);
 
+    // No state asked counts every request of the process
+    when(processesService.countRequests(7L, null, 1L)).thenReturn(5L);
+    assertEquals("5", processesRest.countRequests(7L, null).getEntity());
+
     when(processesService.countRequests(8L, false, 1L)).thenThrow(new IllegalAccessException("hidden"));
     assertEquals(Response.Status.FORBIDDEN.getStatusCode(), processesRest.countRequests(8L, false).getStatus());
     when(processesService.countRequests(9L, false, 1L)).thenThrow(new ObjectNotFoundException("gone"));

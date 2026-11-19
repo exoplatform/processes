@@ -16,13 +16,16 @@
  */
 package org.exoplatform.processes.upgrade;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -36,12 +39,16 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import jakarta.persistence.EntityManager;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import org.exoplatform.commons.persistence.impl.EntityManagerService;
 
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.container.xml.ValueParam;
@@ -59,8 +66,8 @@ import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.TaskService;
 
-@RunWith(MockitoJUnitRunner.Silent.class)
-public class ProcessesRequestUpgradePluginTest {
+@ExtendWith(MockitoExtension.class)
+class ProcessesRequestUpgradePluginTest {
 
   @Mock
   private WorkFlowDAO                   workFlowDAO;
@@ -80,10 +87,16 @@ public class ProcessesRequestUpgradePluginTest {
   @Mock
   private SpaceService                  spaceService;
 
+  @Mock
+  private EntityManagerService          entityManagerService;
+
+  @Mock
+  private EntityManager                 entityManager;
+
   private ProcessesRequestUpgradePlugin plugin;
 
-  @Before
-  public void setUp() {
+  @BeforeEach
+  void setUp() {
     InitParams params = new InitParams();
     ValueParam groupId = new ValueParam();
     groupId.setName("product.group.id");
@@ -95,8 +108,10 @@ public class ProcessesRequestUpgradePluginTest {
                                                taskService,
                                                projectService,
                                                identityManager,
-                                               spaceService);
-    when(identityManager.getOrCreateUserIdentity("mary")).thenReturn(identity("31"));
+                                               spaceService,
+                                               entityManagerService);
+    lenient().when(identityManager.getOrCreateUserIdentity("mary")).thenReturn(identity("31"));
+    lenient().when(entityManagerService.getEntityManager()).thenReturn(entityManager);
   }
 
   /**
@@ -105,12 +120,15 @@ public class ProcessesRequestUpgradePluginTest {
    * left as it is, and a task whose creator has no identity is skipped. The
    * tasks of a project two processes feed are not recorded. Mutation: drop the
    * shared-project check, the already-recorded check or the next page, and
-   * this test fails.
+   * this test fails. Each page is written in one transaction and the entity
+   * manager cleared after it. Mutation: write record by record, or drop the
+   * clear, and this test fails.
    *
    * @throws Exception never, the mocks throw nothing
    */
   @Test
-  public void theTasksOfAProjectFedByOneProcessAreRecordedAsItsRequests() throws Exception {
+  @SuppressWarnings("unchecked")
+  void theTasksOfAProjectFedByOneProcessAreRecordedAsItsRequests() throws Exception {
     when(workFlowDAO.findAll()).thenReturn(List.of(process(1L, 10L, 5L), process(2L, 20L, 5L), process(3L, 20L, 5L)));
     // Project 10: a full page, then a page of three tasks
     List<TaskDto> firstPage = LongStream.rangeClosed(1, ProcessesRequestUpgradePlugin.PAGE_SIZE)
@@ -127,13 +145,17 @@ public class ProcessesRequestUpgradePluginTest {
 
     plugin.processUpgrade("7.2.0", "7.3.0");
 
-    ArgumentCaptor<RequestEntity> created = ArgumentCaptor.forClass(RequestEntity.class);
-    verify(requestDAO, times(ProcessesRequestUpgradePlugin.PAGE_SIZE - 1 + 2)).create(created.capture());
-    Set<Long> recordedTasks = created.getAllValues().stream().map(RequestEntity::getTaskId).collect(Collectors.toSet());
-    assertEquals("the second page is read", true, recordedTasks.contains(503L));
-    assertEquals("an existing record is not rewritten", false, recordedTasks.contains(502L));
-    assertEquals("a creator with no identity is skipped", false, recordedTasks.contains(1L));
-    created.getAllValues().forEach(request -> {
+    ArgumentCaptor<List<RequestEntity>> pages = ArgumentCaptor.forClass(List.class);
+    verify(requestDAO, times(2)).createAll(pages.capture());
+    verify(requestDAO, never()).create(any(RequestEntity.class));
+    List<RequestEntity> created = pages.getAllValues().stream().flatMap(List::stream).toList();
+    assertEquals(ProcessesRequestUpgradePlugin.PAGE_SIZE - 1 + 2, created.size());
+    Set<Long> recordedTasks = created.stream().map(RequestEntity::getTaskId).collect(Collectors.toSet());
+    assertTrue(recordedTasks.contains(503L), "the second page is read");
+    assertFalse(recordedTasks.contains(502L), "an existing record is not rewritten");
+    assertFalse(recordedTasks.contains(1L), "a creator with no identity is skipped");
+    verify(entityManager, times(2)).clear();
+    created.forEach(request -> {
       assertEquals(Long.valueOf(1L), request.getWorkFlowId());
       assertEquals(Long.valueOf(31L), request.getCreatorId());
     });
@@ -147,11 +169,11 @@ public class ProcessesRequestUpgradePluginTest {
    * @throws Exception never, the mocks throw only where stubbed
    */
   @Test
-  public void aFailureToRecordARequestFailsTheUpgrade() throws Exception {
+  void aFailureToRecordARequestFailsTheUpgrade() throws Exception {
     when(workFlowDAO.findAll()).thenReturn(List.of(process(1L, 10L, 5L)));
     when(taskService.findTasks(any(TaskQuery.class), anyInt(), anyInt())).thenReturn(List.of(task(7L, "mary")));
     when(requestDAO.findWorkFlowIdsByTaskIds(any())).thenReturn(Map.of());
-    when(requestDAO.create(any(RequestEntity.class))).thenThrow(new IllegalStateException("database down"));
+    doThrow(new IllegalStateException("database down")).when(requestDAO).createAll(any());
 
     assertThrows(IllegalStateException.class, () -> plugin.processUpgrade("7.2.0", "7.3.0"));
   }
@@ -163,7 +185,7 @@ public class ProcessesRequestUpgradePluginTest {
    * and this test fails.
    */
   @Test
-  public void aProcessWithNoSpaceTakesTheSpaceItsParticipantsName() {
+  void aProcessWithNoSpaceTakesTheSpaceItsParticipantsName() {
     Space hr = new Space();
     hr.setId("8");
     when(spaceService.getSpaceByGroupId("/spaces/hr")).thenReturn(hr);
@@ -183,8 +205,8 @@ public class ProcessesRequestUpgradePluginTest {
     verify(workFlowDAO).update(legacy);
     verify(workFlowDAO, never()).update(withSpace);
     verify(workFlowDAO, never()).update(orphan);
-    verify(requestDAO, never()).create(any(RequestEntity.class));
-    verify(identityManager, never()).getIdentity(anyLong());
+    verify(requestDAO, never()).createAll(any());
+    verify(identityManager, never()).getOrCreateUserIdentity(any());
   }
 
   /**
@@ -196,7 +218,7 @@ public class ProcessesRequestUpgradePluginTest {
    * @throws Exception never, the mocks throw nothing
    */
   @Test
-  public void aProcessTakesTheSpaceItsProjectIsAttachedTo() throws Exception {
+  void aProcessTakesTheSpaceItsProjectIsAttachedTo() throws Exception {
     Space hr = new Space();
     hr.setId("8");
     hr.setGroupId("/spaces/hr");

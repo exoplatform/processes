@@ -444,7 +444,7 @@ public class ProcessesServiceImpl implements ProcessesService {
    * {@inheritDoc}
    */
   @Override
-  public long countRequests(long workFlowId, boolean completed, long userIdentityId) throws ObjectNotFoundException,
+  public long countRequests(long workFlowId, Boolean completed, long userIdentityId) throws ObjectNotFoundException,
                                                                                     IllegalAccessException {
     org.exoplatform.services.security.Identity aclIdentity = getAclIdentity(userIdentityId);
     WorkFlow workFlow = processesStorage.getWorkFlowById(workFlowId, userIdentityId);
@@ -454,7 +454,7 @@ public class ProcessesServiceImpl implements ProcessesService {
     if (!canCountRequests(aclIdentity, workFlow)) {
       throw new IllegalAccessException("User " + userIdentityId + " can't count the requests of the process " + workFlowId);
     }
-    return processesStorage.countRequests(workFlowId, completed);
+    return completed == null ? processesStorage.countRequests(workFlowId) : processesStorage.countRequests(workFlowId, completed);
   }
 
   /**

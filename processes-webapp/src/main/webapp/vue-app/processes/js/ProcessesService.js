@@ -260,14 +260,15 @@ export function getProjectLabels(projectId, spaceId) {
 }
 
 /**
- * Counts the open or completed requests of a process, whatever task project they are in.
+ * Counts the requests of a process, open, completed or all, whatever task project they are in.
  *
  * @param {Number} workflowId the process id
- * @param {Boolean} completed true to count the completed requests, false the open ones
+ * @param {Boolean} [isCompleted] true to count the completed requests, false the open ones, left out to count them all
  * @return {Promise} the count as text
  */
-export function countRequests(workflowId, completed) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workflows/${workflowId}/requests/count?completed=${!!completed}`, {
+export function countRequests(workflowId, isCompleted) {
+  const query = isCompleted === undefined || isCompleted === null ? '' : `?isCompleted=${!!isCompleted}`;
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workflows/${workflowId}/requests/count${query}`, {
     method: 'GET',
     credentials: 'include',
   }).then(resp => {

@@ -1533,7 +1533,8 @@ public class ProcessesServiceImplTest {
    * The request counts of a process are given to a processes administrator, a
    * user who can edit it and a member of its stored managing space, and
    * refused to anyone else; an unknown process is not found. The count is the
-   * process's requests in the asked state. Mutation: drop one of the three
+   * process's requests in the asked state, or all of them when no state is
+   * asked: 2 open and 1 completed answer 2 for the card and 3 for the editor. Mutation: drop one of the three
    * grants, read the space from the project instead of the stored one, or drop
    * the gate, and this test fails.
    *
@@ -1547,8 +1548,9 @@ public class ProcessesServiceImplTest {
     hr.setGroupId(PROCESS_SPACE_GROUP);
     when(spaceService.getSpaceById("8")).thenReturn(hr);
     when(spaceService.isMember(hr, "participant")).thenReturn(true);
-    when(processesStorage.countRequests(WORKFLOW_ID, false)).thenReturn(4L);
-    when(processesStorage.countRequests(WORKFLOW_ID, true)).thenReturn(9L);
+    when(processesStorage.countRequests(WORKFLOW_ID, false)).thenReturn(2L);
+    when(processesStorage.countRequests(WORKFLOW_ID, true)).thenReturn(1L);
+    when(processesStorage.countRequests(WORKFLOW_ID)).thenReturn(3L);
     for (long userId : Arrays.asList(PROCESSES_ADMIN_ID, PROJECT_MANAGER_ID, PARTICIPANT_ID, NON_MEMBER_ID)) {
       WorkFlow read = new WorkFlow();
       read.setId(WORKFLOW_ID);
@@ -1558,9 +1560,10 @@ public class ProcessesServiceImplTest {
       when(processesStorage.getWorkFlowById(WORKFLOW_ID, userId)).thenReturn(read);
     }
 
-    assertEquals(4L, processesService.countRequests(WORKFLOW_ID, false, PROCESSES_ADMIN_ID));
-    assertEquals(9L, processesService.countRequests(WORKFLOW_ID, true, PROJECT_MANAGER_ID));
-    assertEquals(4L, processesService.countRequests(WORKFLOW_ID, false, PARTICIPANT_ID));
+    assertEquals(2L, processesService.countRequests(WORKFLOW_ID, false, PROCESSES_ADMIN_ID));
+    assertEquals(1L, processesService.countRequests(WORKFLOW_ID, true, PROJECT_MANAGER_ID));
+    assertEquals(2L, processesService.countRequests(WORKFLOW_ID, false, PARTICIPANT_ID));
+    assertEquals(3L, processesService.countRequests(WORKFLOW_ID, null, PROJECT_MANAGER_ID));
     assertThrows(IllegalAccessException.class, () -> processesService.countRequests(WORKFLOW_ID, false, NON_MEMBER_ID));
     assertThrows(ObjectNotFoundException.class, () -> processesService.countRequests(UNKNOWN_ID, false, PROCESSES_ADMIN_ID));
     verify(processesStorage, times(3)).countRequests(anyLong(), anyBoolean());
