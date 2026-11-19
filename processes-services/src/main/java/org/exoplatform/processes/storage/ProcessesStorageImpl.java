@@ -83,7 +83,7 @@ import org.exoplatform.processes.constant.ProcessesEvents;
 import org.exoplatform.processes.model.ProcessDeletion;
 import java.util.Objects;
 import org.exoplatform.processes.model.ProjectMoveState;
-import org.exoplatform.processes.model.TaskMoveResult;
+import org.exoplatform.processes.constant.TaskMoveResult;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.IdentityConstants;
 
@@ -1495,13 +1495,13 @@ public class ProcessesStorageImpl implements ProcessesStorage {
 
   /**
    * {@inheritDoc} One query: the request records restrict it with a correlated
-   * EXISTS, so no list of ids is bound.
+   * EXISTS, so no list of ids is bound; a task with no status or no project is
+   * outside the project.
    */
   @Override
   public long countRequestsOutsideProject(long workFlowId, long projectId) {
     TaskQuery taskQuery = requestsQuery(workFlowId);
-    taskQuery.add(new PredicateCondition<Task>((cb, query, root) -> cb.notEqual(root.get("status").get("project").<Long> get("id"),
-                                                                                projectId)));
+    taskQuery.add(new PredicateCondition<Task>((cb, query, root) -> RequestDAO.outsideProject(cb, root, projectId)));
     try {
       return taskService.countTasks(taskQuery);
     } catch (Exception e) {

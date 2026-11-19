@@ -21,6 +21,7 @@ import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
 
@@ -33,7 +34,7 @@ import org.exoplatform.container.xml.ValueParam;
 import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.processes.model.ProjectMovePass;
 import org.exoplatform.processes.model.ProjectMoveState;
-import org.exoplatform.processes.model.TaskMoveResult;
+import org.exoplatform.processes.constant.TaskMoveResult;
 import org.exoplatform.processes.storage.ProcessesStorage;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -59,10 +60,10 @@ import org.exoplatform.task.service.ProjectService;
  */
 public class ProcessesProjectMoveService implements Startable {
 
-  private static final Log           LOG                       = ExoLogger.getLogger(ProcessesProjectMoveService.class);
-
   /** The request records a pass reads at a time */
   static final int                   PAGE_SIZE                 = 100;
+
+  private static final Log           LOG                       = ExoLogger.getLogger(ProcessesProjectMoveService.class);
 
   private static final String        THREAD_NAME               = "processes-project-move";
 
@@ -89,6 +90,8 @@ public class ProcessesProjectMoveService implements Startable {
   private LongSupplier               monotonicClock            = System::nanoTime;
 
   private ScheduledExecutorService   executor;
+
+  private ScheduledFuture<?>         sweepFuture;
 
   /**
    * @param processesStorage the processes storage
@@ -133,7 +136,10 @@ public class ProcessesProjectMoveService implements Startable {
       thread.setDaemon(true);
       return thread;
     });
-    executor.scheduleWithFixedDelay(this::sweep, Math.min(60, sweepPeriodSeconds), sweepPeriodSeconds, TimeUnit.SECONDS);
+    sweepFuture = executor.scheduleWithFixedDelay(this::sweep,
+                                                  Math.min(60, sweepPeriodSeconds),
+                                                  sweepPeriodSeconds,
+                                                  TimeUnit.SECONDS);
   }
 
   /**
@@ -142,6 +148,9 @@ public class ProcessesProjectMoveService implements Startable {
    */
   @Override
   public void stop() {
+    if (sweepFuture != null) {
+      sweepFuture.cancel(false);
+    }
     if (executor != null) {
       executor.shutdownNow();
     }
@@ -387,6 +396,15 @@ public class ProcessesProjectMoveService implements Startable {
   long retryDelaySeconds(int attempts) {
     int exponent = Math.min(Math.max(attempts - 1, 0), 20);
     return Math.min(initialDelaySeconds * (1L << exponent), maxDelaySeconds);
+  }
+
+  /**
+   * Tells whether the sweep is scheduled on the move thread.
+   *
+   * @return true between {@link #start()} and {@link #stop()}
+   */
+  boolean isSweepScheduled() {
+    return sweepFuture != null && !sweepFuture.isDone();
   }
 
   /**

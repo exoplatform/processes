@@ -25,12 +25,15 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.after;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -133,6 +136,12 @@ class ProcessesProjectMoveTest {
 
   private ProcessesProjectMoveService       moveService;
 
+  private ProcessesStorageImpl              storage;
+
+  private IdentityManager                   identityManager;
+
+  private ListenerService                   listenerService;
+
   private long                              now        = NOW;
 
   private final Map<Long, TaskDto>          tasks      = new HashMap<>();
@@ -176,19 +185,21 @@ class ProcessesProjectMoveTest {
     labelService = mock(LabelService.class);
     userACL = mock(UserACL.class);
     when(userACL.getUserIdentity("john")).thenReturn(new Identity("john"));
-    ProcessesStorageImpl storage = new ProcessesStorageImpl(new WorkFlowDAO(),
-                                                            new WorkDraftDAO(),
-                                                            new RequestDAO(),
-                                                            taskService,
-                                                            projectService,
-                                                            statusService,
-                                                            mock(IdentityManager.class),
-                                                            mock(SpaceService.class),
-                                                            mock(ListenerService.class),
-                                                            mock(ProcessesAttachmentService.class),
-                                                            mock(FileService.class),
-                                                            userACL,
-                                                            labelService);
+    identityManager = mock(IdentityManager.class);
+    listenerService = mock(ListenerService.class);
+    storage = new ProcessesStorageImpl(new WorkFlowDAO(),
+                                       new WorkDraftDAO(),
+                                       new RequestDAO(),
+                                       taskService,
+                                       projectService,
+                                       statusService,
+                                       identityManager,
+                                       mock(SpaceService.class),
+                                       listenerService,
+                                       mock(ProcessesAttachmentService.class),
+                                       mock(FileService.class),
+                                       userACL,
+                                       labelService);
     moveService = new ProcessesProjectMoveService(storage, projectService, userACL, params());
     moveService.setClocks(() -> now, () -> 0L);
     // The woven transaction aspect finds the entity manager through the
@@ -222,9 +233,9 @@ class ProcessesProjectMoveTest {
     // The end of a pass counts the requests left outside the project
     when(taskService.countTasks(any(TaskQuery.class))).thenAnswer(invocation -> tasks.values()
                                                                                      .stream()
-                                                                                     .filter(task -> task.getStatus()
-                                                                                                         .getProject() != null
-                                                                                         && task.getStatus().getProject().getId() != TARGET_ID)
+                                                                                     .filter(task -> task.getStatus() == null
+                                                                                         || task.getStatus().getProject() == null
+                                                                                         || task.getStatus().getProject().getId() != TARGET_ID)
                                                                                      .count());
   }
 
@@ -272,7 +283,8 @@ class ProcessesProjectMoveTest {
     ArgumentCaptor<TaskDto> updated = ArgumentCaptor.forClass(TaskDto.class);
     verify(taskService, times(3)).updateTask(updated.capture());
     assertEquals(List.of(2001L, 2002L, 2001L), updated.getAllValues().stream().map(task -> task.getStatus().getId()).toList());
-    assertTrue(updated.getAllValues().stream().allMatch(task -> task.getStatus().getProject() == null), "Task rewrites the whole project only from a status that carries one");
+    assertTrue(updated.getAllValues().stream().allMatch(task -> task.getStatus().getProject() == null),
+               "the status handed to Task names only its id and name, which Task maps the task's status by");
     assertTrue(updated.getAllValues().get(1).isCompleted());
     assertEquals(List.of("john", "john", "john"), actors);
     assertTrue(pending());
@@ -504,6 +516,119 @@ class ProcessesProjectMoveTest {
     ArgumentCaptor<TaskDto> updated = ArgumentCaptor.forClass(TaskDto.class);
     verify(taskService, times(3)).updateTask(updated.capture());
     assertEquals(2040L, updated.getAllValues().get(2).getStatus().getId());
+  }
+
+  /**
+   * A request update racing the move, its task still in the former project,
+   * sends the task to the process's stored project, its former labels removed
+   * first, then applies the update there; the request status is the stored
+   * project's column of that name. Mutation: drop the move from the request
+   * update, or move the task to the project it is in, and the task stays in
+   * the former project.
+   *
+   * @throws Exception on a read failure
+   */
+  @Test
+  void aRequestUpdateRacingTheMoveSendsItsTaskToTheStoredProject() throws Exception {
+    request(101L, "Request", false);
+    LabelDto label = new LabelDto();
+    label.setId(7L);
+    when(labelService.findLabelsByTask(any(TaskDto.class), eq(FORMER_ID), any(Identity.class), anyInt(), anyInt())).thenReturn(List.of(label));
+    ConversationState.setCurrent(new ConversationState(new Identity("mary")));
+
+    storage.updateWorkCompleted(101L, true);
+
+    InOrder order = inOrder(labelService, taskService);
+    order.verify(labelService).removeTaskFromLabel(any(TaskDto.class), eq(7L));
+    order.verify(taskService, times(2)).updateTask(any(TaskDto.class));
+    assertEquals(TARGET_ID, tasks.get(101L).getStatus().getProject().getId());
+    assertEquals(2001L, tasks.get(101L).getStatus().getId());
+
+    request(102L, "Request", false);
+    org.exoplatform.social.core.identity.model.Identity mary =
+                                                             new org.exoplatform.social.core.identity.model.Identity("organization",
+                                                                                                                     "mary");
+    mary.setId("5");
+    when(identityManager.getIdentity(5L)).thenReturn(mary);
+    org.exoplatform.processes.model.Work update = new org.exoplatform.processes.model.Work();
+    update.setId(102L);
+    update.setTitle("Leave");
+    update.setDescription("d");
+    update.setStatus("Validated");
+    update.setProjectId(FORMER_ID);
+    storage.saveWork(update, 5L);
+    ArgumentCaptor<TaskDto> updated = ArgumentCaptor.forClass(TaskDto.class);
+    verify(taskService, times(4)).updateTask(updated.capture());
+    assertEquals(2002L, updated.getValue().getStatus().getId());
+  }
+
+  /**
+   * A request update whose process's stored project was deleted in Tasks
+   * leaves the task in its project and applies the update there. Mutation:
+   * let the move's failure escape and the update fails.
+   *
+   * @throws Exception on a read failure
+   */
+  @Test
+  void aRequestUpdateWithTheStoredProjectDeletedLeavesTheTaskInPlace() throws Exception {
+    request(101L, "Request", false);
+    when(projectService.getProject(TARGET_ID)).thenThrow(new EntityNotFoundException(TARGET_ID, ProjectDto.class));
+
+    storage.updateWorkCompleted(101L, true);
+
+    ArgumentCaptor<TaskDto> updated = ArgumentCaptor.forClass(TaskDto.class);
+    verify(taskService).updateTask(updated.capture());
+    assertTrue(updated.getValue().isCompleted());
+    assertEquals(FORMER_ID, updated.getValue().getStatus().getProject().getId());
+    verify(labelService, never()).removeTaskFromLabel(any(TaskDto.class), anyLong());
+  }
+
+  /**
+   * A pass whose end fails releases its claim and removes its conversation
+   * state, and leaves the flag for the next sweep. Mutation: release the claim
+   * only on a normal end and the claim stays held until its lease expires.
+   *
+   * @throws Exception on a read failure
+   */
+  @Test
+  void aPassWhoseEndFailsReleasesItsClaimAndKeepsTheFlag() throws Exception {
+    request(101L, "Request", false);
+    when(taskService.countTasks(any(TaskQuery.class))).thenThrow(new IllegalStateException("count"));
+
+    moveService.runMove(1L);
+
+    assertNull(stringValue("MOVE_OWNER"));
+    assertNull(ConversationState.getCurrent());
+    assertTrue(pending());
+    assertEquals(List.of(1L), moveService.getDueMoves());
+  }
+
+  /**
+   * The move thread starts with its sweep scheduled, hands a submitted move to
+   * a pass, survives a sweep whose read fails, and once stopped hands nothing
+   * over. Mutation: schedule no sweep in start() and it is not scheduled; let a
+   * sweep failure escape and the sweep throws.
+   */
+  @Test
+  void theMoveThreadSchedulesItsSweepAndStopsHandingMovesOver() {
+    ProcessesProjectMoveService thread = org.mockito.Mockito.spy(moveService);
+    doAnswer(invocation -> null).when(thread).runMove(anyLong());
+    doReturn(List.of(3L)).when(thread).getDueMoves();
+    thread.start();
+    try {
+      assertTrue(thread.isSweepScheduled());
+      thread.submitMove(1L);
+      verify(thread, timeout(5000)).runMove(1L);
+      thread.sweep();
+      verify(thread, timeout(5000)).runMove(3L);
+      doThrow(new IllegalStateException("sweep")).when(thread).getDueMoves();
+      thread.sweep();
+    } finally {
+      thread.stop();
+    }
+    assertFalse(thread.isSweepScheduled());
+    thread.submitMove(2L);
+    verify(thread, after(300).never()).runMove(2L);
   }
 
   /**

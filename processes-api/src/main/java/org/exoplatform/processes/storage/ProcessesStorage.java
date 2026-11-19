@@ -22,6 +22,7 @@ import java.util.Map;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.file.services.FileStorageException;
+import org.exoplatform.processes.constant.TaskMoveResult;
 import org.exoplatform.processes.model.*;
 import org.exoplatform.services.attachments.model.Attachment;
 import org.exoplatform.social.core.identity.model.Identity;
