@@ -51,6 +51,7 @@ import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.dao.condition.AggregateCondition;
 import org.exoplatform.task.dao.condition.Condition;
 import org.exoplatform.task.dao.condition.PredicateCondition;
+import org.exoplatform.task.dao.condition.SingleCondition;
 import org.exoplatform.task.domain.Task;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.service.TaskService;
@@ -192,6 +193,30 @@ public class ProcessesStorageRequestReadsTest {
     List<Condition> conditions = conditions(query.getValue());
     assertEquals(1, conditions.size());
     assertFalse(conditions.get(0) instanceof AggregateCondition);
+  }
+
+  /**
+   * The open or completed requests of a process are counted through the Task
+   * add-on's count, restricted to the process's requests and to that state.
+   * Mutation: drop the state, or the restriction, and this test fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  public void theOpenRequestsAreCountedThroughTheirTasks() throws Exception {
+    when(taskService.countTasks(any(TaskQuery.class))).thenReturn(2);
+
+    assertEquals(2L, processesStorage.countRequests(7L, false));
+
+    ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
+    verify(taskService).countTasks(query.capture());
+    List<Condition> conditions = conditions(query.getValue());
+    assertEquals(2, conditions.size());
+    assertTrue(conditions.stream().anyMatch(PredicateCondition.class::isInstance));
+    assertTrue("only the open requests",
+               conditions.stream()
+                         .anyMatch(condition -> condition instanceof SingleCondition<?> single
+                                                && SingleCondition.IS_FALSE.equals(single.getType())));
   }
 
   /**

@@ -151,10 +151,11 @@ class RequestNotificationListenersTest {
 
   /**
    * A comment's notification names the request's own process, not the first
-   * process of a shared project; a request with no record, or a record naming
-   * no process, names that first process.
+   * process of a shared project; a comment on a task with no record, or a
+   * record naming no process, notifies nobody, since only a task a process
+   * created is a request.
    * Mutants: the project's first process named for a recorded request, no id
-   * appended, or a zero id read as a process.
+   * appended, or a task with no record notified.
    *
    * @throws Exception never, the services are mocks
    */
@@ -174,20 +175,14 @@ class RequestNotificationListenersTest {
     assertEquals("Expenses", ctx.value(NotificationArguments.REQUEST_PROCESS));
     assertEquals("8", ctx.value(NotificationArguments.WORKFLOW_ID));
 
-    NotificationContext unrecorded = new RequestCommentNotificationListener(mock(org.exoplatform.portal.config.UserACL.class), processesService).buildContext(new Event<>("comment",
-                                                                                                                             task(4L),
-                                                                                                                             comment));
-    assertEquals("Leave", unrecorded.value(NotificationArguments.REQUEST_PROCESS));
-    assertEquals("7", unrecorded.value(NotificationArguments.WORKFLOW_ID));
+    assertNull("a comment on a task created in Tasks notifies nobody",
+               new RequestCommentNotificationListener(mock(org.exoplatform.portal.config.UserACL.class),
+                                                      processesService).buildContext(new Event<>("comment", task(4L), comment)));
 
     // A record naming no process (id 0) is read as no record
     when(processesService.getRequestWorkFlowId(5L)).thenReturn(0L);
-    NotificationContext noProcess = new RequestCommentNotificationListener(mock(org.exoplatform.portal.config.UserACL.class),
-                                                                           processesService).buildContext(new Event<>("comment",
-                                                                                                                      task(5L),
-                                                                                                                      comment));
-    assertEquals("Leave", noProcess.value(NotificationArguments.REQUEST_PROCESS));
-    assertEquals("7", noProcess.value(NotificationArguments.WORKFLOW_ID));
+    assertNull(new RequestCommentNotificationListener(mock(org.exoplatform.portal.config.UserACL.class),
+                                                      processesService).buildContext(new Event<>("comment", task(5L), comment)));
   }
 
   /**

@@ -67,12 +67,16 @@ public class CancelRequestPluginTest {
     receivers.add("user1");
     receivers.add("user2");
     ctx.append(NotificationArguments.PROCESS_URL, "http://exoplatfrom.com/dw/tasks/projectDetail/1");
-    NOTIFICATION_UTILS.when(() -> NotificationUtils.getReceivers(1l, "root", true)).thenReturn(receivers);
+    NOTIFICATION_UTILS.when(() -> NotificationUtils.getReceivers(null, 1L, "root", true)).thenReturn(receivers);
+    // A notification that names its process reaches that process's recipients
+    NOTIFICATION_UTILS.when(() -> NotificationUtils.getReceivers("5", 1L, "root", true)).thenReturn(List.of("user3"));
     NotificationInfo notificationInfo = cancelRequestPlugin.makeNotification(ctx);
     // The process id goes with the notification, so that each recipient
     // reads the process title in their own language
     ctx.append(NotificationArguments.WORKFLOW_ID, "5");
-    assertEquals("5", cancelRequestPlugin.makeNotification(ctx).getValueOwnerParameter(NotificationArguments.WORKFLOW_ID.getKey()));
+    NotificationInfo namedNotification = cancelRequestPlugin.makeNotification(ctx);
+    assertEquals("5", namedNotification.getValueOwnerParameter(NotificationArguments.WORKFLOW_ID.getKey()));
+    assertEquals(List.of("user3"), namedNotification.getSendToUserIds());
     assertEquals("root", notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_CREATOR.getKey()));
     assertEquals("http://exoplatfrom.com/dw/tasks/projectDetail/1",
                  notificationInfo.getValueOwnerParameter(NotificationArguments.PROCESS_URL.getKey()));

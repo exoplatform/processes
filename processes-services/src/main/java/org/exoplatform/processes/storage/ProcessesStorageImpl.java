@@ -269,6 +269,20 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    * {@inheritDoc}
    */
   @Override
+  public long countRequests(long workFlowId, boolean completed) {
+    TaskQuery taskQuery = requestsQuery(workFlowId);
+    taskQuery.setCompleted(completed);
+    try {
+      return taskService.countTasks(taskQuery);
+    } catch (Exception e) {
+      throw new IllegalStateException("The request tasks of the process " + workFlowId + " could not be counted", e);
+    }
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
   public Predicate requestOf(CriteriaBuilder cb,
                              CommonAbstractCriteria query,
                              Expression<Long> taskId,
@@ -588,15 +602,15 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   }
 
   /**
-   * {@inheritDoc} Each request names the process it was created for, from its
-   * request record, whichever processes share its project.
+   * {@inheritDoc} Only the tasks a process created are listed, whatever
+   * project they are in now: a task created in Tasks, in a project processes
+   * feed, is not a request. Each request names the process it was created
+   * for, from its request record, whichever processes share its project.
    */
   @Override
   public List<Work> getWorks(long userIdentityId, WorkFilter workFilter, int offset, int limit) throws Exception {
-    List<WorkFlow> workFlows = findAllWorkFlows(0, 0);
-    List<Long> projectsIds = workFlows.stream().map(WorkFlow::getProjectId).collect(Collectors.toList());
     TaskQuery taskQuery = new TaskQuery();
-    taskQuery.setProjectIds(projectsIds);
+    taskQuery.add(new PredicateCondition<Task>((cb, query, root) -> RequestDAO.isRequest(cb, query, root.<Long> get("id"))));
     if (workFilter.getStatus() != null) {
       taskQuery.setStatusName(workFilter.getStatus());
     }
@@ -1162,9 +1176,14 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     List<WorkStatus> statuses = new ArrayList<>();
     List<WorkFlow> workFlows = findAllWorkFlows(0, 0);
     List<Long> projectsIds = workFlows.stream().map(WorkFlow::getProjectId).collect(Collectors.toList());
-    projectsIds.forEach(projectId -> statuses.addAll(EntityMapper.toWorkStatuses(statusService.getStatuses(projectId))));
+    // A project several processes feed is read once, and a status name is
+    // listed once, at its lowest rank
+    projectsIds.stream()
+               .distinct()
+               .forEach(projectId -> statuses.addAll(EntityMapper.toWorkStatuses(statusService.getStatuses(projectId))));
     statuses.sort(Comparator.comparing(WorkStatus::getRank));
-    return statuses;
+    Set<String> names = new HashSet<>();
+    return statuses.stream().filter(status -> names.add(status.getName())).collect(Collectors.toList());
   }
 
   /**

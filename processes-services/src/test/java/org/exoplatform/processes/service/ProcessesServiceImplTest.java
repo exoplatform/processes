@@ -82,6 +82,9 @@ public class ProcessesServiceImplTest {
 
   private static final long      NON_PROCESS_TASK_ID = 200L;
 
+  /** A task created in Tasks, in the project the process feeds. */
+  private static final long      PLAIN_TASK_ID       = 201L;
+
   private static final long      DECIDED_WORK_ID     = 101L;
 
   private static final long      UNKNOWN_ID          = 999L;
@@ -211,6 +214,11 @@ public class ProcessesServiceImplTest {
     processWorkFlow.setEnabled(true);
     when(processesStorage.getWorkFlowByProjectId(PROCESS_PROJECT_ID)).thenReturn(processWorkFlow);
     when(processesStorage.getWorkFlowByProjectId(OTHER_PROJECT_ID)).thenReturn(null);
+    // Every stored task is a request of the process but the plain tasks
+    when(processesStorage.getRequestWorkFlowId(anyLong())).thenReturn(WORKFLOW_ID);
+    when(processesStorage.getRequestWorkFlowId(NON_PROCESS_TASK_ID)).thenReturn(null);
+    when(processesStorage.getRequestWorkFlowId(PLAIN_TASK_ID)).thenReturn(null);
+    when(processesStorage.getWorkById(PLAIN_TASK_ID)).thenReturn(storedWork(PLAIN_TASK_ID, PROCESS_PROJECT_ID));
 
     when(processesStorage.getWorkById(WORK_ID)).thenReturn(storedWork(WORK_ID, PROCESS_PROJECT_ID));
     when(processesStorage.getWorkById(NON_PROCESS_TASK_ID)).thenReturn(storedWork(NON_PROCESS_TASK_ID, OTHER_PROJECT_ID));
@@ -1505,6 +1513,53 @@ public class ProcessesServiceImplTest {
     verify(processesStorage, times(0)).getIllustrationImageById(1L);
     processesService.getIllustrationImageById(1L);
     verify(processesStorage, times(1)).getIllustrationImageById(1L);
+  }
+
+  /**
+   * A task created in Tasks, in the project a process feeds, is not one of its
+   * requests: even its creator or a processes administrator can't complete or
+   * delete it through processes. Mutation: read « is a request » from the
+   * task's project again and this test fails.
+   */
+  @Test
+  public void aPlainTaskOfAProcessProjectIsNotARequest() {
+    assertThrows(IllegalAccessException.class, () -> processesService.updateWorkCompleted(PLAIN_TASK_ID, true, PROCESSES_ADMIN_ID));
+    assertThrows(IllegalAccessException.class, () -> processesService.deleteWorkById(PLAIN_TASK_ID, CREATOR_ID));
+    verify(processesStorage, never()).updateWorkCompleted(anyLong(), anyBoolean());
+    verify(processesStorage, never()).deleteWorkById(anyLong());
+  }
+
+  /**
+   * The request counts of a process are given to a processes administrator, a
+   * user who can edit it and a member of its project's space, and refused to
+   * anyone else; an unknown process is not found. The count is the process's
+   * requests in the asked state. Mutation: drop one of the three grants, or
+   * the gate, and this test fails.
+   *
+   * @throws Exception never, the mocks throw only where stubbed
+   */
+  @Test
+  public void theRequestCountsOfAProcessAreGivenToWhoSeesItsPendingRequests() throws Exception {
+    Space hr = new Space();
+    hr.setGroupId(PROCESS_SPACE_GROUP);
+    when(spaceService.getSpaceByGroupId(PROCESS_SPACE_GROUP)).thenReturn(hr);
+    when(spaceService.isMember(hr, "participant")).thenReturn(true);
+    when(processesStorage.countRequests(WORKFLOW_ID, false)).thenReturn(4L);
+    when(processesStorage.countRequests(WORKFLOW_ID, true)).thenReturn(9L);
+    for (long userId : Arrays.asList(PROCESSES_ADMIN_ID, PROJECT_MANAGER_ID, PARTICIPANT_ID, NON_MEMBER_ID)) {
+      WorkFlow read = new WorkFlow();
+      read.setId(WORKFLOW_ID);
+      read.setProjectId(PROCESS_PROJECT_ID);
+      read.setAcl(new ProcessPermission(userId == PROJECT_MANAGER_ID, userId == PROJECT_MANAGER_ID, false, true));
+      when(processesStorage.getWorkFlowById(WORKFLOW_ID, userId)).thenReturn(read);
+    }
+
+    assertEquals(4L, processesService.countRequests(WORKFLOW_ID, false, PROCESSES_ADMIN_ID));
+    assertEquals(9L, processesService.countRequests(WORKFLOW_ID, true, PROJECT_MANAGER_ID));
+    assertEquals(4L, processesService.countRequests(WORKFLOW_ID, false, PARTICIPANT_ID));
+    assertThrows(IllegalAccessException.class, () -> processesService.countRequests(WORKFLOW_ID, false, NON_MEMBER_ID));
+    assertThrows(ObjectNotFoundException.class, () -> processesService.countRequests(UNKNOWN_ID, false, PROCESSES_ADMIN_ID));
+    verify(processesStorage, times(3)).countRequests(anyLong(), anyBoolean());
   }
 
   /**

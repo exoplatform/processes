@@ -259,13 +259,20 @@ export function getProjectLabels(projectId, spaceId) {
   });
 }
 
-export function countWorksByWorkflow(workflowId, isCompleted) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/countWorks/${workflowId}?isCompleted=${isCompleted}`, {
+/**
+ * Counts the open or completed requests of a process, whatever task project they are in.
+ *
+ * @param {Number} workflowId the process id
+ * @param {Boolean} completed true to count the completed requests, false the open ones
+ * @return {Promise} the count as text
+ */
+export function countRequests(workflowId, completed) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workflows/${workflowId}/requests/count?completed=${!!completed}`, {
     method: 'GET',
     credentials: 'include',
   }).then(resp => {
     if (!resp || !resp.ok) {
-      throw new Error('Error while getting works count');
+      throw new Error('Error while counting the requests of a process');
     } else {
       return resp.text();
     }

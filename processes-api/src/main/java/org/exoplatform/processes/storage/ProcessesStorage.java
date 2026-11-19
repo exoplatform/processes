@@ -381,6 +381,17 @@ public interface ProcessesStorage {
   long countRequests(long workFlowId);
 
   /**
+   * Counts the requests of a process whose task still exists and is, or is
+   * not, completed, whatever project the task is in. It is the platform's own
+   * read, with no user's permission.
+   *
+   * @param workFlowId the process id
+   * @param completed true to count the completed requests, false the open ones
+   * @return the number of request tasks of the process in that state
+   */
+  long countRequests(long workFlowId, boolean completed);
+
+  /**
    * Builds the restriction of a query to the tasks that are requests of some
    * processes. See
    * {@link org.exoplatform.processes.service.ProcessesService#requestOf}.

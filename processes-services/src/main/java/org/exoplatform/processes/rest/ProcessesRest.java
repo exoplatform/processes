@@ -607,19 +607,34 @@ public class ProcessesRest implements ResourceContainer {
     }
   }
 
+  /**
+   * Counts the open or completed requests of the process that a task project
+   * feeds, the one of lowest id when several do, for a user who may see them.
+   *
+   * @param projectId the task project id
+   * @param isCompleted whether to count the completed requests or the open ones
+   * @return the count as text, or the refusal status
+   * @deprecated a task project may be fed by several processes: use
+   *             {@link #countRequests(Long, boolean)}. Since 7.3.0.50, for
+   *             removal.
+   */
+  @Deprecated(since = "7.3.0.50", forRemoval = true)
   @GET
   @Produces(MediaType.TEXT_PLAIN)
   @RolesAllowed("users")
   @Path("/countWorks/{projectId}")
   @Operation(
-          summary = "Count tasks by completed and uncompleted status",
-          description = "Count tasks by completed and uncompleted status",
-          method = "GET")
+          summary = "Count the requests of the process of a task project by completed and uncompleted status",
+          description = "Deprecated: use GET /workflows/{workflowId}/requests/count. Counts the requests of the process of lowest id the project feeds, for a user who may see them",
+          method = "GET",
+          deprecated = true)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Request fulfilled"),
           @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "403", description = "Forbidden operation"),
           @ApiResponse(responseCode = "404", description = "Object not found"),
           @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
           @ApiResponse(responseCode = "500", description = "Internal server error"),})
+  @SuppressWarnings("removal")
   public Response countWorksByWorkflow(@Parameter(description = "Tasks project id", required = true)
                                        @PathParam("projectId") Long projectId,
                                        @Parameter(description = "Processes properties to expand.")
@@ -628,21 +643,76 @@ public class ProcessesRest implements ResourceContainer {
     if (currentIdentityId == 0) {
       return Response.status(Response.Status.UNAUTHORIZED).build();
     }
-    if (projectId == null) {
+    if (projectId == null || isCompleted == null) {
       return Response.status(Response.Status.BAD_REQUEST).entity("Project id is mandatory").build();
     }
+    WorkFlow workFlow = processesService.getWorkFlowByProjectId(projectId);
+    if (workFlow == null) {
+      return Response.status(Response.Status.NOT_FOUND).entity("workflow not found").build();
+    }
+    return countRequests(workFlow.getId(), isCompleted, currentIdentityId);
+  }
+
+  /**
+   * Counts the open or completed requests of a process, whatever project their
+   * task is in, for a processes administrator, a user who can edit the process
+   * or a user who sees its pending requests.
+   *
+   * @param workflowId the process id
+   * @param completed whether to count the completed requests or the open ones
+   * @return the count as text, or the refusal status
+   */
+  @GET
+  @Produces(MediaType.TEXT_PLAIN)
+  @RolesAllowed("users")
+  @Path("/workflows/{workflowId}/requests/count")
+  @Operation(
+          summary = "Counts the open or completed requests of a process",
+          description = "Counts the requests a process created, open or completed, whatever task project they are in, for a processes administrator, a user who can edit the process or a member of its managing space",
+          method = "GET")
+  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "403", description = "Forbidden operation"),
+          @ApiResponse(responseCode = "404", description = "Object not found"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"),})
+  public Response countRequests(@Parameter(description = "Process id", required = true)
+                                @PathParam("workflowId") Long workflowId,
+                                @Parameter(description = "true to count the completed requests, false the open ones")
+                                @QueryParam("completed") @DefaultValue("false") boolean completed) {
+    long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    if (currentIdentityId == 0) {
+      return Response.status(Response.Status.UNAUTHORIZED).build();
+    }
+    if (workflowId == null) {
+      return Response.status(Response.Status.BAD_REQUEST).entity("Process id is mandatory").build();
+    }
+    return countRequests(workflowId, completed, currentIdentityId);
+  }
+
+  /**
+   * Answers the request count of a process for a user, or the refusal status.
+   *
+   * @param workflowId the process id
+   * @param completed whether to count the completed requests or the open ones
+   * @param currentIdentityId the identity id of the user asking
+   * @return the count as text, 403 or 404
+   */
+  private Response countRequests(long workflowId, boolean completed, long currentIdentityId) {
     try {
-      WorkFlow workFlow = processesService.getWorkFlowByProjectId(projectId);
-      if (workFlow == null) {
-        return Response.status(Response.Status.NOT_FOUND).entity("workflow not found").build();
-      }
-      int worksCount = processesService.countWorksByWorkflow(projectId, isCompleted);
-      return Response.ok(String.valueOf(worksCount)).type(MediaType.TEXT_PLAIN).build();
+      long count = processesService.countRequests(workflowId, completed, currentIdentityId);
+      return Response.ok(String.valueOf(count)).type(MediaType.TEXT_PLAIN).cacheControl(PER_USER_CACHE_CONTROL).build();
+    } catch (ObjectNotFoundException e) {
+      return Response.status(Response.Status.NOT_FOUND).build();
+    } catch (IllegalAccessException e) {
+      LOG.debug("User '{}' isn't allowed to count the requests of the process '{}'", currentIdentityId, workflowId, e);
+      return Response.status(Response.Status.FORBIDDEN).build();
     } catch (Exception e) {
-      LOG.error("Error while getting works count", e);
+      LOG.error("Error while counting the requests of the process '{}'", workflowId, e);
       return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
     }
   }
+
   @DELETE
   @Produces(MediaType.TEXT_PLAIN)
   @RolesAllowed("users")

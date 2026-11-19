@@ -444,6 +444,43 @@ public class ProcessesServiceImpl implements ProcessesService {
    * {@inheritDoc}
    */
   @Override
+  public long countRequests(long workFlowId, boolean completed, long userIdentityId) throws ObjectNotFoundException,
+                                                                                    IllegalAccessException {
+    org.exoplatform.services.security.Identity aclIdentity = getAclIdentity(userIdentityId);
+    WorkFlow workFlow = processesStorage.getWorkFlowById(workFlowId, userIdentityId);
+    if (workFlow == null) {
+      throw new ObjectNotFoundException("Process " + workFlowId + " not found");
+    }
+    if (!canCountRequests(aclIdentity, workFlow)) {
+      throw new IllegalAccessException("User " + userIdentityId + " can't count the requests of the process " + workFlowId);
+    }
+    return processesStorage.countRequests(workFlowId, completed);
+  }
+
+  /**
+   * Tells whether a user may read the request counts of a process: a
+   * processes administrator, a user who can edit the process, or a user who
+   * sees its pending requests in the process list, by the rule that list
+   * applies (a member of the space of its project, or a super manager of
+   * spaces).
+   *
+   * @param aclIdentity the user's security identity
+   * @param workFlow the process, read with the user's identity
+   * @return true when the user may read its request counts
+   */
+  private boolean canCountRequests(org.exoplatform.services.security.Identity aclIdentity, WorkFlow workFlow) {
+    if (isProcessesAdministrator(aclIdentity) || (workFlow.getAcl() != null && workFlow.getAcl().isCanEdit())) {
+      return true;
+    }
+    Space space = ProcessesUtils.getProjectParentSpace(projectService, spaceService, workFlow.getProjectId());
+    String userName = aclIdentity.getUserId();
+    return space != null && (spaceService.isSuperManager(userName) || spaceService.isMember(space, userName));
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
   public Long getManagingSpaceId(long workFlowId) {
     WorkFlow workFlow = processesStorage.getWorkFlowById(workFlowId, null);
     if (workFlow == null) {
@@ -1148,6 +1185,7 @@ public class ProcessesServiceImpl implements ProcessesService {
    * {@inheritDoc}
    */
   @Override
+  @Deprecated(since = "7.3.0.50", forRemoval = true)
   public int countWorksByWorkflow(Long projectId, Boolean isCompleted) throws Exception {
     if (projectId == null) {
       throw new IllegalArgumentException("Project Id is mandatory");
@@ -1598,7 +1636,9 @@ public class ProcessesServiceImpl implements ProcessesService {
     if (work == null) {
       throw new ObjectNotFoundException("Work " + workId + " not found");
     }
-    if (processesStorage.getWorkFlowByProjectId(work.getProjectId()) == null) {
+    // A task is a request only when a process created it: a task created in
+    // Tasks, in a project processes feed, is not one
+    if (processesStorage.getRequestWorkFlowId(workId) == null) {
       throw new IllegalAccessException("Task " + workId + " isn't a request of a process");
     }
     org.exoplatform.services.security.Identity aclIdentity = getAclIdentity(userIdentityId);

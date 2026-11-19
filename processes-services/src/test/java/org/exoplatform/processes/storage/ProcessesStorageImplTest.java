@@ -1179,6 +1179,84 @@ public class ProcessesStorageImplTest {
     verify(requestDAO, times(1)).findWorkFlowIdsByTaskIds(any());
   }
 
+  /**
+   * My requests lists the tasks a process created, whatever project they are
+   * in now: the query is restricted by the request records, not by the
+   * processes' projects, and still by the user as creator. Mutation: restore
+   * the project restriction, or drop the record restriction, and this test
+   * fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  @SuppressWarnings("unchecked")
+  public void myRequestsAreTheTasksAProcessCreatedWhateverTheirProject() throws Exception {
+    PROCESSES_UTILS.when(() -> ProcessesUtils.getUserNameByIdentityId(identityManager, 1L)).thenReturn("mary");
+    when(taskService.findTasks(any(TaskQuery.class), anyInt(), anyInt())).thenReturn(new ArrayList<>());
+    ENTITY_MAPPER.when(() -> EntityMapper.tasksToWorkList(any())).thenReturn(new ArrayList<>());
+
+    processesStorage.getWorks(1L, new WorkFilter(), 0, 10);
+
+    ArgumentCaptor<TaskQuery> captured = ArgumentCaptor.forClass(TaskQuery.class);
+    verify(taskService).findTasks(captured.capture(), eq(0), eq(10));
+    TaskQuery query = captured.getValue();
+    assertNull("no restriction to the processes' projects", query.getProjectIds());
+    List<org.exoplatform.task.dao.condition.PredicateCondition<org.exoplatform.task.domain.Task>> restrictions =
+        ((org.exoplatform.task.dao.condition.AggregateCondition) query.getCondition()).getConditions()
+                                                                                       .stream()
+                                                                                       .filter(org.exoplatform.task.dao.condition.PredicateCondition.class::isInstance)
+                                                                                       .map(condition -> (org.exoplatform.task.dao.condition.PredicateCondition<org.exoplatform.task.domain.Task>) condition)
+                                                                                       .toList();
+    assertEquals(1, restrictions.size());
+    jakarta.persistence.criteria.CriteriaBuilder cb = mock(jakarta.persistence.criteria.CriteriaBuilder.class);
+    jakarta.persistence.criteria.CriteriaQuery<?> criteria = mock(jakarta.persistence.criteria.CriteriaQuery.class,
+                                                                  org.mockito.Mockito.RETURNS_DEEP_STUBS);
+    jakarta.persistence.criteria.Root<org.exoplatform.task.domain.Task> root = mock(jakarta.persistence.criteria.Root.class);
+    restrictions.get(0).getBuilder().build(cb, criteria, root);
+    verify(cb).exists(any());
+    verify(root).get("id");
+  }
+
+  /**
+   * The statuses My requests filters by are listed once per name, at their
+   * lowest rank, and a project several processes feed is read once. Mutation:
+   * drop the deduplication and this test fails.
+   */
+  @Test
+  public void theStatusesOfSharedProjectsAreListedOncePerName() {
+    WorkFlowEntity first = new WorkFlowEntity();
+    WorkFlowEntity second = new WorkFlowEntity();
+    List<WorkFlowEntity> entities = List.of(first, second);
+    when(workFlowDAO.findAllWorkFlows(0, 0)).thenReturn(entities);
+    WorkFlow onboarding = new WorkFlow();
+    onboarding.setProjectId(1L);
+    WorkFlow leave = new WorkFlow();
+    leave.setProjectId(1L);
+    WorkFlow expenses = new WorkFlow();
+    expenses.setProjectId(2L);
+    ENTITY_MAPPER.when(() -> EntityMapper.fromWorkflowEntities(entities)).thenReturn(List.of(onboarding, leave, expenses));
+    List<StatusDto> sharedStatuses = List.of(mock(StatusDto.class));
+    List<StatusDto> otherStatuses = List.of(mock(StatusDto.class), mock(StatusDto.class));
+    when(statusService.getStatuses(1L)).thenReturn(sharedStatuses);
+    when(statusService.getStatuses(2L)).thenReturn(otherStatuses);
+    ENTITY_MAPPER.when(() -> EntityMapper.toWorkStatuses(sharedStatuses)).thenReturn(new ArrayList<>(List.of(workStatus(1L, "Request", 1))));
+    ENTITY_MAPPER.when(() -> EntityMapper.toWorkStatuses(otherStatuses))
+                 .thenReturn(new ArrayList<>(List.of(workStatus(5L, "Request", 1), workStatus(6L, "Validated", 3))));
+
+    List<WorkStatus> statuses = processesStorage.getAvailableWorkStatuses();
+
+    assertEquals(List.of("Request", "Validated"), statuses.stream().map(WorkStatus::getName).toList());
+    verify(statusService, times(1)).getStatuses(1L);
+  }
+
+  private static WorkStatus workStatus(long id, String name, int rank) {
+    WorkStatus status = new WorkStatus();
+    status.setId(id);
+    status.setName(name);
+    status.setRank(rank);
+    return status;
+  }
+
   @Test
   public void getAvailableWorkStatuses() {
     WorkFlow workFlow1 = new WorkFlow();
