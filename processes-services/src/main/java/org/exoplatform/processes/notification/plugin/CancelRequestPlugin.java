@@ -45,7 +45,8 @@ public class CancelRequestPlugin extends BaseNotificationPlugin {
     String requestUrl = notificationContext.value(NotificationArguments.REQUEST_URL);
     String requestTitle = notificationContext.value(NotificationArguments.REQUEST_TITLE);
     String workflowProjectId = notificationContext.value(NotificationArguments.WORKFLOW_PROJECT_ID);
-    List<String> receivers = NotificationUtils.getReceivers(Long.parseLong(workflowProjectId), requester, true);
+    String workflowId = notificationContext.value(NotificationArguments.WORKFLOW_ID);
+    List<String> receivers = NotificationUtils.getReceivers(workflowId, Long.parseLong(workflowProjectId), requester, true);
     NotificationInfo notificationInfo = NotificationInfo.instance()
                            .setFrom(requester)
                            .to(receivers)
@@ -58,7 +59,6 @@ public class CancelRequestPlugin extends BaseNotificationPlugin {
                            .end();
     // The process id, from which each recipient reads the process's title in
     // their own language; a notification of an unknown process has none
-    String workflowId = notificationContext.value(NotificationArguments.WORKFLOW_ID);
     if (workflowId != null) {
       notificationInfo.with(NotificationArguments.WORKFLOW_ID.getKey(), workflowId);
     }

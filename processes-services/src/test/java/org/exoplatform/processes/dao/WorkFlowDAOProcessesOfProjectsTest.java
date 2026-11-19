@@ -144,6 +144,21 @@ public class WorkFlowDAOProcessesOfProjectsTest {
   }
 
   /**
+   * Every process feeding a project comes back, of any space, by ascending
+   * id; a project no process feeds answers none. Mutation: drop the project
+   * condition, or the order, and this test fails.
+   */
+  @Test
+  public void everyProcessFeedingAProjectComesBackById() {
+    List<Long> ids = workFlowDAO.findWorkFlowIdsByProjectId(10L);
+    assertEquals(3, ids.size());
+    assertEquals(ids.stream().sorted().toList(), ids);
+    assertEquals(List.of(trainingRequest, expenseReport), ids.subList(0, 2));
+    assertEquals(List.of(laptopRequest), workFlowDAO.findWorkFlowIdsByProjectId(11L));
+    assertEquals(List.of(), workFlowDAO.findWorkFlowIdsByProjectId(12L));
+  }
+
+  /**
    * No project id reads nothing and sends no query with an empty list.
    */
   @Test
