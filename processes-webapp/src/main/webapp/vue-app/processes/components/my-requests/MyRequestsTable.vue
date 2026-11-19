@@ -186,17 +186,21 @@ export default {
     },
   },
   watch: {
-    /**
-     * Sorts by date again when the Status column leaves on a narrowing screen, so the order never
-     * follows a column the table no longer shows.
-     *
-     * @param {Boolean} wide whether the Status column shows
-     * @returns {void}
-     */
-    wide(wide) {
-      if (!wide && this.options.sortBy[0] === 'status') {
-        this.$emit('update:options', {...this.options, sortBy: ['date'], sortDesc: [true]});
-      }
+    wide: {
+      /**
+       * Sorts by date again when the Status column is not shown, on a narrowing screen or when the
+       * table mounts on a narrow one with the status sort the list kept, so the order never follows
+       * a column the table no longer shows.
+       *
+       * @param {Boolean} wide whether the Status column shows
+       * @returns {void}
+       */
+      handler(wide) {
+        if (!wide && this.options.sortBy[0] === 'status') {
+          this.$emit('update:options', {...this.options, sortBy: ['date'], sortDesc: [true]});
+        }
+      },
+      immediate: true,
     },
   },
   methods: {
