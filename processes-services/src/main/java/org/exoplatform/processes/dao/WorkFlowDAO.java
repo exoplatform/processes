@@ -272,7 +272,6 @@ public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
                              .getResultList();
   }
 
-
   /**
    * Flags a process whose project a save changed: its requests may be outside
    * its project until a pass moves them. The sequence is incremented, so a

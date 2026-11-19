@@ -231,7 +231,7 @@ class ProcessesProjectMoveTest {
     });
     when(taskService.updateTask(any(TaskDto.class))).thenAnswer(invocation -> invocation.getArgument(0));
     // The end of a pass counts the requests left outside the project
-    when(taskService.countTasks(any(TaskQuery.class))).thenAnswer(invocation -> tasks.values()
+    when(taskService.countTasks(any(TaskQuery.class))).thenAnswer(invocation -> (int) tasks.values()
                                                                                      .stream()
                                                                                      .filter(task -> task.getStatus() == null
                                                                                          || task.getStatus().getProject() == null
