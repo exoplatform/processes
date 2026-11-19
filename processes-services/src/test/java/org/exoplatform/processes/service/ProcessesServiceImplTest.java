@@ -342,10 +342,12 @@ public class ProcessesServiceImplTest {
    * this test fails.
    */
   /**
-   * An update of a process whose stored request makers include a group the
-   * group store fails to read is refused before the first write: no label is
-   * created and nothing is saved. Mutation: drop the check, or move it after
-   * the writes, and this test fails.
+   * An update that sends the request makers of a process whose stored ones
+   * include a group the group store fails to read is refused before the first
+   * write: no label is created and nothing is saved. An update that omits
+   * them never reads the store and is saved. Mutation: drop the check, move
+   * it after the writes, or run it on an update that omits the request
+   * makers, and this test fails.
    *
    * @throws Exception never, the mocks throw only where stubbed
    */
@@ -361,14 +363,21 @@ public class ProcessesServiceImplTest {
     workFlow.setId(WORKFLOW_ID);
     workFlow.setDescription("new description");
     workFlow.setLabels(Collections.singletonList(new WorkFlowLabel(0L, "Urgent")));
+    workFlow.setRequestsCreators(new ArrayList<>());
 
     try (MockedStatic<EntityMapper> entityMapper = mockStatic(EntityMapper.class)) {
       entityMapper.when(() -> EntityMapper.isDisplayableCreator("/broken/group")).thenThrow(new IllegalStateException("store down"));
 
       assertThrows(IllegalStateException.class, () -> processesService.updateWorkFlow(workFlow, PARTICIPANT_ID));
+      verify(labelService, never()).createLabel(any());
+      verify(processesStorage, never()).saveWorkFlow(any(), anyLong());
+
+      WorkFlow withoutMakers = new WorkFlow();
+      withoutMakers.setId(WORKFLOW_ID);
+      withoutMakers.setDescription("another description");
+      processesService.updateWorkFlow(withoutMakers, PARTICIPANT_ID);
+      verify(processesStorage).saveWorkFlow(any(), anyLong());
     }
-    verify(labelService, never()).createLabel(any());
-    verify(processesStorage, never()).saveWorkFlow(any(), anyLong());
   }
 
   @Test

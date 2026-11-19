@@ -808,9 +808,13 @@ public class ProcessesServiceImpl implements ProcessesService {
     if (oldWorkFlow.equals(workFlow) && workFlow.getRequestFormId() == null) {
       throw new IllegalArgumentException("there are no changes to save");
     }
-    // The save keeps the stored request makers the editor could not show; one
-    // the group store fails to read fails the save before the first write
-    checkRequestMakersReadable(oldWorkFlow);
+    // A save that sends the request makers keeps the stored ones the editor
+    // could not show; one the group store fails to read fails it before the
+    // first write. The storage reads the store again: a store that fails only
+    // at that second read refuses the save after the labels were created
+    if (workFlow.getRequestsCreators() != null) {
+      checkRequestMakersReadable(oldWorkFlow);
+    }
     workFlow.setAttachments(processesAttachmentService.selectProcessAttachments(userId,
                                                                                 workFlow.getId(),
                                                                                 oldWorkFlow.getProjectId(),
