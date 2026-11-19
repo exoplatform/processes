@@ -251,11 +251,18 @@ public interface ProcessesService {
   void deleteWorkflowById(Long workflowId, long userIdentityId) throws ObjectNotFoundException, IllegalAccessException;
 
   /**
-   * @param projectId: Tasks project id
-   * @param isCompleted: filter by completed and uncompleted tasks
+   * Counts every task of a task project, without any permission check.
+   *
+   * @param projectId Tasks project id
+   * @param isCompleted filter by completed and uncompleted tasks
    * @return Filtered tasks count
-   * @throws Exception
+   * @throws Exception when the tasks can't be counted
+   * @deprecated a task project may be fed by several processes and hold tasks
+   *             created in Tasks: count the requests of one process with
+   *             {@link #countRequests(long, Boolean, long)}, which checks the
+   *             user's permission. Since 7.3.0.50, for removal.
    */
+  @Deprecated(since = "7.3.0.50", forRemoval = true)
   int countWorksByWorkflow(Long projectId, Boolean isCompleted) throws Exception;
 
   /**
@@ -478,6 +485,40 @@ public interface ProcessesService {
    * @return the number of request tasks of the process
    */
   long countRequests(long workFlowId);
+
+  /**
+   * Counts the requests of a process, open, completed or all, whatever project
+   * their task is in, for a user who may see them: a processes administrator,
+   * a user who can edit the process, or a member of its managing space (its
+   * stored space, else its task project's) or a super manager of spaces, who
+   * see its pending requests.
+   *
+   * @param workFlowId the process id
+   * @param completed true to count the completed requests, false the open
+   *          ones, null to count them all
+   * @param userIdentityId the identity id of the user asking
+   * @return the number of request tasks of the process in that state
+   * @throws ObjectNotFoundException when the process does not exist
+   * @throws IllegalAccessException when the user may not see the count
+   */
+  long countRequests(long workFlowId, Boolean completed, long userIdentityId) throws ObjectNotFoundException,
+                                                                             IllegalAccessException;
+
+  /**
+   * Counts the requests of every process feeding a task project, open,
+   * completed or all, for a user who may read the request counts of at least
+   * one of them (see {@link #countRequests(long, Boolean, long)}).
+   *
+   * @param projectId the task project id
+   * @param completed true to count the completed requests, false the open
+   *          ones, null to count them all
+   * @param userIdentityId the identity id of the user asking
+   * @return the number of request tasks of those processes in that state
+   * @throws ObjectNotFoundException when no process feeds the project
+   * @throws IllegalAccessException when the user may read the counts of none
+   */
+  long countProjectRequests(long projectId, Boolean completed, long userIdentityId) throws ObjectNotFoundException,
+                                                                                    IllegalAccessException;
 
   /**
    * Reads the space that manages a process: its stored space when it still

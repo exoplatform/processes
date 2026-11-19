@@ -444,6 +444,68 @@ public class ProcessesServiceImpl implements ProcessesService {
    * {@inheritDoc}
    */
   @Override
+  public long countRequests(long workFlowId, Boolean completed, long userIdentityId) throws ObjectNotFoundException,
+                                                                                    IllegalAccessException {
+    org.exoplatform.services.security.Identity aclIdentity = getAclIdentity(userIdentityId);
+    WorkFlow workFlow = processesStorage.getWorkFlowById(workFlowId, userIdentityId);
+    if (workFlow == null) {
+      throw new ObjectNotFoundException("Process " + workFlowId + " not found");
+    }
+    if (!canCountRequests(aclIdentity, workFlow)) {
+      throw new IllegalAccessException("User " + userIdentityId + " can't count the requests of the process " + workFlowId);
+    }
+    return completed == null ? processesStorage.countRequests(workFlowId) : processesStorage.countRequests(workFlowId, completed);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public long countProjectRequests(long projectId, Boolean completed, long userIdentityId) throws ObjectNotFoundException,
+                                                                                           IllegalAccessException {
+    org.exoplatform.services.security.Identity aclIdentity = getAclIdentity(userIdentityId);
+    List<Long> workFlowIds = processesStorage.getWorkFlowIdsByProjectId(projectId);
+    if (workFlowIds.isEmpty()) {
+      throw new ObjectNotFoundException("No process feeds the project " + projectId);
+    }
+    boolean allowed = false;
+    for (Long workFlowId : workFlowIds) {
+      WorkFlow workFlow = processesStorage.getWorkFlowById(workFlowId, userIdentityId);
+      if (workFlow != null && canCountRequests(aclIdentity, workFlow)) {
+        allowed = true;
+        break;
+      }
+    }
+    if (!allowed) {
+      throw new IllegalAccessException("User " + userIdentityId + " can't count the requests of the project " + projectId);
+    }
+    return processesStorage.countRequests(workFlowIds, completed);
+  }
+
+  /**
+   * Tells whether a user may read the request counts of a process: a
+   * processes administrator, a user who can edit the process, or a user who
+   * sees its pending requests, by the rule of the process list read on the
+   * process's managing space (its stored space, else its project's): a member
+   * of that space, or a super manager of spaces.
+   *
+   * @param aclIdentity the user's security identity
+   * @param workFlow the process, read with the user's identity
+   * @return true when the user may read its request counts
+   */
+  private boolean canCountRequests(org.exoplatform.services.security.Identity aclIdentity, WorkFlow workFlow) {
+    if (isProcessesAdministrator(aclIdentity) || (workFlow.getAcl() != null && workFlow.getAcl().isCanEdit())) {
+      return true;
+    }
+    Space space = getCurrentSpace(workFlow);
+    String userName = aclIdentity.getUserId();
+    return space != null && (spaceService.isSuperManager(userName) || spaceService.isMember(space, userName));
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
   public Long getManagingSpaceId(long workFlowId) {
     WorkFlow workFlow = processesStorage.getWorkFlowById(workFlowId, null);
     if (workFlow == null) {
@@ -1148,6 +1210,7 @@ public class ProcessesServiceImpl implements ProcessesService {
    * {@inheritDoc}
    */
   @Override
+  @Deprecated(since = "7.3.0.50", forRemoval = true)
   public int countWorksByWorkflow(Long projectId, Boolean isCompleted) throws Exception {
     if (projectId == null) {
       throw new IllegalArgumentException("Project Id is mandatory");
@@ -1514,7 +1577,7 @@ public class ProcessesServiceImpl implements ProcessesService {
    * @param spaceGroupId the space's group id
    * @return true when the project is attached to the space
    */
-  static boolean isAttachedToSpace(ProjectDto project, String spaceGroupId) {
+  public static boolean isAttachedToSpace(ProjectDto project, String spaceGroupId) {
     String managerMembership = ProcessesUtils.MANAGER_MEMBERSHIP_TYPE + ":" + spaceGroupId;
     String memberMembership = ProcessesUtils.MEMBER_MEMBERSHIP_TYPE + ":" + spaceGroupId;
     Set<String> managers = project.getManager() == null ? Collections.emptySet() : project.getManager();
@@ -1598,7 +1661,9 @@ public class ProcessesServiceImpl implements ProcessesService {
     if (work == null) {
       throw new ObjectNotFoundException("Work " + workId + " not found");
     }
-    if (processesStorage.getWorkFlowByProjectId(work.getProjectId()) == null) {
+    // A task is a request only when a process created it: a task created in
+    // Tasks, in a project processes feed, is not one
+    if (processesStorage.getRequestWorkFlowId(workId) == null) {
       throw new IllegalAccessException("Task " + workId + " isn't a request of a process");
     }
     org.exoplatform.services.security.Identity aclIdentity = getAclIdentity(userIdentityId);

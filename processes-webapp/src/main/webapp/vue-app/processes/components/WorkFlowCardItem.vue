@@ -151,15 +151,15 @@ export default {
       }
     },
     /**
-     * Reads the number of uncompleted requests of the process's task project; the endpoint answers it as text.
+     * Reads the number of open requests of the process, whatever task project they are in; the endpoint answers it as text.
      *
      * @returns {Promise} resolved once the count is read
      */
     countOpenRequests() {
-      return this.$processesService.countWorksByWorkflow(this.workflow.projectId, false).then(value => {
+      return this.$processesService.countRequests(this.workflow.id, false).then(value => {
         const count = Number(value);
         this.openRequestsCount = Number.isFinite(count) ? count : null;
-      });
+      }).catch(() => this.openRequestsCount = null);
     },
   },
 };
