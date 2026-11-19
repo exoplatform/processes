@@ -175,9 +175,9 @@ class RequestNotificationListenersTest {
     assertEquals("Expenses", ctx.value(NotificationArguments.REQUEST_PROCESS));
     assertEquals("8", ctx.value(NotificationArguments.WORKFLOW_ID));
 
-    assertNull("a comment on a task created in Tasks notifies nobody",
-               new RequestCommentNotificationListener(mock(org.exoplatform.portal.config.UserACL.class),
-                                                      processesService).buildContext(new Event<>("comment", task(4L), comment)));
+    assertNull(new RequestCommentNotificationListener(mock(org.exoplatform.portal.config.UserACL.class),
+                                                      processesService).buildContext(new Event<>("comment", task(4L), comment)),
+               "a comment on a task created in Tasks notifies nobody");
 
     // A record naming no process (id 0) is read as no record
     when(processesService.getRequestWorkFlowId(5L)).thenReturn(0L);
