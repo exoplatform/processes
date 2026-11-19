@@ -35,6 +35,14 @@ public final class ProcessesEvents {
    */
   public static final String REQUEST_DRAFT_DELETED = "exo.process.requestDraft.deleted";
 
+  /**
+   * A process's task project was changed, its save committed with the move of
+   * its requests pending. The source is the process id, the data the user id
+   * of the editor. The move runs in the background: a listener only hands it
+   * over.
+   */
+  public static final String PROCESS_PROJECT_CHANGED = "exo.process.projectChanged";
+
   private ProcessesEvents() {
   }
 }

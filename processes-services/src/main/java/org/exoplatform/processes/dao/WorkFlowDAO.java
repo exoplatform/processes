@@ -272,4 +272,178 @@ public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
                              .getResultList();
   }
 
+  /**
+   * Flags a process whose project a save changed: its requests may be outside
+   * its project until a pass moves them. The sequence is incremented, so a
+   * pass started before the save writes none of its conditional updates, and
+   * the next attempt is due at once. Runs in the caller's transaction.
+   *
+   * @param workFlowId the process id
+   * @param requestedBy the user id of the editor who changed the project
+   * @param now the current time, in epoch milliseconds
+   * @return how many rows were updated, 1 when the process exists
+   */
+  public int requestMove(long workFlowId, String requestedBy, long now) {
+    return getEntityManager().createNamedQuery("WorkFlow.requestMove")
+                             .setParameter("id", workFlowId)
+                             .setParameter("requestedBy", requestedBy)
+                             .setParameter("now", now)
+                             .executeUpdate();
+  }
+
+  /**
+   * Claims the move of a process for one pass: it succeeds only when a move is
+   * pending, its next attempt is due and no other pass holds an unexpired
+   * claim. Runs in the caller's transaction.
+   *
+   * @param workFlowId the process id
+   * @param token the pass's own random token
+   * @param now the current time, in epoch milliseconds
+   * @param until when the claim expires, in epoch milliseconds
+   * @return 1 when the pass holds the claim, 0 otherwise
+   */
+  public int claimMove(long workFlowId, String token, long now, long until) {
+    return getEntityManager().createNamedQuery("WorkFlow.claimMove")
+                             .setParameter("id", workFlowId)
+                             .setParameter("token", token)
+                             .setParameter("now", now)
+                             .setParameter("until", until)
+                             .executeUpdate();
+  }
+
+  /**
+   * Extends the claim a pass holds, while it has not expired.
+   *
+   * @param workFlowId the process id
+   * @param token the pass's token
+   * @param now the current time, in epoch milliseconds
+   * @param until the new expiry, in epoch milliseconds
+   * @return 1 when the claim was extended, 0 when the pass no longer holds it
+   */
+  public int renewMove(long workFlowId, String token, long now, long until) {
+    return getEntityManager().createNamedQuery("WorkFlow.renewMove")
+                             .setParameter("id", workFlowId)
+                             .setParameter("token", token)
+                             .setParameter("now", now)
+                             .setParameter("until", until)
+                             .executeUpdate();
+  }
+
+  /**
+   * Releases the claim a pass holds, if it still holds it.
+   *
+   * @param workFlowId the process id
+   * @param token the pass's token
+   * @return 1 when the claim was released, 0 when the pass no longer held it
+   */
+  public int releaseMove(long workFlowId, String token) {
+    return getEntityManager().createNamedQuery("WorkFlow.releaseMove")
+                             .setParameter("id", workFlowId)
+                             .setParameter("token", token)
+                             .executeUpdate();
+  }
+
+  /**
+   * Stops the move of a process whose project no longer exists: no pass runs
+   * again until a save sets another project. Written only when no save changed
+   * the project since the pass started, and the pass still holds the claim.
+   *
+   * @param workFlowId the process id
+   * @param seq the move sequence the pass started with
+   * @param token the pass's token
+   * @return 1 when the move was stopped, 0 otherwise
+   */
+  public int stopMove(long workFlowId, long seq, String token) {
+    return getEntityManager().createNamedQuery("WorkFlow.stopMove")
+                             .setParameter("id", workFlowId)
+                             .setParameter("seq", seq)
+                             .setParameter("token", token)
+                             .executeUpdate();
+  }
+
+  /**
+   * Clears the move flag of a process, once a pass left no request outside
+   * its project. Written only when no save changed the project since the pass
+   * started, and the pass still holds an unexpired claim.
+   *
+   * @param workFlowId the process id
+   * @param seq the move sequence the pass started with
+   * @param token the pass's token
+   * @param now the current time, in epoch milliseconds
+   * @return 1 when the flag was cleared, 0 otherwise
+   */
+  public int clearMove(long workFlowId, long seq, String token, long now) {
+    return getEntityManager().createNamedQuery("WorkFlow.clearMove")
+                             .setParameter("id", workFlowId)
+                             .setParameter("seq", seq)
+                             .setParameter("token", token)
+                             .setParameter("now", now)
+                             .executeUpdate();
+  }
+
+  /**
+   * Schedules the next pass of a process's move, conditioned as
+   * {@link #clearMove(long, long, String, long)}.
+   *
+   * @param workFlowId the process id
+   * @param seq the move sequence the pass started with
+   * @param token the pass's token
+   * @param now the current time, in epoch milliseconds
+   * @param nextAttempt when the next pass is due, in epoch milliseconds
+   * @param failed true to count a failed attempt, false for a verification
+   *          pass after a pass that moved requests
+   * @return 1 when the next pass was scheduled, 0 otherwise
+   */
+  public int rescheduleMove(long workFlowId, long seq, String token, long now, long nextAttempt, boolean failed) {
+    return getEntityManager().createNamedQuery(failed ? "WorkFlow.retryMove" : "WorkFlow.verifyMove")
+                             .setParameter("id", workFlowId)
+                             .setParameter("seq", seq)
+                             .setParameter("token", token)
+                             .setParameter("now", now)
+                             .setParameter("nextAttempt", nextAttempt)
+                             .executeUpdate();
+  }
+
+  /**
+   * Reads the move state of a process whose claim the pass holds.
+   *
+   * @param workFlowId the process id
+   * @param token the pass's token
+   * @return the move sequence, the user id who requested the move, the
+   *         process's project id and the failed attempts, or null when the
+   *         pass does not hold the claim
+   */
+  public Object[] findMoveState(long workFlowId, String token) {
+    List<Object[]> rows = getEntityManager().createNamedQuery("WorkFlow.findMoveState", Object[].class)
+                                            .setParameter("id", workFlowId)
+                                            .setParameter("token", token)
+                                            .getResultList();
+    return rows.isEmpty() ? null : rows.get(0);
+  }
+
+  /**
+   * Reads the processes whose move a pass may claim now.
+   *
+   * @param now the current time, in epoch milliseconds
+   * @return their ids, the most overdue first
+   */
+  public List<Long> findDueMoves(long now) {
+    return getEntityManager().createNamedQuery("WorkFlow.findDueMoves", Long.class)
+                             .setParameter("now", now)
+                             .getResultList();
+  }
+
+  /**
+   * Reads the stored project of a process, from the database.
+   *
+   * @param workFlowId the process id
+   * @return its project id, or null when the process does not exist
+   */
+  public Long findProjectId(long workFlowId) {
+    List<Long> rows = getEntityManager().createNamedQuery("WorkFlow.findProjectId", Long.class)
+                                        .setParameter("id", workFlowId)
+                                        .getResultList();
+    return rows.isEmpty() ? null : rows.get(0);
+  }
+
 }

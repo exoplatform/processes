@@ -36,6 +36,8 @@ import lombok.NoArgsConstructor;
 @NamedQuery(name = "ProcessesRequest.deleteByWorkFlowId", query = "DELETE FROM ProcessesRequest r WHERE r.workFlowId = :workFlowId")
 @NamedQuery(name = "ProcessesRequest.findByTaskIds", query = "SELECT r FROM ProcessesRequest r WHERE r.taskId IN :taskIds")
 @NamedQuery(name = "ProcessesRequest.findTaskIdsByWorkFlowId", query = "SELECT r.taskId FROM ProcessesRequest r WHERE r.workFlowId = :workFlowId ORDER BY r.taskId")
+@NamedQuery(name = "ProcessesRequest.findTaskIdsAfter", query = "SELECT r.taskId FROM ProcessesRequest r WHERE r.workFlowId = :workFlowId AND r.taskId > :afterTaskId ORDER BY r.taskId")
+@NamedQuery(name = "ProcessesRequest.deleteByTaskId", query = "DELETE FROM ProcessesRequest r WHERE r.taskId = :taskId")
 @Table(name = "PROCESSES_REQUEST")
 @Data
 @NoArgsConstructor
