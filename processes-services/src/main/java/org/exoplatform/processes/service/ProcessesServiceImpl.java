@@ -39,6 +39,7 @@ import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.processes.constant.ProjectMode;
 import org.exoplatform.processes.model.*;
 import org.exoplatform.processes.plugin.RequestValuesPlugin;
+import org.exoplatform.processes.Utils.EntityMapper;
 import org.exoplatform.processes.Utils.ProcessesUtils;
 import org.exoplatform.processes.Utils.RequestTitle;
 import org.exoplatform.processes.storage.ProcessesStorage;
@@ -807,6 +808,13 @@ public class ProcessesServiceImpl implements ProcessesService {
     if (oldWorkFlow.equals(workFlow) && workFlow.getRequestFormId() == null) {
       throw new IllegalArgumentException("there are no changes to save");
     }
+    // A save that sends the request makers keeps the stored ones the editor
+    // could not show; one the group store fails to read fails it before the
+    // first write. The storage reads the store again: a store that fails only
+    // at that second read refuses the save after the labels were created
+    if (workFlow.getRequestsCreators() != null) {
+      checkRequestMakersReadable(oldWorkFlow);
+    }
     workFlow.setAttachments(processesAttachmentService.selectProcessAttachments(userId,
                                                                                 workFlow.getId(),
                                                                                 oldWorkFlow.getProjectId(),
@@ -1570,6 +1578,19 @@ public class ProcessesServiceImpl implements ProcessesService {
       throw new IllegalAccessException("User " + userIdentityId + " isn't allowed to add a request to the process " + workFlowId);
     }
     return workFlow;
+  }
+
+  /**
+   * Checks that every stored request maker of a process can be read, so that
+   * the save can tell the ones its editor showed from the ones it could not.
+   *
+   * @param storedWorkFlow the stored process
+   * @throws IllegalStateException when the group store fails to read one
+   */
+  private void checkRequestMakersReadable(WorkFlow storedWorkFlow) {
+    if (storedWorkFlow.getManager() != null) {
+      storedWorkFlow.getManager().forEach(EntityMapper::isDisplayableCreator);
+    }
   }
 
   private Work getManageableWork(long workId, long userIdentityId) throws ObjectNotFoundException, IllegalAccessException {

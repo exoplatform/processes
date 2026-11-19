@@ -68,37 +68,115 @@ public class EntityMapper {
                         fromGroupToIdentity(workFlowEntity.getManager()));
   }
 
+  /**
+   * Reads the request makers of a process as the identities its editor shows:
+   * a space or a group the platform finds. An entry that is neither, such as a
+   * user name, a membership or a deleted group, is left out.
+   *
+   * @param managers the stored request makers of the process
+   * @return the identities, an empty list when none is given
+   */
   static List<CreatorIdentityEntity> fromGroupToIdentity(Set<String> managers) {
     List<CreatorIdentityEntity> identityEntities = new ArrayList<>();
     if (managers == null) {
       return identityEntities;
     }
-    SpaceService spaceService = CommonsUtils.getService(SpaceService.class);
-    OrganizationService organizationService = CommonsUtils.getService(OrganizationService.class);
-    GroupHandler groupHandler = organizationService.getGroupHandler();
     for (String manager : managers) {
-      Space space = spaceService.getSpaceByGroupId(manager);
-      if (space != null) {
-        ProfileEntity profile = new ProfileEntity(
-                                                  StringUtils.isNotEmpty(space.getAvatarUrl()) ? space.getAvatarUrl()
-                                                                                               : "/portal/rest/v1/social/spaces/"
-                                                                                                   + space.getPrettyName()
-                                                                                                   + "/avatar",
-                                                  space.getDisplayName());
-        IdentityEntity identityEntity = new IdentityEntity("", space.getPrettyName(), "space", profile);
-        identityEntities.add(new CreatorIdentityEntity(identityEntity));
-      } else {
-        try {
-          Group group = groupHandler.findGroupById(manager);
-          ProfileEntity profile = new ProfileEntity(null, group.getLabel());
-          IdentityEntity identityEntity = new IdentityEntity("group:" + group.getGroupName(), group.getId(), "group", profile);
-          identityEntities.add(new CreatorIdentityEntity(identityEntity));
-        } catch (Exception e) {
-          LOG.warn("Cannot get group from managers list");
-        }
+      CreatorIdentityEntity identityEntity = toCreatorIdentity(manager);
+      if (identityEntity != null) {
+        identityEntities.add(identityEntity);
       }
     }
     return identityEntities;
+  }
+
+  /**
+   * Tells whether the editor of a process shows one of its stored request
+   * makers, so that a save, which sends only what the editor shows, may
+   * remove it.
+   *
+   * @param manager a stored request maker
+   * @return true when it reads as a space or a group the platform finds
+   * @throws IllegalStateException when the group store fails to answer: the
+   *           save can't tell whether the user removed it, so it is not saved
+   */
+  public static boolean isDisplayableCreator(String manager) {
+    if (StringUtils.isBlank(manager)) {
+      return false;
+    }
+    if (toSpaceIdentity(manager) != null) {
+      return true;
+    }
+    try {
+      return toGroupIdentity(manager) != null;
+    } catch (Exception e) {
+      throw new IllegalStateException("The request maker " + manager + " of a process could not be read as a group", e);
+    }
+  }
+
+  /**
+   * Reads one stored request maker as the identity the editor shows, a group
+   * the group store fails to read being left out.
+   *
+   * @param manager a stored request maker
+   * @return the space or group identity, or null when it is neither a space
+   *         nor a group the platform finds, or the group can't be read
+   */
+  private static CreatorIdentityEntity toCreatorIdentity(String manager) {
+    if (StringUtils.isBlank(manager)) {
+      return null;
+    }
+    CreatorIdentityEntity spaceIdentity = toSpaceIdentity(manager);
+    if (spaceIdentity != null) {
+      return spaceIdentity;
+    }
+    try {
+      return toGroupIdentity(manager);
+    } catch (Exception e) {
+      LOG.warn("Cannot read the request maker {} of a process as a group: {}", manager, e.getMessage());
+      LOG.debug("Cannot read the request maker {} of a process as a group", manager, e);
+      return null;
+    }
+  }
+
+  /**
+   * Reads one stored request maker as the space whose group it names.
+   *
+   * @param manager a stored request maker
+   * @return the space identity, or null when it names no space
+   */
+  private static CreatorIdentityEntity toSpaceIdentity(String manager) {
+    SpaceService spaceService = CommonsUtils.getService(SpaceService.class);
+    Space space = spaceService.getSpaceByGroupId(manager);
+    if (space == null) {
+      return null;
+    }
+    ProfileEntity profile = new ProfileEntity(
+                                              StringUtils.isNotEmpty(space.getAvatarUrl()) ? space.getAvatarUrl()
+                                                                                           : "/portal/rest/v1/social/spaces/"
+                                                                                               + space.getPrettyName()
+                                                                                               + "/avatar",
+                                              space.getDisplayName());
+    IdentityEntity identityEntity = new IdentityEntity("", space.getPrettyName(), "space", profile);
+    return new CreatorIdentityEntity(identityEntity);
+  }
+
+  /**
+   * Reads one stored request maker as the group it names.
+   *
+   * @param manager a stored request maker
+   * @return the group identity, or null when no group has that id
+   * @throws Exception when the group store fails to answer
+   */
+  private static CreatorIdentityEntity toGroupIdentity(String manager) throws Exception {
+    GroupHandler groupHandler = CommonsUtils.getService(OrganizationService.class).getGroupHandler();
+    Group group = groupHandler.findGroupById(manager);
+    if (group == null) {
+      return null;
+    }
+    ProfileEntity profile = new ProfileEntity(null, group.getLabel());
+    IdentityEntity identityEntity = new IdentityEntity("group:" + group.getGroupName(), group.getId(), "group", profile);
+    return new CreatorIdentityEntity(identityEntity);
   }
 
   public static ProcessPermission getACL(WorkFlowEntity workFlowEntity, List<String> memberships) {
