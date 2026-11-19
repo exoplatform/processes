@@ -12,20 +12,32 @@ You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 -->
 <template>
-  <div class="d-flex flex-wrap align-center">
-    <v-spacer />
-    <v-btn
-      id="saveRequestDraftButton"
-      :loading="savingDraft"
-      :disabled="!canSaveDraft"
-      class="btn me-2"
-      @click="$emit('save-draft')">
-      <v-icon size="16" class="me-1">far fa-save</v-icon>
-      {{ $t('processes.work.saveDraft.label') }}
-    </v-btn>
+  <div class="requestDrawerActions d-flex flex-nowrap justify-end align-center">
+    <!-- « Save as draft » gives way to Submit: its label is cut with an ellipsis when the two do not fit, and the
+         tooltip then shows it whole -->
+    <v-tooltip :disabled="!draftLabelCut" top>
+      <template #activator="{ on, attrs }">
+        <v-btn
+          id="saveRequestDraftButton"
+          :loading="savingDraft"
+          :disabled="!canSaveDraft"
+          :aria-label="draftLabel"
+          class="requestDrawerActionsDraft btn me-2"
+          v-bind="attrs"
+          v-on="on"
+          @click="$emit('save-draft')">
+          <v-icon size="16" class="flex-shrink-0 me-1">far fa-save</v-icon>
+          <span ref="draftLabel" class="text-truncate">{{ draftLabel }}</span>
+        </v-btn>
+      </template>
+      <span>{{ draftLabel }}</span>
+    </v-tooltip>
     <v-tooltip :disabled="!requiredMissing" top>
       <template #activator="{ on, attrs }">
-        <div v-bind="attrs" v-on="on">
+        <div
+          class="flex-shrink-0"
+          v-bind="attrs"
+          v-on="on">
           <v-btn
             id="sendRequestButton"
             :loading="saving"
@@ -43,9 +55,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 <script>
 /**
- * The request drawer's footer: « Save as draft » and Submit, on the right.
- * Submit waits for every required value and every document to fill in, and
- * says what is left when it is held back.
+ * The request drawer's footer: « Save as draft » and Submit, on one line
+ * on the right, Submit last. Submit keeps its size; the draft button's label
+ * is cut when a language makes the two wider than the drawer. Submit waits
+ * for every required value and every document to fill in, and says what is
+ * left when it is held back.
  */
 export default {
   props: {
@@ -70,7 +84,17 @@ export default {
       default: false,
     },
   },
+  data: () => ({
+    draftLabelCut: false,
+    labelObserver: null,
+  }),
   computed: {
+    /**
+     * @returns {String} the draft button's label, whole
+     */
+    draftLabel() {
+      return this.$t('processes.work.saveDraft.label');
+    },
     /**
      * @returns {Number} how many required items are still missing: the required values and the documents to fill in
      */
@@ -91,6 +115,37 @@ export default {
         return this.$t(this.documentsMissing ? 'processes.request.fill.submitTipDocument' : 'processes.request.fill.submitTipOne');
       }
       return this.$t('processes.request.fill.submitTip', {0: this.requiredMissing});
+    },
+  },
+  /**
+   * Follows the draft label's width, so its tooltip shows only while the label is cut.
+   *
+   * @returns {void}
+   */
+  mounted() {
+    this.measureDraftLabel();
+    if (window.ResizeObserver && this.$refs.draftLabel) {
+      this.labelObserver = new ResizeObserver(() => this.measureDraftLabel());
+      this.labelObserver.observe(this.$refs.draftLabel);
+    }
+  },
+  /**
+   * Stops following the draft label's width.
+   *
+   * @returns {void}
+   */
+  beforeDestroy() {
+    this.labelObserver?.disconnect();
+  },
+  methods: {
+    /**
+     * Tells whether the draft label is cut: its text is wider than the room it is given.
+     *
+     * @returns {void}
+     */
+    measureDraftLabel() {
+      const label = this.$refs.draftLabel;
+      this.draftLabelCut = !!label && label.scrollWidth > label.clientWidth;
     },
   },
 };

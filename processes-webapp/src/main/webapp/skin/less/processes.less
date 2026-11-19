@@ -695,6 +695,21 @@
 
 // « Document to fill in »: one outlined card, a row per document, stacked in the drawer,
 // in columns once the card is wide (full screen): icon | name | size · type | state | button | menu
+// The request drawer's footer stays on one line: the draft button may narrow down to its icon, its label cut with an
+// ellipsis, while Submit keeps its size
+.requestDrawerActions {
+  min-width: 0;
+  .requestDrawerActionsDraft {
+    flex: 0 1 auto;
+    min-width: 0 !important;
+    overflow: hidden;
+    .v-btn__content {
+      flex: 1 1 auto;
+      min-width: 0;
+      max-width: 100%;
+    }
+  }
+}
 .requestDocumentsCard {
   .requestDocumentsCard-head {
     border-bottom: 1px solid @borderColor;
