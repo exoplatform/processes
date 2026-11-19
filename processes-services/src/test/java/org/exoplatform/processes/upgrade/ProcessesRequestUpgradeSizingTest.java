@@ -17,12 +17,12 @@
 package org.exoplatform.processes.upgrade;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -119,7 +119,10 @@ class ProcessesRequestUpgradeSizingTest {
                                                                                                                   .property("hibernate.hbm2ddl.auto",
                                                                                                                             "none")
                                                                                                                   .createEntityManagerFactory();
-      EntityManager entityManager = spy(entityManagerFactory.createEntityManager());
+      // A mock that forwards every call to the real entity manager, so that the
+      // clears can be counted while the entities stay in its one session
+      EntityManager realEntityManager = entityManagerFactory.createEntityManager();
+      EntityManager entityManager = mock(EntityManager.class, delegatesTo(realEntityManager));
       EntityManagerService entityManagerService = mock(EntityManagerService.class);
       when(entityManagerService.getEntityManager()).thenReturn(entityManager);
       TaskService taskService = mock(TaskService.class);
@@ -163,7 +166,7 @@ class ProcessesRequestUpgradeSizingTest {
             + " processes, " + pages + " pages of " + ProcessesRequestUpgradePlugin.PAGE_SIZE
             + ", entity manager cleared after each page, first run " + firstRun + " ms, rerun (nothing to record) " + rerun + " ms");
       } finally {
-        entityManager.close();
+        realEntityManager.close();
         entityManagerFactory.close();
         try (Statement statement = connection.createStatement()) {
           statement.execute("SHUTDOWN");
