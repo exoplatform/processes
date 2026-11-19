@@ -20,7 +20,7 @@
   <work-row
     :work="workObject"
     :is-draft="isDraft"
-    :comments-count="comments.length"
+    :comments-count="commentsCount"
     :avatar-url="workflowAvatarUrl"
     :allow-cancel="allowCancel"
     @open="openRequest"
@@ -32,11 +32,9 @@
 
 <script>
 export default {
-  data () {
-    return {
-      comments: [],
-    };
-  },
+  data: () => ({
+    comments: null,
+  }),
   props: {
     work: {
       type: Object,
@@ -53,6 +51,22 @@ export default {
     workObject() {
       return this.work || {};
     },
+    /**
+     * Reads the request's comments count, replies included, as the request drawer counts them:
+     * the list carries it, so no request is read per row; once the comments drawer opened, the
+     * count follows the comments it adds and deletes.
+     *
+     * @returns {Number} the count, 0 for a draft or when the list did not carry it
+     */
+    commentsCount() {
+      if (this.isDraft) {
+        return 0;
+      }
+      if (this.comments) {
+        return this.comments.reduce((count, comment) => count + 1 + (comment.subComments || []).length, 0);
+      }
+      return this.workObject.commentsCount || 0;
+    },
     allowCancel() {
       return this.workObject && this.workObject.status !== 'Validated' && this.workObject.status !== 'Refused';
     },
@@ -61,9 +75,6 @@ export default {
                                       && this.workObject.workFlow.illustrativeAttachment.id
                                       && `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/illustration/${this.workObject.workFlow.id}`;
     }
-  },
-  created() {
-    this.getWorkComments();
   },
   methods: {
     /**
@@ -81,19 +92,21 @@ export default {
     openDraft() {
       this.$root.$emit('open-add-work-drawer', {object: this.workObject, mode: 'edit_work_draft'});
     },
+    /**
+     * Reads the request's comments, then opens them in the comments drawer, which edits the same
+     * list, so the row's count follows it.
+     *
+     * @returns {Promise} resolved once the drawer is asked to open
+     */
     openCommentsDrawer() {
-      const mappedWork = Object.assign({}, this.workObject);
-      mappedWork.status = {
-        project: {}
-      };
-      this.$root.$emit('show-work-comments', mappedWork, this.comments);
-    },
-    getWorkComments() {
-      if (this.workObject && !this.isDraft) {
-        return this.$processesService.getWorkComments(this.workObject.id).then(comments => {
-          this.comments = comments;
-        });
-      }
+      return this.$processesService.getWorkComments(this.workObject.id).then(comments => {
+        this.comments = comments || [];
+        const mappedWork = Object.assign({}, this.workObject);
+        mappedWork.status = {
+          project: {}
+        };
+        this.$root.$emit('show-work-comments', mappedWork, this.comments);
+      });
     },
     deleteWork() {
       if (this.isDraft) {

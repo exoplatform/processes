@@ -54,6 +54,7 @@ import org.exoplatform.task.dao.condition.PredicateCondition;
 import org.exoplatform.task.dao.condition.SingleCondition;
 import org.exoplatform.task.domain.Task;
 import org.exoplatform.task.dto.TaskDto;
+import org.exoplatform.task.service.CommentService;
 import org.exoplatform.task.service.TaskService;
 
 /**
@@ -76,6 +77,9 @@ public class ProcessesStorageRequestReadsTest {
   @Mock
   private TaskService          taskService;
 
+  @Mock
+  private CommentService       commentService;
+
   private ProcessesStorageImpl processesStorage;
 
   @Before
@@ -92,7 +96,8 @@ public class ProcessesStorageRequestReadsTest {
                                                 null,
                                                 null,
                                                 null,
-                                                null);
+                                                null,
+                                                commentService);
   }
 
   /**

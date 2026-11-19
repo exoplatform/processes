@@ -22,6 +22,17 @@
 export const CAPPED_STATUSES = ['Validated', 'Refused'];
 
 /**
+ * The statuses after which a request changes no more: « Archive all » archives the open requests
+ * in them, as the server names them.
+ */
+export const FINISHED_STATUSES = ['Validated', 'Refused', 'Canceled'];
+
+/**
+ * How many completed requests « My requests » loads at a time.
+ */
+export const COMPLETED_PAGE_SIZE = 50;
+
+/**
  * How many requests a capped group shows before « Show N more ».
  */
 export const CAPPED_GROUP_SIZE = 5;
