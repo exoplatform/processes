@@ -74,6 +74,35 @@ public class RequestDAO extends GenericDAOJPAImpl<RequestEntity, Long> {
   }
 
   /**
+   * Reads a page of the task ids of a process's request records, by task id:
+   * a keyset read, so moving the tasks of a page changes none of the next.
+   *
+   * @param workFlowId the process id
+   * @param afterTaskId the last task id of the previous page, 0 for the first
+   * @param limit the page size, strictly positive
+   * @return the task ids, ascending
+   */
+  public List<Long> findTaskIdsAfter(long workFlowId, long afterTaskId, int limit) {
+    return getEntityManager().createNamedQuery("ProcessesRequest.findTaskIdsAfter", Long.class)
+                             .setParameter("workFlowId", workFlowId)
+                             .setParameter("afterTaskId", afterTaskId)
+                             .setMaxResults(limit)
+                             .getResultList();
+  }
+
+  /**
+   * Deletes the request record of a task, in the caller's transaction.
+   *
+   * @param taskId the task id
+   * @return how many records were deleted
+   */
+  public int deleteByTaskId(long taskId) {
+    return getEntityManager().createNamedQuery("ProcessesRequest.deleteByTaskId")
+                             .setParameter("taskId", taskId)
+                             .executeUpdate();
+  }
+
+  /**
    * Builds the restriction of a query to the tasks that are requests of some
    * processes: an EXISTS on the request records of those processes, correlated
    * by the task id, which the index on (WORK_FLOW_ID, TASK_ID) serves. It needs

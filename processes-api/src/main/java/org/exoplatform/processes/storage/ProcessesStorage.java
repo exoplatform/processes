@@ -453,4 +453,153 @@ public interface ProcessesStorage {
    * @return the number of drafts
    */
   long countWorkDrafts(long workFlowId);
+
+  /**
+   * Flags a process whose project the save changed, in the save's
+   * transaction: its requests may be outside its project until a pass moves
+   * them. The move sequence is incremented and the next attempt is due at
+   * once.
+   *
+   * @param workFlowId the process id
+   * @param requestedBy the user id of the editor who changed the project
+   * @param now the current time, in epoch milliseconds
+   */
+  void requestProjectMove(long workFlowId, String requestedBy, long now);
+
+  /**
+   * Claims the move of a process for one pass, when a move is pending, its
+   * next attempt is due and no other pass holds an unexpired claim.
+   *
+   * @param workFlowId the process id
+   * @param token the pass's own random token
+   * @param now the current time, in epoch milliseconds
+   * @param until when the claim expires, in epoch milliseconds
+   * @return the state the pass starts from, or null when it holds no claim
+   */
+  ProjectMoveState claimProjectMove(long workFlowId, String token, long now, long until);
+
+  /**
+   * Extends the claim a pass holds, while it has not expired.
+   *
+   * @param workFlowId the process id
+   * @param token the pass's token
+   * @param now the current time, in epoch milliseconds
+   * @param until the new expiry, in epoch milliseconds
+   * @return the state the move is in, or null when the pass no longer holds
+   *         the claim
+   */
+  ProjectMoveState renewProjectMove(long workFlowId, String token, long now, long until);
+
+  /**
+   * Releases the claim a pass holds, if it still holds it.
+   *
+   * @param workFlowId the process id
+   * @param token the pass's token
+   */
+  void releaseProjectMove(long workFlowId, String token);
+
+  /**
+   * Stops the move of a process whose project no longer exists, until a save
+   * sets another project; written only when no save changed the project since
+   * the pass started and the pass still holds the claim.
+   *
+   * @param workFlowId the process id
+   * @param seq the move sequence the pass started with
+   * @param token the pass's token
+   * @return true when the move was stopped
+   */
+  boolean stopProjectMove(long workFlowId, long seq, String token);
+
+  /**
+   * Clears the move flag of a process; written only when no save changed the
+   * project since the pass started and the pass still holds an unexpired
+   * claim.
+   *
+   * @param workFlowId the process id
+   * @param seq the move sequence the pass started with
+   * @param token the pass's token
+   * @param now the current time, in epoch milliseconds
+   * @return true when the flag was cleared
+   */
+  boolean clearProjectMove(long workFlowId, long seq, String token, long now);
+
+  /**
+   * Schedules the next pass of a process's move, conditioned as
+   * {@link #clearProjectMove(long, long, String, long)}.
+   *
+   * @param workFlowId the process id
+   * @param seq the move sequence the pass started with
+   * @param token the pass's token
+   * @param now the current time, in epoch milliseconds
+   * @param nextAttempt when the next pass is due, in epoch milliseconds
+   * @param failed true to count a failed attempt, false for the verification
+   *          pass after a pass that moved requests
+   * @return true when the next pass was scheduled
+   */
+  boolean rescheduleProjectMove(long workFlowId, long seq, String token, long now, long nextAttempt, boolean failed);
+
+  /**
+   * Reads the processes whose move a pass may claim now.
+   *
+   * @param now the current time, in epoch milliseconds
+   * @return their ids, the most overdue first
+   */
+  List<Long> getDueProjectMoves(long now);
+
+  /**
+   * Reads the stored project of a process from the database, never from a
+   * copy loaded earlier.
+   *
+   * @param workFlowId the process id
+   * @return its project id, or null when the process does not exist
+   */
+  Long getStoredProjectId(long workFlowId);
+
+  /**
+   * Reads a page of the task ids of a process's request records, by task id,
+   * whether the task still exists or not.
+   *
+   * @param workFlowId the process id
+   * @param afterTaskId the last task id of the previous page, 0 for the first
+   * @param limit the page size, strictly positive
+   * @return the task ids, ascending
+   */
+  List<Long> getRequestRecordTaskIds(long workFlowId, long afterTaskId, int limit);
+
+  /**
+   * Deletes the request record of a task that no longer exists.
+   *
+   * @param taskId the task id
+   */
+  void deleteRequestRecord(long taskId);
+
+  /**
+   * Counts the requests of a process whose task still exists and is not in
+   * the given project.
+   *
+   * @param workFlowId the process id
+   * @param projectId the project the requests should be in
+   * @return the number of those requests
+   */
+  long countRequestsOutsideProject(long workFlowId, long projectId);
+
+  /**
+   * Moves a request's task to a project, unless it is already there or no
+   * longer exists: first its labels of its former project are removed, so
+   * that a task found in the target has nothing left to do; then it takes the
+   * target's status of the same name, else the one whose name equals it
+   * trimmed, case aside, of lowest id, else a status of that name created in
+   * the target; then the task is saved. Each Task call commits on its own.
+   * The task is saved as read: a copy of it saved in Tasks after this read and
+   * before this save is overwritten, and the description goes through Task's
+   * sanitizer again, as on every task edit. As on every task edit, Task then
+   * queues on its shared asynchronous thread a rewrite of the whole target
+   * project from the project as read at this save, which undoes an edit of
+   * that project made in Tasks while the rewrite waits.
+   *
+   * @param taskId the task id, read again from Task
+   * @param projectId the target project id
+   * @return what the move did
+   */
+  TaskMoveResult moveTaskToProject(long taskId, long projectId);
 }

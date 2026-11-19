@@ -82,6 +82,10 @@ import org.exoplatform.processes.model.WorkDraftRef;
 import org.exoplatform.processes.constant.ProcessesEvents;
 import org.exoplatform.processes.model.ProcessDeletion;
 import java.util.Objects;
+import org.exoplatform.processes.model.ProjectMoveState;
+import org.exoplatform.processes.model.TaskMoveResult;
+import org.exoplatform.services.security.ConversationState;
+import org.exoplatform.services.security.IdentityConstants;
 
 public class ProcessesStorageImpl implements ProcessesStorage {
 
@@ -811,7 +815,18 @@ public class ProcessesStorageImpl implements ProcessesStorage {
                    .orElse(null);
   }
 
+  /**
+   * Updates a request's task: its title, description, completion and status.
+   * A task not in its process's stored project, which a move has not reached
+   * yet, is moved there first, so that a request update racing the move never
+   * sends its task back to the former project; the status is then the stored
+   * project's status of that name.
+   *
+   * @param work the request, its fields checked by the service
+   * @return the updated task
+   */
   private TaskDto updateWorkTask(Work work) {
+    long projectId = moveToStoredProject(work.getId(), work.getProjectId());
     TaskDto taskDto;
     try {
       taskDto = taskService.getTask(work.getId());
@@ -821,9 +836,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     taskDto.setDescription(work.getDescription());
     taskDto.setTitle(work.getTitle());
     taskDto.setCompleted(work.isCompleted());
-    long projectId = work.getProjectId();
-    List<StatusDto> statuses = statusService.getStatuses(projectId);
-    StatusDto status = statuses.stream().filter(statusDto -> work.getStatus().equals(statusDto.getName())).findAny().orElse(null);
+    StatusDto status = work.getStatus() == null ? null : findStatusByName(projectId, work.getStatus());
     if (status != null) {
       taskDto.setStatus(status);
     }
@@ -1093,6 +1106,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   @Override
   public Work updateWorkCompleted(Long workId, boolean completed) {
     TaskDto taskDto;
+    moveToStoredProject(workId, 0);
     try {
       taskDto = taskService.getTask(workId);
       if (taskDto != null) {
@@ -1380,5 +1394,256 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       }
     }
     return managers;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void requestProjectMove(long workFlowId, String requestedBy, long now) {
+    workFlowDAO.requestMove(workFlowId, requestedBy, now);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public ProjectMoveState claimProjectMove(long workFlowId, String token, long now, long until) {
+    if (workFlowDAO.claimMove(workFlowId, token, now, until) == 0) {
+      return null;
+    }
+    return readMoveState(workFlowId, token);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public ProjectMoveState renewProjectMove(long workFlowId, String token, long now, long until) {
+    if (workFlowDAO.renewMove(workFlowId, token, now, until) == 0) {
+      return null;
+    }
+    return readMoveState(workFlowId, token);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void releaseProjectMove(long workFlowId, String token) {
+    workFlowDAO.releaseMove(workFlowId, token);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public boolean stopProjectMove(long workFlowId, long seq, String token) {
+    return workFlowDAO.stopMove(workFlowId, seq, token) > 0;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public boolean clearProjectMove(long workFlowId, long seq, String token, long now) {
+    return workFlowDAO.clearMove(workFlowId, seq, token, now) > 0;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public boolean rescheduleProjectMove(long workFlowId, long seq, String token, long now, long nextAttempt, boolean failed) {
+    return workFlowDAO.rescheduleMove(workFlowId, seq, token, now, nextAttempt, failed) > 0;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<Long> getDueProjectMoves(long now) {
+    return workFlowDAO.findDueMoves(now);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Long getStoredProjectId(long workFlowId) {
+    return workFlowDAO.findProjectId(workFlowId);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<Long> getRequestRecordTaskIds(long workFlowId, long afterTaskId, int limit) {
+    if (limit <= 0) {
+      throw new IllegalArgumentException("A page of request records needs a strictly positive limit");
+    }
+    return requestDAO.findTaskIdsAfter(workFlowId, afterTaskId, limit);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void deleteRequestRecord(long taskId) {
+    requestDAO.deleteByTaskId(taskId);
+  }
+
+  /**
+   * {@inheritDoc} One query: the request records restrict it with a correlated
+   * EXISTS, so no list of ids is bound.
+   */
+  @Override
+  public long countRequestsOutsideProject(long workFlowId, long projectId) {
+    TaskQuery taskQuery = requestsQuery(workFlowId);
+    taskQuery.add(new PredicateCondition<Task>((cb, query, root) -> cb.notEqual(root.get("status").get("project").<Long> get("id"),
+                                                                                projectId)));
+    try {
+      return taskService.countTasks(taskQuery);
+    } catch (Exception e) {
+      throw new IllegalStateException("The requests of the process " + workFlowId + " outside the project " + projectId
+          + " could not be counted", e);
+    }
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public TaskMoveResult moveTaskToProject(long taskId, long projectId) {
+    TaskDto task;
+    try {
+      task = taskService.getTask(taskId);
+    } catch (EntityNotFoundException e) {
+      return TaskMoveResult.NOT_FOUND;
+    }
+    if (task == null) {
+      return TaskMoveResult.NOT_FOUND;
+    }
+    StatusDto formerStatus = task.getStatus();
+    ProjectDto formerProject = formerStatus == null ? null : formerStatus.getProject();
+    if (formerProject != null && formerProject.getId() == projectId) {
+      return TaskMoveResult.IN_PROJECT;
+    }
+    ProjectDto targetProject;
+    try {
+      targetProject = projectService.getProject(projectId);
+    } catch (EntityNotFoundException e) {
+      throw new IllegalStateException("The project " + projectId + " was not found", e);
+    }
+    if (formerProject != null) {
+      removeProjectLabels(task, formerProject.getId());
+    }
+    String statusName = formerStatus == null ? DEFAULT_PROCESS_STATUS[0] : formerStatus.getName();
+    StatusDto targetStatus = findStatusByName(projectId, statusName);
+    if (targetStatus == null) {
+      targetStatus = findStatusByNameIgnoreCase(projectId, statusName);
+    }
+    if (targetStatus == null) {
+      targetStatus = statusService.createStatus(targetProject, statusName);
+    }
+    // Task maps the status by its id
+    StatusDto movedStatus = new StatusDto();
+    movedStatus.setId(targetStatus.getId());
+    movedStatus.setName(targetStatus.getName());
+    task.setStatus(movedStatus);
+    taskService.updateTask(task);
+    return TaskMoveResult.MOVED;
+  }
+
+  /**
+   * Moves a request's task to its process's stored project when it is not
+   * there yet. A process whose stored project no longer exists leaves the
+   * task where it is.
+   *
+   * @param taskId the request's task id
+   * @param currentProjectId the project the task is in, as the caller read it
+   * @return the project the task is in after the call: the stored project, or
+   *         the given one when the task has no request record or the stored
+   *         project is not known
+   */
+  private long moveToStoredProject(long taskId, long currentProjectId) {
+    Long workFlowId = getRequestWorkFlowId(taskId);
+    Long storedProjectId = workFlowId == null ? null : workFlowDAO.findProjectId(workFlowId);
+    if (storedProjectId == null || storedProjectId <= 0 || storedProjectId == currentProjectId) {
+      return currentProjectId;
+    }
+    try {
+      moveTaskToProject(taskId, storedProjectId);
+      return storedProjectId;
+    } catch (IllegalStateException e) {
+      LOG.warn("The request {} stays in its project: its process's project {} was not found", taskId, storedProjectId);
+      return currentProjectId;
+    }
+  }
+
+  /**
+   * Removes a task from its labels of a project, as the user of the current
+   * conversation, else as the system.
+   *
+   * @param task the task
+   * @param projectId the project whose labels are removed
+   */
+  private void removeProjectLabels(TaskDto task, long projectId) {
+    ConversationState conversationState = ConversationState.getCurrent();
+    org.exoplatform.services.security.Identity currentIdentity =
+                                                               conversationState == null ? null : conversationState.getIdentity();
+    if (currentIdentity == null) {
+      currentIdentity = new org.exoplatform.services.security.Identity(IdentityConstants.SYSTEM);
+    }
+    List<LabelDto> labels = labelService.findLabelsByTask(task, projectId, currentIdentity, 0, 0);
+    if (labels == null) {
+      return;
+    }
+    for (LabelDto label : labels) {
+      try {
+        labelService.removeTaskFromLabel(task, label.getId());
+      } catch (EntityNotFoundException e) {
+        // Removed meanwhile: nothing left to remove
+        LOG.debug("The label {} of the task {} was already removed", label.getId(), task.getId());
+      }
+    }
+  }
+
+  /**
+   * Finds a status of a project whose stored name equals a name, both
+   * trimmed, case aside: the one of lowest id when several do.
+   *
+   * @param projectId the project id
+   * @param name the status name
+   * @return the status, or null when none matches
+   */
+  private StatusDto findStatusByNameIgnoreCase(long projectId, String name) {
+    List<StatusDto> statuses = statusService.getStatuses(projectId);
+    if (statuses == null || name == null) {
+      return null;
+    }
+    String trimmedName = name.trim();
+    return statuses.stream()
+                   .filter(statusDto -> statusDto.getName() != null && trimmedName.equalsIgnoreCase(statusDto.getName().trim()))
+                   .min(Comparator.comparingLong(StatusDto::getId))
+                   .orElse(null);
+  }
+
+  /**
+   * Reads the move state of a process whose claim the pass holds.
+   *
+   * @param workFlowId the process id
+   * @param token the pass's token
+   * @return the state, or null when the pass does not hold the claim
+   */
+  private ProjectMoveState readMoveState(long workFlowId, String token) {
+    Object[] row = workFlowDAO.findMoveState(workFlowId, token);
+    if (row == null) {
+      return null;
+    }
+    return new ProjectMoveState(row[0] == null ? 0 : ((Number) row[0]).longValue(),
+                                (String) row[1],
+                                row[2] == null ? 0 : ((Number) row[2]).longValue(),
+                                row[3] == null ? 0 : ((Number) row[3]).intValue());
   }
 }
