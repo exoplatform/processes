@@ -15,6 +15,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.NamedQuery;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.ColumnDefault;
+
 import lombok.Data;
 
 @Entity(name = "WorkFlow")
@@ -99,6 +101,7 @@ public class WorkFlowEntity implements Serializable {
   private Boolean projectMovePending;
 
   /** Incremented by each save that changes the project */
+  @ColumnDefault("0")
   @Column(name = "MOVE_SEQ", nullable = false, insertable = false, updatable = false)
   private Long moveSeq;
 
@@ -111,6 +114,7 @@ public class WorkFlowEntity implements Serializable {
   private Long moveLeaseUntil;
 
   /** The failed attempts since the last save that changed the project */
+  @ColumnDefault("0")
   @Column(name = "MOVE_ATTEMPTS", nullable = false, insertable = false, updatable = false)
   private Integer moveAttempts;
 
