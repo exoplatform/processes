@@ -76,6 +76,9 @@ public class ProcessesServiceImpl implements ProcessesService {
 
   private static final Set<String> DECIDED_STATUSES    = Set.of("Validated", "Refused");
 
+  /** The statuses after which a request changes no more, which « Archive all » archives */
+  private static final Set<String> FINISHED_STATUSES   = Set.of("Validated", "Refused", "Canceled");
+
   /** The statuses of a process's task project, in their column order */
   private static final List<String> PROCESS_STATUSES   = List.of("Request", "RequestInProgress", "Validated", "Refused", "Canceled");
 
@@ -1197,6 +1200,39 @@ public class ProcessesServiceImpl implements ProcessesService {
   public List<Work> getWorks(long userIdentityId, WorkFilter workFilter, int offset, int limit) throws Exception {
 
     return processesStorage.getWorks(userIdentityId, workFilter, offset, limit);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public int countWorks(long userIdentityId, WorkFilter workFilter) throws Exception {
+    return processesStorage.countWorks(userIdentityId, workFilter);
+  }
+
+  /**
+   * {@inheritDoc} The requests are read once, the user's open ones, then each
+   * finished one goes through the checked archive, so the user's right on each
+   * is the one a single archive applies.
+   */
+  @Override
+  public int archiveFinishedWorks(long userIdentityId) throws Exception {
+    WorkFilter filter = new WorkFilter();
+    filter.setCompleted(false);
+    List<Work> works = processesStorage.getWorks(userIdentityId, filter, 0, 0);
+    int archived = 0;
+    for (Work work : works) {
+      if (work == null || !FINISHED_STATUSES.contains(work.getStatus())) {
+        continue;
+      }
+      try {
+        updateWorkCompleted(work.getId(), true, userIdentityId);
+        archived++;
+      } catch (ObjectNotFoundException | IllegalAccessException e) {
+        LOG.debug("The request {} isn't archived for the user {}", work.getId(), userIdentityId, e);
+      }
+    }
+    return archived;
   }
 
   /**

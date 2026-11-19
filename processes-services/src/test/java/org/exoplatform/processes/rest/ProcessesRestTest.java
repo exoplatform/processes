@@ -1036,4 +1036,75 @@ public class ProcessesRestTest {
     assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), notEligible.getStatus());
     assertEquals("processes.project.notEligible", notEligible.getEntity());
   }
+
+  /**
+   * The count of the current user's requests answers 401 without a user, 403
+   * for another user's id, and otherwise the service's count for the session
+   * user, with the asked completion and status. Mutation: count for the
+   * {@code userId} parameter, or drop a criterion, and this test fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  public void theRequestsCountIsTheSessionUsers() throws Exception {
+    REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
+    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), processesRest.countWorks(null, true, null).getStatus());
+
+    REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), processesRest.countWorks(2L, true, null).getStatus());
+    verify(processesService, times(0)).countWorks(anyLong(), any());
+
+    WorkFilter expected = new WorkFilter();
+    expected.setCompleted(true);
+    expected.setStatus("Validated");
+    when(processesService.countWorks(1L, expected)).thenReturn(42);
+    Response response = processesRest.countWorks(null, true, "Validated");
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    assertEquals("42", response.getEntity());
+  }
+
+  /**
+   * « Archive all » answers 401 without a user, and otherwise archives as the
+   * session user and answers how many were archived. Mutation: archive for
+   * another user and this test fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  public void archiveAllArchivesAsTheSessionUser() throws Exception {
+    REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
+    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), processesRest.archiveFinishedWorks().getStatus());
+    verify(processesService, times(0)).archiveFinishedWorks(anyLong());
+
+    REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    when(processesService.archiveFinishedWorks(1L)).thenReturn(3);
+    Response response = processesRest.archiveFinishedWorks();
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    assertEquals("3", response.getEntity());
+
+    when(processesService.archiveFinishedWorks(1L)).thenThrow(new RuntimeException("engine detail"));
+    Response failed = processesRest.archiveFinishedWorks();
+    assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), failed.getStatus());
+    assertEquals("The requests could not be archived", failed.getEntity());
+  }
+
+  /**
+   * The list asks the comments count only when the {@code commentsCount}
+   * expansion is asked. Mutation: always ask it, or never, and this test
+   * fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  public void theListAsksTheCommentsCountOnlyWhenExpanded() throws Exception {
+    REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    org.mockito.ArgumentCaptor<WorkFilter> filter = org.mockito.ArgumentCaptor.forClass(WorkFilter.class);
+
+    processesRest.getWorks(null, "workFlow, commentsCount", false, null, null, 0, 51);
+    processesRest.getWorks(null, "workFlow", false, null, null, 0, 51);
+
+    verify(processesService, times(2)).getWorks(eq(1L), filter.capture(), eq(0), eq(51));
+    assertEquals(Boolean.TRUE, filter.getAllValues().get(0).getWithCommentsCount());
+    assertEquals(null, filter.getAllValues().get(1).getWithCommentsCount());
+  }
 }

@@ -37,6 +37,8 @@
               :works="works"
               :work-drafts="workDrafts"
               :completed-works="completedWorks"
+              :completed-total="completedTotal"
+              :completed-has-more="completedHasMore"
               :loading="worksLoading || completedLoads > 0"
               :show-work-filter="requestSubmitted || allWorkDrafts.length > 0" />
           </v-tab-item>
@@ -62,6 +64,7 @@
 </template>
 
 <script>
+import {COMPLETED_PAGE_SIZE} from '../js/MyRequestsFilters.js';
 
 export default {
   data () {
@@ -107,6 +110,9 @@ export default {
       managesWorkflow: null,
       worksLoading: false,
       completedLoads: 0,
+      completedTotal: null,
+      completedHasMore: false,
+      loadingOlderCompleted: false,
       confirmTitle: this.$t('processes.workflow.action.confirmation.label'),
       confirmMessage: '',
       dialogAction: null,
@@ -251,6 +257,15 @@ export default {
         this.getCompletedWorks();
       } else {
         this.completedWorks = [];
+        this.completedTotal = null;
+        this.completedHasMore = false;
+      }
+    });
+    this.$root.$on('load-more-completed-works', all => this.loadOlderCompletedWorks(all));
+    this.$root.$on('archive-finished-works', count => this.showConfirmDialog(count, 'archive_finished_works'));
+    this.$root.$on('work-uncanceled', () => {
+      if (this.completedTotal) {
+        this.completedTotal--;
       }
     });
     this.$root.$on('processes-show-tab', tab => this.tab = tab);
@@ -292,7 +307,8 @@ export default {
         }
       }));
     }, 300);
-    this.$processesService.getWorks(null,0,0,'workFlow').then(list =>{
+    // one request, without its process, tells whether the user ever sent one
+    this.$processesService.getWorks(null, 0, 1, '').then(list => {
       this.requestSubmitted = list.length > 0;
     });
   },
@@ -459,7 +475,7 @@ export default {
     },
     getWorks() {
       const filter = {completed: false};
-      const expand = 'workFlow';
+      const expand = 'workFlow,commentsCount';
       this.limit = this.limit || this.pageSize;
       this.loading = true;
       return this.$processesService
@@ -469,20 +485,78 @@ export default {
         })
         .finally(() => this.loading = false);
     },
-    getCompletedWorks() {
-      const expand = 'workFlow';
+    /**
+     * Loads the most recent completed requests, a page of them, with the server's count; or, when
+     * appending, the next page, and every remaining one when asked for all.
+     *
+     * @param {Boolean} append whether the page follows the loaded ones
+     * @param {Boolean} all whether every remaining page loads
+     * @returns {Promise} resolved once the pages are loaded
+     */
+    getCompletedWorks(append, all) {
+      const expand = 'workFlow,commentsCount';
       const filter = {
         completed: true
       };
+      const offset = append ? this.completedWorks.length : 0;
       // counted, not flagged: a quick Completed, All, Completed starts a second load before the first answers
       this.completedLoads++;
-      return this.$processesService.getWorks(filter, 0, 0, expand).then(works => {
+      const page = this.$processesService.getWorks(filter, offset, COMPLETED_PAGE_SIZE + 1, expand);
+      const count = append ? Promise.resolve(this.completedTotal) : this.$processesService.countWorks(filter).catch(() => null);
+      return Promise.all([page, count]).then(([works, total]) => {
         if (this.status !== 'completed') {
           // the status changed while the completed requests were loading
           return;
         }
-        this.completedWorks = works || [];
+        const list = works || [];
+        const hasMore = list.length > COMPLETED_PAGE_SIZE;
+        const pageWorks = hasMore ? list.slice(0, COMPLETED_PAGE_SIZE) : list;
+        if (append) {
+          // a request archived meanwhile shifts the pages: one already shown is not added twice
+          const shownIds = new Set(this.completedWorks.map(work => work.id));
+          this.completedWorks.push(...pageWorks.filter(work => !shownIds.has(work.id)));
+        } else {
+          this.completedWorks = pageWorks;
+        }
+        this.completedTotal = total;
+        this.completedHasMore = hasMore;
+        if (all && hasMore) {
+          return this.getCompletedWorks(true, true);
+        }
       }).finally(() => this.completedLoads--);
+    },
+    /**
+     * Loads the next page of completed requests, or every remaining one, one load at a time.
+     *
+     * @param {Boolean} all whether every remaining page loads
+     * @returns {void}
+     */
+    loadOlderCompletedWorks(all) {
+      if (this.loadingOlderCompleted || !this.completedHasMore) {
+        return;
+      }
+      this.loadingOlderCompleted = true;
+      this.getCompletedWorks(true, all).finally(() => this.loadingOlderCompleted = false);
+    },
+    /**
+     * Archives every validated, refused and canceled request of the user, then reloads the lists
+     * the archive changed.
+     *
+     * @returns {Promise} resolved once the outcome is shown
+     */
+    archiveFinishedWorks() {
+      return this.$processesService.archiveFinishedWorks().then(archived => {
+        const message = archived === 1
+          ? this.$t('processes.myRequests.archiveAll.success.one')
+          : this.$t('processes.myRequests.archiveAll.success.many', {0: archived});
+        this.displayMessage({type: 'success', message});
+        this.getWorks();
+        if (this.status === 'completed') {
+          this.getCompletedWorks();
+        }
+      }).catch(() => {
+        this.displayMessage({type: 'error', message: this.$t('processes.myRequests.archiveAll.error')});
+      });
     },
     getWorkDrafts() {
       const expand = '';
@@ -676,6 +750,12 @@ export default {
       if (reason === 'delete_work_draft') {
         this.confirmMessage = this.$t('processes.work.draft.delete.confirmDialog.message');
       }
+      if (reason === 'archive_finished_works') {
+        // the model is the number of requests the archive takes
+        this.confirmMessage = model === 1
+          ? this.$t('processes.myRequests.archiveAll.confirm.one')
+          : this.$t('processes.myRequests.archiveAll.confirm.many', {0: model});
+      }
       this.$refs.confirmDialog.open();
     },
     confirmAction() {
@@ -690,6 +770,9 @@ export default {
       }
       if (this.dialogAction && this.dialogAction === 'cancel_work') {
         this.updateWorkCompleted(this.targetModel, true, true);
+      }
+      if (this.dialogAction === 'archive_finished_works') {
+        this.archiveFinishedWorks();
       }
       this.onDialogClosed();
     },

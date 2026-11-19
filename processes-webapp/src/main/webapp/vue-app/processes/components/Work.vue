@@ -20,7 +20,7 @@
   <work-row
     :work="workObject"
     :is-draft="isDraft"
-    :comments-count="comments.length"
+    :comments-count="commentsCount"
     :avatar-url="workflowAvatarUrl"
     :allow-cancel="allowCancel"
     @open="openRequest"
@@ -32,11 +32,6 @@
 
 <script>
 export default {
-  data () {
-    return {
-      comments: [],
-    };
-  },
   props: {
     work: {
       type: Object,
@@ -53,6 +48,14 @@ export default {
     workObject() {
       return this.work || {};
     },
+    /**
+     * Reads the request's comments count, which the list carries: no request is read per row.
+     *
+     * @returns {Number} the count, 0 for a draft or when the list did not carry it
+     */
+    commentsCount() {
+      return !this.isDraft && this.workObject.commentsCount || 0;
+    },
     allowCancel() {
       return this.workObject && this.workObject.status !== 'Validated' && this.workObject.status !== 'Refused';
     },
@@ -61,9 +64,6 @@ export default {
                                       && this.workObject.workFlow.illustrativeAttachment.id
                                       && `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/illustration/${this.workObject.workFlow.id}`;
     }
-  },
-  created() {
-    this.getWorkComments();
   },
   methods: {
     /**
@@ -81,19 +81,19 @@ export default {
     openDraft() {
       this.$root.$emit('open-add-work-drawer', {object: this.workObject, mode: 'edit_work_draft'});
     },
+    /**
+     * Reads the request's comments, then opens them in the comments drawer.
+     *
+     * @returns {Promise} resolved once the drawer is asked to open
+     */
     openCommentsDrawer() {
-      const mappedWork = Object.assign({}, this.workObject);
-      mappedWork.status = {
-        project: {}
-      };
-      this.$root.$emit('show-work-comments', mappedWork, this.comments);
-    },
-    getWorkComments() {
-      if (this.workObject && !this.isDraft) {
-        return this.$processesService.getWorkComments(this.workObject.id).then(comments => {
-          this.comments = comments;
-        });
-      }
+      return this.$processesService.getWorkComments(this.workObject.id).then(comments => {
+        const mappedWork = Object.assign({}, this.workObject);
+        mappedWork.status = {
+          project: {}
+        };
+        this.$root.$emit('show-work-comments', mappedWork, comments);
+      });
     },
     deleteWork() {
       if (this.isDraft) {

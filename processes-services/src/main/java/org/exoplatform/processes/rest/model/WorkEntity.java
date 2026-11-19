@@ -74,6 +74,12 @@ public class WorkEntity {
    */
   private String           formValues;
 
+  /**
+   * The number of comments on the request's task, sent when a list asks for
+   * it; never read from a client.
+   */
+  private Integer          commentsCount;
+
   public WorkEntity(long id,
                     String title,
                     String description,

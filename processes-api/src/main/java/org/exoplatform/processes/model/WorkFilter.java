@@ -13,4 +13,10 @@ public class WorkFilter {
     private String query;
     private Boolean isDraft;
     private Boolean completed;
+
+    /**
+     * Whether each listed request carries its comments count, read from its
+     * task; null or false leaves the count unset.
+     */
+    private Boolean withCommentsCount;
 }
