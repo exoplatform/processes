@@ -14,21 +14,25 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 <template>
   <div class="requestDrawerActions d-flex flex-nowrap justify-end align-center">
     <!-- « Save as draft » gives way to Submit: its label is cut with an ellipsis when the two do not fit, and the
-         tooltip then shows it whole -->
+         tooltip then shows it whole. The tooltip hangs on a wrapper, as Submit's does, since a disabled button
+         receives no pointer event -->
     <v-tooltip :disabled="!draftLabelCut" top>
       <template #activator="{ on, attrs }">
-        <v-btn
-          id="saveRequestDraftButton"
-          :loading="savingDraft"
-          :disabled="!canSaveDraft"
-          :aria-label="draftLabel"
-          class="requestDrawerActionsDraft btn me-2"
+        <div
+          class="requestDrawerActionsDraft d-flex me-2"
           v-bind="attrs"
-          v-on="on"
-          @click="$emit('save-draft')">
-          <v-icon size="16" class="flex-shrink-0 me-1">far fa-save</v-icon>
-          <span ref="draftLabel" class="text-truncate">{{ draftLabel }}</span>
-        </v-btn>
+          v-on="on">
+          <v-btn
+            id="saveRequestDraftButton"
+            :loading="savingDraft"
+            :disabled="!canSaveDraft"
+            :aria-label="draftLabel"
+            class="btn"
+            @click="$emit('save-draft')">
+            <v-icon size="16" class="flex-shrink-0 me-1">far fa-save</v-icon>
+            <span ref="draftLabel" class="text-truncate">{{ draftLabel }}</span>
+          </v-btn>
+        </div>
       </template>
       <span>{{ draftLabel }}</span>
     </v-tooltip>
