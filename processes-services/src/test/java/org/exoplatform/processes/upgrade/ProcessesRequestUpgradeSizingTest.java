@@ -69,9 +69,12 @@ import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.TaskService;
 
 /**
- * Sizes the request backfill on the processes schema as Liquibase creates it,
- * in HSQLDB: 20,000 tasks over four processes, each fed by its own project,
- * written through the DAOs in their real transactions. It is left out of the
+ * Sizes the processes side of the request backfill on the processes schema as
+ * Liquibase creates it, in HSQLDB: 20,000 tasks over four processes, each fed
+ * by its own project, recorded through the DAOs in their real transactions.
+ * The Task add-on's page reads and the identity lookups are mocked, so the
+ * figure covers the record reads, the record writes and the clears only, not
+ * the whole upgrade. It is left out of the
  * default suite; run it with {@code -Dprocesses.upgrade.sizing=true
  * -Dtest=ProcessesRequestUpgradeSizingTest}. It prints the time, the page
  * count and the entity manager clears, and checks a rerun records nothing.
@@ -155,7 +158,8 @@ class ProcessesRequestUpgradeSizingTest {
         long rerun = System.currentTimeMillis() - start;
         assertEquals(PROCESSES * TASKS_PER_PROCESS, count(connection));
 
-        System.out.println("SIZING ProcessesRequestUpgradePlugin: " + PROCESSES * TASKS_PER_PROCESS + " requests over " + PROCESSES
+        System.out.println("SIZING ProcessesRequestUpgradePlugin, processes side only (task pages and identities mocked), HSQLDB: "
+            + PROCESSES * TASKS_PER_PROCESS + " requests over " + PROCESSES
             + " processes, " + pages + " pages of " + ProcessesRequestUpgradePlugin.PAGE_SIZE
             + ", entity manager cleared after each page, first run " + firstRun + " ms, rerun (nothing to record) " + rerun + " ms");
       } finally {
