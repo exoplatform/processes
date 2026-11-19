@@ -272,14 +272,18 @@
           <div
             v-if="moveWarning"
             id="processProjectMoveWarning"
-            class="d-flex align-center caption ms-1 pe-1 mt-1">
-            <v-icon
-              color="warning"
-              class="me-2"
-              size="14">
-              fas fa-exclamation-triangle
-            </v-icon>
-            <span>{{ moveWarning }}</span>
+            class="d-flex align-start text-start caption ms-1 pe-1 mt-1">
+            <span
+              style="height: 1.25rem"
+              class="d-inline-flex align-center flex-shrink-0 me-2">
+              <v-icon
+                color="warning"
+                size="14"
+                aria-hidden="true">
+                fas fa-exclamation-triangle
+              </v-icon>
+            </span>
+            <span class="text-break">{{ moveWarning }}</span>
           </div>
           <workflow-labels-field
             :key="`labelsField${formKey}`"
