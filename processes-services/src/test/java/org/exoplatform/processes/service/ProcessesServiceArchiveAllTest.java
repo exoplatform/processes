@@ -17,6 +17,7 @@
 package org.exoplatform.processes.service;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -96,9 +97,9 @@ public class ProcessesServiceArchiveAllTest {
   }
 
   /**
-   * A request selected as finished but reopened by a manager before its turn,
-   * or archived meanwhile, is left: the status and the archive are read again
-   * at each turn. Mutation: archive from the selection's copy and this test
+   * A request whose re-read at its turn says it is no longer finished, or
+   * already archived, is left: the status and the archive are read again at
+   * each turn. Mutation: archive from the selection's copy and this test
    * fails.
    *
    * @throws Exception never, the mocks throw nothing
@@ -159,6 +160,26 @@ public class ProcessesServiceArchiveAllTest {
 
     verify(processesService).updateWorkCompleted(3L, true, USER_ID);
     verify(processesService, never()).updateWorkCompleted(eq(4L), anyBoolean(), anyLong());
+  }
+
+  /**
+   * A re-read that fails stops the run with its failure, after the requests
+   * archived before it, and archives none after it. Mutation: swallow the
+   * failure, or archive the request without its re-read, and this test fails.
+   *
+   * @throws Exception never, the mocks throw nothing but the stubbed failure
+   */
+  @Test
+  public void aFailingReReadStopsTheRunAfterTheArchivedOnes() throws Exception {
+    select(work(1L, "Validated"), work(2L, "Refused"), work(3L, "Canceled"));
+    when(processesStorage.getWorkById(2L)).thenThrow(new IllegalStateException("storage down"));
+    doReturn(null).when(processesService).updateWorkCompleted(anyLong(), eq(true), eq(USER_ID));
+
+    assertThrows(IllegalStateException.class, () -> processesService.archiveFinishedWorks(USER_ID));
+
+    verify(processesService).updateWorkCompleted(1L, true, USER_ID);
+    verify(processesService, never()).updateWorkCompleted(eq(2L), anyBoolean(), anyLong());
+    verify(processesService, never()).updateWorkCompleted(eq(3L), anyBoolean(), anyLong());
   }
 
   /**

@@ -1213,14 +1213,16 @@ public class ProcessesServiceImpl implements ProcessesService {
   /**
    * {@inheritDoc} The user's open requests are read once to select the
    * candidates; at each one's turn the request is read again and archived only
-   * if it is still not archived and still finished, so a request a manager
-   * reopened or archived meanwhile, or that an earlier archive changed, is
-   * left. The archive then goes through
-   * {@link #updateWorkCompleted(Long, boolean, long)}, which reads the request
-   * once more for the user's right: the window left is between that read and
-   * this one. Each archive stands alone, as a single archive does: a failure
-   * other than a refusal stops the run and leaves the requests already
-   * archived archived.
+   * if it is still not archived and still finished, so a request an earlier
+   * turn of the run changed is left. That read goes through the Task add-on
+   * within the same request as the selection, which may serve its tasks from
+   * the request's persistence context: a change another user commits while
+   * the run lasts is not guaranteed to be seen, the window being the run's
+   * duration. The archive then goes through
+   * {@link #updateWorkCompleted(Long, boolean, long)}, which checks the user's
+   * right on the request. Each archive stands alone, as a single archive does:
+   * a failure other than a refusal, the re-read's included, stops the run and
+   * leaves the requests already archived archived.
    */
   @Override
   public int archiveFinishedWorks(long userIdentityId) throws Exception {
