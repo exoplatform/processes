@@ -275,7 +275,7 @@ class ProcessesProjectMoveTest {
     List<String> actors = new ArrayList<>();
     doAnswer(invocation -> {
       actors.add(ConversationState.getCurrent().getIdentity().getUserId());
-      return invocation.getArgument(0);
+      return saveInTarget(invocation.getArgument(0));
     }).when(taskService).updateTask(any(TaskDto.class));
 
     moveService.runMove(1L);
@@ -653,16 +653,21 @@ class ProcessesProjectMoveTest {
     if (count("SELECT COUNT(*) FROM PROCESSES_REQUEST WHERE TASK_ID = " + taskId) == 0) {
       sql("INSERT INTO PROCESSES_REQUEST (TASK_ID, WORK_FLOW_ID, CREATOR_ID) VALUES (" + taskId + ", 1, 5)");
     }
-    doAnswer(invocation -> {
-      TaskDto saved = invocation.getArgument(0);
-      StatusDto moved = status(saved.getStatus().getId(), saved.getStatus().getName(), project(TARGET_ID));
-      TaskDto copy = new TaskDto();
-      copy.setId(saved.getId());
-      copy.setCompleted(saved.isCompleted());
-      copy.setStatus(moved);
-      tasks.put(saved.getId(), copy);
-      return saved;
-    }).when(taskService).updateTask(eq(task));
+    doAnswer(invocation -> saveInTarget(invocation.getArgument(0))).when(taskService).updateTask(eq(task));
+  }
+
+  /**
+   * Saves a task as Task does after a move: it is then in the target project,
+   * in the column of the status it was given.
+   */
+  private TaskDto saveInTarget(TaskDto saved) {
+    StatusDto moved = status(saved.getStatus().getId(), saved.getStatus().getName(), project(TARGET_ID));
+    TaskDto copy = new TaskDto();
+    copy.setId(saved.getId());
+    copy.setCompleted(saved.isCompleted());
+    copy.setStatus(moved);
+    tasks.put(saved.getId(), copy);
+    return saved;
   }
 
   private static ProjectDto project(long id) {
