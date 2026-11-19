@@ -1223,7 +1223,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     String finalUserName = userName;
     workFlows.forEach(workflow -> {
       if (workflow != null) {
-        Space space = ProcessesUtils.getProjectParentSpace(workflow.getProjectId());
+        Space space = getManagingSpace(workflow);
         workflow.setCanShowPending(space != null && (spaceService.isSuperManager(finalUserName) || spaceService.isMember(space, finalUserName)));
       }
     });
@@ -1236,6 +1236,23 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   @Override
   public int countWorkFlows(ProcessesFilter processesFilter) {
     return workFlowDAO.countWorkFlows(processesFilter);
+  }
+
+  /**
+   * Reads the managing space of a process: its stored space, else the space of
+   * its task project, for a process stored before it had one.
+   *
+   * @param workFlow the process
+   * @return the space, or null when none is found
+   */
+  private Space getManagingSpace(WorkFlow workFlow) {
+    if (StringUtils.isNotBlank(workFlow.getSpaceId())) {
+      Space storedSpace = spaceService.getSpaceById(workFlow.getSpaceId());
+      if (storedSpace != null) {
+        return storedSpace;
+      }
+    }
+    return ProcessesUtils.getProjectParentSpace(workFlow.getProjectId());
   }
 
   private Map.Entry<String, List<String>> getUserMemberships(Long userIdentityId) {

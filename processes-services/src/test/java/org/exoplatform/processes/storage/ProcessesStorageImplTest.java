@@ -1,6 +1,7 @@
 package org.exoplatform.processes.storage;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
@@ -1484,6 +1485,36 @@ public class ProcessesStorageImplTest {
     workFlow.setRequestsCreators(identityEntities);
     this.processesStorage.saveWorkFlow(workFlow, 1L);
     assertEquals(1, this.processesStorage.countWorkFlows(filter));
+  }
+
+  /**
+   * A listed process shows its pending requests to a member of its stored
+   * managing space, not to a member of its project's space only: the request
+   * count's gate reads the same space. Mutation: read the project's space
+   * again and this test fails.
+   */
+  @Test
+  public void thePendingRequestsAreShownToTheMembersOfTheStoredSpace() {
+    mockAclIdentity(5L, "john", new MembershipEntry("/spaces/hr", "member"));
+    ProcessesFilter filter = new ProcessesFilter("all", null, null, false);
+    WorkFlowEntity entity = new WorkFlowEntity();
+    when(workFlowDAO.findWorkFlows(eq(filter), any(), anyInt(), anyInt())).thenReturn(List.of(entity));
+    WorkFlow listed = new WorkFlow();
+    listed.setProjectId(9L);
+    listed.setSpaceId("8");
+    ENTITY_MAPPER.when(() -> EntityMapper.fromEntity(eq(entity), any(), any())).thenReturn(listed);
+    Space stored = mock(Space.class);
+    Space projectSpace = mock(Space.class);
+    when(spaceService.getSpaceById("8")).thenReturn(stored);
+    PROCESSES_UTILS.when(() -> ProcessesUtils.getProjectParentSpace(9L)).thenReturn(projectSpace);
+    when(spaceService.isMember(stored, "john")).thenReturn(true);
+    when(spaceService.isMember(projectSpace, "john")).thenReturn(false);
+
+    assertTrue(this.processesStorage.findWorkFlows(filter, 5L, 0, 10).get(0).isCanShowPending());
+
+    when(spaceService.isMember(stored, "john")).thenReturn(false);
+    when(spaceService.isMember(projectSpace, "john")).thenReturn(true);
+    assertFalse(this.processesStorage.findWorkFlows(filter, 5L, 0, 10).get(0).isCanShowPending());
   }
 
   /**
