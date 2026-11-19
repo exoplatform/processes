@@ -16,8 +16,8 @@
  */
 package org.exoplatform.processes.service;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -33,12 +33,12 @@ import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.processes.model.Work;
@@ -49,8 +49,8 @@ import org.exoplatform.processes.storage.ProcessesStorage;
  * « Archive all »: the user's own finished requests, each through the checked
  * archive, as that user.
  */
-@RunWith(MockitoJUnitRunner.class)
-public class ProcessesServiceArchiveAllTest {
+@ExtendWith(MockitoExtension.class)
+class ProcessesServiceArchiveAllTest {
 
   private static final long    USER_ID = 7L;
 
@@ -63,8 +63,8 @@ public class ProcessesServiceArchiveAllTest {
    * Builds the service over a mocked storage, spied so the checked archive of
    * one request can be observed.
    */
-  @Before
-  public void setUp() {
+  @BeforeEach
+  void setUp() {
     processesService = spy(new ProcessesServiceImpl(processesStorage, null, null, null, null, null, null, null, null, null));
   }
 
@@ -78,7 +78,7 @@ public class ProcessesServiceArchiveAllTest {
    * @throws Exception never, the mocks throw nothing
    */
   @Test
-  public void theFinishedRequestsOfTheUserAreArchivedThroughTheCheckedArchive() throws Exception {
+  void theFinishedRequestsOfTheUserAreArchivedThroughTheCheckedArchive() throws Exception {
     select(work(1L, "Validated"), work(2L, "Refused"), work(3L, "Canceled"), work(4L, "Request"), work(5L, "RequestInProgress"));
     doReturn(null).when(processesService).updateWorkCompleted(anyLong(), eq(true), eq(USER_ID));
 
@@ -105,7 +105,7 @@ public class ProcessesServiceArchiveAllTest {
    * @throws Exception never, the mocks throw nothing
    */
   @Test
-  public void aRequestThatChangedBeforeItsTurnIsLeft() throws Exception {
+  void aRequestThatChangedBeforeItsTurnIsLeft() throws Exception {
     select(work(1L, "Validated"), work(2L, "Refused"), work(3L, "Canceled"));
     when(processesStorage.getWorkById(1L)).thenReturn(work(1L, "RequestInProgress"));
     Work archivedMeanwhile = work(2L, "Refused");
@@ -128,7 +128,7 @@ public class ProcessesServiceArchiveAllTest {
    * @throws Exception never, the mocks throw nothing
    */
   @Test
-  public void anArchiveThatChangesTheNextCandidateIsSeenAtItsTurn() throws Exception {
+  void anArchiveThatChangesTheNextCandidateIsSeenAtItsTurn() throws Exception {
     select(work(1L, "Validated"), work(1L, "Validated"));
     Work archived = work(1L, "Validated");
     archived.setCompleted(true);
@@ -149,7 +149,7 @@ public class ProcessesServiceArchiveAllTest {
    * @throws Exception never, the mocks throw nothing
    */
   @Test
-  public void aGoneOrRefusedRequestIsSkippedAndNotCounted() throws Exception {
+  void aGoneOrRefusedRequestIsSkippedAndNotCounted() throws Exception {
     select(work(1L, "Validated"), work(2L, "Refused"), work(3L, "Canceled"), work(4L, "Validated"));
     when(processesStorage.getWorkById(4L)).thenReturn(null);
     doThrow(new IllegalAccessException("not allowed")).when(processesService).updateWorkCompleted(1L, true, USER_ID);
@@ -170,7 +170,7 @@ public class ProcessesServiceArchiveAllTest {
    * @throws Exception never, the mocks throw nothing but the stubbed failure
    */
   @Test
-  public void aFailingReReadStopsTheRunAfterTheArchivedOnes() throws Exception {
+  void aFailingReReadStopsTheRunAfterTheArchivedOnes() throws Exception {
     select(work(1L, "Validated"), work(2L, "Refused"), work(3L, "Canceled"));
     when(processesStorage.getWorkById(2L)).thenThrow(new IllegalStateException("storage down"));
     doReturn(null).when(processesService).updateWorkCompleted(anyLong(), eq(true), eq(USER_ID));
@@ -188,7 +188,7 @@ public class ProcessesServiceArchiveAllTest {
    * @throws Exception never, the mocks throw nothing
    */
   @Test
-  public void nothingIsArchivedWithoutAFinishedRequest() throws Exception {
+  void nothingIsArchivedWithoutAFinishedRequest() throws Exception {
     select(work(4L, "Request"));
 
     assertEquals(0, processesService.archiveFinishedWorks(USER_ID));

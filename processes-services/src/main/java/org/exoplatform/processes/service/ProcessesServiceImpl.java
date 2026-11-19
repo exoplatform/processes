@@ -1267,7 +1267,8 @@ public class ProcessesServiceImpl implements ProcessesService {
    * @return true when it exists, is not archived and its status is final
    */
   private static boolean isUnarchivedAndFinished(Work work) {
-    return work != null && !work.isCompleted() && FINISHED_STATUSES.contains(work.getStatus());
+    // Set.of refuses a null lookup: a task that left its project has no status
+    return work != null && !work.isCompleted() && work.getStatus() != null && FINISHED_STATUSES.contains(work.getStatus());
   }
 
   /**

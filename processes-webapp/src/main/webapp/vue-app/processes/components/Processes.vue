@@ -113,6 +113,7 @@ export default {
       completedTotal: null,
       completedHasMore: false,
       loadingOlderCompleted: false,
+      loadAllCompletedPending: false,
       confirmTitle: this.$t('processes.workflow.action.confirmation.label'),
       confirmMessage: '',
       dialogAction: null,
@@ -526,17 +527,29 @@ export default {
       }).finally(() => this.completedLoads--);
     },
     /**
-     * Loads the next page of completed requests, or every remaining one, one load at a time.
+     * Loads the next page of completed requests, or every remaining one, one load at a time. Asked
+     * for all while a page loads, it loads the rest once that page lands, rather than waiting for a
+     * change of `completedHasMore` that a page leaving more to load does not make.
      *
      * @param {Boolean} all whether every remaining page loads
      * @returns {void}
      */
     loadOlderCompletedWorks(all) {
-      if (this.loadingOlderCompleted || !this.completedHasMore) {
+      if (this.loadingOlderCompleted) {
+        this.loadAllCompletedPending = this.loadAllCompletedPending || !!all;
+        return;
+      }
+      if (!this.completedHasMore) {
         return;
       }
       this.loadingOlderCompleted = true;
-      this.getCompletedWorks(true, all).finally(() => this.loadingOlderCompleted = false);
+      this.getCompletedWorks(true, all).finally(() => {
+        this.loadingOlderCompleted = false;
+        if (this.loadAllCompletedPending) {
+          this.loadAllCompletedPending = false;
+          this.loadOlderCompletedWorks(true);
+        }
+      });
     },
     /**
      * Archives every validated, refused and canceled request of the user, then reloads the lists

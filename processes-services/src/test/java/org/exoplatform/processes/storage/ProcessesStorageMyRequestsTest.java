@@ -16,9 +16,9 @@
  */
 package org.exoplatform.processes.storage;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -32,12 +32,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import org.exoplatform.processes.dao.RequestDAO;
 import org.exoplatform.processes.dao.WorkDraftDAO;
@@ -60,8 +60,8 @@ import org.exoplatform.task.service.TaskService;
  * requests ask the Task add-on the same query, and the list carries each
  * request's comments count only when asked.
  */
-@RunWith(MockitoJUnitRunner.class)
-public class ProcessesStorageMyRequestsTest {
+@ExtendWith(MockitoExtension.class)
+class ProcessesStorageMyRequestsTest {
 
   private static final long   USER_ID      = 7L;
 
@@ -93,8 +93,8 @@ public class ProcessesStorageMyRequestsTest {
    * Builds the storage over one process of project {@link #PROJECT_ID}, for a
    * user named {@link #USER_NAME}.
    */
-  @Before
-  public void setUp() {
+  @BeforeEach
+  void setUp() {
     processesStorage = new ProcessesStorageImpl(workFlowDAO,
                                                 workDraftDAO,
                                                 requestDAO,
@@ -127,7 +127,7 @@ public class ProcessesStorageMyRequestsTest {
    * @throws Exception never, the mocks throw nothing
    */
   @Test
-  public void theCountAsksForTheUsersOwnRequestsWithTheFilter() throws Exception {
+  void theCountAsksForTheUsersOwnRequestsWithTheFilter() throws Exception {
     when(taskService.countTasks(any(TaskQuery.class))).thenReturn(12);
     WorkFilter filter = new WorkFilter();
     filter.setCompleted(true);
@@ -152,7 +152,7 @@ public class ProcessesStorageMyRequestsTest {
    * @throws Exception never, the mocks throw nothing
    */
   @Test
-  public void theListAndTheCountAskTheSameQuery() throws Exception {
+  void theListAndTheCountAskTheSameQuery() throws Exception {
     WorkFilter filter = new WorkFilter();
     filter.setCompleted(false);
     when(taskService.findTasks(any(TaskQuery.class), eq(0), eq(51))).thenReturn(List.of());
@@ -178,7 +178,7 @@ public class ProcessesStorageMyRequestsTest {
    * @throws Exception never, the mocks throw nothing
    */
   @Test
-  public void aListAskedWithTheCommentsCountCarriesIt() throws Exception {
+  void aListAskedWithTheCommentsCountCarriesIt() throws Exception {
     when(taskService.findTasks(any(TaskQuery.class), anyInt(), anyInt())).thenReturn(List.of(task(100L), task(101L)));
     when(commentService.countComments(100L)).thenReturn(3);
     when(commentService.countComments(101L)).thenReturn(0);
@@ -198,7 +198,7 @@ public class ProcessesStorageMyRequestsTest {
    * @throws Exception never, the mocks throw nothing
    */
   @Test
-  public void aListAskedWithoutTheCommentsCountReadsNoComment() throws Exception {
+  void aListAskedWithoutTheCommentsCountReadsNoComment() throws Exception {
     when(taskService.findTasks(any(TaskQuery.class), anyInt(), anyInt())).thenReturn(List.of(task(100L)));
 
     List<Work> works = processesStorage.getWorks(USER_ID, new WorkFilter(), 0, 0);
@@ -209,9 +209,9 @@ public class ProcessesStorageMyRequestsTest {
 
   private static void assertCondition(Map<String, SingleCondition<?>> conditions, String field, String type, Object value) {
     SingleCondition<?> condition = conditions.get(field);
-    assertEquals("condition on " + field, type, condition == null ? null : condition.getType());
+    assertEquals(type, condition == null ? null : condition.getType(), "condition on " + field);
     if (value != null) {
-      assertEquals("value of " + field, value, condition.getValue());
+      assertEquals(value, condition.getValue(), "value of " + field);
     }
   }
 
