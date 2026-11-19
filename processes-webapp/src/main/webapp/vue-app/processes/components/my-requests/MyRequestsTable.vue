@@ -15,7 +15,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
   <v-data-table
     :headers="headers"
     :items="items"
-    :options.sync="options"
+    :options="options"
+    @update:options="$emit('update:options', $event)"
     :custom-sort="keepOrder"
     :mobile-breakpoint="0"
     class="data-table-light-border my-requests-table"
@@ -107,9 +108,16 @@ export default {
       type: Array,
       default: () => [],
     },
+    /**
+     * The sort options, which the list holds so they outlive the table, shown again after a
+     * loading or an empty state; synced with `.sync`.
+     */
+    options: {
+      type: Object,
+      default: () => ({sortBy: ['date'], sortDesc: [true]}),
+    },
   },
   data: () => ({
-    options: {sortBy: ['date'], sortDesc: [true]},
     expanded: {},
   }),
   computed: {
@@ -179,17 +187,6 @@ export default {
   },
   watch: {
     /**
-     * Tells the list whether the rows are sorted otherwise than newest first: the completed
-     * requests load page by page, newest first, so any other order needs them all.
-     *
-     * @param {Object} options the table's sort options
-     * @returns {void}
-     */
-    options(options) {
-      const newestFirst = (options.sortBy[0] || 'date') === 'date' && !!options.sortDesc[0];
-      this.$emit('sorted-otherwise', !newestFirst);
-    },
-    /**
      * Sorts by date again when the Status column leaves on a narrowing screen, so the order never
      * follows a column the table no longer shows.
      *
@@ -198,7 +195,7 @@ export default {
      */
     wide(wide) {
       if (!wide && this.options.sortBy[0] === 'status') {
-        this.options = {...this.options, sortBy: ['date'], sortDesc: [true]};
+        this.$emit('update:options', {...this.options, sortBy: ['date'], sortDesc: [true]});
       }
     },
   },

@@ -27,7 +27,7 @@
       v-else
       id="myRequestsList"
       :groups="groups"
-      @sorted-otherwise="sortedOtherwise = $event" />
+      :options.sync="tableOptions" />
   </div>
 </template>
 
@@ -85,7 +85,8 @@ export default {
   data: () => ({
     filter: {query: null, workflowId: null, status: null, grouped: false},
     toolbarKey: 0,
-    sortedOtherwise: false,
+    // the table's sort, held here so it outlives the table between a loading and its rows
+    tableOptions: {sortBy: ['date'], sortDesc: [true]},
   }),
   computed: {
     draftList() {
@@ -133,6 +134,16 @@ export default {
      */
     narrowed() {
       return !!(this.filter.query || this.filter.workflowId) || this.sortedOtherwise;
+    },
+    /**
+     * Tells whether the rows are sorted otherwise than newest first: the completed requests load
+     * page by page, newest first, so any other order needs them all.
+     *
+     * @returns {Boolean} true unless the rows are sorted by date, newest first
+     */
+    sortedOtherwise() {
+      const options = this.tableOptions;
+      return !((options.sortBy[0] || 'date') === 'date' && !!options.sortDesc[0]);
     },
     /**
      * Lists the processes of the loaded requests, with their counts, for the process filter.
