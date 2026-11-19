@@ -266,10 +266,25 @@
             :project-id="projectId"
             :space-id="managingSpaceId"
             :workflow-id="workflow.id || null"
-            :read-only="editMode"
             @update:mode="changeProjectMode"
             @update:projectId="changeProject"
             @update:projectName="projectName = $event" />
+          <div
+            v-if="moveWarning"
+            id="processProjectMoveWarning"
+            class="d-flex align-start text-start caption ms-1 pe-1 mt-1">
+            <span
+              style="height: 1.25rem"
+              class="d-inline-flex align-center flex-shrink-0 me-2">
+              <v-icon
+                color="warning"
+                size="14"
+                aria-hidden="true">
+                fas fa-exclamation-triangle
+              </v-icon>
+            </span>
+            <span class="text-break">{{ moveWarning }}</span>
+          </div>
           <workflow-labels-field
             :key="`labelsField${formKey}`"
             v-model="labels"
@@ -514,7 +529,9 @@ export default {
       projectId: null,
       projectName: null,
       labels: [],
+      openedLabels: [],
       labelsRead: false,
+      requestCount: null,
       formKey: 0,
       originalProjectChoice: null,
       sectionsChanged: false,
@@ -584,10 +601,14 @@ export default {
     /**
      * @returns {Boolean} true when an edited process can be updated: its
      *          description is valid, something changed, and it keeps a
-     *          managing space and request creators, with no step to go through
+     *          managing space, a project choice and request creators, with no
+     *          step to go through: an existing-project choice emptied by a
+     *          change of mode or of space is no project, and would otherwise
+     *          save the process with no labels
      */
     canUpdate() {
-      return this.valid && this.editChanged && !!this.workflow.parentSpace && this.workflowRequest.length > 0;
+      return this.valid && this.editChanged && !!this.workflow.parentSpace && this.projectChosen
+        && this.workflowRequest.length > 0;
     },
     workflowChanged() {
       return  this.workflow && this.originalWorkflowString && this.workflow.parentSpace;
@@ -599,13 +620,37 @@ export default {
       return this.workflow && this.workflow.parentSpace && this.workflow.parentSpace.id || null;
     },
     projectChosen() {
-      return this.editMode || this.projectMode === 'NEW' || !!this.projectId;
+      return this.projectMode === 'NEW' || !!this.projectId;
+    },
+    /**
+     * @returns {Boolean} true when an edited process is given another task
+     *          project: a new one, or another existing one
+     */
+    projectChanged() {
+      return this.editMode
+        && (this.projectMode === 'NEW' || !!this.projectId && this.projectId !== (this.workflow.projectId || null));
+    },
+    /**
+     * @returns {String} the warning that the requests of an edited process
+     *          will move to the project chosen, once their count is read;
+     *          null when the project is kept
+     */
+    moveWarning() {
+      if (!this.projectChanged || this.requestCount === null) {
+        return null;
+      }
+      if (this.requestCount === 0) {
+        return this.$t('processes.workflow.project.moveWarning.none');
+      }
+      return this.requestCount === 1 ? this.$t('processes.workflow.project.moveWarning.one')
+        : this.$t('processes.workflow.project.moveWarning.many', {0: this.requestCount});
     },
     /**
      * @returns {Object} the props of the sections other add-ons register:
      *          the process, its managing space, its Task project (the
-     *          existing project chosen on create, the stored one on edit)
-     *          and that project's name, once the project choice lists it,
+     *          existing project chosen, the stored one on an edit that keeps
+     *          it, none for a new project) and that project's name, once the
+     *          project choice lists it,
      *          the form chosen before the layout changed, if any, and in
      *          full screen the preview of the form picked
      */
@@ -613,8 +658,9 @@ export default {
       return {
         workflow: this.workflow,
         spaceId: this.managingSpaceId,
-        projectId: this.editMode ? this.workflow.projectId || null : this.projectMode === 'EXISTING' && this.projectId || null,
-        projectName: (this.editMode || this.projectMode === 'EXISTING') && this.projectName || null,
+        projectId: this.editMode && !this.projectChanged ? this.workflow.projectId || null
+          : this.projectMode === 'EXISTING' && this.projectId || null,
+        projectName: this.projectMode === 'EXISTING' && this.projectName || null,
         selected: this.pendingFormId,
         preview: this.expanded,
       };
@@ -726,6 +772,7 @@ export default {
      */
     openWorkflow(workflow, mode) {
       this.labels = workflow && Array.isArray(workflow.labels) && workflow.labels.slice() || [];
+      this.openedLabels = this.labels.slice();
       this.labelsRead = !!workflow && Array.isArray(workflow.labels);
       this.projectMode = workflow && workflow.id ? 'EXISTING' : 'NEW';
       this.projectId = workflow && workflow.projectId || null;
@@ -753,6 +800,7 @@ export default {
           // what an update saves until the picker changes them, so that an
           // update made before step 2's Continue keeps them
           this.workflowRequest = (workflow.requestsCreators || []).slice();
+          this.readRequestCount(workflow.id);
         }
         this.openedIllustration = JSON.stringify(this.illustrativeImage);
         this.openedRequestCreators = this.requestCreatorsString(this.workflowRequest);
@@ -813,7 +861,29 @@ export default {
       this.projectId = null;
       this.projectName = null;
       this.labels = [];
+      this.openedLabels = [];
       this.labelsRead = false;
+      this.requestCount = null;
+    },
+    /**
+     * Reads how many requests, open and completed, an edited process has: the
+     * ones a change of its project moves. A count that cannot be read shows
+     * no warning.
+     *
+     * @param {Number} workflowId the process id
+     * @returns {void}
+     */
+    readRequestCount(workflowId) {
+      this.requestCount = null;
+      this.$processesService.countRequests(workflowId)
+        .then(count => {
+          if (this.editMode && this.workflow && this.workflow.id === workflowId) {
+            this.requestCount = Number(count) || 0;
+          }
+        })
+        .catch(() => {
+          this.requestCount = null;
+        });
     },
     /**
      * Switches between a new and an existing project, which resets the
@@ -830,6 +900,8 @@ export default {
     },
     /**
      * Chooses an existing project, which resets the labels of the former one.
+     * Choosing again the project an edited process opened with gives back the
+     * labels it opened with, so a choice undone saves no change of labels.
      *
      * @param {Number} projectId the project id
      * @returns {void}
@@ -837,20 +909,19 @@ export default {
     changeProject(projectId) {
       if (projectId !== this.projectId) {
         this.projectId = projectId;
-        this.labels = [];
+        this.labels = this.editMode && projectId && projectId === (this.workflow.projectId || null)
+          ? this.openedLabels.slice() : [];
       }
     },
     /**
-     * Follows a change of managing space. On create it resets the project and
-     * the labels; on edit the project stays read-only and the server refuses
-     * the change with its own message, so nothing is reset.
+     * Follows a change of managing space, which resets the project and the
+     * labels: a process takes a project of its new space, and on edit its
+     * requests move to it.
      *
      * @returns {void}
      */
     changeSpace() {
-      if (!this.editMode) {
-        this.resetProjectChoice();
-      }
+      this.resetProjectChoice();
     },
     /**
      * Gives a process as text, its managing space by id only: the space
@@ -899,9 +970,11 @@ export default {
     /**
      * Builds the body of a save, the one place the form's fields are put
      * together. On create it states the project mode, the project and the
-     * labels; on edit it states no project mode, so the process keeps its
-     * project, and labels only when they were read. The sections other
-     * add-ons register add their fields, the request form's included.
+     * labels; on an edit that changes the project, the same, the labels
+     * being those of the new project; on an edit that keeps it, no project
+     * mode, so the process keeps its project, and labels only when they were
+     * read. The sections other add-ons register add their fields, the request
+     * form's included.
      *
      * @return {Object} the process to save
      */
@@ -914,6 +987,8 @@ export default {
       delete payload.projectMode;
       if (!this.editMode) {
         payload.attachments = this.attachments;
+      }
+      if (!this.editMode || this.projectChanged) {
         payload.projectMode = this.projectMode;
         payload.projectId = this.projectMode === 'EXISTING' && this.projectId || null;
         payload.labels = this.labels;

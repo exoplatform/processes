@@ -25,6 +25,9 @@ import java.util.Map;
 import jakarta.persistence.criteria.CommonAbstractCriteria;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.From;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
@@ -74,6 +77,35 @@ public class RequestDAO extends GenericDAOJPAImpl<RequestEntity, Long> {
   }
 
   /**
+   * Reads a page of the task ids of a process's request records, by task id:
+   * a keyset read, so moving the tasks of a page changes none of the next.
+   *
+   * @param workFlowId the process id
+   * @param afterTaskId the last task id of the previous page, 0 for the first
+   * @param limit the page size, strictly positive
+   * @return the task ids, ascending
+   */
+  public List<Long> findTaskIdsAfter(long workFlowId, long afterTaskId, int limit) {
+    return getEntityManager().createNamedQuery("ProcessesRequest.findTaskIdsAfter", Long.class)
+                             .setParameter("workFlowId", workFlowId)
+                             .setParameter("afterTaskId", afterTaskId)
+                             .setMaxResults(limit)
+                             .getResultList();
+  }
+
+  /**
+   * Deletes the request record of a task, in the caller's transaction.
+   *
+   * @param taskId the task id
+   * @return how many records were deleted
+   */
+  public int deleteByTaskId(long taskId) {
+    return getEntityManager().createNamedQuery("ProcessesRequest.deleteByTaskId")
+                             .setParameter("taskId", taskId)
+                             .executeUpdate();
+  }
+
+  /**
    * Builds the restriction of a query to the tasks that are requests of some
    * processes: an EXISTS on the request records of those processes, correlated
    * by the task id, which the index on (WORK_FLOW_ID, TASK_ID) serves. It needs
@@ -114,6 +146,25 @@ public class RequestDAO extends GenericDAOJPAImpl<RequestEntity, Long> {
     Root<RequestEntity> request = requests.from(RequestEntity.class);
     requests.select(request.<Long> get("taskId")).where(cb.equal(request.<Long> get("taskId"), taskId));
     return cb.exists(requests);
+  }
+
+  /**
+   * Builds the restriction of a Task query to the tasks that are not in a
+   * project: in another project, or in none. The status and its project are
+   * joined LEFT, so a task with no status, or a status with no project, is
+   * outside too; a count over the query counts distinct tasks, so the joins,
+   * each to one row, add none.
+   *
+   * @param cb the criteria builder of the query
+   * @param task the task root of the query, whose status is its {@code status}
+   *          attribute and the status's project its {@code project} attribute
+   * @param projectId the project id
+   * @return the restriction
+   */
+  public static Predicate outsideProject(CriteriaBuilder cb, From<?, ?> task, long projectId) {
+    Join<?, ?> status = task.join("status", JoinType.LEFT);
+    Join<?, ?> project = status.join("project", JoinType.LEFT);
+    return cb.or(cb.isNull(project.get("id")), cb.notEqual(project.<Long> get("id"), projectId));
   }
 
   /**
