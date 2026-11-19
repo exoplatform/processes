@@ -22,7 +22,6 @@ import org.exoplatform.commons.notification.impl.NotificationContextImpl;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.portal.config.UserPortalConfigService;
-import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.notification.plugin.RequestCommentPlugin;
 import org.exoplatform.processes.notification.utils.NotificationArguments;
 import org.exoplatform.processes.notification.utils.NotificationUtils;
@@ -69,20 +68,17 @@ public class RequestCommentNotificationListener extends TaskCommentNotificationL
     CommentDto comment = event.getData();
     TaskDto task = event.getSource();
     ProjectDto project = task.getStatus().getProject();
-    WorkFlow workFlow = processesService.getWorkFlowByProjectId(project.getId());
-    if (workFlow == null) {
+    // Only a task a process created is a request: a comment on a task created
+    // in Tasks, in a project processes feed, notifies nobody
+    Long requestWorkFlowId = processesService.getRequestWorkFlowId(task.getId());
+    if (requestWorkFlowId == null || requestWorkFlowId <= 0) {
       return null;
     }
     NotificationContext ctx = NotificationContextImpl.cloneInstance();
     ctx.append(NotificationArguments.REQUEST_CREATOR, task.getCreatedBy());
     ctx.append(NotificationArguments.REQUEST_TITLE, task.getTitle());
-    // A project may feed several processes: the request's own process is named,
-    // the project's first one only when the request record has none
-    Long requestWorkFlowId = processesService.getRequestWorkFlowId(task.getId());
-    NotificationUtils.appendProcess(ctx,
-                                    processesService,
-                                    requestWorkFlowId == null || requestWorkFlowId <= 0 ? workFlow.getId() : requestWorkFlowId,
-                                    workFlow.getTitle());
+    // A project may feed several processes: the request's own process is named
+    NotificationUtils.appendProcess(ctx, processesService, requestWorkFlowId, project.getName());
     ctx.append(NotificationArguments.REQUEST_COMMENT_AUTHOR, comment.getAuthor());
     ctx.append(NotificationArguments.REQUEST_COMMENT, MentionUtils.substituteUsernames(getPortalOwner(), comment.getComment()));
     ctx.append(NotificationArguments.PROCESS_URL, NotificationUtils.getProcessLink(project.getId()));

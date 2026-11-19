@@ -515,25 +515,66 @@ public class ProcessesRestTest {
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response6.getStatus());
   }
 
+  /**
+   * The deprecated count by project answers the gated count of the requests of
+   * every process the project feeds, per user and never stored, never every
+   * task of the project, and refuses a user who may not see it. Mutation:
+   * count the project's tasks again, or skip the gate, and this test fails.
+   *
+   * @throws Exception never, the mocks throw only where stubbed
+   */
   @Test
+  @SuppressWarnings("removal")
   public void countWorksByWorkflow() throws Exception {
-    WorkFlow workFlow = mock(WorkFlow.class);
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
     Response response = processesRest.countWorksByWorkflow(null, null);
     assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response.getStatus());
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
     Response response1 = processesRest.countWorksByWorkflow(null, null);
     assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response1.getStatus());
-    when(processesService.getWorkFlowByProjectId(1L)).thenReturn(null);
-    Response response2 = processesRest.countWorksByWorkflow(1L, null);
+    when(processesService.countProjectRequests(2L, false, 1L)).thenThrow(new ObjectNotFoundException("no process"));
+    Response response2 = processesRest.countWorksByWorkflow(2L, false);
     assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response2.getStatus());
-    when(processesService.getWorkFlowByProjectId(1L)).thenReturn(workFlow);
-    when(processesService.countWorksByWorkflow(1L, false)).thenReturn(2);
+    when(processesService.countProjectRequests(1L, false, 1L)).thenReturn(2L);
     Response response3 = processesRest.countWorksByWorkflow(1L, false);
     assertEquals(Response.Status.OK.getStatusCode(), response3.getStatus());
-    when(processesService.countWorksByWorkflow(1L, false)).thenThrow(RuntimeException.class);
-    Response response4 = processesRest.countWorksByWorkflow(1L, false);
-    assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response4.getStatus());
+    assertEquals("2", response3.getEntity());
+    assertNeitherSharedNorStored(response3);
+    when(processesService.countProjectRequests(1L, true, 1L)).thenThrow(new IllegalAccessException("hidden"));
+    Response response4 = processesRest.countWorksByWorkflow(1L, true);
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), response4.getStatus());
+    verify(processesService, never()).countWorksByWorkflow(anyLong(), anyBoolean());
+  }
+
+  /**
+   * The request count of a process is answered as text, per user and never
+   * stored, to whom the Service allows; refused with 403, unknown with 404,
+   * and 401 with no user. Mutation: map a refusal to another status, or drop
+   * the no-store cache control, and this test fails.
+   *
+   * @throws Exception never, the mocks throw only where stubbed
+   */
+  @Test
+  public void countRequests() throws Exception {
+    REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
+    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), processesRest.countRequests(7L, false).getStatus());
+    REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), processesRest.countRequests(null, false).getStatus());
+
+    when(processesService.countRequests(7L, true, 1L)).thenReturn(3L);
+    Response counted = processesRest.countRequests(7L, true);
+    assertEquals(Response.Status.OK.getStatusCode(), counted.getStatus());
+    assertEquals("3", counted.getEntity());
+    assertNeitherSharedNorStored(counted);
+
+    // No state asked counts every request of the process
+    when(processesService.countRequests(7L, null, 1L)).thenReturn(5L);
+    assertEquals("5", processesRest.countRequests(7L, null).getEntity());
+
+    when(processesService.countRequests(8L, false, 1L)).thenThrow(new IllegalAccessException("hidden"));
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), processesRest.countRequests(8L, false).getStatus());
+    when(processesService.countRequests(9L, false, 1L)).thenThrow(new ObjectNotFoundException("gone"));
+    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), processesRest.countRequests(9L, false).getStatus());
   }
 
   @Test

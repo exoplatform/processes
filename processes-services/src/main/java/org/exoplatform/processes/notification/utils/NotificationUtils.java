@@ -131,17 +131,55 @@ public class NotificationUtils {
     return members;
   }
 
+  /**
+   * Reads a request's process by its id, as the platform.
+   *
+   * @param workflowId the process id, or null
+   * @return the process, or null when no id is given or it can't be read
+   */
+  private static WorkFlow getWorkFlow(String workflowId) {
+    if (StringUtils.isBlank(workflowId)) {
+      return null;
+    }
+    ProcessesService processesService = CommonsUtils.getService(ProcessesService.class);
+    try {
+      return processesService == null ? null : processesService.getWorkFlow(Long.parseLong(workflowId), null);
+    } catch (NumberFormatException | IllegalAccessException e) {
+      LOG.debug("Can't read the process {} of a notification", workflowId, e);
+      return null;
+    }
+  }
+
   public static WorkFlow getWorkFlowByProjectId(long workflowProjectId) {
     ProcessesService processesService = CommonsUtils.getService(ProcessesService.class);
     return processesService != null ? processesService.getWorkFlowByProjectId(workflowProjectId) : null;
   }
 
-  public static List<String> getReceivers(long workflowProjectId, String requester, boolean withAdministrators) {
+  /**
+   * Lists the recipients of a request's notification: the members of the
+   * managing space of the process that created it, and the processes
+   * administrators when asked, the requester left out.
+   *
+   * @param workflowId the request's process id, or null for a notification
+   *          queued before the request named its process
+   * @param workflowProjectId the request's task project id, which names the
+   *          process only when the id does not
+   * @param requester the requester's user name
+   * @param withAdministrators whether the processes administrators receive it
+   * @return the recipients' user names
+   */
+  public static List<String> getReceivers(String workflowId,
+                                          long workflowProjectId,
+                                          String requester,
+                                          boolean withAdministrators) {
     List<String> receivers = new ArrayList<>();
     if (withAdministrators) {
       receivers.addAll(getProcessAdmins(requester));
     }
-    WorkFlow workFlow = getWorkFlowByProjectId(workflowProjectId);
+    WorkFlow workFlow = getWorkFlow(workflowId);
+    if (workFlow == null) {
+      workFlow = getWorkFlowByProjectId(workflowProjectId);
+    }
     if (workFlow != null) {
       String spaceGroupId = workFlow.getParticipator().iterator().next().split(":")[1];
       receivers.addAll(getSpacesMembers(spaceGroupId));

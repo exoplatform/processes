@@ -260,4 +260,16 @@ public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
     return workFlows.isEmpty() ? null : workFlows.get(0);
   }
 
+  /**
+   * Reads the ids of every process feeding a task project.
+   *
+   * @param projectId the task project id
+   * @return the process ids, ascending
+   */
+  public List<Long> findWorkFlowIdsByProjectId(long projectId) {
+    return getEntityManager().createQuery("SELECT w.id FROM WorkFlow w WHERE w.projectId = :projectId ORDER BY w.id", Long.class)
+                             .setParameter("projectId", projectId)
+                             .getResultList();
+  }
+
 }

@@ -48,7 +48,8 @@ public class CreateRequestPlugin extends BaseNotificationPlugin {
     String requestUrl = notificationContext.value(NotificationArguments.REQUEST_URL);
     String workflowProjectId = notificationContext.value(NotificationArguments.WORKFLOW_PROJECT_ID);
     String requestId = notificationContext.value(NotificationArguments.REQUEST_ID);
-    List<String> receivers = NotificationUtils.getReceivers(Long.parseLong(workflowProjectId), requester, false);
+    String workflowId = notificationContext.value(NotificationArguments.WORKFLOW_ID);
+    List<String> receivers = NotificationUtils.getReceivers(workflowId, Long.parseLong(workflowProjectId), requester, false);
     NotificationInfo notificationInfo = NotificationInfo.instance()
                            .setFrom(requester)
                            .to(receivers)
@@ -63,7 +64,6 @@ public class CreateRequestPlugin extends BaseNotificationPlugin {
                            .end();
     // The process id, from which each recipient reads the process's title in
     // their own language; a notification of an unknown process has none
-    String workflowId = notificationContext.value(NotificationArguments.WORKFLOW_ID);
     if (workflowId != null) {
       notificationInfo.with(NotificationArguments.WORKFLOW_ID.getKey(), workflowId);
     }

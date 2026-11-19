@@ -269,6 +269,45 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    * {@inheritDoc}
    */
   @Override
+  public long countRequests(long workFlowId, boolean completed) {
+    TaskQuery taskQuery = requestsQuery(workFlowId);
+    taskQuery.setCompleted(completed);
+    try {
+      return taskService.countTasks(taskQuery);
+    } catch (Exception e) {
+      throw new IllegalStateException("The request tasks of the process " + workFlowId + " could not be counted", e);
+    }
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public long countRequests(Collection<Long> workFlowIds, Boolean completed) {
+    TaskQuery taskQuery = new TaskQuery();
+    taskQuery.add(new PredicateCondition<Task>((cb, query, root) -> RequestDAO.requestOf(cb, query, root.<Long> get("id"), workFlowIds)));
+    if (completed != null) {
+      taskQuery.setCompleted(completed);
+    }
+    try {
+      return taskService.countTasks(taskQuery);
+    } catch (Exception e) {
+      throw new IllegalStateException("The request tasks of the processes " + workFlowIds + " could not be counted", e);
+    }
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<Long> getWorkFlowIdsByProjectId(long projectId) {
+    return workFlowDAO.findWorkFlowIdsByProjectId(projectId);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
   public Predicate requestOf(CriteriaBuilder cb,
                              CommonAbstractCriteria query,
                              Expression<Long> taskId,
@@ -588,15 +627,15 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   }
 
   /**
-   * {@inheritDoc} Each request names the process it was created for, from its
-   * request record, whichever processes share its project.
+   * {@inheritDoc} Only the tasks a process created are listed, whatever
+   * project they are in now: a task created in Tasks, in a project processes
+   * feed, is not a request. Each request names the process it was created
+   * for, from its request record, whichever processes share its project.
    */
   @Override
   public List<Work> getWorks(long userIdentityId, WorkFilter workFilter, int offset, int limit) throws Exception {
-    List<WorkFlow> workFlows = findAllWorkFlows(0, 0);
-    List<Long> projectsIds = workFlows.stream().map(WorkFlow::getProjectId).collect(Collectors.toList());
     TaskQuery taskQuery = new TaskQuery();
-    taskQuery.setProjectIds(projectsIds);
+    taskQuery.add(new PredicateCondition<Task>((cb, query, root) -> RequestDAO.isRequest(cb, query, root.<Long> get("id"))));
     if (workFilter.getStatus() != null) {
       taskQuery.setStatusName(workFilter.getStatus());
     }
@@ -1162,9 +1201,14 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     List<WorkStatus> statuses = new ArrayList<>();
     List<WorkFlow> workFlows = findAllWorkFlows(0, 0);
     List<Long> projectsIds = workFlows.stream().map(WorkFlow::getProjectId).collect(Collectors.toList());
-    projectsIds.forEach(projectId -> statuses.addAll(EntityMapper.toWorkStatuses(statusService.getStatuses(projectId))));
+    // A project several processes feed is read once, and a status name is
+    // listed once, at its lowest rank
+    projectsIds.stream()
+               .distinct()
+               .forEach(projectId -> statuses.addAll(EntityMapper.toWorkStatuses(statusService.getStatuses(projectId))));
     statuses.sort(Comparator.comparing(WorkStatus::getRank));
-    return statuses;
+    Set<String> names = new HashSet<>();
+    return statuses.stream().filter(status -> names.add(status.getName())).collect(Collectors.toList());
   }
 
   /**
@@ -1204,7 +1248,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     String finalUserName = userName;
     workFlows.forEach(workflow -> {
       if (workflow != null) {
-        Space space = ProcessesUtils.getProjectParentSpace(workflow.getProjectId());
+        Space space = getManagingSpace(workflow);
         workflow.setCanShowPending(space != null && (spaceService.isSuperManager(finalUserName) || spaceService.isMember(space, finalUserName)));
       }
     });
@@ -1217,6 +1261,23 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   @Override
   public int countWorkFlows(ProcessesFilter processesFilter) {
     return workFlowDAO.countWorkFlows(processesFilter);
+  }
+
+  /**
+   * Reads the managing space of a process: its stored space, else the space of
+   * its task project, for a process stored before it had one.
+   *
+   * @param workFlow the process
+   * @return the space, or null when none is found
+   */
+  private Space getManagingSpace(WorkFlow workFlow) {
+    if (StringUtils.isNotBlank(workFlow.getSpaceId())) {
+      Space storedSpace = spaceService.getSpaceById(workFlow.getSpaceId());
+      if (storedSpace != null) {
+        return storedSpace;
+      }
+    }
+    return ProcessesUtils.getProjectParentSpace(workFlow.getProjectId());
   }
 
   private Map.Entry<String, List<String>> getUserMemberships(Long userIdentityId) {

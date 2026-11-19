@@ -191,6 +191,28 @@ public class RequestDAOTest {
   }
 
   /**
+   * The restriction to the requests of any process keeps every task that has a
+   * request record, whatever its project or its process, and leaves out a
+   * plain task; on project 10 it composes with AND. Mutation: drop the
+   * correlation on the task id and the plain task is answered.
+   */
+  @Test
+  public void isRequestKeepsEveryRequestAndNoPlainTask() {
+    CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+    CriteriaQuery<TestTaskEntity> query = cb.createQuery(TestTaskEntity.class);
+    Root<TestTaskEntity> task = query.from(TestTaskEntity.class);
+    query.select(task).where(RequestDAO.isRequest(cb, query, task.<Long> get("id")));
+    assertEquals(Set.of(1L, 2L, 3L, 4L),
+                 entityManager.createQuery(query).getResultList().stream().map(t -> t.id).collect(Collectors.toSet()));
+
+    CriteriaQuery<Long> count = cb.createQuery(Long.class);
+    Root<TestTaskEntity> countedTask = count.from(TestTaskEntity.class);
+    count.select(cb.count(countedTask))
+         .where(cb.equal(countedTask.get("projectId"), 10L), RequestDAO.isRequest(cb, count, countedTask.<Long> get("id")));
+    assertEquals(Long.valueOf(3), entityManager.createQuery(count).getSingleResult());
+  }
+
+  /**
    * The processes of tasks are read by chunks, so more task ids than one chunk
    * holds are answered in full; a plain task and an unknown id are left out.
    * Mutation: read the first chunk only and this test fails.

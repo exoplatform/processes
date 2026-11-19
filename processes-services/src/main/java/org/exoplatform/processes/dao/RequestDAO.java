@@ -100,6 +100,23 @@ public class RequestDAO extends GenericDAOJPAImpl<RequestEntity, Long> {
   }
 
   /**
+   * Builds the restriction of a query to the tasks that are requests of any
+   * process, whatever project the task is in: an EXISTS on the request
+   * records, correlated by the task id, which the primary key serves.
+   *
+   * @param cb the criteria builder of the query
+   * @param query the query, to create the subquery from
+   * @param taskId the task id expression of the query
+   * @return the restriction
+   */
+  public static Predicate isRequest(CriteriaBuilder cb, CommonAbstractCriteria query, Expression<Long> taskId) {
+    Subquery<Long> requests = query.subquery(Long.class);
+    Root<RequestEntity> request = requests.from(RequestEntity.class);
+    requests.select(request.<Long> get("taskId")).where(cb.equal(request.<Long> get("taskId"), taskId));
+    return cb.exists(requests);
+  }
+
+  /**
    * Deletes the request records of a process, in the caller's transaction. The
    * request tasks are not touched.
    *

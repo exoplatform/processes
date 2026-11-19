@@ -19,6 +19,7 @@ package org.exoplatform.processes.mcp;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.List;
 import java.util.Locale;
@@ -49,6 +50,8 @@ import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.TaskQuery;
+import org.exoplatform.task.dao.condition.PredicateCondition;
+import org.exoplatform.task.domain.Task;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.service.TaskService;
 
@@ -315,14 +318,15 @@ public class ProcessesMcpTool implements McpToolPlugin {
   }
 
   /**
-   * Lists the requests awaiting a decision: tasks still in the 'Request' /
-   * 'RequestInProgress' status (not completed) that belong to the process
-   * projects of the enabled processes whose space the current user is a member
-   * of, or of every enabled process that has a space for a platform
-   * administrator, within the MAX_WORKFLOWS and MAX_PENDING caps, each named
-   * by its process title in the user's language. Use the returned task_id with
-   * the Task MCP tools (update_task_status to Validated/Refused,
-   * add_task_comment) to respond. READ.
+   * Lists the requests awaiting a decision: tasks a process created, still in
+   * the 'Request' / 'RequestInProgress' status (not completed), of the enabled
+   * processes whose space the current user is a member of, or of every enabled
+   * process that has a space for a platform administrator, within the
+   * MAX_WORKFLOWS and MAX_PENDING caps, each named by the title of the process
+   * that created it in the user's language. A task created in Tasks, in a
+   * project processes feed, is not listed. Use the returned task_id with the
+   * Task MCP tools (update_task_status to Validated/Refused, add_task_comment)
+   * to respond. READ.
    *
    * @return the pending requests
    * @throws Exception when the processes or the tasks can't be read
@@ -332,31 +336,43 @@ public class ProcessesMcpTool implements McpToolPlugin {
     ProcessesFilter filter = buildEnabledProcessesFilter();
     List<WorkFlow> workFlows = processesService.getWorkFlows(filter, 0, MAX_WORKFLOWS, userIdentityId);
     // Keep only the processes whose pending requests the current user may see
-    // (member of the process's space, or platform administrator), and index
-    // their project id -> process title.
-    Map<Long, String> managedProjects = new LinkedHashMap<>();
+    // (member of the process's space, or platform administrator), with their
+    // title, and the projects they feed
+    Map<Long, String> shownProcesses = new LinkedHashMap<>();
+    Set<Long> projectIds = new LinkedHashSet<>();
     Locale locale = getCurrentUserLocale();
     for (WorkFlow workFlow : workFlows) {
       if (workFlow != null && workFlow.isCanShowPending() && workFlow.getProjectId() > 0) {
-        managedProjects.put(workFlow.getProjectId(), processTranslationService.getTitle(workFlow, locale));
+        shownProcesses.put(workFlow.getId(), processTranslationService.getTitle(workFlow, locale));
+        projectIds.add(workFlow.getProjectId());
       }
     }
-    if (managedProjects.isEmpty()) {
+    if (shownProcesses.isEmpty()) {
       return new ArrayList<>();
     }
-    List<Long> projectIds = new ArrayList<>(managedProjects.keySet());
+    List<Long> shownProcessIds = new ArrayList<>(shownProcesses.keySet());
     List<PendingApprovalModel> pending = new ArrayList<>();
     for (String status : PENDING_STATUSES) {
       TaskQuery taskQuery = new TaskQuery();
-      taskQuery.setProjectIds(projectIds);
+      taskQuery.setProjectIds(new ArrayList<>(projectIds));
       taskQuery.setStatusName(status);
       taskQuery.setCompleted(Boolean.FALSE);
+      // Only the requests of the shown processes: the other tasks of a shared
+      // project, and the requests of another process feeding it, are left out
+      taskQuery.add(new PredicateCondition<Task>((cb,
+                                                  query,
+                                                  root) -> processesService.requestOf(cb,
+                                                                                      query,
+                                                                                      root.<Long> get("id"),
+                                                                                      shownProcessIds)));
       List<OrderBy> orderByList = new ArrayList<>();
       orderByList.add(new OrderBy("id", false));
       taskQuery.setOrderBy(orderByList);
       List<TaskDto> tasks = taskService.findTasks(taskQuery, 0, MAX_PENDING);
+      Map<Long, Long> processOfTask = processesService.getRequestWorkFlowIds(tasks.stream().map(TaskDto::getId).toList());
       for (TaskDto task : tasks) {
-        pending.add(toPendingApprovalModel(task, managedProjects));
+        Long workFlowId = processOfTask.get(task.getId());
+        pending.add(toPendingApprovalModel(task, workFlowId == null ? null : shownProcesses.get(workFlowId)));
       }
     }
     return pending;
@@ -455,7 +471,15 @@ public class ProcessesMcpTool implements McpToolPlugin {
                             work.getProjectId());
   }
 
-  private PendingApprovalModel toPendingApprovalModel(TaskDto task, Map<Long, String> managedProjects) {
+  /**
+   * Builds the model of a pending request.
+   *
+   * @param task the request's task
+   * @param processTitle the title of the process that created it, in the
+   *          user's language, or null when unknown
+   * @return the model
+   */
+  private PendingApprovalModel toPendingApprovalModel(TaskDto task, String processTitle) {
     long projectId = 0;
     String statusName = null;
     if (task.getStatus() != null) {
@@ -471,7 +495,7 @@ public class ProcessesMcpTool implements McpToolPlugin {
                                     task.getCreatedBy(),
                                     task.getCreatedTime(),
                                     projectId,
-                                    managedProjects.get(projectId));
+                                    processTitle);
   }
 
 }

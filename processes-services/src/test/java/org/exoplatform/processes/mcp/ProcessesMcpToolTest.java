@@ -31,6 +31,7 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -47,9 +48,14 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Root;
+
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.processes.mcp.model.ProcessModel;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -77,6 +83,9 @@ import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.task.dao.TaskQuery;
+import org.exoplatform.task.dao.condition.AggregateCondition;
+import org.exoplatform.task.dao.condition.PredicateCondition;
+import org.exoplatform.task.domain.Task;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.dto.TaskDto;
@@ -713,34 +722,77 @@ public class ProcessesMcpToolTest {
     verify(taskService, never()).findTasks(any(TaskQuery.class), anyInt(), anyInt());
   }
 
+  /**
+   * The pending requests are the tasks of the shown processes' requests only:
+   * the task query is restricted to their request records, and each request
+   * is named by the process its record names, even when two processes share
+   * its project. Mutation: drop the restriction, restrict it to another list,
+   * or name the request by its project, and this test fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
   @Test
-  public void getPendingApprovalsMapsTasksFromManagedProjects() throws Exception {
-    WorkFlow workFlow = new WorkFlow();
-    workFlow.setProjectId(5L);
-    workFlow.setTitle("Onboarding");
-    workFlow.setCanShowPending(true);
-    when(processesService.getWorkFlows(any(ProcessesFilter.class), anyInt(), anyInt(), anyLong())).thenReturn(Collections.singletonList(workFlow));
+  @SuppressWarnings("unchecked")
+  public void getPendingApprovalsListsOnlyTheRequestsOfTheShownProcesses() throws Exception {
+    WorkFlow onboarding = workFlow(7L, 5L);
+    onboarding.setTitle("Onboarding");
+    onboarding.setCanShowPending(true);
+    WorkFlow leave = workFlow(8L, 5L);
+    leave.setTitle("Leave");
+    leave.setCanShowPending(true);
+    WorkFlow hidden = workFlow(9L, 5L);
+    hidden.setTitle("Hidden");
+    hidden.setCanShowPending(false);
+    when(processesService.getWorkFlows(any(ProcessesFilter.class), anyInt(), anyInt(), anyLong())).thenReturn(List.of(onboarding,
+                                                                                                                       leave,
+                                                                                                                       hidden));
+    TaskDto onboardingRequest = pendingTask(21L, 5L);
+    TaskDto leaveRequest = pendingTask(22L, 5L);
+    when(taskService.findTasks(any(TaskQuery.class), anyInt(), anyInt())).thenReturn(List.of(onboardingRequest, leaveRequest))
+                                                                          .thenReturn(Collections.emptyList());
+    when(processesService.getRequestWorkFlowIds(List.of(21L, 22L))).thenReturn(Map.of(21L, 7L, 22L, 8L));
 
+    List<PendingApprovalModel> pending = tool.getPendingApprovals();
+
+    assertEquals(2, pending.size());
+    assertEquals("Onboarding", pending.get(0).processTitle());
+    assertEquals("Leave", pending.get(1).processTitle());
+    assertEquals(5L, pending.get(0).projectId());
+
+    ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
+    verify(taskService, times(2)).findTasks(query.capture(), anyInt(), anyInt());
+    PredicateCondition<Task> restriction = ((AggregateCondition) query.getAllValues().get(0).getCondition()).getConditions()
+                                                                                                    .stream()
+                                                                                                    .filter(PredicateCondition.class::isInstance)
+                                                                                                    .map(condition -> (PredicateCondition<Task>) condition)
+                                                                                                    .findFirst()
+                                                                                                    .orElseThrow();
+    CriteriaBuilder cb = mock(CriteriaBuilder.class);
+    CriteriaQuery<?> criteria = mock(CriteriaQuery.class);
+    Root<Task> root = mock(Root.class);
+    jakarta.persistence.criteria.Path<Object> id = mock(jakarta.persistence.criteria.Path.class);
+    when(root.get("id")).thenReturn(id);
+    restriction.getBuilder().build(cb, criteria, root);
+    verify(processesService).requestOf(eq(cb), eq(criteria), eq((jakarta.persistence.criteria.Path) id), eq(List.of(7L, 8L)));
+  }
+
+  /**
+   * @param id the task id
+   * @param projectId its project id
+   * @return a pending request task
+   */
+  private static TaskDto pendingTask(long id, long projectId) {
     ProjectDto project = new ProjectDto();
-    project.setId(5L);
+    project.setId(projectId);
     StatusDto status = new StatusDto();
     status.setName("Request");
     status.setProject(project);
     TaskDto task = new TaskDto();
-    task.setId(21L);
-    task.setTitle("Pending task");
+    task.setId(id);
+    task.setTitle("Pending task " + id);
     task.setStatus(status);
     task.setCreatedBy("john");
-
-    when(taskService.findTasks(any(TaskQuery.class), anyInt(), anyInt())).thenReturn(Collections.singletonList(task))
-                                                                          .thenReturn(Collections.emptyList());
-
-    List<PendingApprovalModel> pending = tool.getPendingApprovals();
-
-    assertEquals(1, pending.size());
-    assertEquals(21L, pending.get(0).taskId());
-    assertEquals("Onboarding", pending.get(0).processTitle());
-    assertEquals(5L, pending.get(0).projectId());
+    return task;
   }
 
 }
