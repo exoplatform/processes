@@ -52,8 +52,9 @@ export default {
       return this.work || {};
     },
     /**
-     * Reads the request's comments count: the list carries it, so no request is read per row;
-     * once the comments drawer opened, the count follows the comments it adds and deletes.
+     * Reads the request's comments count, replies included, as the request drawer counts them:
+     * the list carries it, so no request is read per row; once the comments drawer opened, the
+     * count follows the comments it adds and deletes.
      *
      * @returns {Number} the count, 0 for a draft or when the list did not carry it
      */
@@ -61,7 +62,10 @@ export default {
       if (this.isDraft) {
         return 0;
       }
-      return this.comments ? this.comments.length : this.workObject.commentsCount || 0;
+      if (this.comments) {
+        return this.comments.reduce((count, comment) => count + 1 + (comment.subComments || []).length, 0);
+      }
+      return this.workObject.commentsCount || 0;
     },
     allowCancel() {
       return this.workObject && this.workObject.status !== 'Validated' && this.workObject.status !== 'Refused';

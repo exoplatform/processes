@@ -26,6 +26,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
@@ -51,6 +52,7 @@ import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.dao.condition.AggregateCondition;
 import org.exoplatform.task.dao.condition.Condition;
 import org.exoplatform.task.dao.condition.SingleCondition;
+import org.exoplatform.task.dto.CommentsSummaryDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.service.CommentService;
 import org.exoplatform.task.service.TaskService;
@@ -172,23 +174,28 @@ class ProcessesStorageMyRequestsTest {
 
   /**
    * A list asked with the comments count carries each request's count of
-   * comments, as the Task add-on counts them. Mutation: skip the count and this
-   * test fails.
+   * comments, replies included, as the request drawer counts them, read for
+   * the whole page in one call; a request without comments counts 0.
+   * Mutation: skip the count, read it per request, or leave a request without
+   * comments unset, and this test fails.
    *
    * @throws Exception never, the mocks throw nothing
    */
   @Test
-  void aListAskedWithTheCommentsCountCarriesIt() throws Exception {
+  void aListAskedWithTheCommentsCountCarriesItRepliesIncluded() throws Exception {
     when(taskService.findTasks(any(TaskQuery.class), anyInt(), anyInt())).thenReturn(List.of(task(100L), task(101L)));
-    when(commentService.countComments(100L)).thenReturn(3);
-    when(commentService.countComments(101L)).thenReturn(0);
+    when(commentService.getCommentsSummaries(List.of(100L, 101L))).thenReturn(Map.of(100L,
+                                                                                      new CommentsSummaryDto(100L, 5, null, "john", 9L)));
     WorkFilter filter = new WorkFilter();
     filter.setWithCommentsCount(true);
 
     List<Work> works = processesStorage.getWorks(USER_ID, filter, 0, 0);
 
-    assertEquals(Integer.valueOf(3), works.get(0).getCommentsCount());
+    assertEquals(Integer.valueOf(5), works.get(0).getCommentsCount());
     assertEquals(Integer.valueOf(0), works.get(1).getCommentsCount());
+    verify(commentService).getCommentsSummaries(List.of(100L, 101L));
+    verify(commentService, never()).countComments(anyLong());
+    verify(commentService, never()).countCommentsWithSubs(anyLong());
   }
 
   /**
@@ -204,7 +211,7 @@ class ProcessesStorageMyRequestsTest {
     List<Work> works = processesStorage.getWorks(USER_ID, new WorkFilter(), 0, 0);
 
     assertNull(works.get(0).getCommentsCount());
-    verify(commentService, never()).countComments(anyLong());
+    verifyNoInteractions(commentService);
   }
 
   private static void assertCondition(Map<String, SingleCondition<?>> conditions, String field, String type, Object value) {

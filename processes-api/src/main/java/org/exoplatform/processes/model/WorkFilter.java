@@ -15,8 +15,8 @@ public class WorkFilter {
     private Boolean completed;
 
     /**
-     * Whether each listed request carries its comments count, read from its
-     * task; null or false leaves the count unset.
+     * Whether each listed request carries its comments count, replies
+     * included, read from its task; null or false leaves the count unset.
      */
     private Boolean withCommentsCount;
 }

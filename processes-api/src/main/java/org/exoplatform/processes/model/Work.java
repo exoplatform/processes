@@ -84,7 +84,7 @@ public class Work {
   private Map<Long, Map<String, List<Object>>> formValues;
 
   /**
-   * The number of comments on the request's task, set by a list read that asks
+   * The number of comments on the request's task, replies included, set by a list read that asks
    * for it and never saved: a derived value the server computes, left out of
    * the comparison of two requests; null when not read.
    */

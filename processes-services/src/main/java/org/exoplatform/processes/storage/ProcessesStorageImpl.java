@@ -59,6 +59,7 @@ import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.domain.Priority;
+import org.exoplatform.task.dto.CommentsSummaryDto;
 import org.exoplatform.task.dto.LabelDto;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
@@ -651,11 +652,28 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     List<TaskDto> tasks = taskService.findTasks(taskQuery, offset, limit);
     List<Work> works = withRequestWorkFlows(EntityMapper.tasksToWorkList(tasks));
     if (Boolean.TRUE.equals(workFilter.getWithCommentsCount())) {
-      works.stream()
-           .filter(Objects::nonNull)
-           .forEach(work -> work.setCommentsCount(commentService.countComments(work.getId())));
+      setCommentsCounts(works);
     }
     return works;
+  }
+
+  /**
+   * Sets each request's comments count, replies included, as the request
+   * drawer counts them, read for the whole page at once.
+   *
+   * @param works the requests of a page
+   */
+  private void setCommentsCounts(List<Work> works) {
+    List<Long> taskIds = works.stream().filter(Objects::nonNull).map(Work::getId).toList();
+    if (taskIds.isEmpty()) {
+      return;
+    }
+    Map<Long, CommentsSummaryDto> summaries = commentService.getCommentsSummaries(taskIds);
+    works.stream().filter(Objects::nonNull).forEach(work -> {
+      CommentsSummaryDto summary = summaries == null ? null : summaries.get(work.getId());
+      // a task without comments is absent from the summaries
+      work.setCommentsCount(summary == null ? 0 : Math.toIntExact(summary.getCount()));
+    });
   }
 
   /**
