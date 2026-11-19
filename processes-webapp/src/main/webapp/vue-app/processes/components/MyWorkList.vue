@@ -6,11 +6,13 @@
       :key="toolbarKey"
       :available-work-statuses="availableWorkStatuses || []"
       :processes="processes"
-      :total-count="allWorks.length"
+      :total-count="totalCount"
       :drafts-count="draftList.length"
       :shown-count="shownCount"
       :hide-filters="isEmpty"
-      @change="filter = $event" />
+      :archivable-count="archivableCount"
+      @change="filter = $event"
+      @archive-all="$root.$emit('archive-finished-works', archivableCount)" />
     <div
       v-if="loading && !shownCount"
       class="d-flex justify-center py-10">
@@ -24,12 +26,13 @@
     <my-requests-table
       v-else
       id="myRequestsList"
-      :groups="groups" />
+      :groups="groups"
+      :options.sync="tableOptions" />
   </div>
 </template>
 
 <script>
-import {CAPPED_GROUP_SIZE, CAPPED_STATUSES, matchesQuery, processesOf, sortRecentFirst, statusesOf, workflowIdOf} from '../js/MyRequestsFilters.js';
+import {CAPPED_GROUP_SIZE, CAPPED_STATUSES, FINISHED_STATUSES, matchesQuery, processesOf, sortRecentFirst, statusesOf, workflowIdOf} from '../js/MyRequestsFilters.js';
 import MyWorkListUpdatesMixin from '../js/MyWorkListUpdatesMixin.js';
 
 export default {
@@ -52,6 +55,21 @@ export default {
       type: Array,
       default: null,
     },
+    /**
+     * How many completed requests the user has, as the server counts them, while the completed
+     * requests load page by page; null when they are not shown.
+     */
+    completedTotal: {
+      type: Number,
+      default: null,
+    },
+    /**
+     * Whether older completed requests remain to load.
+     */
+    completedHasMore: {
+      type: Boolean,
+      default: false,
+    },
     loading: {
       type: Boolean,
       default: false
@@ -67,6 +85,8 @@ export default {
   data: () => ({
     filter: {query: null, workflowId: null, status: null, grouped: false},
     toolbarKey: 0,
+    // the table's sort, held here so it outlives the table between a loading and its rows
+    tableOptions: {sortBy: ['date'], sortDesc: [true]},
   }),
   computed: {
     draftList() {
@@ -85,6 +105,45 @@ export default {
      */
     allWorks() {
       return [...this.draftList, ...this.workList, ...this.completedWorkList];
+    },
+    /**
+     * Counts the user's requests and drafts as the toolbar shows them: the completed ones as the
+     * server counts them while they load page by page.
+     *
+     * @returns {Number} the count
+     */
+    totalCount() {
+      const completedCount = this.completedTotal == null ? this.completedWorkList.length : Math.max(this.completedTotal, this.completedWorkList.length);
+      return this.draftList.length + this.workList.length + completedCount;
+    },
+    /**
+     * Counts the open requests « Archive all » archives: the validated, refused and canceled ones.
+     * Every open request is loaded, so the count is the server's.
+     *
+     * @returns {Number} the count
+     */
+    archivableCount() {
+      return this.workList.filter(work => FINISHED_STATUSES.includes(work.status)).length;
+    },
+    /**
+     * Tells whether a text or a process filter is chosen, or the rows are sorted otherwise than
+     * newest first: the completed requests then all load, so the filter or the order reads every
+     * one of them.
+     *
+     * @returns {Boolean} true when a text or a process is chosen, or another order
+     */
+    narrowed() {
+      return !!(this.filter.query || this.filter.workflowId) || this.sortedOtherwise;
+    },
+    /**
+     * Tells whether the rows are sorted otherwise than newest first: the completed requests load
+     * page by page, newest first, so any other order needs them all.
+     *
+     * @returns {Boolean} true unless the rows are sorted by date, newest first
+     */
+    sortedOtherwise() {
+      const options = this.tableOptions;
+      return !((options.sortBy[0] || 'date') === 'date' && !!options.sortDesc[0]);
     },
     /**
      * Lists the processes of the loaded requests, with their counts, for the process filter.
@@ -123,6 +182,7 @@ export default {
         works,
         drafts: new Set(this.draftList),
         hint: this.isDraftsOnlyProcess && this.$t('processes.myRequests.draftsOnly') || null,
+        hasMore: this.statusGroups.some(group => group.hasMore),
       }];
     },
     /**
@@ -146,10 +206,17 @@ export default {
         }));
       }
       if (!status || status === 'completed') {
-        groups.push({key: 'completed', label: this.$t('label.task.completed'), works: this.completedWorkList});
+        groups.push({
+          key: 'completed',
+          label: this.$t('label.task.completed'),
+          works: this.completedWorkList,
+          // the server's count while pages remain, unless a filter narrows the list
+          total: this.narrowed || this.completedTotal == null ? null : Math.max(this.completedTotal, this.completedWorkList.length),
+          hasMore: this.completedHasMore,
+        });
       }
       groups.forEach(group => group.works = sortRecentFirst(group.works.filter(this.matches)));
-      const shown = groups.filter(group => group.works.length);
+      const shown = groups.filter(group => group.works.length || group.hasMore);
       const drafts = shown.find(group => group.isDraft);
       if (drafts && this.isDraftsOnlyProcess) {
         drafts.hint = this.$t('processes.myRequests.draftsOnly');
@@ -176,7 +243,37 @@ export default {
       return this.groups.reduce((count, group) => count + group.works.length, 0);
     },
   },
+  watch: {
+    /**
+     * Loads every remaining completed request once a text or a process filter, or another order, is
+     * chosen, so the filter or the order reads all of them, as it did when they loaded at once.
+     *
+     * @returns {void}
+     */
+    narrowed() {
+      this.loadAllCompletedWhenNarrowed();
+    },
+    /**
+     * Loads the remaining completed requests when a page arrives while a filter is chosen.
+     *
+     * @returns {void}
+     */
+    completedHasMore() {
+      this.loadAllCompletedWhenNarrowed();
+    },
+  },
   methods: {
+    /**
+     * Asks the application for every remaining completed request while a text or a process
+     * filter is chosen.
+     *
+     * @returns {void}
+     */
+    loadAllCompletedWhenNarrowed() {
+      if (this.narrowed && this.completedHasMore) {
+        this.$root.$emit('load-more-completed-works', true);
+      }
+    },
     /**
      * Tells whether a request matches the chosen process and the typed text.
      *
