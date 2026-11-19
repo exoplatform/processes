@@ -92,6 +92,7 @@ import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
+import org.exoplatform.task.service.CommentService;
 import org.exoplatform.task.service.LabelService;
 import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.StatusService;
@@ -199,7 +200,8 @@ class ProcessesProjectMoveTest {
                                        mock(ProcessesAttachmentService.class),
                                        mock(FileService.class),
                                        userACL,
-                                       labelService);
+                                       labelService,
+                                       mock(CommentService.class));
     moveService = new ProcessesProjectMoveService(storage, projectService, userACL, params());
     moveService.setClocks(() -> now, () -> 0L);
     // The woven transaction aspect finds the entity manager through the
