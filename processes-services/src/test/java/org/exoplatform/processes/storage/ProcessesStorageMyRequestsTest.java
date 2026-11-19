@@ -19,6 +19,7 @@ package org.exoplatform.processes.storage;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -29,7 +30,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -43,7 +43,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.exoplatform.processes.dao.RequestDAO;
 import org.exoplatform.processes.dao.WorkDraftDAO;
 import org.exoplatform.processes.dao.WorkFlowDAO;
-import org.exoplatform.processes.entity.WorkFlowEntity;
 import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFilter;
 import org.exoplatform.social.core.identity.model.Identity;
@@ -51,6 +50,7 @@ import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.dao.condition.AggregateCondition;
 import org.exoplatform.task.dao.condition.Condition;
+import org.exoplatform.task.dao.condition.PredicateCondition;
 import org.exoplatform.task.dao.condition.SingleCondition;
 import org.exoplatform.task.dto.CommentsSummaryDto;
 import org.exoplatform.task.dto.TaskDto;
@@ -68,8 +68,6 @@ class ProcessesStorageMyRequestsTest {
   private static final long   USER_ID      = 7L;
 
   private static final String USER_NAME    = "mary";
-
-  private static final long   PROJECT_ID   = 31L;
 
   @Mock
   private WorkFlowDAO          workFlowDAO;
@@ -92,8 +90,7 @@ class ProcessesStorageMyRequestsTest {
   private ProcessesStorageImpl processesStorage;
 
   /**
-   * Builds the storage over one process of project {@link #PROJECT_ID}, for a
-   * user named {@link #USER_NAME}.
+   * Builds the storage for a user named {@link #USER_NAME}.
    */
   @BeforeEach
   void setUp() {
@@ -111,17 +108,16 @@ class ProcessesStorageMyRequestsTest {
                                                 null,
                                                 null,
                                                 commentService);
-    when(workFlowDAO.findAllWorkFlows(0, 0)).thenReturn(new ArrayList<>(List.of(storedProcess())));
     Identity identity = mock(Identity.class);
     when(identity.getRemoteId()).thenReturn(USER_NAME);
     when(identityManager.getIdentity(String.valueOf(USER_ID))).thenReturn(identity);
   }
 
   /**
-   * The count asks the Task add-on for the user's own tasks of the processes'
-   * projects, with the filter's completion and status. Mutation: drop the
-   * creator, the projects, the completion or the status, or invert the
-   * completion, and this test fails.
+   * The count asks the Task add-on for the user's own request tasks, with the
+   * filter's completion and status. Mutation: drop the creator, the request
+   * condition, the completion or the status, or invert the completion, and
+   * this test fails.
    *
    * @throws Exception never, the mocks throw nothing
    */
@@ -138,7 +134,7 @@ class ProcessesStorageMyRequestsTest {
     verify(taskService).countTasks(query.capture());
     Map<String, SingleCondition<?>> conditions = conditionsByField(query.getValue());
     assertCondition(conditions, "createdBy", SingleCondition.EQ, USER_NAME);
-    assertCondition(conditions, "status.project.id", SingleCondition.IN, List.of(PROJECT_ID));
+    assertTrue(hasRequestCondition(query.getValue()), "the count keeps to request tasks");
     assertCondition(conditions, "completed", SingleCondition.IS_TRUE, null);
     assertCondition(conditions, "status.name", SingleCondition.EQ, "Validated");
   }
@@ -164,6 +160,8 @@ class ProcessesStorageMyRequestsTest {
     ArgumentCaptor<TaskQuery> countQuery = ArgumentCaptor.forClass(TaskQuery.class);
     verify(taskService).countTasks(countQuery.capture());
     assertEquals(describe(conditionsByField(countQuery.getValue())), describe(conditionsByField(listQuery.getValue())));
+    assertTrue(hasRequestCondition(countQuery.getValue()), "the count keeps to request tasks");
+    assertTrue(hasRequestCondition(listQuery.getValue()), "the list keeps to request tasks");
     assertCondition(conditionsByField(listQuery.getValue()), "completed", SingleCondition.IS_FALSE, null);
     assertEquals("id", listQuery.getValue().getOrderBy().get(0).getFieldName());
     assertFalse(listQuery.getValue().getOrderBy().get(0).isAscending());
@@ -244,18 +242,9 @@ class ProcessesStorageMyRequestsTest {
     }
   }
 
-  /**
-   * Builds a stored process of project {@link #PROJECT_ID} with every field
-   * the process mapper unboxes set (id, creator, modifier, project), as
-   * ProcessesStorageImplTest builds one.
-   */
-  private static WorkFlowEntity storedProcess() {
-    WorkFlowEntity workFlow = new WorkFlowEntity();
-    workFlow.setId(3L);
-    workFlow.setCreatorId(1L);
-    workFlow.setModifierId(1L);
-    workFlow.setProjectId(PROJECT_ID);
-    return workFlow;
+  private static boolean hasRequestCondition(TaskQuery query) {
+    return query.getCondition() instanceof AggregateCondition aggregate
+        && aggregate.getConditions().stream().anyMatch(PredicateCondition.class::isInstance);
   }
 
   private static TaskDto task(long id) {
