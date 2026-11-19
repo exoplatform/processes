@@ -363,6 +363,61 @@ public class ProcessesServiceAtomicSavesTest {
   }
 
   /**
+   * The save of a process that changed its project, called with no
+   * transaction open, writes the process's row and its move flag together: a
+   * flag write that fails after the row was written leaves the process as it
+   * was. Mutation: drop the annotation's atomic flag and the new title commits
+   * on its own, or its write fails for want of a transaction.
+   *
+   * @throws Exception on a count failure
+   */
+  @Test
+  public void theAtomicProjectChangeSaveWritesTheRowAndTheMoveFlagTogether() throws Exception {
+    doAnswer(invocation -> {
+      invocation.callRealMethod();
+      entityManager.flush();
+      throw new jakarta.persistence.PersistenceException("the flag's write fails after the row's");
+    }).when(workFlowDAO).requestMove(anyLong(), any(), anyLong());
+
+    assertThrows(jakarta.persistence.PersistenceException.class,
+                 () -> processesService.saveWorkFlowRowsAndRequestMove(process("Leave request", null), USER_ID, "john"));
+    entityManager.clear();
+
+    assertEquals(1, count("SELECT COUNT(*) FROM PROCESSES_WORK_FLOW WHERE WORK_FLOW_ID = 1 AND TITLE = 'Leave'"));
+    assertEquals(0, count("SELECT COUNT(*) FROM PROCESSES_WORK_FLOW WHERE PROJECT_MOVE_PENDING = TRUE"));
+  }
+
+  /**
+   * A process save never writes the move columns, which only their bulk
+   * updates write: a save of a copy read before a move was flagged leaves the
+   * flag, the sequence and the claim as the database holds them. Mutation:
+   * make the move columns updatable and the save writes the copy's empty
+   * ones back.
+   *
+   * @throws Exception on a count failure
+   */
+  @Test
+  public void aProcessSaveNeverWritesTheMoveColumns() throws Exception {
+    WorkFlowEntity staleCopy = workFlowDAO.find(1L);
+    entityManager.detach(staleCopy);
+    try (Statement statement = connection.createStatement()) {
+      statement.executeUpdate("UPDATE PROCESSES_WORK_FLOW SET PROJECT_MOVE_PENDING = TRUE, MOVE_SEQ = 3, MOVE_OWNER = 'pass' WHERE WORK_FLOW_ID = 1");
+    }
+    connection.commit();
+
+    staleCopy.setTitle("Leave request");
+    staleCopy.setProjectMovePending(false);
+    staleCopy.setMoveSeq(0L);
+    staleCopy.setMoveOwner(null);
+    entityManager.getTransaction().begin();
+    workFlowDAO.update(staleCopy);
+    entityManager.getTransaction().commit();
+    entityManager.clear();
+
+    assertEquals(1, count("SELECT COUNT(*) FROM PROCESSES_WORK_FLOW WHERE TITLE = 'Leave request' AND PROJECT_MOVE_PENDING = TRUE AND MOVE_SEQ = 3 AND MOVE_OWNER = 'pass'"));
+  }
+
+  /**
    * The storage sets a request draft's state: an update whose body says it is
    * no draft still stores a draft. Mutation: drop the storage's draft-state
    * line and the row is stored as no draft.

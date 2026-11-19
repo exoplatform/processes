@@ -315,6 +315,38 @@ public class ProcessesServiceImpl implements ProcessesService {
   }
 
   /**
+   * Saves a process's own rows, as {@link #saveWorkFlowRows(WorkFlow, long)}
+   * does, and flags in the same transaction the move of its requests to the
+   * project the save set: the next pass is due at once, and a pass started
+   * before this save writes none of its conditional updates. New requests go
+   * to the new project from this commit on.
+   *
+   * @param workFlow the process, its new project set
+   * @param userId the saving user's identity id
+   * @param moveRequestedBy the user id of the editor, whom the move acts as
+   * @return the saved process
+   */
+  @ContainerTransactional(atomic = true)
+  public WorkFlow saveWorkFlowRowsAndRequestMove(WorkFlow workFlow, long userId, String moveRequestedBy) throws IllegalAccessException {
+    return writeWorkFlowRowsAndRequestMove(workFlow, userId, moveRequestedBy);
+  }
+
+  /**
+   * The un-advised body of
+   * {@link #saveWorkFlowRowsAndRequestMove(WorkFlow, long, String)}.
+   *
+   * @param workFlow the process, its new project set
+   * @param userId the saving user's identity id
+   * @param moveRequestedBy the user id of the editor, whom the move acts as
+   * @return the saved process
+   */
+  WorkFlow writeWorkFlowRowsAndRequestMove(WorkFlow workFlow, long userId, String moveRequestedBy) throws IllegalAccessException {
+    WorkFlow savedWorkFlow = writeWorkFlowRows(workFlow, userId);
+    processesStorage.requestProjectMove(savedWorkFlow.getId(), moveRequestedBy, System.currentTimeMillis());
+    return savedWorkFlow;
+  }
+
+  /**
    * Writes a process's own rows, then the form its save chose, which the
    * request values plugin binds once the row exists, so the binding commits
    * or rolls back with the rows. The un-advised body of
@@ -385,8 +417,28 @@ public class ProcessesServiceImpl implements ProcessesService {
    * @return the saved process
    */
   private WorkFlow saveWorkFlowRows(WorkFlow workFlow, long userId, List<LabelChoice> labelChoices) throws IllegalAccessException {
+    return saveWorkFlowRows(workFlow, userId, labelChoices, null);
+  }
+
+  /**
+   * Saves a process's own rows, and flags the move of its requests when the
+   * save changed its project, logging the labels the save created in Task
+   * when the rows can't be saved: Task committed them, and they stay.
+   *
+   * @param workFlow the process, its labels resolved
+   * @param userId the saving user's identity id
+   * @param labelChoices the checked labels, or null
+   * @param moveRequestedBy the user id of the editor who changed the project,
+   *          null when the save keeps the project
+   * @return the saved process
+   */
+  private WorkFlow saveWorkFlowRows(WorkFlow workFlow,
+                                    long userId,
+                                    List<LabelChoice> labelChoices,
+                                    String moveRequestedBy) throws IllegalAccessException {
     try {
-      return saveWorkFlowRows(workFlow, userId);
+      return moveRequestedBy == null ? saveWorkFlowRows(workFlow, userId)
+                                     : saveWorkFlowRowsAndRequestMove(workFlow, userId, moveRequestedBy);
     } catch (RuntimeException | IllegalAccessException e) {
       if (labelChoices != null && workFlow.getLabels() != null) {
         Set<Long> keptIds = new HashSet<>();
@@ -824,9 +876,29 @@ public class ProcessesServiceImpl implements ProcessesService {
       throw new IllegalAccessException("User " + userId + " isn't allowed to update the process " + workFlow.getId());
     }
     checkSpaceMove(oldWorkFlow, workFlow.getSpaceId(), userId);
-    checkSpaceKept(oldWorkFlow, workFlow.getSpaceId());
-    // The process keeps its project and its creation data, whatever the client sent
-    workFlow.setProjectId(oldWorkFlow.getProjectId());
+    org.exoplatform.services.security.Identity aclIdentity = getAclIdentity(userId);
+    String targetSpaceId = StringUtils.isNotBlank(workFlow.getSpaceId()) ? workFlow.getSpaceId()
+                                                                         : toSpaceId(getCurrentSpace(oldWorkFlow));
+    // The project is changed only as the editor offers it: a new project of
+    // the managing space, or an eligible existing one; any other project the
+    // client names is ignored, and the process keeps its stored one
+    ProjectDto targetProject = null;
+    boolean newProject = workFlow.getProjectMode() == ProjectMode.NEW;
+    boolean projectChanged = newProject;
+    if (workFlow.getProjectMode() == ProjectMode.EXISTING && workFlow.getProjectId() != oldWorkFlow.getProjectId()) {
+      targetProject = getEligibleProject(workFlow.getProjectId(), targetSpaceId);
+      projectChanged = true;
+    }
+    if (newProject && (StringUtils.isBlank(targetSpaceId) || spaceService.getSpaceById(targetSpaceId) == null)) {
+      throw new IllegalArgumentException(PROJECT_NOT_ELIGIBLE);
+    }
+    if (!projectChanged) {
+      // A space change comes with a project of the new space
+      checkSpaceKept(oldWorkFlow, workFlow.getSpaceId());
+    }
+    // The process keeps its creation data, whatever the client sent, and its
+    // project until the project resolved above replaces it
+    workFlow.setProjectId(targetProject == null ? oldWorkFlow.getProjectId() : targetProject.getId());
     workFlow.setCreatorId(oldWorkFlow.getCreatorId());
     workFlow.setCreatedDate(oldWorkFlow.getCreatedDate());
     // The illustration sent is kept, replaced or removed, but always as the
@@ -837,36 +909,55 @@ public class ProcessesServiceImpl implements ProcessesService {
     }
     applyIcon(workFlow, storedIllustration == null ? null : storedIllustration.getId());
     // Labels not sent stay as stored; labels sent replace them, each checked
-    // to be of the process's project before the first write
+    // to be of the process's project before the first write. The labels belong
+    // to the project: a project change resets them to the ones sent, checked
+    // against the new project, which a new project has none of yet
     List<LabelChoice> labelChoices = null;
     ProjectDto project = null;
-    if (workFlow.getLabels() == null) {
+    if (projectChanged) {
+      project = targetProject;
+      List<WorkFlowLabel> sentLabels = workFlow.getLabels() == null ? Collections.emptyList() : workFlow.getLabels();
+      labelChoices = checkLabels(sentLabels, targetProject, newProject, aclIdentity);
+      workFlow.setLabels(toLabels(labelChoices));
+    } else if (workFlow.getLabels() == null) {
       workFlow.setLabels(oldWorkFlow.getLabels());
     } else {
       project = findProject(oldWorkFlow.getProjectId());
-      labelChoices = checkLabels(workFlow.getLabels(), project, false, getAclIdentity(userId));
+      labelChoices = checkLabels(workFlow.getLabels(), project, false, aclIdentity);
       workFlow.setLabels(toLabels(labelChoices));
     }
     // The chosen form is checked before the first write; a form already the
     // process's own is no change
-    String formSpaceId = StringUtils.isNotBlank(workFlow.getSpaceId()) ? workFlow.getSpaceId() : toSpaceId(getCurrentSpace(oldWorkFlow));
     workFlow.setRequestFormId(checkProcessForm(oldWorkFlow.getId(),
-                                               formSpaceId,
+                                               targetSpaceId,
                                                workFlow.getRequestFormId(),
-                                               getAclIdentity(userId)));
-    // The project forms its requesters fill are checked before the first
-    // write; a save that does not state them, or states the stored ones,
-    // keeps the stored choice
+                                               aclIdentity));
     List<Long> storedRequesterFormIds = oldWorkFlow.getRequesterFormIds() == null ? Collections.emptyList()
                                                                                   : oldWorkFlow.getRequesterFormIds();
-    List<Long> requesterFormIds = checkRequesterForms(oldWorkFlow.getId(),
-                                                      oldWorkFlow.getProjectId(),
-                                                      workFlow.getRequesterFormIds(),
-                                                      storedRequesterFormIds,
-                                                      getAclIdentity(userId));
-    // The stored choice is kept as read, so that a save changing nothing else
-    // compares equal to the stored process
-    workFlow.setRequesterFormIds(requesterFormIds == null ? oldWorkFlow.getRequesterFormIds() : requesterFormIds);
+    if (projectChanged) {
+      // The forms its requesters fill are forms of the project: a project
+      // change keeps those of the ticked ones the new project gives, so a
+      // requester never gets a form of the former project
+      List<Long> tickedFormIds = workFlow.getRequesterFormIds() == null ? storedRequesterFormIds
+                                                                        : workFlow.getRequesterFormIds();
+      workFlow.setRequesterFormIds(newProject ? Collections.emptyList()
+                                              : keepRequesterFormsOfProject(oldWorkFlow.getId(),
+                                                                            targetProject.getId(),
+                                                                            tickedFormIds,
+                                                                            aclIdentity));
+    } else {
+      // The project forms its requesters fill are checked before the first
+      // write; a save that does not state them, or states the stored ones,
+      // keeps the stored choice
+      List<Long> requesterFormIds = checkRequesterForms(oldWorkFlow.getId(),
+                                                        oldWorkFlow.getProjectId(),
+                                                        workFlow.getRequesterFormIds(),
+                                                        storedRequesterFormIds,
+                                                        aclIdentity);
+      // The stored choice is kept as read, so that a save changing nothing
+      // else compares equal to the stored process
+      workFlow.setRequesterFormIds(requesterFormIds == null ? oldWorkFlow.getRequesterFormIds() : requesterFormIds);
+    }
     if (oldWorkFlow.equals(workFlow) && workFlow.getRequestFormId() == null) {
       throw new IllegalArgumentException("there are no changes to save");
     }
@@ -881,14 +972,68 @@ public class ProcessesServiceImpl implements ProcessesService {
                                                                                 workFlow.getId(),
                                                                                 oldWorkFlow.getProjectId(),
                                                                                 workFlow.getAttachments()));
-    if (labelChoices != null) {
-      workFlow.setLabels(createLabels(labelChoices, project, getAclIdentity(userId).getUserId()));
+    // Task commits each project, status and label it creates, before the
+    // process's own rows are saved
+    if (targetProject != null) {
+      ensureProcessStatuses(targetProject);
+    } else if (newProject) {
+      workFlow.setSpaceId(targetSpaceId);
+      workFlow = processesStorage.createProject(workFlow);
+      if (labelChoices != null && !labelChoices.isEmpty()) {
+        project = getProject(workFlow.getProjectId());
+      }
     }
-    WorkFlow savedWorkFlow = saveWorkFlowRows(workFlow, userId, labelChoices);
+    if (labelChoices != null) {
+      workFlow.setLabels(createLabels(labelChoices, project, aclIdentity.getUserId()));
+    }
+    String moveRequestedBy = projectChanged ? aclIdentity.getUserId() : null;
+    WorkFlow savedWorkFlow = saveWorkFlowRows(workFlow, userId, labelChoices, moveRequestedBy);
+    if (projectChanged) {
+      // The move of its requests runs in the background, after this commit
+      ProcessesUtils.broadcast(listenerService, ProcessesEvents.PROCESS_PROJECT_CHANGED, savedWorkFlow.getId(), moveRequestedBy);
+    }
     processesStorage.linkWorkFlowAttachments(savedWorkFlow, workFlow.getAttachments(), userId);
     saveTranslations(savedWorkFlow, workFlow);
     processTranslationService.keepDefaultLanguage(savedWorkFlow);
     return savedWorkFlow;
+  }
+
+  /**
+   * Keeps, of the forms ticked for a process's requesters, those a task
+   * project gives, which the editor may see: each one is checked alone, so a
+   * form the project does not give, or that the editor may not see, is left
+   * out rather than refusing the save.
+   *
+   * @param workFlowId the process id
+   * @param projectId the id of the process's new task project
+   * @param formIds the ticked form ids
+   * @param editor the editor's identity
+   * @return the kept ids, distinct, in id order; empty when no add-on checks
+   *         the choice
+   * @throws IllegalArgumentException {@value #REQUESTER_FORM_INVALID} for an
+   *           id that names no form
+   */
+  private List<Long> keepRequesterFormsOfProject(long workFlowId,
+                                                 long projectId,
+                                                 List<Long> formIds,
+                                                 org.exoplatform.services.security.Identity editor) {
+    if (formIds.stream().anyMatch(formId -> formId == null || formId <= 0)) {
+      throw new IllegalArgumentException(REQUESTER_FORM_INVALID);
+    }
+    RequestValuesPlugin plugin = requestValuesPlugin;
+    if (plugin == null || formIds.isEmpty()) {
+      return Collections.emptyList();
+    }
+    List<Long> kept = new ArrayList<>();
+    for (Long formId : formIds.stream().distinct().sorted().toList()) {
+      try {
+        plugin.checkRequesterForms(workFlowId, projectId, List.of(formId), editor);
+        kept.add(formId);
+      } catch (IllegalArgumentException | IllegalAccessException e) {
+        LOG.debug("The form {} is not one the project {} gives the process {}", formId, projectId, workFlowId, e);
+      }
+    }
+    return kept;
   }
 
   /**
