@@ -548,9 +548,9 @@ export default {
         return this.formsRefusalMessage(code) || this.$t(`processes.workflow.${action}.error.message`);
       }
       // On an update, an ineligible project means the managing space changed
-      // while the process keeps its project
+      // with no project of the new space chosen
       return action === 'update' && code === 'processes.project.notEligible'
-        && this.$t('processes.workflow.updateError.processes.project.notEligible')
+        && this.$t('processes.workflow.updateError.processes.project.spaceNeedsProject')
         || this.$t(`processes.workflow.saveError.${code}`);
     },
     /**
