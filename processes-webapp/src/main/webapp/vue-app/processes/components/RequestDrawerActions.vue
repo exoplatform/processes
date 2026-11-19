@@ -15,13 +15,15 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
   <div class="requestDrawerActions d-flex flex-nowrap justify-end align-center">
     <!-- « Save as draft » gives way to Submit: its label is cut with an ellipsis when the two do not fit, and the
          tooltip then shows it whole. The tooltip hangs on a wrapper, as Submit's does, since a disabled button
-         receives no pointer event -->
+         receives no pointer event; the wrapper hands it the button's focus, which bubbles to it as focusin -->
     <v-tooltip :disabled="!draftLabelCut" top>
       <template #activator="{ on, attrs }">
         <div
           class="requestDrawerActionsDraft d-flex me-2"
           v-bind="attrs"
-          v-on="on">
+          v-on="on"
+          @focusin="on.focus && on.focus($event)"
+          @focusout="on.blur && on.blur($event)">
           <v-btn
             id="saveRequestDraftButton"
             :loading="savingDraft"

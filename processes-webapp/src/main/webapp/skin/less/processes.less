@@ -700,11 +700,12 @@
   .requestDrawerActionsDraft {
     flex: 0 1 auto;
     min-width: 0;
-    overflow: hidden;
+    // the button clips its own content, so its focus outline, drawn outside it, stays visible
     .v-btn {
       flex: 0 1 auto;
       min-width: 0 !important;
       max-width: 100%;
+      overflow: hidden;
     }
     .v-btn__content {
       flex: 1 1 auto;
