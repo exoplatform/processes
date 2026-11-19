@@ -204,7 +204,7 @@ class ProcessesServiceProjectChangeTest {
    * An update naming an eligible project of the managing space saves that
    * project, adds to it the process statuses it lacks, flags the move of the
    * requests in the same save as the editor, and hands the move over once the
-   * save is done. Mutation: keep the stored project, as before, and the saved
+   * save is done. Mutation: keep the stored project, and the saved
    * project stays {@value #STORED_ID}.
    *
    * @throws Exception on an unexpected refusal
