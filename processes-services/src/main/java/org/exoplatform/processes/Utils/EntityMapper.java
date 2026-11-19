@@ -97,9 +97,33 @@ public class EntityMapper {
    *
    * @param manager a stored request maker
    * @return true when it reads as a space or a group the platform finds
+   * @throws IllegalStateException when the group store fails to answer: the
+   *           save can't tell whether the user removed it, so it is not saved
    */
   public static boolean isDisplayableCreator(String manager) {
-    return toCreatorIdentity(manager) != null;
+    try {
+      return readCreatorIdentity(manager) != null;
+    } catch (Exception e) {
+      throw new IllegalStateException("The request maker " + manager + " of a process could not be read", e);
+    }
+  }
+
+  /**
+   * Reads one stored request maker as the identity the editor shows, an entry
+   * the group store fails to read being left out.
+   *
+   * @param manager a stored request maker
+   * @return the space or group identity, or null when it is neither a space
+   *         nor a group the platform finds, or can't be read
+   */
+  private static CreatorIdentityEntity toCreatorIdentity(String manager) {
+    try {
+      return readCreatorIdentity(manager);
+    } catch (Exception e) {
+      LOG.warn("Cannot read the request maker {} of a process as a group: {}", manager, e.getMessage());
+      LOG.debug("Cannot read the request maker {} of a process as a group", manager, e);
+      return null;
+    }
   }
 
   /**
@@ -108,8 +132,9 @@ public class EntityMapper {
    * @param manager a stored request maker
    * @return the space or group identity, or null when it is neither a space
    *         nor a group the platform finds
+   * @throws Exception when the group store fails to answer
    */
-  private static CreatorIdentityEntity toCreatorIdentity(String manager) {
+  private static CreatorIdentityEntity readCreatorIdentity(String manager) throws Exception {
     if (StringUtils.isBlank(manager)) {
       return null;
     }
@@ -125,19 +150,14 @@ public class EntityMapper {
       IdentityEntity identityEntity = new IdentityEntity("", space.getPrettyName(), "space", profile);
       return new CreatorIdentityEntity(identityEntity);
     }
-    try {
-      GroupHandler groupHandler = CommonsUtils.getService(OrganizationService.class).getGroupHandler();
-      Group group = groupHandler.findGroupById(manager);
-      if (group == null) {
-        return null;
-      }
-      ProfileEntity profile = new ProfileEntity(null, group.getLabel());
-      IdentityEntity identityEntity = new IdentityEntity("group:" + group.getGroupName(), group.getId(), "group", profile);
-      return new CreatorIdentityEntity(identityEntity);
-    } catch (Exception e) {
-      LOG.warn("Cannot read the request maker {} of a process as a group", manager, e);
+    GroupHandler groupHandler = CommonsUtils.getService(OrganizationService.class).getGroupHandler();
+    Group group = groupHandler.findGroupById(manager);
+    if (group == null) {
       return null;
     }
+    ProfileEntity profile = new ProfileEntity(null, group.getLabel());
+    IdentityEntity identityEntity = new IdentityEntity("group:" + group.getGroupName(), group.getId(), "group", profile);
+    return new CreatorIdentityEntity(identityEntity);
   }
 
   public static ProcessPermission getACL(WorkFlowEntity workFlowEntity, List<String> memberships) {

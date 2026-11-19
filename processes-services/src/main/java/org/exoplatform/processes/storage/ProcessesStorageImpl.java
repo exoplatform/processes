@@ -1278,8 +1278,10 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   /**
    * Computes the request makers an update saves. The client sends only those
    * its editor shows, so a stored one it could not show (a user name, a
-   * membership, a deleted group or space) is kept; a client that sends no
-   * request makers keeps the stored ones.
+   * membership, a deleted group or space) is kept; a client that omits the
+   * list (null) keeps the stored ones, and an empty list removes every shown
+   * one. A stored group the group store fails to read fails the save, since
+   * whether the user removed it can't be told.
    *
    * @param requestsCreators the request makers the client sent, or null
    * @param storedWorkFlowEntity the stored process, or null when not found

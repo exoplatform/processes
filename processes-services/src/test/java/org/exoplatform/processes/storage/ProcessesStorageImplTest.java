@@ -411,9 +411,11 @@ public class ProcessesStorageImplTest {
   /**
    * An update keeps the stored request makers its editor could not show (a
    * user name, a membership, a deleted group), removes a shown one the client
-   * left out, and keeps them all when the client sends none. Mutation: save
-   * only the client's list, keep every stored entry, or drop the guard on a
-   * missing list, and this test fails.
+   * left out, and keeps them all when the client omits the list; a stored group
+   * the group store fails to read fails the save rather than keeping a maker
+   * the user may have removed. Mutation: save only the client's list, keep
+   * every stored entry, drop the guard on a missing list, or keep an unread
+   * group, and this test fails.
    */
   @Test
   public void anUpdateKeepsTheRequestMakersItsEditorCannotShow() {
@@ -466,7 +468,18 @@ public class ProcessesStorageImplTest {
     ENTITY_MAPPER.when(() -> EntityMapper.toEntity(workFlow)).thenReturn(sentWithoutMakers);
 
     processesStorage.saveWorkFlow(workFlow, 1L);
-    assertEquals("a client that sends no request makers keeps the stored ones", storedManagers, sentWithoutMakers.getManager());
+    assertEquals("a client that omits the list keeps the stored ones", storedManagers, sentWithoutMakers.getManager());
+
+    workFlow.setRequestsCreators(new ArrayList<>());
+    WorkFlowEntity sentWhileTheStoreFails = new WorkFlowEntity();
+    sentWhileTheStoreFails.setId(5L);
+    sentWhileTheStoreFails.setProjectId(9L);
+    sentWhileTheStoreFails.setSpaceId(7L);
+    ENTITY_MAPPER.when(() -> EntityMapper.toEntity(workFlow)).thenReturn(sentWhileTheStoreFails);
+    ENTITY_MAPPER.when(() -> EntityMapper.isDisplayableCreator("/spaces/sales")).thenThrow(new IllegalStateException("store down"));
+
+    assertThrows(IllegalStateException.class, () -> processesStorage.saveWorkFlow(workFlow, 1L));
+    verify(workFlowDAO, never()).update(sentWhileTheStoreFails);
   }
 
   /**

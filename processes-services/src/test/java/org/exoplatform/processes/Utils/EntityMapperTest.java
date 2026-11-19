@@ -95,10 +95,11 @@ public class EntityMapperTest {
 
   /**
    * The editor shows a request maker that is a space or a group the platform
-   * finds, and no other: not a user name, a membership, a deleted group, nor a
-   * group the platform fails to read. The read leaves out the same entries.
-   * Mutation: answer true for an entry no group matches, or let a failed group
-   * read count as shown, and this test fails.
+   * finds, and no other: not a user name, a membership or a deleted group. A
+   * group the store fails to read is left out of the read, but a save can't
+   * tell whether it is hidden, so it is refused. Mutation: answer true for an
+   * entry no group matches, or answer false for a failed group read, and this
+   * test fails.
    *
    * @throws Exception never, the mocks throw only where stubbed
    */
@@ -118,14 +119,15 @@ public class EntityMapperTest {
     assertFalse("a user name", EntityMapper.isDisplayableCreator("jdoe"));
     assertFalse("a membership", EntityMapper.isDisplayableCreator("manager:/spaces/hr"));
     assertFalse("a deleted group", EntityMapper.isDisplayableCreator("/deleted/group"));
-    assertFalse("a group the platform fails to read", EntityMapper.isDisplayableCreator("/broken/group"));
+    assertThrows("a group the store fails to read", IllegalStateException.class, () -> EntityMapper.isDisplayableCreator("/broken/group"));
     assertFalse(EntityMapper.isDisplayableCreator(" "));
 
     Set<String> managers = new HashSet<>(java.util.Arrays.asList("/spaces/testSpace",
                                                                  "/platform/administrators",
                                                                  "jdoe",
-                                                                 "manager:/spaces/hr"));
-    assertEquals(2, EntityMapper.fromGroupToIdentity(managers).size());
+                                                                 "manager:/spaces/hr",
+                                                                 "/broken/group"));
+    assertEquals("the read leaves out what it can't read", 2, EntityMapper.fromGroupToIdentity(managers).size());
   }
 
   /**
