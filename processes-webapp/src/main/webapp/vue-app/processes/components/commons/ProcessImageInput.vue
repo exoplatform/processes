@@ -108,6 +108,11 @@ export default {
       if (this.imageData) {
         return this.imageData;
       }
+      // A new image not saved yet: the drawer holds it while this row is
+      // re-mounted by a change of layout, which loses imageData
+      if (this.illustration && this.illustration.fileBody) {
+        return this.illustration.fileBody;
+      }
       const stored = this.illustration && this.illustration.id && this.illustration.fileName && this.workflow && this.workflow.id;
       return stored
         && `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/illustration/${this.workflow.id}?v=${this.illustration.lastUpdated || ''}`
