@@ -444,7 +444,7 @@
         {{ $t('processes.works.form.label.save') }}
       </v-btn>
       <v-btn
-        :disabled="!(valid && workflowChanged && validSpace && projectChosen && workflowRequestChanged)"
+        :disabled="!canUpdate"
         v-if="editMode"
         :loading="saving"
         @click="updateWorkFlow"
@@ -484,6 +484,8 @@ export default {
       },
       workflowRequest: [],
       illustrativeImage: null,
+      openedIllustration: null,
+      openedRequestCreators: null,
       confirmCloseLabels: {
         title: this.$t('processes.workflow.action.confirmation.label'),
         message: this.$t('processes.workflow.cancelCreation.confirm.message'),
@@ -564,6 +566,28 @@ export default {
     confirmClose() {
       return this.valid && (JSON.stringify(this.workflow) !== JSON.stringify(this.oldWorkflow)
         || this.projectChoiceString() !== this.originalProjectChoice || this.sectionsChanged);
+    },
+    /**
+     * @returns {Boolean} true when an edited process differs from what the
+     *          drawer opened with: its fields, its image, its project choice
+     *          and labels, an add-on section, a translation or its request
+     *          creators
+     */
+    editChanged() {
+      return this.processString(this.workflow) !== this.processString(this.oldWorkflow)
+        || JSON.stringify(this.illustrativeImage) !== this.openedIllustration
+        || this.projectChoiceString() !== this.originalProjectChoice
+        || this.sectionsChanged
+        || this.translationsToSave().changed
+        || this.requestCreatorsString(this.workflowRequest) !== this.openedRequestCreators;
+    },
+    /**
+     * @returns {Boolean} true when an edited process can be updated: its
+     *          description is valid, something changed, and it keeps a
+     *          managing space and request creators, with no step to go through
+     */
+    canUpdate() {
+      return this.valid && this.editChanged && !!this.workflow.parentSpace && this.workflowRequest.length > 0;
     },
     workflowChanged() {
       return  this.workflow && this.originalWorkflowString && this.workflow.parentSpace;
@@ -713,7 +737,7 @@ export default {
       this.sectionsChanged = false;
       // Each opening starts in the drawer, with no document nor request creator of an earlier one: the list starts
       // from this.attachments when it is mounted, an edited process's documents are read again, and its request
-      // creators are given to their picker by step 2's Continue or by the change of layout
+      // creators, kept below for an update, are given to their picker by step 2's Continue or by the change of layout
       this.expanded = false;
       this.attachments = [];
       this.workflowRequest = [];
@@ -725,7 +749,13 @@ export default {
         if (this.editMode) {
           this.oldWorkflow = Object.assign({}, this.workflow);
           this.illustrativeImage = this.toKeptIllustration(workflow.illustrativeAttachment);
+          // The process's own request creators, as the server gave them, are
+          // what an update saves until the picker changes them, so that an
+          // update made before step 2's Continue keeps them
+          this.workflowRequest = (workflow.requestsCreators || []).slice();
         }
+        this.openedIllustration = JSON.stringify(this.illustrativeImage);
+        this.openedRequestCreators = this.requestCreatorsString(this.workflowRequest);
       } else {
         this.resetInputs();
         this.editMode = false;
@@ -746,10 +776,18 @@ export default {
     setSpace() {
       this.$root.$emit('set-workflow-space',this.workflow.parentSpace );
     },
+    /**
+     * Gives the request creators picker the creators to show: on edit, those
+     * the drawer holds, which start from the process's own and keep what was
+     * changed since, in full screen included.
+     *
+     * @returns {void}
+     */
     setCreators() {
-      if (this.workflow.requestsCreators){
-        this.$root.$emit('set-workflow-creators',this.workflow.requestsCreators );
-        this.workflowRequest = this.workflow.requestsCreators ;
+      const creators = this.editMode ? this.workflowRequest : this.workflow.requestsCreators;
+      if (creators) {
+        this.$root.$emit('set-workflow-creators', creators);
+        this.workflowRequest = creators;
       }
     },
     previousStep() {
@@ -813,6 +851,31 @@ export default {
       if (!this.editMode) {
         this.resetProjectChoice();
       }
+    },
+    /**
+     * Gives a process as text, its managing space by id only: the space
+     * picker replaces the space the server gave with the one it reads, which
+     * carries other fields, when step 1's Continue or a change of layout
+     * gives it the space.
+     *
+     * @param {Object} workflow the process
+     * @return {String} the process as text
+     */
+    processString(workflow) {
+      return JSON.stringify(Object.assign({}, workflow, {
+        parentSpace: workflow && workflow.parentSpace && workflow.parentSpace.id || null,
+      }));
+    },
+    /**
+     * Gives request creators as text, by provider and id, to tell whether
+     * they changed since the drawer opened.
+     *
+     * @param {Array} creators the request creators
+     * @return {String} their providers and ids, in order
+     */
+    requestCreatorsString(creators) {
+      return JSON.stringify((creators || []).map(creator => creator && creator.identity
+        && `${creator.identity.providerId}:${creator.identity.remoteId}`));
     },
     /**
      * Gives the project choice and the labels as text, to tell whether the
@@ -964,16 +1027,13 @@ export default {
     },
     /**
      * Gives the space and request pickers the process's values, as the
-     * steps' Continue do: the managing space, and the request creators,
-     * those already chosen or else the stored ones.
+     * steps' Continue do: the managing space, and the request creators the
+     * drawer holds, which an edited process starts from its own.
      *
      * @returns {void}
      */
     syncPickers() {
       this.setSpace();
-      if (!this.workflowRequest.length && this.workflow.requestsCreators) {
-        this.workflowRequest = this.workflow.requestsCreators;
-      }
       this.$root.$emit('set-workflow-creators', this.workflowRequest);
     },
     applyItemClass(messageInfo){
