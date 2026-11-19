@@ -114,6 +114,7 @@ class ProcessesStorageMyRequestsTest {
     WorkFlowEntity workFlow = new WorkFlowEntity();
     workFlow.setId(3L);
     workFlow.setProjectId(PROJECT_ID);
+    workFlow.setCreatorId(1L);
     when(workFlowDAO.findAllWorkFlows(0, 0)).thenReturn(new ArrayList<>(List.of(workFlow)));
     Identity identity = mock(Identity.class);
     when(identity.getRemoteId()).thenReturn(USER_NAME);
