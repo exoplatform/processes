@@ -111,12 +111,7 @@ class ProcessesStorageMyRequestsTest {
                                                 null,
                                                 null,
                                                 commentService);
-    WorkFlowEntity workFlow = new WorkFlowEntity();
-    workFlow.setId(3L);
-    workFlow.setProjectId(PROJECT_ID);
-    workFlow.setCreatorId(1L);
-    workFlow.setModifierId(1L);
-    when(workFlowDAO.findAllWorkFlows(0, 0)).thenReturn(new ArrayList<>(List.of(workFlow)));
+    when(workFlowDAO.findAllWorkFlows(0, 0)).thenReturn(new ArrayList<>(List.of(storedProcess())));
     Identity identity = mock(Identity.class);
     when(identity.getRemoteId()).thenReturn(USER_NAME);
     when(identityManager.getIdentity(String.valueOf(USER_ID))).thenReturn(identity);
@@ -247,6 +242,20 @@ class ProcessesStorageMyRequestsTest {
     } else if (condition instanceof SingleCondition<?> single) {
       conditions.put(single.getField(), single);
     }
+  }
+
+  /**
+   * Builds a stored process of project {@link #PROJECT_ID} with every field
+   * the process mapper unboxes set (id, creator, modifier, project), as
+   * ProcessesStorageImplTest builds one.
+   */
+  private static WorkFlowEntity storedProcess() {
+    WorkFlowEntity workFlow = new WorkFlowEntity();
+    workFlow.setId(3L);
+    workFlow.setCreatorId(1L);
+    workFlow.setModifierId(1L);
+    workFlow.setProjectId(PROJECT_ID);
+    return workFlow;
   }
 
   private static TaskDto task(long id) {
