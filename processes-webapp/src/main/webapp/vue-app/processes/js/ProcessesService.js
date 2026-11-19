@@ -267,7 +267,7 @@ export function getProjectLabels(projectId, spaceId) {
  * @return {Promise} the count as text
  */
 export function countRequests(workflowId, isCompleted) {
-  const query = isCompleted === undefined || isCompleted === null ? '' : `?isCompleted=${!!isCompleted}`;
+  const query = typeof isCompleted === 'boolean' ? `?isCompleted=${isCompleted}` : '';
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workflows/${workflowId}/requests/count${query}`, {
     method: 'GET',
     credentials: 'include',
