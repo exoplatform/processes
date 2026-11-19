@@ -70,7 +70,9 @@ public class CreateRequestPluginTest {
     List<String> receivers = new ArrayList<>();
     receivers.add("user1");
     receivers.add("user2");
-    NOTIFICATION_UTILS.when(() -> NotificationUtils.getReceivers(1l , "root", false)).thenReturn(receivers);
+    NOTIFICATION_UTILS.when(() -> NotificationUtils.getReceivers(null, 1L, "root", false)).thenReturn(receivers);
+    // A notification that names its process reaches that process's recipients
+    NOTIFICATION_UTILS.when(() -> NotificationUtils.getReceivers("5", 1L, "root", false)).thenReturn(List.of("user3"));
     NotificationInfo notificationInfo = createRequestPlugin.makeNotification(ctx);
     assertEquals("root", notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_CREATOR.getKey()));
     assertEquals("http://exoplatfrom.com/dw/tasks/projectDetail/1",
@@ -86,6 +88,8 @@ public class CreateRequestPluginTest {
     // The process id goes with the notification, so that each recipient
     // reads the process title in their own language
     ctx.append(NotificationArguments.WORKFLOW_ID, "5");
-    assertEquals("5", createRequestPlugin.makeNotification(ctx).getValueOwnerParameter(NotificationArguments.WORKFLOW_ID.getKey()));
+    NotificationInfo namedNotification = createRequestPlugin.makeNotification(ctx);
+    assertEquals("5", namedNotification.getValueOwnerParameter(NotificationArguments.WORKFLOW_ID.getKey()));
+    assertEquals(List.of("user3"), namedNotification.getSendToUserIds());
   }
 }

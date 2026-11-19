@@ -1,6 +1,7 @@
 package org.exoplatform.processes.storage;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
@@ -1179,6 +1180,84 @@ public class ProcessesStorageImplTest {
     verify(requestDAO, times(1)).findWorkFlowIdsByTaskIds(any());
   }
 
+  /**
+   * My requests lists the tasks a process created, whatever project they are
+   * in now: the query is restricted by the request records, not by the
+   * processes' projects, and still by the user as creator. Mutation: restore
+   * the project restriction, or drop the record restriction, and this test
+   * fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  @SuppressWarnings("unchecked")
+  public void myRequestsAreTheTasksAProcessCreatedWhateverTheirProject() throws Exception {
+    PROCESSES_UTILS.when(() -> ProcessesUtils.getUserNameByIdentityId(identityManager, 1L)).thenReturn("mary");
+    when(taskService.findTasks(any(TaskQuery.class), anyInt(), anyInt())).thenReturn(new ArrayList<>());
+    ENTITY_MAPPER.when(() -> EntityMapper.tasksToWorkList(any())).thenReturn(new ArrayList<>());
+
+    processesStorage.getWorks(1L, new WorkFilter(), 0, 10);
+
+    ArgumentCaptor<TaskQuery> captured = ArgumentCaptor.forClass(TaskQuery.class);
+    verify(taskService).findTasks(captured.capture(), eq(0), eq(10));
+    TaskQuery query = captured.getValue();
+    assertNull("no restriction to the processes' projects", query.getProjectIds());
+    List<org.exoplatform.task.dao.condition.PredicateCondition<org.exoplatform.task.domain.Task>> restrictions =
+        ((org.exoplatform.task.dao.condition.AggregateCondition) query.getCondition()).getConditions()
+                                                                                       .stream()
+                                                                                       .filter(org.exoplatform.task.dao.condition.PredicateCondition.class::isInstance)
+                                                                                       .map(condition -> (org.exoplatform.task.dao.condition.PredicateCondition<org.exoplatform.task.domain.Task>) condition)
+                                                                                       .toList();
+    assertEquals(1, restrictions.size());
+    jakarta.persistence.criteria.CriteriaBuilder cb = mock(jakarta.persistence.criteria.CriteriaBuilder.class);
+    jakarta.persistence.criteria.CriteriaQuery<?> criteria = mock(jakarta.persistence.criteria.CriteriaQuery.class,
+                                                                  org.mockito.Mockito.RETURNS_DEEP_STUBS);
+    jakarta.persistence.criteria.Root<org.exoplatform.task.domain.Task> root = mock(jakarta.persistence.criteria.Root.class);
+    restrictions.get(0).getBuilder().build(cb, criteria, root);
+    verify(cb).exists(any());
+    verify(root).get("id");
+  }
+
+  /**
+   * The statuses My requests filters by are listed once per name, at their
+   * lowest rank, and a project several processes feed is read once. Mutation:
+   * drop the deduplication and this test fails.
+   */
+  @Test
+  public void theStatusesOfSharedProjectsAreListedOncePerName() {
+    WorkFlowEntity first = new WorkFlowEntity();
+    WorkFlowEntity second = new WorkFlowEntity();
+    List<WorkFlowEntity> entities = List.of(first, second);
+    when(workFlowDAO.findAllWorkFlows(0, 0)).thenReturn(entities);
+    WorkFlow onboarding = new WorkFlow();
+    onboarding.setProjectId(1L);
+    WorkFlow leave = new WorkFlow();
+    leave.setProjectId(1L);
+    WorkFlow expenses = new WorkFlow();
+    expenses.setProjectId(2L);
+    ENTITY_MAPPER.when(() -> EntityMapper.fromWorkflowEntities(entities)).thenReturn(List.of(onboarding, leave, expenses));
+    List<StatusDto> sharedStatuses = List.of(mock(StatusDto.class));
+    List<StatusDto> otherStatuses = List.of(mock(StatusDto.class), mock(StatusDto.class));
+    when(statusService.getStatuses(1L)).thenReturn(sharedStatuses);
+    when(statusService.getStatuses(2L)).thenReturn(otherStatuses);
+    ENTITY_MAPPER.when(() -> EntityMapper.toWorkStatuses(sharedStatuses)).thenReturn(new ArrayList<>(List.of(workStatus(1L, "Request", 1))));
+    ENTITY_MAPPER.when(() -> EntityMapper.toWorkStatuses(otherStatuses))
+                 .thenReturn(new ArrayList<>(List.of(workStatus(5L, "Request", 1), workStatus(6L, "Validated", 3))));
+
+    List<WorkStatus> statuses = processesStorage.getAvailableWorkStatuses();
+
+    assertEquals(List.of("Request", "Validated"), statuses.stream().map(WorkStatus::getName).toList());
+    verify(statusService, times(1)).getStatuses(1L);
+  }
+
+  private static WorkStatus workStatus(long id, String name, int rank) {
+    WorkStatus status = new WorkStatus();
+    status.setId(id);
+    status.setName(name);
+    status.setRank(rank);
+    return status;
+  }
+
   @Test
   public void getAvailableWorkStatuses() {
     WorkFlow workFlow1 = new WorkFlow();
@@ -1406,6 +1485,36 @@ public class ProcessesStorageImplTest {
     workFlow.setRequestsCreators(identityEntities);
     this.processesStorage.saveWorkFlow(workFlow, 1L);
     assertEquals(1, this.processesStorage.countWorkFlows(filter));
+  }
+
+  /**
+   * A listed process shows its pending requests to a member of its stored
+   * managing space, not to a member of its project's space only: the request
+   * count's gate reads the same space. Mutation: read the project's space
+   * again and this test fails.
+   */
+  @Test
+  public void thePendingRequestsAreShownToTheMembersOfTheStoredSpace() {
+    mockAclIdentity(5L, "john", new MembershipEntry("/spaces/hr", "member"));
+    ProcessesFilter filter = new ProcessesFilter("all", null, null, false);
+    WorkFlowEntity entity = new WorkFlowEntity();
+    when(workFlowDAO.findWorkFlows(eq(filter), any(), anyInt(), anyInt())).thenReturn(List.of(entity));
+    WorkFlow listed = new WorkFlow();
+    listed.setProjectId(9L);
+    listed.setSpaceId("8");
+    ENTITY_MAPPER.when(() -> EntityMapper.fromEntity(eq(entity), any(), any())).thenReturn(listed);
+    Space stored = mock(Space.class);
+    Space projectSpace = mock(Space.class);
+    when(spaceService.getSpaceById("8")).thenReturn(stored);
+    PROCESSES_UTILS.when(() -> ProcessesUtils.getProjectParentSpace(9L)).thenReturn(projectSpace);
+    when(spaceService.isMember(stored, "john")).thenReturn(true);
+    when(spaceService.isMember(projectSpace, "john")).thenReturn(false);
+
+    assertTrue(this.processesStorage.findWorkFlows(filter, 5L, 0, 10).get(0).isCanShowPending());
+
+    when(spaceService.isMember(stored, "john")).thenReturn(false);
+    when(spaceService.isMember(projectSpace, "john")).thenReturn(true);
+    assertFalse(this.processesStorage.findWorkFlows(filter, 5L, 0, 10).get(0).isCanShowPending());
   }
 
   /**

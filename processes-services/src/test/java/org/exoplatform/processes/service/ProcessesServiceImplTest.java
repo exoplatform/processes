@@ -82,6 +82,9 @@ public class ProcessesServiceImplTest {
 
   private static final long      NON_PROCESS_TASK_ID = 200L;
 
+  /** A task created in Tasks, in the project the process feeds. */
+  private static final long      PLAIN_TASK_ID       = 201L;
+
   private static final long      DECIDED_WORK_ID     = 101L;
 
   private static final long      UNKNOWN_ID          = 999L;
@@ -211,6 +214,11 @@ public class ProcessesServiceImplTest {
     processWorkFlow.setEnabled(true);
     when(processesStorage.getWorkFlowByProjectId(PROCESS_PROJECT_ID)).thenReturn(processWorkFlow);
     when(processesStorage.getWorkFlowByProjectId(OTHER_PROJECT_ID)).thenReturn(null);
+    // Every stored task is a request of the process but the plain tasks
+    when(processesStorage.getRequestWorkFlowId(anyLong())).thenReturn(WORKFLOW_ID);
+    when(processesStorage.getRequestWorkFlowId(NON_PROCESS_TASK_ID)).thenReturn(null);
+    when(processesStorage.getRequestWorkFlowId(PLAIN_TASK_ID)).thenReturn(null);
+    when(processesStorage.getWorkById(PLAIN_TASK_ID)).thenReturn(storedWork(PLAIN_TASK_ID, PROCESS_PROJECT_ID));
 
     when(processesStorage.getWorkById(WORK_ID)).thenReturn(storedWork(WORK_ID, PROCESS_PROJECT_ID));
     when(processesStorage.getWorkById(NON_PROCESS_TASK_ID)).thenReturn(storedWork(NON_PROCESS_TASK_ID, OTHER_PROJECT_ID));
@@ -1505,6 +1513,94 @@ public class ProcessesServiceImplTest {
     verify(processesStorage, times(0)).getIllustrationImageById(1L);
     processesService.getIllustrationImageById(1L);
     verify(processesStorage, times(1)).getIllustrationImageById(1L);
+  }
+
+  /**
+   * A task created in Tasks, in the project a process feeds, is not one of its
+   * requests: even its creator or a processes administrator can't complete or
+   * delete it through processes. Mutation: read « is a request » from the
+   * task's project again and this test fails.
+   */
+  @Test
+  public void aPlainTaskOfAProcessProjectIsNotARequest() {
+    assertThrows(IllegalAccessException.class, () -> processesService.updateWorkCompleted(PLAIN_TASK_ID, true, PROCESSES_ADMIN_ID));
+    assertThrows(IllegalAccessException.class, () -> processesService.deleteWorkById(PLAIN_TASK_ID, CREATOR_ID));
+    verify(processesStorage, never()).updateWorkCompleted(anyLong(), anyBoolean());
+    verify(processesStorage, never()).deleteWorkById(anyLong());
+  }
+
+  /**
+   * The request counts of a process are given to a processes administrator, a
+   * user who can edit it and a member of its stored managing space, and
+   * refused to anyone else; an unknown process is not found. The count is the
+   * process's requests in the asked state, or all of them when no state is
+   * asked: 2 open and 1 completed answer 2 for the card and 3 for the editor. Mutation: drop one of the three
+   * grants, read the space from the project instead of the stored one, or drop
+   * the gate, and this test fails.
+   *
+   * @throws Exception never, the mocks throw only where stubbed
+   */
+  @Test
+  public void theRequestCountsOfAProcessAreGivenToWhoSeesItsPendingRequests() throws Exception {
+    // Only the stored space resolves: the project's space is not read
+    Space hr = new Space();
+    hr.setId("8");
+    hr.setGroupId(PROCESS_SPACE_GROUP);
+    when(spaceService.getSpaceById("8")).thenReturn(hr);
+    when(spaceService.isMember(hr, "participant")).thenReturn(true);
+    when(processesStorage.countRequests(WORKFLOW_ID, false)).thenReturn(2L);
+    when(processesStorage.countRequests(WORKFLOW_ID, true)).thenReturn(1L);
+    when(processesStorage.countRequests(WORKFLOW_ID)).thenReturn(3L);
+    for (long userId : Arrays.asList(PROCESSES_ADMIN_ID, PROJECT_MANAGER_ID, PARTICIPANT_ID, NON_MEMBER_ID)) {
+      WorkFlow read = new WorkFlow();
+      read.setId(WORKFLOW_ID);
+      read.setProjectId(PROCESS_PROJECT_ID);
+      read.setSpaceId("8");
+      read.setAcl(new ProcessPermission(userId == PROJECT_MANAGER_ID, userId == PROJECT_MANAGER_ID, false, true));
+      when(processesStorage.getWorkFlowById(WORKFLOW_ID, userId)).thenReturn(read);
+    }
+
+    assertEquals(2L, processesService.countRequests(WORKFLOW_ID, false, PROCESSES_ADMIN_ID));
+    assertEquals(1L, processesService.countRequests(WORKFLOW_ID, true, PROJECT_MANAGER_ID));
+    assertEquals(2L, processesService.countRequests(WORKFLOW_ID, false, PARTICIPANT_ID));
+    assertEquals(3L, processesService.countRequests(WORKFLOW_ID, null, PROJECT_MANAGER_ID));
+    assertThrows(IllegalAccessException.class, () -> processesService.countRequests(WORKFLOW_ID, false, NON_MEMBER_ID));
+    assertThrows(ObjectNotFoundException.class, () -> processesService.countRequests(UNKNOWN_ID, false, PROCESSES_ADMIN_ID));
+    verify(processesStorage, times(3)).countRequests(anyLong(), anyBoolean());
+  }
+
+  /**
+   * The request count of a project, which the deprecated endpoint answers,
+   * counts the requests of every process feeding it, for a user who may read
+   * the counts of one of them; a user who may read none is refused, and a
+   * project no process feeds is not found. Mutation: count the first process
+   * only, gate on the first process only, or drop the gate, and this test
+   * fails.
+   *
+   * @throws Exception never, the mocks throw only where stubbed
+   */
+  @Test
+  public void theRequestCountOfAProjectCountsEveryProcessFeedingIt() throws Exception {
+    long otherWorkFlowId = WORKFLOW_ID + 1;
+    when(processesStorage.getWorkFlowIdsByProjectId(PROCESS_PROJECT_ID)).thenReturn(List.of(WORKFLOW_ID, otherWorkFlowId));
+    when(processesStorage.getWorkFlowIdsByProjectId(OTHER_PROJECT_ID)).thenReturn(List.of());
+    WorkFlow hidden = new WorkFlow();
+    hidden.setId(WORKFLOW_ID);
+    hidden.setProjectId(PROCESS_PROJECT_ID);
+    hidden.setAcl(new ProcessPermission(false, false, false, true));
+    WorkFlow edited = new WorkFlow();
+    edited.setId(otherWorkFlowId);
+    edited.setProjectId(PROCESS_PROJECT_ID);
+    edited.setAcl(new ProcessPermission(true, true, false, true));
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, PROJECT_MANAGER_ID)).thenReturn(hidden);
+    when(processesStorage.getWorkFlowById(otherWorkFlowId, PROJECT_MANAGER_ID)).thenReturn(edited);
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, NON_MEMBER_ID)).thenReturn(hidden);
+    when(processesStorage.getWorkFlowById(otherWorkFlowId, NON_MEMBER_ID)).thenReturn(hidden);
+    when(processesStorage.countRequests(List.of(WORKFLOW_ID, otherWorkFlowId), false)).thenReturn(5L);
+
+    assertEquals(5L, processesService.countProjectRequests(PROCESS_PROJECT_ID, false, PROJECT_MANAGER_ID));
+    assertThrows(IllegalAccessException.class, () -> processesService.countProjectRequests(PROCESS_PROJECT_ID, false, NON_MEMBER_ID));
+    assertThrows(ObjectNotFoundException.class, () -> processesService.countProjectRequests(OTHER_PROJECT_ID, false, PROJECT_MANAGER_ID));
   }
 
   /**
