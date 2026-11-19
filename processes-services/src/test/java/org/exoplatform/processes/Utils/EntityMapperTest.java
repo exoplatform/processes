@@ -94,6 +94,41 @@ public class EntityMapperTest {
   }
 
   /**
+   * The editor shows a request maker that is a space or a group the platform
+   * finds, and no other: not a user name, a membership, a deleted group, nor a
+   * group the platform fails to read. The read leaves out the same entries.
+   * Mutation: answer true for an entry no group matches, or let a failed group
+   * read count as shown, and this test fails.
+   *
+   * @throws Exception never, the mocks throw only where stubbed
+   */
+  @Test
+  public void onlyASpaceOrAFoundGroupIsAShownRequestMaker() throws Exception {
+    COMMONS_UTILS.when(() -> CommonsUtils.getService(OrganizationService.class)).thenReturn(organizationService);
+    COMMONS_UTILS.when(() -> CommonsUtils.getService(SpaceService.class)).thenReturn(spaceService);
+    when(organizationService.getGroupHandler()).thenReturn(groupHandler);
+    when(spaceService.getSpaceByGroupId("/spaces/testSpace")).thenReturn(testSpace);
+    when(testSpace.getPrettyName()).thenReturn("testspace");
+    when(groupHandler.findGroupById("/platform/administrators")).thenReturn(administratorsGroup);
+    when(administratorsGroup.getId()).thenReturn("/platform/administrators");
+    when(groupHandler.findGroupById("/broken/group")).thenThrow(new IllegalStateException("store down"));
+
+    assertTrue(EntityMapper.isDisplayableCreator("/spaces/testSpace"));
+    assertTrue(EntityMapper.isDisplayableCreator("/platform/administrators"));
+    assertFalse("a user name", EntityMapper.isDisplayableCreator("jdoe"));
+    assertFalse("a membership", EntityMapper.isDisplayableCreator("manager:/spaces/hr"));
+    assertFalse("a deleted group", EntityMapper.isDisplayableCreator("/deleted/group"));
+    assertFalse("a group the platform fails to read", EntityMapper.isDisplayableCreator("/broken/group"));
+    assertFalse(EntityMapper.isDisplayableCreator(" "));
+
+    Set<String> managers = new HashSet<>(java.util.Arrays.asList("/spaces/testSpace",
+                                                                 "/platform/administrators",
+                                                                 "jdoe",
+                                                                 "manager:/spaces/hr"));
+    assertEquals(2, EntityMapper.fromGroupToIdentity(managers).size());
+  }
+
+  /**
    * A process's stored space id reaches its Service object as a string, and a
    * blank one is stored as unknown; an id that is not a number is refused with
    * its message code. Mutation: map the space id back to "" or drop it from

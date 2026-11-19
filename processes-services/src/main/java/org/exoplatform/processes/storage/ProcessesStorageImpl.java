@@ -403,7 +403,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
           workFlowEntity.setParticipator(storedWorkFlowEntity.getParticipator());
         }
       }
-      workFlowEntity.setManager(getManagers(workFlow.getRequestsCreators()));
+      workFlowEntity.setManager(getUpdatedManagers(workFlow.getRequestsCreators(), storedWorkFlowEntity));
       workFlowEntity = workFlowDAO.update(workFlowEntity);
     }
     WorkFlow savedWorkFlow = EntityMapper.fromEntity(workFlowEntity, illustrativeAttachment, null);
@@ -1275,6 +1275,34 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     return new HashSet<>(UserUtil.getSpaceMemberships(space.getGroupId()));
   }
 
+  /**
+   * Computes the request makers an update saves. The client sends only those
+   * its editor shows, so a stored one it could not show (a user name, a
+   * membership, a deleted group or space) is kept; a client that sends no
+   * request makers keeps the stored ones.
+   *
+   * @param requestsCreators the request makers the client sent, or null
+   * @param storedWorkFlowEntity the stored process, or null when not found
+   * @return the request makers to save
+   */
+  private Set<String> getUpdatedManagers(List<CreatorIdentityEntity> requestsCreators, WorkFlowEntity storedWorkFlowEntity) {
+    Set<String> storedManagers = storedWorkFlowEntity == null || storedWorkFlowEntity.getManager() == null ? Collections.emptySet()
+                                                                                                         : storedWorkFlowEntity.getManager();
+    if (requestsCreators == null) {
+      return new HashSet<>(storedManagers);
+    }
+    Set<String> managers = getManagers(requestsCreators);
+    storedManagers.stream().filter(manager -> !EntityMapper.isDisplayableCreator(manager)).forEach(managers::add);
+    return managers;
+  }
+
+  /**
+   * Converts the request makers a client sent to their stored entries: a
+   * space's group id, else the identity's remote id.
+   *
+   * @param requestsCreators the request makers the client sent
+   * @return the stored entries
+   */
   private Set<String> getManagers(List<CreatorIdentityEntity> requestsCreators) {
     Set<String> managers = new HashSet<>();
     for (CreatorIdentityEntity creatorIdentityEntity : requestsCreators) {

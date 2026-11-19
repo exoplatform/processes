@@ -409,6 +409,67 @@ public class ProcessesStorageImplTest {
   }
 
   /**
+   * An update keeps the stored request makers its editor could not show (a
+   * user name, a membership, a deleted group), removes a shown one the client
+   * left out, and keeps them all when the client sends none. Mutation: save
+   * only the client's list, keep every stored entry, or drop the guard on a
+   * missing list, and this test fails.
+   */
+  @Test
+  public void anUpdateKeepsTheRequestMakersItsEditorCannotShow() {
+    Set<String> storedManagers = new HashSet<>(Arrays.asList("/spaces/sales", "jdoe", "manager:/spaces/hr", "/deleted/group"));
+    WorkFlowEntity stored = new WorkFlowEntity();
+    stored.setId(5L);
+    stored.setSpaceId(7L);
+    stored.setManager(storedManagers);
+    when(workFlowDAO.find(5L)).thenReturn(stored);
+    when(workFlowDAO.update(any(WorkFlowEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(identityManager.getIdentity(1L)).thenReturn(mock(Identity.class));
+    Space sales = mock(Space.class);
+    when(sales.getGroupId()).thenReturn("/spaces/sales");
+    when(spaceService.getSpaceByPrettyName("sales")).thenReturn(sales);
+    ENTITY_MAPPER.when(() -> EntityMapper.isDisplayableCreator("/spaces/sales")).thenReturn(true);
+    ENTITY_MAPPER.when(() -> EntityMapper.isDisplayableCreator("jdoe")).thenReturn(false);
+    ENTITY_MAPPER.when(() -> EntityMapper.isDisplayableCreator("manager:/spaces/hr")).thenReturn(false);
+    ENTITY_MAPPER.when(() -> EntityMapper.isDisplayableCreator("/deleted/group")).thenReturn(false);
+
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setId(5L);
+    workFlow.setProjectId(9L);
+    workFlow.setRequestsCreators(new ArrayList<>(List.of(new CreatorIdentityEntity(new IdentityEntity("", "sales", "space", null)))));
+    WorkFlowEntity sent = new WorkFlowEntity();
+    sent.setId(5L);
+    sent.setProjectId(9L);
+    sent.setSpaceId(7L);
+    ENTITY_MAPPER.when(() -> EntityMapper.toEntity(workFlow)).thenReturn(sent);
+
+    processesStorage.saveWorkFlow(workFlow, 1L);
+    assertEquals("a save that changes nothing keeps every request maker", storedManagers, sent.getManager());
+
+    workFlow.setRequestsCreators(new ArrayList<>());
+    WorkFlowEntity sentWithoutSales = new WorkFlowEntity();
+    sentWithoutSales.setId(5L);
+    sentWithoutSales.setProjectId(9L);
+    sentWithoutSales.setSpaceId(7L);
+    ENTITY_MAPPER.when(() -> EntityMapper.toEntity(workFlow)).thenReturn(sentWithoutSales);
+
+    processesStorage.saveWorkFlow(workFlow, 1L);
+    assertEquals("a shown request maker the user removed goes, the hidden ones stay",
+                 new HashSet<>(Arrays.asList("jdoe", "manager:/spaces/hr", "/deleted/group")),
+                 sentWithoutSales.getManager());
+
+    workFlow.setRequestsCreators(null);
+    WorkFlowEntity sentWithoutMakers = new WorkFlowEntity();
+    sentWithoutMakers.setId(5L);
+    sentWithoutMakers.setProjectId(9L);
+    sentWithoutMakers.setSpaceId(7L);
+    ENTITY_MAPPER.when(() -> EntityMapper.toEntity(workFlow)).thenReturn(sentWithoutMakers);
+
+    processesStorage.saveWorkFlow(workFlow, 1L);
+    assertEquals("a client that sends no request makers keeps the stored ones", storedManagers, sentWithoutMakers.getManager());
+  }
+
+  /**
    * A save writes the requester forms the Service checked; an update that
    * does not state them keeps the stored ones; a read gives them in id order.
    * Mutation: drop the fallback to the stored forms, write the stored ones
