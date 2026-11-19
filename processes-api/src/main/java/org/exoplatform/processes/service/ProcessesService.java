@@ -489,8 +489,9 @@ public interface ProcessesService {
   /**
    * Counts the open or the completed requests of a process, whatever project
    * their task is in, for a user who may see them: a processes administrator,
-   * a user who can edit the process, or a member of its managing space, who
-   * sees its pending requests in the process list.
+   * a user who can edit the process, or a member of its managing space (its
+   * stored space, else its task project's) or a super manager of spaces, who
+   * see its pending requests.
    *
    * @param workFlowId the process id
    * @param completed true to count the completed requests, false the open ones

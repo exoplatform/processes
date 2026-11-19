@@ -1531,18 +1531,21 @@ public class ProcessesServiceImplTest {
 
   /**
    * The request counts of a process are given to a processes administrator, a
-   * user who can edit it and a member of its project's space, and refused to
-   * anyone else; an unknown process is not found. The count is the process's
-   * requests in the asked state. Mutation: drop one of the three grants, or
+   * user who can edit it and a member of its stored managing space, and
+   * refused to anyone else; an unknown process is not found. The count is the
+   * process's requests in the asked state. Mutation: drop one of the three
+   * grants, read the space from the project instead of the stored one, or drop
    * the gate, and this test fails.
    *
    * @throws Exception never, the mocks throw only where stubbed
    */
   @Test
   public void theRequestCountsOfAProcessAreGivenToWhoSeesItsPendingRequests() throws Exception {
+    // Only the stored space resolves: the project's space is not read
     Space hr = new Space();
+    hr.setId("8");
     hr.setGroupId(PROCESS_SPACE_GROUP);
-    when(spaceService.getSpaceByGroupId(PROCESS_SPACE_GROUP)).thenReturn(hr);
+    when(spaceService.getSpaceById("8")).thenReturn(hr);
     when(spaceService.isMember(hr, "participant")).thenReturn(true);
     when(processesStorage.countRequests(WORKFLOW_ID, false)).thenReturn(4L);
     when(processesStorage.countRequests(WORKFLOW_ID, true)).thenReturn(9L);
@@ -1550,6 +1553,7 @@ public class ProcessesServiceImplTest {
       WorkFlow read = new WorkFlow();
       read.setId(WORKFLOW_ID);
       read.setProjectId(PROCESS_PROJECT_ID);
+      read.setSpaceId("8");
       read.setAcl(new ProcessPermission(userId == PROJECT_MANAGER_ID, userId == PROJECT_MANAGER_ID, false, true));
       when(processesStorage.getWorkFlowById(WORKFLOW_ID, userId)).thenReturn(read);
     }

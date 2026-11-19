@@ -31,6 +31,7 @@ import org.exoplatform.processes.dao.RequestDAO;
 import org.exoplatform.processes.dao.WorkFlowDAO;
 import org.exoplatform.processes.entity.RequestEntity;
 import org.exoplatform.processes.entity.WorkFlowEntity;
+import org.exoplatform.processes.service.ProcessesServiceImpl;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
@@ -41,7 +42,9 @@ import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.dao.condition.PredicateCondition;
 import org.exoplatform.task.domain.Task;
+import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.TaskDto;
+import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.TaskService;
 
@@ -55,9 +58,10 @@ import org.exoplatform.task.service.TaskService;
  * <p>
  * Best effort for one case only: a task whose creator has no social identity
  * is skipped with a warning, since no later run could record it. Any other
- * failure is thrown, so the upgrade is not recorded as done; commons attempts
- * it again at the next upgrade to a new version, not at a restart of the same
- * version.
+ * failure is thrown, so the upgrade is not recorded as done: after a failed
+ * upgrade from an earlier version, commons runs it again at the next startup;
+ * on an instance whose version did not change (the plugin deployed on a
+ * running version), it is not run again until the next version change.
  */
 public class ProcessesRequestUpgradePlugin extends UpgradeProductPlugin {
 
@@ -158,7 +162,7 @@ public class ProcessesRequestUpgradePlugin extends UpgradeProductPlugin {
     }
     Space space = getParticipatorsSpace(workFlow.getParticipator());
     if (space == null && hasProject(workFlow)) {
-      space = ProcessesUtils.getProjectParentSpace(projectService, spaceService, workFlow.getProjectId());
+      space = getAttachedSpace(workFlow.getProjectId());
     }
     if (space == null) {
       LOG.warn("No managing space found for the process {}: it keeps none", workFlow.getId());
@@ -167,6 +171,27 @@ public class ProcessesRequestUpgradePlugin extends UpgradeProductPlugin {
     workFlow.setSpaceId(Long.parseLong(space.getId()));
     workFlowDAO.update(workFlow);
     return true;
+  }
+
+  /**
+   * Reads the space a task project is attached to, by the rule the process
+   * editor applies to the projects it offers: the space whose manager
+   * membership its managers hold, with no group membership of another space.
+   *
+   * @param projectId the task project
+   * @return the space, or null when the project is attached to none
+   */
+  private Space getAttachedSpace(long projectId) {
+    Space space = ProcessesUtils.getProjectParentSpace(projectService, spaceService, projectId);
+    if (space == null) {
+      return null;
+    }
+    try {
+      ProjectDto project = projectService.getProject(projectId);
+      return project != null && ProcessesServiceImpl.isAttachedToSpace(project, space.getGroupId()) ? space : null;
+    } catch (EntityNotFoundException e) {
+      return null;
+    }
   }
 
   /**

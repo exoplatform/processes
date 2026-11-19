@@ -460,9 +460,9 @@ public class ProcessesServiceImpl implements ProcessesService {
   /**
    * Tells whether a user may read the request counts of a process: a
    * processes administrator, a user who can edit the process, or a user who
-   * sees its pending requests in the process list, by the rule that list
-   * applies (a member of the space of its project, or a super manager of
-   * spaces).
+   * sees its pending requests, by the rule of the process list read on the
+   * process's managing space (its stored space, else its project's): a member
+   * of that space, or a super manager of spaces.
    *
    * @param aclIdentity the user's security identity
    * @param workFlow the process, read with the user's identity
@@ -472,7 +472,7 @@ public class ProcessesServiceImpl implements ProcessesService {
     if (isProcessesAdministrator(aclIdentity) || (workFlow.getAcl() != null && workFlow.getAcl().isCanEdit())) {
       return true;
     }
-    Space space = ProcessesUtils.getProjectParentSpace(projectService, spaceService, workFlow.getProjectId());
+    Space space = getCurrentSpace(workFlow);
     String userName = aclIdentity.getUserId();
     return space != null && (spaceService.isSuperManager(userName) || spaceService.isMember(space, userName));
   }
@@ -1552,7 +1552,7 @@ public class ProcessesServiceImpl implements ProcessesService {
    * @param spaceGroupId the space's group id
    * @return true when the project is attached to the space
    */
-  static boolean isAttachedToSpace(ProjectDto project, String spaceGroupId) {
+  public static boolean isAttachedToSpace(ProjectDto project, String spaceGroupId) {
     String managerMembership = ProcessesUtils.MANAGER_MEMBERSHIP_TYPE + ":" + spaceGroupId;
     String memberMembership = ProcessesUtils.MEMBER_MEMBERSHIP_TYPE + ":" + spaceGroupId;
     Set<String> managers = project.getManager() == null ? Collections.emptySet() : project.getManager();

@@ -542,6 +542,7 @@ public class ProcessesRestTest {
     Response response3 = processesRest.countWorksByWorkflow(1L, false);
     assertEquals(Response.Status.OK.getStatusCode(), response3.getStatus());
     assertEquals("2", response3.getEntity());
+    assertNeitherSharedNorStored(response3);
     when(processesService.countRequests(7L, false, 1L)).thenThrow(new IllegalAccessException("hidden"));
     Response response4 = processesRest.countWorksByWorkflow(1L, false);
     assertEquals(Response.Status.FORBIDDEN.getStatusCode(), response4.getStatus());

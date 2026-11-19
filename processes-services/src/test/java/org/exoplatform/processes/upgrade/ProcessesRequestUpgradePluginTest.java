@@ -54,6 +54,7 @@ import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dao.TaskQuery;
+import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.TaskService;
@@ -184,6 +185,43 @@ public class ProcessesRequestUpgradePluginTest {
     verify(workFlowDAO, never()).update(orphan);
     verify(requestDAO, never()).create(any(RequestEntity.class));
     verify(identityManager, never()).getIdentity(anyLong());
+  }
+
+  /**
+   * A process whose participants name no space takes the space its project is
+   * attached to, and none when the project also holds another group's
+   * membership. Mutation: take the project's first space without the
+   * attachment rule and this test fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  public void aProcessTakesTheSpaceItsProjectIsAttachedTo() throws Exception {
+    Space hr = new Space();
+    hr.setId("8");
+    hr.setGroupId("/spaces/hr");
+    when(spaceService.getSpaceByGroupId("/spaces/hr")).thenReturn(hr);
+    when(projectService.getProject(30L)).thenReturn(project(30L, Set.of("manager:/spaces/hr", "john"), Set.of("member:/spaces/hr")));
+    when(projectService.getProject(31L)).thenReturn(project(31L,
+                                                            Set.of("manager:/spaces/hr"),
+                                                            Set.of("member:/spaces/hr", "member:/spaces/sales")));
+    WorkFlowEntity attached = process(1L, 30L, null);
+    WorkFlowEntity shared = process(2L, 31L, null);
+    when(workFlowDAO.findAll()).thenReturn(List.of(attached, shared));
+    when(taskService.findTasks(any(TaskQuery.class), anyInt(), anyInt())).thenReturn(List.of());
+
+    plugin.processUpgrade("7.2.0", "7.3.0");
+
+    assertEquals(Long.valueOf(8L), attached.getSpaceId());
+    assertNull(shared.getSpaceId());
+  }
+
+  private static ProjectDto project(long id, Set<String> managers, Set<String> participators) {
+    ProjectDto project = new ProjectDto();
+    project.setId(id);
+    project.setManager(managers);
+    project.setParticipator(participators);
+    return project;
   }
 
   private static WorkFlowEntity process(long id, long projectId, Long spaceId) {
