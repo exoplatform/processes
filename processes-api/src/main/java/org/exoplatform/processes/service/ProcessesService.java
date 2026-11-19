@@ -187,7 +187,7 @@ public interface ProcessesService {
    * Archives every request the user created that is not archived yet and whose
    * status is final: Validated, Refused or Canceled. Each request is archived
    * through {@link #updateWorkCompleted(Long, boolean, long)} as that user; one
-   * refused or gone meanwhile is skipped.
+   * refused, gone or no longer finished at its turn is skipped.
    *
    * @param userIdentityId the creator's identity id
    * @return how many requests were archived

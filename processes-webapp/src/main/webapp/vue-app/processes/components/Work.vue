@@ -32,6 +32,9 @@
 
 <script>
 export default {
+  data: () => ({
+    comments: null,
+  }),
   props: {
     work: {
       type: Object,
@@ -49,12 +52,16 @@ export default {
       return this.work || {};
     },
     /**
-     * Reads the request's comments count, which the list carries: no request is read per row.
+     * Reads the request's comments count: the list carries it, so no request is read per row;
+     * once the comments drawer opened, the count follows the comments it adds and deletes.
      *
      * @returns {Number} the count, 0 for a draft or when the list did not carry it
      */
     commentsCount() {
-      return !this.isDraft && this.workObject.commentsCount || 0;
+      if (this.isDraft) {
+        return 0;
+      }
+      return this.comments ? this.comments.length : this.workObject.commentsCount || 0;
     },
     allowCancel() {
       return this.workObject && this.workObject.status !== 'Validated' && this.workObject.status !== 'Refused';
@@ -82,17 +89,19 @@ export default {
       this.$root.$emit('open-add-work-drawer', {object: this.workObject, mode: 'edit_work_draft'});
     },
     /**
-     * Reads the request's comments, then opens them in the comments drawer.
+     * Reads the request's comments, then opens them in the comments drawer, which edits the same
+     * list, so the row's count follows it.
      *
      * @returns {Promise} resolved once the drawer is asked to open
      */
     openCommentsDrawer() {
       return this.$processesService.getWorkComments(this.workObject.id).then(comments => {
+        this.comments = comments || [];
         const mappedWork = Object.assign({}, this.workObject);
         mappedWork.status = {
           project: {}
         };
-        this.$root.$emit('show-work-comments', mappedWork, comments);
+        this.$root.$emit('show-work-comments', mappedWork, this.comments);
       });
     },
     deleteWork() {

@@ -540,7 +540,7 @@ export default {
     },
     /**
      * Archives every validated, refused and canceled request of the user, then reloads the lists
-     * the archive changed.
+     * the archive changed, after a failure too: the requests archived before it stay archived.
      *
      * @returns {Promise} resolved once the outcome is shown
      */
@@ -550,12 +550,13 @@ export default {
           ? this.$t('processes.myRequests.archiveAll.success.one')
           : this.$t('processes.myRequests.archiveAll.success.many', {0: archived});
         this.displayMessage({type: 'success', message});
+      }).catch(() => {
+        this.displayMessage({type: 'error', message: this.$t('processes.myRequests.archiveAll.error')});
+      }).finally(() => {
         this.getWorks();
         if (this.status === 'completed') {
           this.getCompletedWorks();
         }
-      }).catch(() => {
-        this.displayMessage({type: 'error', message: this.$t('processes.myRequests.archiveAll.error')});
       });
     },
     getWorkDrafts() {

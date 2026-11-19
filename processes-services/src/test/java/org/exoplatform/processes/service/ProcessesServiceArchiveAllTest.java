@@ -78,11 +78,7 @@ public class ProcessesServiceArchiveAllTest {
    */
   @Test
   public void theFinishedRequestsOfTheUserAreArchivedThroughTheCheckedArchive() throws Exception {
-    when(processesStorage.getWorks(eq(USER_ID), any(WorkFilter.class), eq(0), eq(0))).thenReturn(new ArrayList<>(List.of(work(1L, "Validated"),
-                                                                                                                       work(2L, "Refused"),
-                                                                                                                       work(3L, "Canceled"),
-                                                                                                                       work(4L, "Request"),
-                                                                                                                       work(5L, "RequestInProgress"))));
+    select(work(1L, "Validated"), work(2L, "Refused"), work(3L, "Canceled"), work(4L, "Request"), work(5L, "RequestInProgress"));
     doReturn(null).when(processesService).updateWorkCompleted(anyLong(), eq(true), eq(USER_ID));
 
     assertEquals(3, processesService.archiveFinishedWorks(USER_ID));
@@ -100,17 +96,61 @@ public class ProcessesServiceArchiveAllTest {
   }
 
   /**
-   * A request the user may not archive, or gone meanwhile, is skipped and not
-   * counted, and the others are still archived. Mutation: let the refusal stop
-   * the loop, or count it, and this test fails.
+   * A request selected as finished but reopened by a manager before its turn,
+   * or archived meanwhile, is left: the status and the archive are read again
+   * at each turn. Mutation: archive from the selection's copy and this test
+   * fails.
    *
    * @throws Exception never, the mocks throw nothing
    */
   @Test
-  public void aRefusedOrGoneRequestIsSkippedAndNotCounted() throws Exception {
-    when(processesStorage.getWorks(eq(USER_ID), any(WorkFilter.class), eq(0), eq(0))).thenReturn(new ArrayList<>(List.of(work(1L, "Validated"),
-                                                                                                                       work(2L, "Refused"),
-                                                                                                                       work(3L, "Canceled"))));
+  public void aRequestThatChangedBeforeItsTurnIsLeft() throws Exception {
+    select(work(1L, "Validated"), work(2L, "Refused"), work(3L, "Canceled"));
+    when(processesStorage.getWorkById(1L)).thenReturn(work(1L, "RequestInProgress"));
+    Work archivedMeanwhile = work(2L, "Refused");
+    archivedMeanwhile.setCompleted(true);
+    when(processesStorage.getWorkById(2L)).thenReturn(archivedMeanwhile);
+    doReturn(null).when(processesService).updateWorkCompleted(3L, true, USER_ID);
+
+    assertEquals(1, processesService.archiveFinishedWorks(USER_ID));
+
+    verify(processesService, never()).updateWorkCompleted(eq(1L), anyBoolean(), anyLong());
+    verify(processesService, never()).updateWorkCompleted(eq(2L), anyBoolean(), anyLong());
+    verify(processesService).updateWorkCompleted(3L, true, USER_ID);
+  }
+
+  /**
+   * An archive that changes the next candidate (the same request listed twice
+   * here) is seen at the next turn: the request now archived is not archived
+   * again nor counted twice. Mutation: skip the re-read and this test fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  public void anArchiveThatChangesTheNextCandidateIsSeenAtItsTurn() throws Exception {
+    select(work(1L, "Validated"), work(1L, "Validated"));
+    Work archived = work(1L, "Validated");
+    archived.setCompleted(true);
+    when(processesStorage.getWorkById(1L)).thenReturn(work(1L, "Validated"), archived);
+    doReturn(null).when(processesService).updateWorkCompleted(1L, true, USER_ID);
+
+    assertEquals(1, processesService.archiveFinishedWorks(USER_ID));
+
+    verify(processesService).updateWorkCompleted(1L, true, USER_ID);
+  }
+
+  /**
+   * A request gone before its turn (the re-read finds none), refused to the
+   * user, or deleted while archived, is skipped and not counted, and the others
+   * are still archived. Mutation: let a refusal stop the loop, count it, or
+   * archive a request the re-read did not find, and this test fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  public void aGoneOrRefusedRequestIsSkippedAndNotCounted() throws Exception {
+    select(work(1L, "Validated"), work(2L, "Refused"), work(3L, "Canceled"), work(4L, "Validated"));
+    when(processesStorage.getWorkById(4L)).thenReturn(null);
     doThrow(new IllegalAccessException("not allowed")).when(processesService).updateWorkCompleted(1L, true, USER_ID);
     doThrow(new ObjectNotFoundException("gone")).when(processesService).updateWorkCompleted(2L, true, USER_ID);
     doReturn(null).when(processesService).updateWorkCompleted(3L, true, USER_ID);
@@ -118,6 +158,7 @@ public class ProcessesServiceArchiveAllTest {
     assertEquals(1, processesService.archiveFinishedWorks(USER_ID));
 
     verify(processesService).updateWorkCompleted(3L, true, USER_ID);
+    verify(processesService, never()).updateWorkCompleted(eq(4L), anyBoolean(), anyLong());
   }
 
   /**
@@ -127,11 +168,25 @@ public class ProcessesServiceArchiveAllTest {
    */
   @Test
   public void nothingIsArchivedWithoutAFinishedRequest() throws Exception {
-    when(processesStorage.getWorks(eq(USER_ID), any(WorkFilter.class), eq(0), eq(0))).thenReturn(new ArrayList<>(List.of(work(4L, "Request"))));
+    select(work(4L, "Request"));
 
     assertEquals(0, processesService.archiveFinishedWorks(USER_ID));
 
     verify(processesService, never()).updateWorkCompleted(anyLong(), anyBoolean(), anyLong());
+  }
+
+  /**
+   * Makes the storage list these requests as the user's open ones, and read
+   * each again, unchanged, at its turn, unless a test stubs that read.
+   *
+   * @param works the listed requests
+   * @throws Exception never, the mock throws nothing
+   */
+  private void select(Work... works) throws Exception {
+    when(processesStorage.getWorks(eq(USER_ID), any(WorkFilter.class), eq(0), eq(0))).thenReturn(new ArrayList<>(List.of(works)));
+    for (Work listed : works) {
+      org.mockito.Mockito.lenient().when(processesStorage.getWorkById(listed.getId())).thenReturn(work(listed.getId(), listed.getStatus()));
+    }
   }
 
   private static Work work(long id, String status) {

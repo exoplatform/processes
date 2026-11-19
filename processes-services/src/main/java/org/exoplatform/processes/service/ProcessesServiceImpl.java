@@ -1211,28 +1211,61 @@ public class ProcessesServiceImpl implements ProcessesService {
   }
 
   /**
-   * {@inheritDoc} The requests are read once, the user's open ones, then each
-   * finished one goes through the checked archive, so the user's right on each
-   * is the one a single archive applies.
+   * {@inheritDoc} The user's open requests are read once to select the
+   * candidates; at each one's turn the request is read again and archived only
+   * if it is still not archived and still finished, so a request a manager
+   * reopened or archived meanwhile, or that an earlier archive changed, is
+   * left. The archive then goes through
+   * {@link #updateWorkCompleted(Long, boolean, long)}, which reads the request
+   * once more for the user's right: the window left is between that read and
+   * this one. Each archive stands alone, as a single archive does: a failure
+   * other than a refusal stops the run and leaves the requests already
+   * archived archived.
    */
   @Override
   public int archiveFinishedWorks(long userIdentityId) throws Exception {
     WorkFilter filter = new WorkFilter();
     filter.setCompleted(false);
-    List<Work> works = processesStorage.getWorks(userIdentityId, filter, 0, 0);
+    List<Work> candidates = processesStorage.getWorks(userIdentityId, filter, 0, 0);
     int archived = 0;
-    for (Work work : works) {
-      if (work == null || !FINISHED_STATUSES.contains(work.getStatus())) {
-        continue;
-      }
-      try {
-        updateWorkCompleted(work.getId(), true, userIdentityId);
+    for (Work candidate : candidates) {
+      if (isUnarchivedAndFinished(candidate) && archiveIfStillFinished(candidate.getId(), userIdentityId)) {
         archived++;
-      } catch (ObjectNotFoundException | IllegalAccessException e) {
-        LOG.debug("The request {} isn't archived for the user {}", work.getId(), userIdentityId, e);
       }
     }
     return archived;
+  }
+
+  /**
+   * Archives a request as a user when, read now, it is still not archived and
+   * still finished.
+   *
+   * @param workId the request id
+   * @param userIdentityId the user's identity id
+   * @return true when the request was archived, false when it changed, is gone,
+   *         or the user may not archive it
+   */
+  private boolean archiveIfStillFinished(long workId, long userIdentityId) {
+    if (!isUnarchivedAndFinished(processesStorage.getWorkById(workId))) {
+      return false;
+    }
+    try {
+      updateWorkCompleted(workId, true, userIdentityId);
+      return true;
+    } catch (ObjectNotFoundException | IllegalAccessException e) {
+      LOG.debug("The request {} isn't archived for the user {}", workId, userIdentityId, e);
+      return false;
+    }
+  }
+
+  /**
+   * Tells whether a request is one « Archive all » archives.
+   *
+   * @param work the request, or null
+   * @return true when it exists, is not archived and its status is final
+   */
+  private static boolean isUnarchivedAndFinished(Work work) {
+    return work != null && !work.isCompleted() && FINISHED_STATUSES.contains(work.getStatus());
   }
 
   /**

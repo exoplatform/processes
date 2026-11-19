@@ -1040,8 +1040,9 @@ public class ProcessesRestTest {
   /**
    * The count of the current user's requests answers 401 without a user, 403
    * for another user's id, and otherwise the service's count for the session
-   * user, with the asked completion and status. Mutation: count for the
-   * {@code userId} parameter, or drop a criterion, and this test fails.
+   * user, with the asked completion and status, never shared nor stored by a
+   * cache. Mutation: count for the {@code userId} parameter, drop a criterion
+   * or the cache control, and this test fails.
    *
    * @throws Exception never, the mocks throw nothing
    */
@@ -1061,6 +1062,7 @@ public class ProcessesRestTest {
     Response response = processesRest.countWorks(null, true, "Validated");
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
     assertEquals("42", response.getEntity());
+    assertNeitherSharedNorStored(response);
   }
 
   /**

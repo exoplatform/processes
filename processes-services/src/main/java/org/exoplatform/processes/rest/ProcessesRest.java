@@ -387,7 +387,7 @@ public class ProcessesRest implements ResourceContainer {
       workFilter.setCompleted(completed);
       workFilter.setStatus(status);
       int count = processesService.countWorks(currentIdentityId, workFilter);
-      return Response.ok(String.valueOf(count)).type(MediaType.TEXT_PLAIN).build();
+      return Response.ok(String.valueOf(count)).type(MediaType.TEXT_PLAIN).cacheControl(PER_USER_CACHE_CONTROL).build();
     } catch (Exception e) {
       LOG.warn("Error counting the requests of the user {}", currentIdentityId, e);
       return Response.serverError().entity("The requests could not be counted").build();
