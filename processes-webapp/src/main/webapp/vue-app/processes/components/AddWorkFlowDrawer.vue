@@ -596,10 +596,14 @@ export default {
     /**
      * @returns {Boolean} true when an edited process can be updated: its
      *          description is valid, something changed, and it keeps a
-     *          managing space and request creators, with no step to go through
+     *          managing space, a project choice and request creators, with no
+     *          step to go through: an existing-project choice emptied by a
+     *          change of mode or of space is no project, and would otherwise
+     *          save the process with no labels
      */
     canUpdate() {
-      return this.valid && this.editChanged && !!this.workflow.parentSpace && this.workflowRequest.length > 0;
+      return this.valid && this.editChanged && !!this.workflow.parentSpace && this.projectChosen
+        && this.workflowRequest.length > 0;
     },
     workflowChanged() {
       return  this.workflow && this.originalWorkflowString && this.workflow.parentSpace;
