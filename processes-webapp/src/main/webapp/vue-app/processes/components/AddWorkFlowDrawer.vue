@@ -525,6 +525,7 @@ export default {
       projectId: null,
       projectName: null,
       labels: [],
+      openedLabels: [],
       labelsRead: false,
       requestCount: null,
       formKey: 0,
@@ -767,6 +768,7 @@ export default {
      */
     openWorkflow(workflow, mode) {
       this.labels = workflow && Array.isArray(workflow.labels) && workflow.labels.slice() || [];
+      this.openedLabels = this.labels.slice();
       this.labelsRead = !!workflow && Array.isArray(workflow.labels);
       this.projectMode = workflow && workflow.id ? 'EXISTING' : 'NEW';
       this.projectId = workflow && workflow.projectId || null;
@@ -855,6 +857,7 @@ export default {
       this.projectId = null;
       this.projectName = null;
       this.labels = [];
+      this.openedLabels = [];
       this.labelsRead = false;
       this.requestCount = null;
     },
@@ -893,6 +896,8 @@ export default {
     },
     /**
      * Chooses an existing project, which resets the labels of the former one.
+     * Choosing again the project an edited process opened with gives back the
+     * labels it opened with, so a choice undone saves no change of labels.
      *
      * @param {Number} projectId the project id
      * @returns {void}
@@ -900,7 +905,8 @@ export default {
     changeProject(projectId) {
       if (projectId !== this.projectId) {
         this.projectId = projectId;
-        this.labels = [];
+        this.labels = this.editMode && projectId && projectId === (this.workflow.projectId || null)
+          ? this.openedLabels.slice() : [];
       }
     },
     /**

@@ -18,7 +18,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     </v-label>
     <v-radio-group
       :value="mode"
-      :disabled="readOnly"
       class="mt-1 mb-0"
       row
       dense
@@ -40,7 +39,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         :value="projectId"
         :items="projects"
         :loading="loading"
-        :disabled="readOnly || !spaceId"
+        :disabled="!spaceId"
         :placeholder="$t('processes.workflow.project.placeholder')"
         :menu-props="menuProps"
         item-text="name"
@@ -60,7 +59,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         <template #item="{ item }">
           <workflow-project-item :project="item" />
         </template>
-        <template v-if="hasMore && !readOnly" #append-item>
+        <template v-if="hasMore" #append-item>
           <v-list-item
             id="processProjectLoadMore"
             class="primary--text"
@@ -100,10 +99,6 @@ export default {
     workflowId: {
       type: Number,
       default: null,
-    },
-    readOnly: {
-      type: Boolean,
-      default: false,
     },
   },
   data: () => ({
