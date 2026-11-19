@@ -101,8 +101,8 @@ class ProcessesRequestUpgradeSizingTest {
       new Liquibase(CHANGELOG, new ClassLoaderResourceAccessor(), database).update(new Contexts(), new LabelExpression());
       try (Statement statement = connection.createStatement()) {
         for (int process = 1; process <= PROCESSES; process++) {
-          statement.executeUpdate("INSERT INTO PROCESSES_WORK_FLOW (WORK_FLOW_ID, TITLE, DESCRIPTION, SUMMARY, PROJECT_ID, SPACE_ID) VALUES ("
-              + process + ", 'Process " + process + "', 'description', 'summary', " + (100 + process) + ", 7)");
+          statement.executeUpdate("INSERT INTO PROCESSES_WORK_FLOW (WORK_FLOW_ID, TITLE, DESCRIPTION, SUMMARY, ENABLED, CREATED_DATE, MODIFIED_DATE, PROJECT_ID, SPACE_ID) VALUES ("
+              + process + ", 'Process " + process + "', 'description', 'summary', TRUE, CURRENT_DATE, CURRENT_DATE, " + (100 + process) + ", 7)");
         }
       }
       connection.commit();
