@@ -21,6 +21,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
@@ -37,6 +38,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
@@ -193,6 +195,34 @@ public class ProcessesStorageImplTest {
     this.processesStorage.deleteWorkflowById(1L);
     Throwable exception2 = assertThrows(EntityNotFoundException.class, () -> this.projectService.getProject(1L));
     assertEquals("Object does not exist with ID: 1", exception2.getMessage());
+  }
+
+  /**
+   * An illustration file is stored with the size of its body, never the one
+   * the client declares. Mutation: store the declared size, and this test
+   * fails.
+   */
+  @Test
+  public void anIllustrationIsStoredWithTheSizeOfItsBody() throws Exception {
+    when(identityManager.getIdentity(1L)).thenReturn(mock(Identity.class));
+    IllustrativeAttachment illustration = new IllustrativeAttachment();
+    illustration.setFileName("image.png");
+    illustration.setMimeType("image/png");
+    illustration.setFileSize(1L);
+    illustration.setFileBody("data:image/png;base64," + Base64.getEncoder().encodeToString(new byte[10]));
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setIllustrativeAttachment(illustration);
+    ENTITY_MAPPER.when(() -> EntityMapper.toEntity(workFlow)).thenReturn(new WorkFlowEntity());
+
+    try {
+      processesStorage.saveWorkFlow(workFlow, 1L);
+    } catch (RuntimeException e) {
+      // The rest of the process save, not stubbed here, is outside this test
+    }
+
+    ArgumentCaptor<FileItem> stored = ArgumentCaptor.forClass(FileItem.class);
+    verify(fileService).writeFile(stored.capture());
+    assertEquals(10L, stored.getValue().getFileInfo().getSize());
   }
 
   @Test

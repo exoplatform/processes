@@ -18,6 +18,7 @@ import static org.mockito.Mockito.when;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -367,6 +368,82 @@ public class ProcessesServiceImplTest {
     processesService.updateWorkFlow(workFlow, PARTICIPANT_ID);
     verify(processesStorage, times(2)).saveWorkFlow(saved.capture(), anyLong());
     assertNull(saved.getValue().getIllustrativeAttachment().getId());
+  }
+
+  /**
+   * A process illustration is stored only as base64 data of an image other
+   * than SVG, of at most the bounded size once decoded, on creation as on
+   * update; a save that sends no image data keeps the stored one. Mutation:
+   * drop the type check, let SVG through, drop the size bound or the decoding
+   * check, or check a save with no image data, and this test fails.
+   */
+  @Test
+  public void aProcessIllustrationIsABoundedImage() throws Exception {
+    String smallBody = "data:image/png;base64," + Base64.getEncoder().encodeToString(new byte[10]);
+    String largeBody = "data:image/png;base64,"
+        + Base64.getEncoder().encodeToString(new byte[(int) ProcessesServiceImpl.MAX_ILLUSTRATION_SIZE + 1]);
+    for (String type : new String[] { "text/html", "image/svg+xml", " Image/SVG+XML", null, "image/png,image/svg+xml",
+        "image/png, text/html", "image/png;charset=utf-8", "image/", "image/tiff", "image/x-icon", "image/avif" }) {
+      WorkFlow created = new WorkFlow();
+      created.setIllustrativeAttachment(sentIllustration("image", smallBody, type));
+      assertThrows(type, IllegalArgumentException.class, () -> processesService.createWorkFlow(created, PROCESSES_ADMIN_ID));
+    }
+    WorkFlow tooLarge = new WorkFlow();
+    tooLarge.setIllustrativeAttachment(sentIllustration("image.png", largeBody, "image/png"));
+    assertThrows(IllegalArgumentException.class, () -> processesService.createWorkFlow(tooLarge, PROCESSES_ADMIN_ID));
+    WorkFlow tooLargeUnpadded = new WorkFlow();
+    tooLargeUnpadded.setIllustrativeAttachment(sentIllustration("image.png",
+                                                                "data:image/png;base64,"
+                                                                    + Base64.getEncoder()
+                                                                                      .withoutPadding()
+                                                                                      .encodeToString(new byte[(int) ProcessesServiceImpl.MAX_ILLUSTRATION_SIZE
+                                                                                          + 1]),
+                                                                "image/png"));
+    assertThrows(IllegalArgumentException.class, () -> processesService.createWorkFlow(tooLargeUnpadded, PROCESSES_ADMIN_ID));
+    for (String data : new String[] { "AAAAA", "AA=", "AAAA AAAA", "AAAA\nAAAA" }) {
+      WorkFlow malformed = new WorkFlow();
+      malformed.setIllustrativeAttachment(sentIllustration("image.png", "data:image/png;base64," + data, "image/png"));
+      assertThrows(data, IllegalArgumentException.class, () -> processesService.createWorkFlow(malformed, PROCESSES_ADMIN_ID));
+    }
+
+    WorkFlow storedWorkFlow = new WorkFlow();
+    storedWorkFlow.setId(WORKFLOW_ID);
+    storedWorkFlow.setAcl(new ProcessPermission(true, true, false, false));
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, PARTICIPANT_ID)).thenReturn(storedWorkFlow);
+    WorkFlow updated = new WorkFlow();
+    updated.setId(WORKFLOW_ID);
+    updated.setIllustrativeAttachment(sentIllustration("image.svg", smallBody, "image/svg+xml"));
+    assertThrows(IllegalArgumentException.class, () -> processesService.updateWorkFlow(updated, PARTICIPANT_ID));
+    verify(processesStorage, never()).saveWorkFlow(any(), anyLong());
+
+    // A process edited with its stored illustration resends no image data,
+    // whatever type is stored: it is saved and keeps that illustration
+    WorkFlow kept = new WorkFlow();
+    kept.setId(WORKFLOW_ID);
+    kept.setTitle("edited");
+    kept.setIllustrativeAttachment(sentIllustration("image.svg", "data:image/svg+xml;base64,", "image/svg+xml"));
+    processesService.updateWorkFlow(kept, PARTICIPANT_ID);
+    verify(processesStorage).saveWorkFlow(kept, PARTICIPANT_ID);
+
+    WorkFlow image = new WorkFlow();
+    image.setIllustrativeAttachment(sentIllustration("image.png", smallBody, "image/png"));
+    processesService.createWorkFlow(image, PROCESSES_ADMIN_ID);
+    verify(processesStorage).saveWorkFlow(image, PROCESSES_ADMIN_ID);
+    String maxBody = "data:image/webp;base64,"
+        + Base64.getEncoder().withoutPadding().encodeToString(new byte[(int) ProcessesServiceImpl.MAX_ILLUSTRATION_SIZE]);
+    WorkFlow largest = new WorkFlow();
+    largest.setIllustrativeAttachment(sentIllustration("image.webp", maxBody, " IMAGE/WEBP "));
+    processesService.createWorkFlow(largest, PROCESSES_ADMIN_ID);
+    verify(processesStorage).saveWorkFlow(largest, PROCESSES_ADMIN_ID);
+    assertEquals("image/webp", largest.getIllustrativeAttachment().getMimeType());
+  }
+
+  private static IllustrativeAttachment sentIllustration(String fileName, String fileBody, String mimeType) {
+    IllustrativeAttachment illustration = new IllustrativeAttachment();
+    illustration.setFileName(fileName);
+    illustration.setFileBody(fileBody);
+    illustration.setMimeType(mimeType);
+    return illustration;
   }
 
   /**

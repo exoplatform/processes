@@ -254,7 +254,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
                               illustrativeAttachment.getFileName(),
                               illustrativeAttachment.getMimeType(),
                               PROCESS_FILES_NAME_SPACE,
-                              illustrativeAttachment.getFileSize(),
+                              // The stored size is the body's, never the one the client declares
+                              (long) bytes.length,
                               new Date(),
                               null,
                               false,
