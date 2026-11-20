@@ -68,11 +68,17 @@ public class WorkDraftDAO extends GenericDAOJPAImpl<WorkEntity, Long> {
     return resultList == null ? Collections.emptyList() : resultList;
   }
 
-  public List<WorkEntity> getDraftsByWorkflowId(long workflowId) {
-    TypedQuery<WorkEntity> query = getEntityManager().createNamedQuery("Work.findAllWorkDraftsByWorkflowId", WorkEntity.class);
+  /**
+   * Retrieves every request draft row of a process, whatever its draft flag,
+   * so that deleting the process deletes them all
+   *
+   * @param workflowId process id
+   * @return the process's rows
+   */
+  public List<WorkEntity> getWorksByWorkflowId(long workflowId) {
+    TypedQuery<WorkEntity> query = getEntityManager().createNamedQuery("Work.findAllWorksByWorkflowId", WorkEntity.class);
     query.setParameter("workflowId", workflowId);
     List<WorkEntity> resultList = query.getResultList();
     return resultList == null ? Collections.emptyList() : resultList;
-
   }
 }
