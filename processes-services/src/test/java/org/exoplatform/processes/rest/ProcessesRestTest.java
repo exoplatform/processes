@@ -787,17 +787,24 @@ public class ProcessesRestTest {
   }
 
   @Test
-  public void getAvailableWorkStatuses() {
+  public void getAvailableWorkStatuses() throws Exception {
     List<WorkStatus> statuses = new ArrayList<>();
     statuses.add(new WorkStatus());
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
     Response response = processesRest.getAvailableWorkStatuses();
     assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response.getStatus());
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
-    when(processesService.getAvailableWorkStatuses()).thenReturn(statuses);
+    when(processesService.getAvailableWorkStatuses(1L)).thenReturn(statuses);
     Response response1 = processesRest.getAvailableWorkStatuses();
     assertEquals(Response.Status.OK.getStatusCode(), response1.getStatus());
-    doThrow(new RuntimeException()).when(processesService).getAvailableWorkStatuses();
+    assertEquals(statuses, response1.getEntity());
+    assertNeitherSharedNorStored(response1);
+    verify(processesService, never()).getAvailableWorkStatuses();
+    doThrow(new IllegalAccessException()).when(processesService).getAvailableWorkStatuses(1L);
+    Response refused = processesRest.getAvailableWorkStatuses();
+    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), refused.getStatus());
+    assertNeitherSharedNorStored(refused);
+    doThrow(new RuntimeException()).when(processesService).getAvailableWorkStatuses(1L);
     Response response2 = processesRest.getAvailableWorkStatuses();
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response2.getStatus());
   }

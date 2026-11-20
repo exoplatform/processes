@@ -38,6 +38,7 @@ import org.exoplatform.processes.model.ProcessesFilter;
 import org.exoplatform.processes.model.Work;
 import org.exoplatform.processes.model.WorkFilter;
 import org.exoplatform.processes.model.WorkFlow;
+import org.exoplatform.processes.model.WorkStatus;
 import org.exoplatform.processes.storage.ProcessesStorage;
 import org.exoplatform.services.attachments.model.Attachment;
 import org.exoplatform.services.security.MembershipEntry;
@@ -447,6 +448,21 @@ public class ProcessesServiceImplTest {
 
     assertEquals(4, processesService.countWorksByWorkflow(PROCESS_PROJECT_ID, false, PARTICIPANT_ID));
     assertEquals(4, processesService.countWorksByWorkflow(PROCESS_PROJECT_ID, false, CREATOR_ID));
+  }
+
+  /**
+   * The request statuses are read for an active user, with that user's
+   * process lists. Mutation: drop the active user check, and this test fails.
+   */
+  @Test
+  public void getAvailableWorkStatusesIsReadForTheUser() throws Exception {
+    List<WorkStatus> statuses = List.of(new WorkStatus());
+    when(processesStorage.getAvailableWorkStatuses(CREATOR_ID)).thenReturn(statuses);
+
+    assertThrows(IllegalAccessException.class, () -> processesService.getAvailableWorkStatuses(DISABLED_USER_ID));
+    verify(processesStorage, never()).getAvailableWorkStatuses(anyLong());
+    assertEquals(statuses, processesService.getAvailableWorkStatuses(CREATOR_ID));
+    verify(processesStorage, never()).getAvailableWorkStatuses();
   }
 
   /**

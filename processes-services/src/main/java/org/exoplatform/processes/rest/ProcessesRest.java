@@ -757,13 +757,16 @@ public class ProcessesRest implements ResourceContainer {
           @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
           @ApiResponse(responseCode = "500", description = "Internal server error"), })
   public Response getAvailableWorkStatuses() {
+    long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    if (currentIdentityId == 0) {
+      return Response.status(Response.Status.UNAUTHORIZED).build();
+    }
     try {
-      long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
-      if (currentIdentityId == 0) {
-        return Response.status(Response.Status.UNAUTHORIZED).build();
-      }
-      List<WorkStatus> statuses = processesService.getAvailableWorkStatuses();
-      return Response.ok(statuses).type(MediaType.APPLICATION_JSON_TYPE).build();
+      List<WorkStatus> statuses = processesService.getAvailableWorkStatuses(currentIdentityId);
+      return Response.ok(statuses).type(MediaType.APPLICATION_JSON_TYPE).cacheControl(PER_USER_CACHE_CONTROL).build();
+    } catch (IllegalAccessException e) {
+      LOG.debug("User {} isn't an active user", currentIdentityId, e);
+      return Response.status(Response.Status.UNAUTHORIZED).cacheControl(PER_USER_CACHE_CONTROL).build();
     } catch (Exception e) {
       LOG.warn("Error retrieving list of work drafts", e);
       return Response.serverError().entity(e.getMessage()).build();

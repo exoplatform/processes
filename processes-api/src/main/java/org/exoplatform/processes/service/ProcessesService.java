@@ -268,6 +268,15 @@ public interface ProcessesService {
   List<WorkStatus> getAvailableWorkStatuses();
 
   /**
+   * Retrieves the request statuses of the processes a user can see
+   *
+   * @param userIdentityId user identity id
+   * @return {@link List} of {@link WorkStatus}
+   * @throws IllegalAccessException when the identity isn't an active user
+   */
+  List<WorkStatus> getAvailableWorkStatuses(long userIdentityId) throws IllegalAccessException;
+
+  /**
    * Retrieves a Work by its given id
    *
    * @param userIdentityId user identity id
