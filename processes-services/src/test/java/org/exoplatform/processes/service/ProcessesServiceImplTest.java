@@ -415,6 +415,39 @@ public class ProcessesServiceImplTest {
   }
 
   /**
+   * A process's request counts are given to the active users who see the
+   * process in their lists (participators and request creators) only.
+   */
+  @Test
+  public void countWorksByWorkflowIsGuarded() throws Exception {
+    WorkFlow stored = new WorkFlow();
+    stored.setId(WORKFLOW_ID);
+    when(processesStorage.getWorkFlowByProjectId(PROCESS_PROJECT_ID)).thenReturn(stored);
+    WorkFlow hidden = new WorkFlow();
+    hidden.setId(WORKFLOW_ID);
+    hidden.setAcl(new ProcessPermission(false, false, false, false));
+    WorkFlow participated = new WorkFlow();
+    participated.setId(WORKFLOW_ID);
+    participated.setAcl(new ProcessPermission(true, true, false, false));
+    WorkFlow requestable = new WorkFlow();
+    requestable.setId(WORKFLOW_ID);
+    requestable.setAcl(new ProcessPermission(false, false, false, true));
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, NON_MEMBER_ID)).thenReturn(hidden);
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, PARTICIPANT_ID)).thenReturn(participated);
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, CREATOR_ID)).thenReturn(requestable);
+    when(processesStorage.countWorksByWorkflow(PROCESS_PROJECT_ID, false)).thenReturn(4);
+
+    assertThrows(ObjectNotFoundException.class, () -> processesService.countWorksByWorkflow(OTHER_PROJECT_ID, false, CREATOR_ID));
+    assertThrows(IllegalAccessException.class, () -> processesService.countWorksByWorkflow(PROCESS_PROJECT_ID, false, NON_MEMBER_ID));
+    assertThrows(IllegalAccessException.class,
+                 () -> processesService.countWorksByWorkflow(PROCESS_PROJECT_ID, false, DISABLED_USER_ID));
+    verify(processesStorage, never()).countWorksByWorkflow(anyLong(), anyBoolean());
+
+    assertEquals(4, processesService.countWorksByWorkflow(PROCESS_PROJECT_ID, false, PARTICIPANT_ID));
+    assertEquals(4, processesService.countWorksByWorkflow(PROCESS_PROJECT_ID, false, CREATOR_ID));
+  }
+
+  /**
    * A process illustration is served to the active users who see the process
    * in their lists (participators and request creators), never read with a
    * null user. Mutation: drop the canAccess/canAddRequest guard, either of its

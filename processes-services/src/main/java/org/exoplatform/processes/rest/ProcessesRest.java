@@ -483,12 +483,12 @@ public class ProcessesRest implements ResourceContainer {
       return Response.status(Response.Status.BAD_REQUEST).entity("Project id is mandatory").build();
     }
     try {
-      WorkFlow workFlow = processesService.getWorkFlowByProjectId(projectId);
-      if (workFlow == null) {
-        return Response.status(Response.Status.NOT_FOUND).entity("workflow not found").build();
-      }
-      int worksCount = processesService.countWorksByWorkflow(projectId, isCompleted);
-      return Response.ok(String.valueOf(worksCount)).type(MediaType.TEXT_PLAIN).build();
+      int worksCount = processesService.countWorksByWorkflow(projectId, isCompleted, currentIdentityId);
+      return Response.ok(String.valueOf(worksCount)).type(MediaType.TEXT_PLAIN).cacheControl(PER_USER_CACHE_CONTROL).build();
+    } catch (ObjectNotFoundException | IllegalAccessException e) {
+      // A process the user can't see is answered as a missing one
+      LOG.debug("Process of project {} not found or not visible to user {}", projectId, currentIdentityId, e);
+      return Response.status(Response.Status.NOT_FOUND).entity("workflow not found").cacheControl(PER_USER_CACHE_CONTROL).build();
     } catch (Exception e) {
       LOG.error("Error while getting works count", e);
       return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();

@@ -271,6 +271,23 @@ public class ProcessesServiceImpl implements ProcessesService {
    * {@inheritDoc}
    */
   @Override
+  public int countWorksByWorkflow(Long projectId, Boolean isCompleted, long userIdentityId) throws Exception {
+    if (projectId == null) {
+      throw new IllegalArgumentException("Project Id is mandatory");
+    }
+    getAclIdentity(userIdentityId);
+    WorkFlow workFlow = processesStorage.getWorkFlowById(getWorkFlowIdByProjectId(projectId), userIdentityId);
+    if (workFlow == null) {
+      throw new ObjectNotFoundException("No process found for project " + projectId);
+    }
+    checkCanSee(workFlow, workFlow.getId(), userIdentityId);
+    return countWorksByWorkflow(projectId, isCompleted);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
   @Deprecated(forRemoval = true)
   public void deleteWorkById(Long workId) {
     if (workId == null) {

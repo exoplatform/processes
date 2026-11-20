@@ -14,6 +14,7 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.never;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -493,23 +494,30 @@ public class ProcessesRestTest {
 
   @Test
   public void countWorksByWorkflow() throws Exception {
-    WorkFlow workFlow = mock(WorkFlow.class);
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
     Response response = processesRest.countWorksByWorkflow(null, null);
     assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response.getStatus());
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
     Response response1 = processesRest.countWorksByWorkflow(null, null);
     assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response1.getStatus());
-    when(processesService.getWorkFlowByProjectId(1L)).thenReturn(null);
-    Response response2 = processesRest.countWorksByWorkflow(1L, null);
+    when(processesService.countWorksByWorkflow(1L, false, 1L)).thenThrow(new ObjectNotFoundException("No process"));
+    Response response2 = processesRest.countWorksByWorkflow(1L, false);
     assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response2.getStatus());
-    when(processesService.getWorkFlowByProjectId(1L)).thenReturn(workFlow);
-    when(processesService.countWorksByWorkflow(1L, false)).thenReturn(2);
-    Response response3 = processesRest.countWorksByWorkflow(1L, false);
+    when(processesService.countWorksByWorkflow(2L, false, 1L)).thenThrow(new IllegalAccessException("hidden"));
+    Response hidden = processesRest.countWorksByWorkflow(2L, false);
+    assertEquals("a process the user can't see is answered as a missing one",
+                 Response.Status.NOT_FOUND.getStatusCode(),
+                 hidden.getStatus());
+    assertTrue(String.valueOf(hidden.getMetadata().getFirst("Cache-Control")).contains("no-store"));
+    when(processesService.countWorksByWorkflow(3L, false, 1L)).thenReturn(2);
+    Response response3 = processesRest.countWorksByWorkflow(3L, false);
     assertEquals(Response.Status.OK.getStatusCode(), response3.getStatus());
-    when(processesService.countWorksByWorkflow(1L, false)).thenThrow(RuntimeException.class);
-    Response response4 = processesRest.countWorksByWorkflow(1L, false);
+    assertEquals("2", response3.getEntity());
+    assertTrue(String.valueOf(response3.getMetadata().getFirst("Cache-Control")).contains("no-store"));
+    when(processesService.countWorksByWorkflow(4L, false, 1L)).thenThrow(RuntimeException.class);
+    Response response4 = processesRest.countWorksByWorkflow(4L, false);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response4.getStatus());
+    verify(processesService, never()).countWorksByWorkflow(any(Long.class), any(Boolean.class));
   }
 
   @Test
