@@ -503,12 +503,13 @@ public class ProcessesRestTest {
     when(processesService.countWorksByWorkflow(1L, false, 1L)).thenThrow(new ObjectNotFoundException("No process"));
     Response response2 = processesRest.countWorksByWorkflow(1L, false);
     assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response2.getStatus());
-    when(processesService.countWorksByWorkflow(2L, false, 1L)).thenThrow(new IllegalAccessException("hidden"));
-    Response hidden = processesRest.countWorksByWorkflow(2L, false);
-    assertEquals("a process the user can't see is answered as a missing one",
-                 Response.Status.NOT_FOUND.getStatusCode(),
-                 hidden.getStatus());
-    assertTrue(String.valueOf(hidden.getMetadata().getFirst("Cache-Control")).contains("no-store"));
+    assertTrue(String.valueOf(response2.getMetadata().getFirst("Cache-Control")).contains("no-store"));
+    when(processesService.countWorksByWorkflow(2L, false, 1L)).thenThrow(new IllegalAccessException("inactive"));
+    Response inactive = processesRest.countWorksByWorkflow(2L, false);
+    assertEquals("a user who isn't active is refused as unauthenticated",
+                 Response.Status.UNAUTHORIZED.getStatusCode(),
+                 inactive.getStatus());
+    assertTrue(String.valueOf(inactive.getMetadata().getFirst("Cache-Control")).contains("no-store"));
     when(processesService.countWorksByWorkflow(3L, false, 1L)).thenReturn(2);
     Response response3 = processesRest.countWorksByWorkflow(3L, false);
     assertEquals(Response.Status.OK.getStatusCode(), response3.getStatus());

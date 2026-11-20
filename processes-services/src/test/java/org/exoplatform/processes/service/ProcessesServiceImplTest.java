@@ -416,7 +416,9 @@ public class ProcessesServiceImplTest {
 
   /**
    * A process's request counts are given to the active users who see the
-   * process in their lists (participators and request creators) only.
+   * process in their lists (participators and request creators) only: a
+   * process the user can't see is answered as a missing one. Mutation: drop
+   * the visibility check or the active user check, and this test fails.
    */
   @Test
   public void countWorksByWorkflowIsGuarded() throws Exception {
@@ -438,7 +440,7 @@ public class ProcessesServiceImplTest {
     when(processesStorage.countWorksByWorkflow(PROCESS_PROJECT_ID, false)).thenReturn(4);
 
     assertThrows(ObjectNotFoundException.class, () -> processesService.countWorksByWorkflow(OTHER_PROJECT_ID, false, CREATOR_ID));
-    assertThrows(IllegalAccessException.class, () -> processesService.countWorksByWorkflow(PROCESS_PROJECT_ID, false, NON_MEMBER_ID));
+    assertThrows(ObjectNotFoundException.class, () -> processesService.countWorksByWorkflow(PROCESS_PROJECT_ID, false, NON_MEMBER_ID));
     assertThrows(IllegalAccessException.class,
                  () -> processesService.countWorksByWorkflow(PROCESS_PROJECT_ID, false, DISABLED_USER_ID));
     verify(processesStorage, never()).countWorksByWorkflow(anyLong(), anyBoolean());
