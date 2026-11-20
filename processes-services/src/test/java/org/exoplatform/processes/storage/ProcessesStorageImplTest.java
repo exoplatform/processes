@@ -619,6 +619,33 @@ public class ProcessesStorageImplTest {
     assertEquals(List.of(listedStatus), processesStorage.getAvailableWorkStatuses(5L));
   }
 
+  /**
+   * A processes administrator gets the request statuses of every process.
+   * Mutation: query an empty membership list instead of none, and this test
+   * fails.
+   */
+  @Test
+  public void getAvailableWorkStatusesOfAProcessesAdministrator() {
+    Identity identity = mock(Identity.class);
+    when(identityManager.getIdentity(6L)).thenReturn(identity);
+    when(identity.getRemoteId()).thenReturn("admin");
+    org.exoplatform.services.security.Identity aclIdentity = mock(org.exoplatform.services.security.Identity.class);
+    when(userACL.getUserIdentity("admin")).thenReturn(aclIdentity);
+    PROCESSES_UTILS.when(() -> ProcessesUtils.isProcessesAdministrator(userACL, aclIdentity)).thenReturn(true);
+    WorkFlowEntity process = new WorkFlowEntity();
+    process.setProjectId(3L);
+    ProcessesFilter filter = new ProcessesFilter();
+    filter.setManager(false);
+    when(workFlowDAO.findWorkFlows(filter, null, 0, 0)).thenReturn(List.of(process));
+    List<StatusDto> statuses = List.of(mock(StatusDto.class));
+    when(statusService.getStatuses(3L)).thenReturn(statuses);
+    WorkStatus status = new WorkStatus();
+    status.setRank(10);
+    ENTITY_MAPPER.when(() -> EntityMapper.toWorkStatuses(statuses)).thenReturn(new ArrayList<>(List.of(status)));
+
+    assertEquals(List.of(status), processesStorage.getAvailableWorkStatuses(6L));
+  }
+
   @Test
   public void getIllustrationImageById() throws Exception {
     FileInfo fileInfo = new FileInfo(1L, "file", "image/png", "processesApp", 1253L, new Date(), null, "", false);
