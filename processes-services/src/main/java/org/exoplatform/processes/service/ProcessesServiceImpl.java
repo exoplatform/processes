@@ -442,6 +442,12 @@ public class ProcessesServiceImpl implements ProcessesService {
     return processesStorage.getAvailableWorkStatuses();
   }
 
+  @Override
+  public List<WorkStatus> getAvailableWorkStatuses(long userIdentityId) throws IllegalAccessException {
+    getAclIdentity(userIdentityId);
+    return processesStorage.getAvailableWorkStatuses(userIdentityId);
+  }
+
   /**
    * {@inheritDoc}
    */

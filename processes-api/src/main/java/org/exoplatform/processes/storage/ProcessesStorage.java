@@ -174,6 +174,16 @@ public interface ProcessesStorage {
   List<WorkStatus> getAvailableWorkStatuses();
 
   /**
+   * Retrieves the request statuses of the processes a user lists: those managed
+   * by or open to one of the user's memberships, every process for a processes
+   * administrator
+   *
+   * @param userIdentityId user identity id
+   * @return {@link List} of {@link WorkStatus}
+   */
+  List<WorkStatus> getAvailableWorkStatuses(long userIdentityId);
+
+  /**
    * Retrieves list of filtered workflows
    * 
    * @param processesFilter processes filter
