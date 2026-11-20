@@ -17,7 +17,9 @@
 package org.exoplatform.processes.service;
 
 import java.io.IOException;
+import java.util.Base64;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
@@ -37,11 +39,16 @@ import org.exoplatform.task.service.ProjectService;
 
 public class ProcessesServiceImpl implements ProcessesService {
 
-  private static final String      STATUS_CANCELED     = "Canceled";
+  /** Largest process illustration stored, in decoded bytes */
+  static final long                MAX_ILLUSTRATION_SIZE = 1024L * 1024L;
 
-  private static final Set<String> PENDING_STATUSES    = Set.of("Request", "RequestInProgress");
+  private static final String      STATUS_CANCELED       = "Canceled";
 
-  private static final Set<String> DECIDED_STATUSES    = Set.of("Validated", "Refused");
+  private static final Set<String> PENDING_STATUSES      = Set.of("Request", "RequestInProgress");
+
+  private static final Set<String> DECIDED_STATUSES      = Set.of("Validated", "Refused");
+
+  private static final String      BASE64_DATA_PREFIX    = "base64,";
 
   private final ProcessesStorage processesStorage;
 
@@ -114,6 +121,7 @@ public class ProcessesServiceImpl implements ProcessesService {
     if (!isProcessesAdministrator(getAclIdentity(userId))) {
       throw new IllegalAccessException("User " + userId + " isn't allowed to create a process");
     }
+    checkIllustration(workFlow.getIllustrativeAttachment());
     // A new process always gets its own project and illustration file, never
     // existing ones the client names
     workFlow.setProjectId(0);
@@ -141,6 +149,7 @@ public class ProcessesServiceImpl implements ProcessesService {
       throw new IllegalAccessException("User " + userId + " isn't allowed to update the process " + workFlow.getId());
     }
     checkSpaceMove(oldWorkFlow, workFlow.getSpaceId(), userId);
+    checkIllustration(workFlow.getIllustrativeAttachment());
     // The process keeps its project and its creation data, whatever the client sent
     workFlow.setProjectId(oldWorkFlow.getProjectId());
     workFlow.setCreatorId(oldWorkFlow.getCreatorId());
@@ -574,6 +583,40 @@ public class ProcessesServiceImpl implements ProcessesService {
     ProcessPermission acl = workFlow.getAcl();
     if (acl == null || !(acl.isCanAccess() || acl.isCanAddRequest())) {
       throw new IllegalAccessException("User " + userIdentityId + " can't see the process " + workflowId);
+    }
+  }
+
+  /**
+   * An illustration sent with a process is an image of a type
+   * {@link IllustrativeAttachment#isImageType(String)} accepts, stored with
+   * that type trimmed and lower-cased, of at most
+   * {@link #MAX_ILLUSTRATION_SIZE} bytes once decoded
+   */
+  private void checkIllustration(IllustrativeAttachment illustration) {
+    String body = illustration == null ? null : illustration.getFileBody();
+    int dataIndex = body == null ? -1 : body.indexOf(BASE64_DATA_PREFIX);
+    if (dataIndex < 0 || dataIndex + BASE64_DATA_PREFIX.length() == body.length()) {
+      // No image data: the storage keeps the stored illustration as it is
+      return;
+    }
+    if (!IllustrativeAttachment.isImageType(illustration.getMimeType())) {
+      throw new IllegalArgumentException("The process illustration must be an image");
+    }
+    illustration.setMimeType(illustration.getMimeType().trim().toLowerCase(Locale.ROOT));
+    String data = body.substring(dataIndex + BASE64_DATA_PREFIX.length());
+    // Decoded length, padded or not: each group of 4 characters holds 3
+    // bytes, and a last group of 2 or 3 characters holds 1 or 2
+    long padding = data.endsWith("==") ? 2 : data.endsWith("=") ? 1 : 0;
+    long remainder = data.length() % 4L;
+    long decodedLength = data.length() / 4L * 3L - padding + (remainder == 0 ? 0 : remainder - 1);
+    if (decodedLength > MAX_ILLUSTRATION_SIZE) {
+      throw new IllegalArgumentException("The process illustration exceeds " + MAX_ILLUSTRATION_SIZE + " bytes");
+    }
+    try {
+      // The storage decodes it the same way: what it can't read is refused here
+      Base64.getDecoder().decode(data);
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException("The process illustration isn't base64 data", e);
     }
   }
 
