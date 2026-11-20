@@ -137,6 +137,19 @@ public interface ProcessesService {
   int countWorksByWorkflow(Long projectId, Boolean isCompleted) throws Exception;
 
   /**
+   * Counts the requests of a process, for a user who can see the process
+   *
+   * @param projectId Tasks project id of the process
+   * @param isCompleted filter by completed and uncompleted requests
+   * @param userIdentityId user identity id
+   * @return Filtered requests count
+   * @throws ObjectNotFoundException when no process has this project
+   * @throws IllegalAccessException when the user can't see the process
+   * @throws Exception when the count fails
+   */
+  int countWorksByWorkflow(Long projectId, Boolean isCompleted, long userIdentityId) throws Exception;
+
+  /**
    * Delete a work by its given id, without any permission check.
    *
    * @param workId: Work id
