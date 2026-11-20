@@ -133,7 +133,11 @@ public interface ProcessesService {
    * @param isCompleted: filter by completed and uncompleted tasks
    * @return Filtered tasks count
    * @throws Exception
+   * @deprecated use {@link #countWorksByWorkflow(Long, Boolean, long)}
+   *             instead, which checks the user's permission. Since 7.3.0, for
+   *             removal.
    */
+  @Deprecated(forRemoval = true)
   int countWorksByWorkflow(Long projectId, Boolean isCompleted) throws Exception;
 
   /**
