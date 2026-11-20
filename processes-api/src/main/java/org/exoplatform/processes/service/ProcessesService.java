@@ -147,8 +147,9 @@ public interface ProcessesService {
    * @param isCompleted filter by completed and uncompleted requests
    * @param userIdentityId user identity id
    * @return Filtered requests count
-   * @throws ObjectNotFoundException when no process has this project
-   * @throws IllegalAccessException when the user can't see the process
+   * @throws ObjectNotFoundException when no process has this project, or the
+   *           user can't see it
+   * @throws IllegalAccessException when the identity isn't an active user
    * @throws Exception when the count fails
    */
   int countWorksByWorkflow(Long projectId, Boolean isCompleted, long userIdentityId) throws Exception;
