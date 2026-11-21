@@ -460,7 +460,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     } catch (EntityNotFoundException e) {
       LOG.error("Error while getting workflow project", e);
     }
-    List<WorkEntity> drafts = this.workDraftDAO.getDraftsByWorkflowId(workflowId);
+    List<WorkEntity> drafts = this.workDraftDAO.getWorksByWorkflowId(workflowId);
     if (!drafts.isEmpty()) {
       workDraftDAO.deleteAll(drafts);
     }
@@ -520,6 +520,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       throw new IllegalArgumentException("identity is not exist");
     }
     WorkEntity workEntity = EntityMapper.toEntity(work);
+    // A row saved here is a draft, whatever flag the client sent
+    workEntity.setIsDraft(true);
     workEntity.setModifiedDate(new Date());
     if (work.getId() == 0) {
       workEntity.setId(null);

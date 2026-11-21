@@ -184,7 +184,7 @@ public class ProcessesStorageImplTest {
     when(projectService.getProject(1L)).thenReturn(projectDto);
     when(projectDto.getId()).thenReturn(1L);
     when(workFlowEntity.getProjectId()).thenReturn(1L);
-    when(workDraftDAO.getDraftsByWorkflowId(1L)).thenReturn(drafts);
+    when(workDraftDAO.getWorksByWorkflowId(1L)).thenReturn(drafts);
     this.processesStorage.deleteWorkflowById(1L);
     verify(workDraftDAO, times(1)).deleteAll(drafts);
     verify(projectService, times(1)).getProject(1L);
@@ -405,6 +405,39 @@ public class ProcessesStorageImplTest {
     work.setId(1L);
     processesStorage.saveWorkDraft(work, 1L);
     verify(workDraftDAO, times(1)).update(workEntity);
+  }
+
+  /**
+   * A row saved as a request draft is a draft, whatever flag the client sent.
+   * Mutation: keep the client's flag, and this test fails.
+   */
+  @Test
+  public void aSavedRequestDraftIsADraft() {
+    when(identityManager.getIdentity(1L)).thenReturn(mock(Identity.class));
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setId(1L);
+    Work created = new Work();
+    created.setId(0L);
+    created.setWorkFlow(workFlow);
+    created.setIsDraft(false);
+    org.exoplatform.processes.entity.WorkEntity createdEntity = new org.exoplatform.processes.entity.WorkEntity();
+    createdEntity.setIsDraft(false);
+    ENTITY_MAPPER.when(() -> EntityMapper.toEntity(created)).thenReturn(createdEntity);
+    when(workDraftDAO.create(createdEntity)).thenReturn(createdEntity);
+    Work updated = new Work();
+    updated.setId(2L);
+    updated.setWorkFlow(workFlow);
+    updated.setIsDraft(false);
+    org.exoplatform.processes.entity.WorkEntity updatedEntity = new org.exoplatform.processes.entity.WorkEntity();
+    updatedEntity.setIsDraft(false);
+    ENTITY_MAPPER.when(() -> EntityMapper.toEntity(updated)).thenReturn(updatedEntity);
+    when(workDraftDAO.update(updatedEntity)).thenReturn(updatedEntity);
+
+    processesStorage.saveWorkDraft(created, 1L);
+    processesStorage.saveWorkDraft(updated, 1L);
+
+    assertEquals(Boolean.TRUE, createdEntity.getIsDraft());
+    assertEquals(Boolean.TRUE, updatedEntity.getIsDraft());
   }
 
   @Test
