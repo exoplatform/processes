@@ -25,6 +25,7 @@ import javax.jcr.ItemExistsException;
 import jakarta.persistence.EntityNotFoundException;
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.core.EntityTag;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Request;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.RuntimeDelegate;
@@ -793,6 +794,26 @@ public class ProcessesRestTest {
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response2.getStatus());
   }
 
+  /**
+   * An illustration stored with a type other than a safe image type is served
+   * as bytes, never with that type. Mutation: serve the stored type, and this
+   * test fails.
+   */
+  @Test
+  public void anIllustrationIsServedAsAnImageOnly() throws Exception {
+    Request request = mock(Request.class);
+    REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    when(request.evaluatePreconditions(any(EntityTag.class))).thenReturn(null);
+    for (String type : new String[] { "text/html", "image/svg+xml", "image/png,image/svg+xml" }) {
+      doReturn(new IllustrativeAttachment(1L, "file", null, type, 10L, 1234577L)).when(processesService)
+                                                                                 .getWorkFlowIllustration(1L, 1L);
+      Response response = processesRest.getImageIllustration(request, 1L, 0);
+      assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+      assertEquals(type, MediaType.APPLICATION_OCTET_STREAM, String.valueOf(response.getMetadata().getFirst("Content-Type")));
+      assertEquals("nosniff", response.getMetadata().getFirst("X-Content-Type-Options"));
+    }
+  }
+
   @Test
   public void getImageIllustration() throws Exception {
     Request request = mock(Request.class);
@@ -812,6 +833,8 @@ public class ProcessesRestTest {
     when(request.evaluatePreconditions(any(EntityTag.class))).thenReturn(null);
     Response response2 = processesRest.getImageIllustration(request, 1L, 0);
     assertEquals(Response.Status.OK.getStatusCode(), response2.getStatus());
+    assertEquals("image/png", String.valueOf(response2.getMetadata().getFirst("Content-Type")));
+    assertEquals("nosniff", response2.getMetadata().getFirst("X-Content-Type-Options"));
     assertTrue(cacheControl(response2).isPrivate());
     // Only a versioned URL may be kept: an unversioned one carries no max-age
     assertEquals(-1, cacheControl(response2).getMaxAge());

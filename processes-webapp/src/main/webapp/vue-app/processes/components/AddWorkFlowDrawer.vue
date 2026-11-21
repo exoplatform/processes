@@ -106,7 +106,7 @@
                   color="primary"
                   size="16"
                   class="addIllustrativeButton clickable primary--text ma-0 mt-0 pt-0"
-                  accept="image/*"
+                  :accept="illustrationTypes.join(',')"
                   clearable
                   @change="handleUpload" />
               </a>
@@ -334,6 +334,9 @@
 export default {
   data () {
     return {
+      // the illustration types the server stores and serves as an image
+      illustrationTypes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp'],
+      storedIllustrationInput: null,
       stp: 1,
       saving: false,
       oldWorkflow: {},
@@ -443,8 +446,16 @@ export default {
       this.originalWorkflowString = JSON.stringify(this.workflow);
     },
     handleUpload(image) {
+      if (image && image === this.storedIllustrationInput) {
+        // The stored illustration, shown in the field: kept as it is, not re-sent
+        return;
+      }
       if (!image) {
         this.illustrativeImage = null;
+        return;
+      }
+      if (!this.illustrationTypes.includes(image.type)) {
+        this.$root.$emit('show-alert',{type: 'error', message: this.$t('processes.workflow.illustrative.imageType.error.message')});
         return;
       }
       if (image.size > 100000) {
@@ -471,13 +482,25 @@ export default {
       reader.readAsDataURL(image);
     },
     toIllustrativeInput(object) {
-      if (!object.fileName) {
+      if (!object || !object.fileName) {
+        this.storedIllustrationInput = null;
+        this.illustrativeImage = null;
         this.illustrativeInput = null;
         return;
       }
-      this.illustrativeInput = new File([], object.fileName, {
+      // Saved without data, the stored illustration is kept as it is, whatever its type
+      this.illustrativeImage = {
+        id: object.id || null,
+        fileName: object.fileName,
+        fileBody: null,
+        mimeType: object.mimeType,
+        fileSize: object.fileSize,
+        lastUpdated: object.lastUpdated || null,
+      };
+      this.storedIllustrationInput = new File([], object.fileName, {
         type: object.mimeType,
       });
+      this.illustrativeInput = this.storedIllustrationInput;
     },
     open(workflow, mode) {
       if (workflow) {
