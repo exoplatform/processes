@@ -564,9 +564,28 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    */
   @Override
   public List<WorkStatus> getAvailableWorkStatuses() {
-    List<WorkStatus> statuses = new ArrayList<>();
     List<WorkFlow> workFlows = findAllWorkFlows(0, 0);
-    List<Long> projectsIds = workFlows.stream().map(WorkFlow::getProjectId).collect(Collectors.toList());
+    return getWorkStatuses(workFlows.stream().map(WorkFlow::getProjectId).collect(Collectors.toList()));
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<WorkStatus> getAvailableWorkStatuses(long userIdentityId) {
+    // The processes the user lists, read without their illustrations
+    ProcessesFilter processesFilter = new ProcessesFilter();
+    processesFilter.setManager(false);
+    List<String> memberships = getUserMemberships(userIdentityId).getValue();
+    List<Long> projectsIds = workFlowDAO.findWorkFlows(processesFilter, memberships, 0, 0)
+                                        .stream()
+                                        .map(WorkFlowEntity::getProjectId)
+                                        .collect(Collectors.toList());
+    return getWorkStatuses(projectsIds);
+  }
+
+  private List<WorkStatus> getWorkStatuses(List<Long> projectsIds) {
+    List<WorkStatus> statuses = new ArrayList<>();
     projectsIds.forEach(projectId -> statuses.addAll(EntityMapper.toWorkStatuses(statusService.getStatuses(projectId))));
     statuses.sort(Comparator.comparing(WorkStatus::getRank));
     return statuses;

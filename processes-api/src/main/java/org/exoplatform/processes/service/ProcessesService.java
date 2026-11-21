@@ -264,8 +264,21 @@ public interface ProcessesService {
    * Retrieves the list of available statuses in all workflows
    *
    * @return {@link List} of {@link WorkStatus}
+   * @deprecated use {@link #getAvailableWorkStatuses(long)} instead, which
+   *             reads the processes the user can see. Since 7.3.0, for
+   *             removal.
    */
+  @Deprecated(forRemoval = true)
   List<WorkStatus> getAvailableWorkStatuses();
+
+  /**
+   * Retrieves the request statuses of the processes a user can see
+   *
+   * @param userIdentityId user identity id
+   * @return {@link List} of {@link WorkStatus}
+   * @throws IllegalAccessException when the identity isn't an active user
+   */
+  List<WorkStatus> getAvailableWorkStatuses(long userIdentityId) throws IllegalAccessException;
 
   /**
    * Retrieves a Work by its given id
