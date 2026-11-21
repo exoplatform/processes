@@ -4,6 +4,7 @@
       :is-processes-manager="isProcessesManager"
       :show-filter="showWorkflowFilter || allDisabled"
       :loading="loading || loadingMore"
+      :categories="categories"
       @add="open"
       @change="applyFilter" />
     <v-container
@@ -11,7 +12,34 @@
       id="processesCardList"
       class="pa-0 pt-2"
       fluid>
-      <v-row class="mx-n2 my-0">
+      <template v-if="grouped">
+        <section
+          v-for="group in categoryGroups"
+          :id="`processesCategoryGroup-${group.category && group.category.id || 'none'}`"
+          :key="group.key"
+          class="processes-category-group mb-4">
+          <h2 class="processes-category-group-title text-header text-truncate mb-1">
+            {{ group.category && group.category.name || $t('processes.workflow.filter.noCategory') }}
+          </h2>
+          <v-row class="mx-n2 my-0">
+            <v-col
+              v-for="workflow in group.workflows"
+              :key="workflow.id"
+              class="px-2 py-2"
+              cols="12"
+              sm="6"
+              md="4"
+              lg="4"
+              xl="3">
+              <workflow-card-item
+                :is-processes-manager="isProcessesManager"
+                :categories="categoriesOf(workflow)"
+                :workflow="workflow" />
+            </v-col>
+          </v-row>
+        </section>
+      </template>
+      <v-row v-else class="mx-n2 my-0">
         <v-col
           v-for="workflow in workflowList"
           :key="workflow.id"
@@ -23,6 +51,7 @@
           xl="3">
           <workflow-card-item
             :is-processes-manager="isProcessesManager"
+            :categories="categoriesOf(workflow)"
             :workflow="workflow" />
         </v-col>
       </v-row>
@@ -51,6 +80,8 @@
 </template>
 
 <script>
+import {categoriesOf, groupByCategory, loadCategories} from '../js/ProcessCategories.js';
+
 export default {
   props: {
     workflows: {
@@ -69,10 +100,15 @@ export default {
     allDisabled: false,
     checkingDisabled: false,
     checkId: 0,
+    grouped: false,
+    categories: new Map(),
   }),
   computed: {
     workflowList() {
       return this.workflows || [];
+    },
+    categoryGroups() {
+      return groupByCategory(this.workflowList, this.categories);
     },
     showsEmptyDefaultView() {
       return this.isProcessesManager && !this.loading && !this.workflowList.length && !this.isFiltered;
@@ -92,12 +128,31 @@ export default {
     this.filter = this.isProcessesManager ? 'activated' : null;
     this.$root.$on('workflow-updated', this.replaceWorkflow);
     this.$root.$on('workflow-removed', this.removeWorkflow);
+    this.$root.$on('workflow-categories-updated', this.refreshCategories);
+    this.refreshCategories();
   },
   beforeDestroy() {
     this.$root.$off('workflow-updated', this.replaceWorkflow);
     this.$root.$off('workflow-removed', this.removeWorkflow);
+    this.$root.$off('workflow-categories-updated', this.refreshCategories);
   },
   methods: {
+    /**
+     * Reads the categories the user may filter the processes by again: filing a process under a
+     * category, or out of one, changes them.
+     *
+     * @returns {Promise} resolved once they are read
+     */
+    refreshCategories() {
+      return loadCategories(this.$categoryService).then(categories => this.categories = categories);
+    },
+    /**
+     * @param {Object} workflow a process
+     * @returns {Array<Object>} the categories it is filed under, by name
+     */
+    categoriesOf(workflow) {
+      return categoriesOf(workflow, this.categories);
+    },
     /**
      * Replaces an updated process in the list, or removes it when it no longer matches the selected filter.
      *
@@ -172,14 +227,17 @@ export default {
         });
     },
     /**
-     * Keeps the status the toolbar selected, which decides whether an updated process stays listed.
+     * Keeps the status the toolbar selected, which decides whether an updated process stays listed,
+     * and whether the processes are grouped by category.
      *
-     * @param {Object} event the selected status and whether it differs from the default view
+     * @param {Object} event the selected status, the grouping, and whether the view differs from the
+     *          default one
      * @returns {void}
      */
     applyFilter(event) {
       this.filter = event.filter;
       this.isFiltered = event.filtered;
+      this.grouped = !!event.grouped;
     },
   },
 };

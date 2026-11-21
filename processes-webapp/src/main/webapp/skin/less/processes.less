@@ -141,12 +141,27 @@
     padding-right: 0;
   }
 
+  // the count of the filters chosen, small enough to sit on the filter icon
+  .processes-filter-count .v-badge__badge {
+    font-size: 10px;
+    height: 16px;
+    min-width: 16px;
+    padding: 3px 4px;
+  }
+
+  .processes-category-group-title {
+    font-size: 16px;
+  }
+
   .workflow-empty-description {
     max-width: 420px;
   }
 
+  // at least the height of a card with no category, as tall as its row's tallest when one carries
+  // a row of category chips
   .workflow-card {
-    height: 180px;
+    min-height: 180px;
+    height: 100%;
 
     .workflow-card-avatar-placeholder {
       background-color: @greyColorLighten1Opacity2;
@@ -640,7 +655,8 @@
   // the text filter's icon comes first, then the advanced filter button: the toolbar renders its
   // right slot before the icon, in a wrapper that grows in compact mode, so the wrapper keeps its
   // width and the icon is ordered first; the open text filter still grows across the toolbar
-  #myRequestsToolbar #applicationToolbarRight {
+  #myRequestsToolbar #applicationToolbarRight,
+  #processesToolbar #applicationToolbarRight {
     > div.flex-grow-1:not(#applicationToolbarFilter) {
       flex-grow: 0 !important;
     }
