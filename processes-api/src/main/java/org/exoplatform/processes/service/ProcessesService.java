@@ -133,8 +133,26 @@ public interface ProcessesService {
    * @param isCompleted: filter by completed and uncompleted tasks
    * @return Filtered tasks count
    * @throws Exception
+   * @deprecated use {@link #countWorksByWorkflow(Long, Boolean, long)}
+   *             instead, which checks the user's permission. Since 7.3.0, for
+   *             removal.
    */
+  @Deprecated(forRemoval = true)
   int countWorksByWorkflow(Long projectId, Boolean isCompleted) throws Exception;
+
+  /**
+   * Counts the requests of a process, for a user who can see the process
+   *
+   * @param projectId Tasks project id of the process
+   * @param isCompleted filter by completed and uncompleted requests
+   * @param userIdentityId user identity id
+   * @return Filtered requests count
+   * @throws ObjectNotFoundException when no process has this project, or the
+   *           user can't see it
+   * @throws IllegalAccessException when the identity isn't an active user
+   * @throws Exception when the count fails
+   */
+  int countWorksByWorkflow(Long projectId, Boolean isCompleted, long userIdentityId) throws Exception;
 
   /**
    * Delete a work by its given id, without any permission check.
