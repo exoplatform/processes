@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -32,10 +33,16 @@ import java.util.Set;
 import org.apache.commons.lang3.StringUtils;
 
 import io.meeds.common.ContainerTransactional;
+import io.meeds.social.category.model.CategoryObject;
+import io.meeds.social.category.service.CategoryLinkService;
+import io.meeds.social.category.service.CategoryService;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.file.services.FileStorageException;
+import org.exoplatform.container.ExoContainer;
+import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.portal.config.UserACL;
+import org.exoplatform.processes.constant.ProcessCategories;
 import org.exoplatform.processes.constant.ProjectMode;
 import org.exoplatform.processes.model.*;
 import org.exoplatform.processes.plugin.RequestValuesPlugin;
@@ -100,6 +107,9 @@ public class ProcessesServiceImpl implements ProcessesService {
   /** The size of a Task label name (TASK_LABELS.NAME). */
   private static final int         LABEL_NAME_MAX_LENGTH = 50;
 
+  /** How many processes a category read lists at once. */
+  private static final int         CATEGORY_PAGE_SIZE   = 100;
+
   private static final Log         LOG                  = ExoLogger.getLogger(ProcessesServiceImpl.class);
 
   private final ProcessesStorage processesStorage;
@@ -124,6 +134,12 @@ public class ProcessesServiceImpl implements ProcessesService {
 
   /** Registered by another add-on at its start, read by request threads. */
   private volatile RequestValuesPlugin requestValuesPlugin;
+
+  /** The links of processes to categories: social's, resolved at first use. */
+  private CategoryLinkService      categoryLinkService;
+
+  /** The category tree: social's, resolved at first use. */
+  private CategoryService          categoryService;
 
   /**
    * Builds the processes service.
@@ -168,7 +184,64 @@ public class ProcessesServiceImpl implements ProcessesService {
                                      long userIdentityId) throws IllegalAccessException {
     // Only an active user lists processes
     getAclIdentity(userIdentityId);
-    return processesStorage.findWorkFlows(filter, userIdentityId, offset, limit);
+    ProcessesFilter queried = toQueriedFilter(filter);
+    if (queried.getIds() != null && queried.getIds().isEmpty()) {
+      // The category files no process
+      return new ArrayList<>();
+    }
+    return processesStorage.findWorkFlows(queried, userIdentityId, offset, limit);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<Long> getCategoryIds(long userIdentityId) throws IllegalAccessException {
+    getAclIdentity(userIdentityId);
+    ProcessesFilter filter = new ProcessesFilter();
+    // Every process the user sees, those they may only request included
+    filter.setManager(false);
+    Set<String> workflowIds = new LinkedHashSet<>();
+    int offset = 0;
+    List<WorkFlow> page;
+    do {
+      page = processesStorage.findWorkFlows(filter, userIdentityId, offset, CATEGORY_PAGE_SIZE);
+      page.stream()
+          .filter(ProcessesServiceImpl::isShownTo)
+          .map(workFlow -> String.valueOf(workFlow.getId()))
+          .forEach(workflowIds::add);
+      offset += CATEGORY_PAGE_SIZE;
+    } while (page.size() == CATEGORY_PAGE_SIZE);
+    if (workflowIds.isEmpty()) {
+      return Collections.emptyList();
+    }
+    return getCategoryLinkService().getLinkedIds(ProcessCategories.OBJECT_TYPE, new ArrayList<>(workflowIds))
+                                   .values()
+                                   .stream()
+                                   .flatMap(List::stream)
+                                   .distinct()
+                                   .toList();
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Map<Long, List<Long>> getCategoryIds(List<Long> workflowIds) {
+    if (workflowIds == null || workflowIds.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    Map<String, List<Long>> linked =
+                                   getCategoryLinkService().getLinkedIds(ProcessCategories.OBJECT_TYPE,
+                                                                         workflowIds.stream().map(String::valueOf).toList());
+    Map<Long, List<Long>> categoryIds = new LinkedHashMap<>();
+    linked.forEach((workflowId, ids) -> {
+      Long id = toWorkflowId(workflowId);
+      if (id != null && ids != null && !ids.isEmpty()) {
+        categoryIds.put(id, ids.stream().distinct().toList());
+      }
+    });
+    return categoryIds;
   }
 
   @Override
@@ -1386,6 +1459,7 @@ public class ProcessesServiceImpl implements ProcessesService {
   @Deprecated(forRemoval = true)
   public void deleteWorkflowById(Long workflowId) {
     broadcastProcessDeleted(workflowId, this.processesStorage.deleteWorkflowById(workflowId));
+    unlinkCategories(workflowId);
   }
 
   /**
@@ -1405,6 +1479,168 @@ public class ProcessesServiceImpl implements ProcessesService {
     }
     broadcastProcessDeleted(workflowId, this.processesStorage.deleteWorkflowById(workflowId));
     processTranslationService.deleteTranslations(workflowId);
+    unlinkCategories(workflowId);
+  }
+
+  /**
+   * Sets the links of processes to categories, in place of social's.
+   *
+   * @param categoryLinkService the category links to use
+   */
+  void setCategoryLinkService(CategoryLinkService categoryLinkService) {
+    this.categoryLinkService = categoryLinkService;
+  }
+
+  /**
+   * Sets the category tree, in place of social's.
+   *
+   * @param categoryService the category tree to use
+   */
+  void setCategoryService(CategoryService categoryService) {
+    this.categoryService = categoryService;
+  }
+
+  /**
+   * Builds the filter the storage queries: the client's criteria, and the ids
+   * of the processes filed under its category or one of the category's
+   * subcategories when it names one, never ids the client sent.
+   *
+   * @param filter the client's filter, or null
+   * @return the queried filter, a copy
+   */
+  private ProcessesFilter toQueriedFilter(ProcessesFilter filter) {
+    ProcessesFilter queried = new ProcessesFilter();
+    if (filter == null) {
+      return queried;
+    }
+    queried.setQuery(filter.getQuery());
+    queried.setEnabled(filter.getEnabled());
+    queried.setManager(filter.getManager());
+    queried.setCategoryId(filter.getCategoryId());
+    if (filter.getCategoryId() != null) {
+      queried.setIds(getCategorizedWorkflowIds(filter.getCategoryId()));
+    }
+    return queried;
+  }
+
+  /**
+   * Reads the processes filed under a category or one of its subcategories,
+   * down to the depth the Processes page shows.
+   *
+   * @param categoryId the category id
+   * @return the process ids, without duplicates
+   */
+  private List<Long> getCategorizedWorkflowIds(long categoryId) {
+    List<Long> categoryIds = new ArrayList<>();
+    categoryIds.add(categoryId);
+    List<Long> subcategoryIds = getCategoryService().getSubcategoryIds(categoryId, 0, 0, ProcessCategories.FILTER_DEPTH);
+    if (subcategoryIds != null) {
+      categoryIds.addAll(subcategoryIds);
+    }
+    Set<Long> workflowIds = new LinkedHashSet<>();
+    for (Long id : categoryIds) {
+      getCategoryLinkService().getLinkedObjects(id, List.of(ProcessCategories.OBJECT_TYPE), 0, 0)
+                              .stream()
+                              .filter(object -> ProcessCategories.OBJECT_TYPE.equals(object.getType()))
+                              .map(object -> toWorkflowId(object.getId()))
+                              .filter(Objects::nonNull)
+                              .forEach(workflowIds::add);
+    }
+    return new ArrayList<>(workflowIds);
+  }
+
+  /**
+   * Unlinks a deleted process from every category it was filed under. A
+   * failure is logged and leaves the deletion done.
+   *
+   * @param workflowId the deleted process id
+   */
+  private void unlinkCategories(Long workflowId) {
+    CategoryObject object = new CategoryObject(ProcessCategories.OBJECT_TYPE, String.valueOf(workflowId), 0);
+    List<Long> categoryIds;
+    try {
+      categoryIds = getCategoryLinkService().getLinkedIds(object);
+    } catch (RuntimeException e) {
+      LOG.warn("Deleted process {} stays filed under its categories", workflowId, e);
+      return;
+    }
+    for (Long categoryId : categoryIds) {
+      try {
+        getCategoryLinkService().unlink(categoryId, object);
+      } catch (RuntimeException e) {
+        LOG.warn("Deleted process {} stays filed under category {}", workflowId, categoryId, e);
+      }
+    }
+  }
+
+  /**
+   * Tells whether a user sees a listed process on the Processes page: they
+   * participate in it or may add a request to it, and it is enabled unless
+   * they manage it.
+   *
+   * @param workFlow a process listed for the user, with the user's permission
+   * @return true when the user sees it
+   */
+  private static boolean isShownTo(WorkFlow workFlow) {
+    ProcessPermission acl = workFlow.getAcl();
+    return acl != null && (acl.isCanAccess() || acl.isCanAddRequest()) && (workFlow.isEnabled() || acl.isCanEdit());
+  }
+
+  /**
+   * Reads a process id stored as a category link's object id.
+   *
+   * @param objectId the stored object id
+   * @return the process id, or null when it is no number
+   */
+  private static Long toWorkflowId(String objectId) {
+    try {
+      return objectId == null ? null : Long.valueOf(objectId.trim());
+    } catch (NumberFormatException e) {
+      return null;
+    }
+  }
+
+  /**
+   * Resolves social's category links at first use: a social Spring service,
+   * which may not be built yet when the Kernel builds this one.
+   *
+   * @return the category links
+   */
+  private CategoryLinkService getCategoryLinkService() {
+    if (categoryLinkService == null) {
+      categoryLinkService = getPlatformService(CategoryLinkService.class);
+    }
+    return categoryLinkService;
+  }
+
+  /**
+   * Resolves social's category tree at first use.
+   *
+   * @return the category tree
+   */
+  private CategoryService getCategoryService() {
+    if (categoryService == null) {
+      categoryService = getPlatformService(CategoryService.class);
+    }
+    return categoryService;
+  }
+
+  /**
+   * Reads a service from the running container, never starting one.
+   *
+   * @param <T> the service type
+   * @param type the service class
+   * @return the service
+   * @throws IllegalStateException when no container runs or it holds no such
+   *           service
+   */
+  private static <T> T getPlatformService(Class<T> type) {
+    ExoContainer container = ExoContainerContext.getCurrentContainerIfPresent();
+    T service = container == null ? null : container.getComponentInstanceOfType(type);
+    if (service == null) {
+      throw new IllegalStateException("The platform's " + type.getSimpleName() + " isn't available");
+    }
+    return service;
   }
 
   /**

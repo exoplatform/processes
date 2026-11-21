@@ -220,6 +220,44 @@ public class WorkFlowDAOTest {
     assertEquals(Set.of(hrProcess, disabledHrProcess), twoPages);
   }
 
+  /**
+   * The ids a category filter resolves narrow the listing to those processes,
+   * an administrator's and a user's, and an empty id list lists none.
+   * Mutations: drop the ids predicate, negate it, or join it with OR, and this
+   * test fails.
+   */
+  @Test
+  public void idsNarrowTheListingToThoseProcesses() {
+    ProcessesFilter filter = new ProcessesFilter();
+    filter.setIds(List.of(hrProcess, itProcess));
+
+    assertEquals(Set.of(hrProcess, itProcess), findWorkFlows(filter, null));
+    assertEquals(Set.of(hrProcess), findWorkFlows(filter, List.of("john", "member:/spaces/hr")));
+    filter.setIds(List.of());
+    assertEquals(Set.of(), findWorkFlows(filter, null));
+    assertEquals(Set.of(), findWorkFlows(filter, List.of("john", "member:/spaces/hr")));
+  }
+
+  /**
+   * The ids narrow the "All" listing, whose request creators and participators
+   * are ORed, as a whole, and through pages with no repeat. Mutation: append
+   * the ids predicate inside the OR, or drop DISTINCT, and this test fails.
+   */
+  @Test
+  public void idsNarrowTheAllListingAsAWholeThroughPages() {
+    ProcessesFilter filter = new ProcessesFilter();
+    filter.setManager(false);
+    filter.setIds(List.of(salesProcess, hrProcess));
+    List<String> memberships = List.of("mary", "manager:/spaces/hr", "member:/spaces/hr", "member:/spaces/it");
+
+    assertEquals(Set.of(salesProcess, hrProcess), findWorkFlows(filter, memberships));
+
+    Set<Long> twoPages = new HashSet<>();
+    twoPages.addAll(workFlowIds(workFlowDAO.findWorkFlows(filter, memberships, 0, 1)));
+    twoPages.addAll(workFlowIds(workFlowDAO.findWorkFlows(filter, memberships, 1, 1)));
+    assertEquals(Set.of(salesProcess, hrProcess), twoPages);
+  }
+
   private Set<Long> findWorkFlows(ProcessesFilter filter, List<String> memberships) {
     return workFlowIds(workFlowDAO.findWorkFlows(filter, memberships, 0, 0));
   }
