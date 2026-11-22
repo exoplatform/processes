@@ -70,6 +70,7 @@ import org.exoplatform.processes.entity.WorkFlowEntity;
 import org.exoplatform.processes.model.CreatorIdentityEntity;
 import org.exoplatform.processes.model.IdentityEntity;
 import org.exoplatform.processes.model.IllustrativeAttachment;
+import org.exoplatform.processes.model.ProcessPermission;
 import org.exoplatform.processes.model.ProcessesFilter;
 import org.exoplatform.processes.model.ProfileEntity;
 import org.exoplatform.processes.model.Work;
@@ -1576,10 +1577,12 @@ public class ProcessesStorageImplTest {
 
   /**
    * The rights read lists every process in one unpaged query, matched against
-   * the same memberships as the listing, and maps each with its rights only,
-   * reading no illustration and no space. Mutations: page the query, read the
-   * illustrations or the managing spaces, or map with other memberships, and
-   * this test fails.
+   * the same memberships as the listing, and maps each to its id, its enabled
+   * flag and its rights only: no full mapping, which resolves the request
+   * makers through spaces and groups, no illustration and no space. Mutations:
+   * page the query, use the full mapping, read the illustrations or the
+   * managing spaces, or compute the rights with other memberships, and this
+   * test fails.
    */
   @Test
   public void findWorkFlowRightsReadsEveryProcessOnceWithItsRightsOnly() {
@@ -1588,17 +1591,25 @@ public class ProcessesStorageImplTest {
     mockAclIdentity(5L, "john", new MembershipEntry("/spaces/hr", "member"));
     ProcessesFilter filter = new ProcessesFilter("all", null, false, false);
     WorkFlowEntity entity = new WorkFlowEntity();
+    entity.setId(7L);
+    entity.setEnabled(true);
     entity.setIllustrationImageId(12L);
     List<String> memberships = List.of("john", "member:/spaces/hr");
     when(workFlowDAO.findWorkFlows(eq(filter),
                                    argThat(listed -> listed != null && listed.size() == 2 && listed.containsAll(memberships)),
                                    eq(0),
                                    eq(0))).thenReturn(List.of(entity));
-    WorkFlow listed = new WorkFlow();
-    ENTITY_MAPPER.when(() -> EntityMapper.fromEntity(eq(entity), argThat(given -> given != null && given.containsAll(memberships))))
-                 .thenReturn(listed);
+    ProcessPermission rights = new ProcessPermission(true, false, false, true);
+    ENTITY_MAPPER.when(() -> EntityMapper.getACL(eq(entity), argThat(given -> given != null && given.containsAll(memberships))))
+                 .thenReturn(rights);
 
-    assertEquals(List.of(listed), this.processesStorage.findWorkFlowRights(filter, 5L));
+    List<WorkFlow> listed = this.processesStorage.findWorkFlowRights(filter, 5L);
+
+    assertEquals(1, listed.size());
+    assertEquals(7L, listed.get(0).getId());
+    assertTrue(listed.get(0).isEnabled());
+    assertEquals(rights, listed.get(0).getAcl());
+    ENTITY_MAPPER.verify(() -> EntityMapper.fromEntity(any(WorkFlowEntity.class), any()), never());
 
     verify(workFlowDAO, never()).findWorkFlows(any(), any(), anyInt(), org.mockito.ArgumentMatchers.intThat(limit -> limit > 0));
     org.mockito.Mockito.verifyNoInteractions(fileService);

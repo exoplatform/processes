@@ -1326,8 +1326,26 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     }
     return workFlowDAO.findWorkFlows(processesFilter, listedMemberships, 0, 0)
                       .stream()
-                      .map(workflowEntity -> EntityMapper.fromEntity(workflowEntity, memberships))
+                      .map(workflowEntity -> toWorkFlowRights(workflowEntity, memberships))
                       .toList();
+  }
+
+  /**
+   * Maps a stored process to its id, its enabled flag and the rights the
+   * memberships grant on it: the full mapping would also resolve its request
+   * makers, a space or group read each.
+   *
+   * @param workflowEntity the stored process
+   * @param memberships the user's memberships, null for a processes
+   *          administrator
+   * @return the process with those three fields only
+   */
+  private static WorkFlow toWorkFlowRights(WorkFlowEntity workflowEntity, List<String> memberships) {
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setId(workflowEntity.getId());
+    workFlow.setEnabled(workflowEntity.isEnabled());
+    workFlow.setAcl(EntityMapper.getACL(workflowEntity, memberships));
+    return workFlow;
   }
 
   /**

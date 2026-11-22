@@ -327,8 +327,8 @@ public interface ProcessesStorage {
 
   /**
    * Lists, in one read, every process the filter lists to a user, each with
-   * its id, its enabled flag and the user's rights on it only: no
-   * illustration, no managing space and no pending-requests flag.
+   * its id, its enabled flag and the user's rights on it only: no request
+   * makers, no illustration, no managing space and no pending-requests flag.
    *
    * @param processesFilter processes filter
    * @param userIdentityId {@link Identity} technical identifier of the user
