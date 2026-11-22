@@ -709,6 +709,19 @@
     cursor: text;
   }
 
+  // the task's comment items and composer, outside the task drawer that sizes them: they take the
+  // width of the drawer's content, as its other sections do, in the normal and the full-screen drawer
+  .commentItem,
+  .commentHeader {
+    width: 100%;
+  }
+
+  .requestCommentEditor .comment .editorContainer {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: 100%;
+  }
+
   .requestCommentEditor .commentBtn,
   #reply_btn,
   .deleteComment {
