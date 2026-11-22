@@ -96,9 +96,11 @@ public class ProcessesServiceDocumentsToFillTest {
    * A user who may neither make a request on the process nor see it gets a
    * not-found, and the process's documents are not read. Mutation: drop the
    * check, and this test fails.
+   *
+   * @throws Exception never, the mocks throw what the test asks
    */
   @Test
-  public void aUserWithNoRightOnTheProcessIsRefused() {
+  public void aUserWithNoRightOnTheProcessIsRefused() throws Exception {
     when(processesStorage.getWorkFlowById(WORKFLOW_ID, USER_ID)).thenReturn(workFlow(false, false));
 
     assertThrows(ObjectNotFoundException.class, () -> service().getDocumentsToFill(WORKFLOW_ID, USER_ID));
