@@ -39,6 +39,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       :name="nameOf(attachment)"
       :state="state(attachment)"
       :filled="(hasDraft || readonly) && isFilled(attachment)"
+      :checking="hasDraft && !readonly && isChecked(attachment)"
       :readonly="readonly"
       :can-open-original="canOpenOriginal(attachment)"
       @open="$emit('open', attachment)"
@@ -68,6 +69,11 @@ export default {
     },
     // Tells whether the requester wrote in a copy
     isFilled: {
+      type: Function,
+      default: () => false,
+    },
+    // Tells whether the drawer waits for a copy's new version, after the requester came back from the editor
+    isChecked: {
       type: Function,
       default: () => false,
     },

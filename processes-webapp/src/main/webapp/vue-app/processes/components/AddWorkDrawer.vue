@@ -109,6 +109,7 @@
               :documents="hasDraft ? documentsToFill : processDocuments"
               :has-draft="hasDraft"
               :is-filled="isCopyFilled"
+              :is-checked="isCopyChecked"
               :name-of="copy => hasDraft ? originalOf(copy).title : null"
               :can-open-original="canOpenOriginal"
               :expanded="expanded"
