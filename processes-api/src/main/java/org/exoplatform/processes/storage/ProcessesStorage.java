@@ -255,7 +255,8 @@ public interface ProcessesStorage {
    * Writes a request's own state, which no column of its task project
    * carries: the requester's cancel and archive flags on its request record,
    * and its task's completion; when the completion fails, the flags are
-   * written back as they were and the failure is thrown. It is the platform's own
+   * written back as they were, unless that write fails too, and the
+   * completion's failure is thrown. It is the platform's own
    * write, with no user's permission: the caller checks the user's right.
    *
    * @param workId the request's task id

@@ -145,6 +145,32 @@ class ProcessesStorageRequestStateTest {
   }
 
   /**
+   * When the write-back fails too, the task's failure is the one thrown, the
+   * write-back's attached to it as suppressed, so the cause stays the task's.
+   * Mutation: drop the write-back's catch and the DAO's failure is thrown
+   * instead.
+   *
+   * @throws Exception never, the mocks throw nothing but the stubbed failures
+   */
+  @Test
+  void aFailingWriteBackKeepsTheTasksFailure() throws Exception {
+    when(requestDAO.find(40L)).thenReturn(new RequestEntity(40L, 3L, 1L));
+    TaskDto task = new TaskDto();
+    task.setId(40L);
+    when(taskService.getTask(40L)).thenReturn(task);
+    IllegalStateException taskFailure = new IllegalStateException("task write refused");
+    when(taskService.updateTask(task)).thenThrow(taskFailure);
+    IllegalStateException restoreFailure = new IllegalStateException("record write refused");
+    when(requestDAO.update(any(RequestEntity.class))).thenAnswer(invocation -> invocation.getArgument(0)).thenThrow(restoreFailure);
+
+    IllegalStateException thrown = assertThrows(IllegalStateException.class,
+                                                () -> processesStorage.saveRequestState(40L, Boolean.TRUE, null, Boolean.TRUE));
+
+    assertEquals(taskFailure, thrown);
+    assertEquals(restoreFailure, thrown.getSuppressed()[0]);
+  }
+
+  /**
    * A task with no request record gets no state, and nothing is written.
    * Mutation: create a record for it and the DAO is written.
    */

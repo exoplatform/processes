@@ -1200,10 +1200,12 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    * before its write is committed. Between the two commits a reader sees the
    * new flags on an open task, which reads pending
    * ({@link org.exoplatform.processes.util.RequestState}). When the task's
-   * write fails, the record's former flags are written back and the failure
-   * is thrown, so neither half stays alone: a cancel left without its
-   * completion would read cancelled at the next completion, and an upgrade
-   * step would not be read again by the next run.
+   * write fails, the record's former flags are written back and the task's
+   * failure is thrown: a cancel left without its completion would read
+   * cancelled at the next completion, and an upgrade step would not be read
+   * again by the next run. Only when that write-back fails too do the new
+   * flags stay on the open task, the write-back's failure logged and attached
+   * to the thrown one.
    */
   @Override
   public Work saveRequestState(long workId, Boolean canceled, Boolean archived, Boolean completed) {
