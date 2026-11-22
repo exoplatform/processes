@@ -15,6 +15,8 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+import {toProcessDocument} from './ProcessesService.js';
+
 /**
  * The request drawer's view of a sent request: its task's link, its process's documents, which tell
  * the request's copies among its files, its menu's actions, and the comment its footer posts.
@@ -84,11 +86,10 @@ export default {
       if (!workflow || !workflow.id) {
         return Promise.resolve();
       }
-      return this.$processesAttachmentService.getEntityAttachments('workflow', workflow.id)
-        .then(attachments => {
+      return this.$processesService.getDocumentsToFill(workflow.id)
+        .then(documents => {
           if (openKey === this.openKey) {
-            this.processDocuments = (attachments || []).filter(attachment => attachment.acl && attachment.acl.canAccess)
-              .map(attachment => Object.assign(attachment, {name: attachment.title}));
+            this.processDocuments = (documents || []).map(toProcessDocument);
           }
         })
         .catch(() => null);

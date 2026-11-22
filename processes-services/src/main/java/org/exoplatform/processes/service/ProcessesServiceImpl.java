@@ -583,6 +583,21 @@ public class ProcessesServiceImpl implements ProcessesService {
    * {@inheritDoc}
    */
   @Override
+  public List<org.exoplatform.services.attachments.model.Attachment> getDocumentsToFill(long workFlowId,
+                                                                                      long userIdentityId) throws ObjectNotFoundException,
+                                                                                                           IllegalAccessException {
+    WorkFlow workFlow = processesStorage.getWorkFlowById(workFlowId, userIdentityId);
+    ProcessPermission acl = workFlow == null ? null : workFlow.getAcl();
+    if (acl == null || !(acl.isCanAddRequest() || acl.isCanAccess())) {
+      throw new ObjectNotFoundException("Process " + workFlowId + " not found for the user " + userIdentityId);
+    }
+    return processesAttachmentService.getProcessDocuments(userIdentityId, workFlowId);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
   public long countProjectRequests(long projectId, Boolean completed, long userIdentityId) throws ObjectNotFoundException,
                                                                                            IllegalAccessException {
     org.exoplatform.services.security.Identity aclIdentity = getAclIdentity(userIdentityId);

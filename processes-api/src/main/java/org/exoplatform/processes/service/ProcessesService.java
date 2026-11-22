@@ -555,6 +555,26 @@ public interface ProcessesService {
                                                                              IllegalAccessException;
 
   /**
+   * Lists the documents a process asks its requesters to fill in: its own
+   * documents, which each request's draft receives a copy of. A user who may
+   * make a request on the process, or see it, gets them whatever their right
+   * on the process's own files, which a requester outside the managing space
+   * may not read: the request drawer tells the draft's copies by them.
+   *
+   * @param workFlowId the process id
+   * @param userIdentityId the identity id of the user asking
+   * @return the process's documents
+   * @throws ObjectNotFoundException when the process does not exist, or the
+   *           user may neither make a request on it nor see it
+   * @throws IllegalAccessException when the attachment service refuses the
+   *           user the process's documents, which it declares and does not
+   *           throw at this version
+   */
+  List<org.exoplatform.services.attachments.model.Attachment> getDocumentsToFill(long workFlowId,
+                                                                               long userIdentityId) throws ObjectNotFoundException,
+                                                                                                    IllegalAccessException;
+
+  /**
    * Counts the requests of every process feeding a task project, open,
    * completed or all, for a user who may read the request counts of at least
    * one of them (see {@link #countRequests(long, Boolean, long)}).

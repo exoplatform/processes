@@ -82,11 +82,12 @@
           :documents="documentsToFill"
           :is-filled="isCopyFilled"
           :name-of="copy => originalOf(copy).title"
+          :can-open-original="canOpenOriginal"
           :task-link="taskLink"
           :expanded="expanded"
           :open-key="openKey"
           @open-document="openDocument($event)"
-          @open-original="openDocument(originalOf($event))"
+          @open-original="openOriginal($event)"
           @can-comment="canComment = $event" />
         <v-form
           v-if="!viewMode"
@@ -109,10 +110,11 @@
               :has-draft="hasDraft"
               :is-filled="isCopyFilled"
               :name-of="copy => hasDraft ? originalOf(copy).title : null"
+              :can-open-original="canOpenOriginal"
               :expanded="expanded"
-              @open="openDocument($event)"
+              @open="openDocumentToFill($event)"
               @fill="fillDocument($event)"
-              @open-original="openDocument(originalOf($event))" />
+              @open-original="openOriginal($event)" />
             <request-message-row
               ref="messageRow"
               v-model="work.description"

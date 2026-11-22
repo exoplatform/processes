@@ -224,6 +224,40 @@ export default {
       return this.processDocuments.find(attachment => this.storedName(attachment) === this.storedName(copy)) || copy;
     },
     /**
+     * @param {Object} copy the request's copy of a process document, or the process document itself
+     * @returns {Boolean} true when the user may open the process's original, which a requester outside the
+     *   managing space may not
+     */
+    canOpenOriginal(copy) {
+      const original = this.originalOf(copy);
+      return !!(original && original.acl && original.acl.canAccess);
+    },
+    /**
+     * Opens the process's original of a copy, when the user may read it.
+     *
+     * @param {Object} copy the request's copy, or the process document itself
+     * @returns {void}
+     */
+    openOriginal(copy) {
+      if (this.canOpenOriginal(copy)) {
+        this.openDocument(this.originalOf(copy));
+      }
+    },
+    /**
+     * Opens a row of the documents to fill in: the copy once the draft has it, else the original when the user may
+     * read it, else fills it in, which creates the draft and opens the user's copy.
+     *
+     * @param {Object} attachment the row's document
+     * @returns {void}
+     */
+    openDocumentToFill(attachment) {
+      if (this.hasDraft || this.canOpenOriginal(attachment)) {
+        this.openDocument(attachment);
+      } else {
+        this.fillDocument(attachment);
+      }
+    },
+    /**
      * Creates the draft the attachments need, the user's first input being
      * opening them.
      *

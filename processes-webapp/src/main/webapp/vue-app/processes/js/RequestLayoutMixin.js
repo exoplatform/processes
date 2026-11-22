@@ -15,6 +15,8 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+import {toProcessDocument} from './ProcessesService.js';
+
 /**
  * The file name a document is stored under, the last segment of its path: a
  * draft's copy of a process document keeps its original's, while its title
@@ -24,6 +26,10 @@
  * @returns {String} its stored file name
  */
 function storedName(attachment) {
+  if (attachment && attachment.fileName) {
+    // a process's document to fill in carries its stored name, not its path, which a requester may not read
+    return attachment.fileName;
+  }
   const path = attachment && attachment.path || '';
   return path.substring(path.lastIndexOf('/') + 1);
 }
@@ -87,7 +93,8 @@ export default {
   methods: {
     /**
      * Starts the layout state of a newly opened drawer, and reads the
-     * process's documents, which the requester's session may read.
+     * process's documents to fill in, which the server gives a requester
+     * whatever their right on the process's own files.
      *
      * @returns {void}
      */
@@ -99,11 +106,10 @@ export default {
       if (this.viewMode || !workflowId) {
         return;
       }
-      this.$processesAttachmentService.getEntityAttachments('workflow', workflowId)
-        .then(attachments => {
+      this.$processesService.getDocumentsToFill(workflowId)
+        .then(documents => {
           if (openKey === this.openKey) {
-            this.processDocuments = (attachments || []).filter(attachment => attachment.acl && attachment.acl.canAccess)
-              .map(attachment => Object.assign(attachment, {name: attachment.title}));
+            this.processDocuments = (documents || []).map(toProcessDocument);
           }
         })
         .catch(() => null);

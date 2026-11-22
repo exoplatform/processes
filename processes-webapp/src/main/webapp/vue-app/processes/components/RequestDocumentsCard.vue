@@ -40,6 +40,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       :state="state(attachment)"
       :filled="(hasDraft || readonly) && isFilled(attachment)"
       :readonly="readonly"
+      :can-open-original="canOpenOriginal(attachment)"
       @open="$emit('open', attachment)"
       @fill="$emit('fill', attachment)"
       @open-original="$emit('open-original', attachment)" />
@@ -78,6 +79,11 @@ export default {
     nameOf: {
       type: Function,
       default: () => null,
+    },
+    /** Tells whether the user may open a row's original, which a requester outside the managing space may not */
+    canOpenOriginal: {
+      type: Function,
+      default: () => true,
     },
     /** A sent request's documents: each row opens its copy, read-only, and says whether it was filled */
     readonly: {

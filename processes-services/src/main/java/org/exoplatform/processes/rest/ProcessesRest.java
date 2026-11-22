@@ -41,6 +41,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.application.localization.LocalizationFilter;
 import org.exoplatform.processes.model.*;
+import org.exoplatform.processes.rest.model.DocumentToFillEntity;
 import org.exoplatform.processes.rest.model.WorkEntity;
 import org.exoplatform.processes.rest.model.WorkFlowEntity;
 import org.exoplatform.processes.rest.util.EntityBuilder;
@@ -787,6 +788,75 @@ public class ProcessesRest implements ResourceContainer {
       return Response.status(Response.Status.BAD_REQUEST).entity("Process id is mandatory").build();
     }
     return countRequests(workflowId, isCompleted, currentIdentityId);
+  }
+
+  /**
+   * Lists the documents a process asks its requesters to fill in, for a user
+   * who may make a request on it or see it, whatever their right on the
+   * process's own files: the request drawer shows them and tells the draft's
+   * copies by their stored name.
+   *
+   * @param workflowId the process id
+   * @return the documents, or the refusal status
+   */
+  @GET
+  @Produces(MediaType.APPLICATION_JSON)
+  @RolesAllowed("users")
+  @Path("/workflows/{workflowId}/documentsToFill")
+  @Operation(
+          summary = "Lists the documents a process asks its requesters to fill in",
+          description = "Lists the documents of a process, without their content, for a user who may make a request on it or see it",
+          method = "GET")
+  @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "403", description = "Forbidden operation"),
+          @ApiResponse(responseCode = "404", description = "Object not found"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"),})
+  public Response getDocumentsToFill(@Parameter(description = "Process id", required = true)
+                                     @PathParam("workflowId") Long workflowId) {
+    // every answer is the user's own, refusals included: none is stored
+    long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    if (currentIdentityId == 0) {
+      return Response.status(Response.Status.UNAUTHORIZED).cacheControl(PER_USER_CACHE_CONTROL).build();
+    }
+    if (workflowId == null) {
+      return Response.status(Response.Status.BAD_REQUEST).entity("Process id is mandatory").cacheControl(PER_USER_CACHE_CONTROL).build();
+    }
+    try {
+      List<DocumentToFillEntity> documents = processesService.getDocumentsToFill(workflowId, currentIdentityId)
+                                                             .stream()
+                                                             .map(ProcessesRest::toDocumentToFill)
+                                                             .toList();
+      return Response.ok(documents).type(MediaType.APPLICATION_JSON_TYPE).cacheControl(PER_USER_CACHE_CONTROL).build();
+    } catch (ObjectNotFoundException e) {
+      return Response.status(Response.Status.NOT_FOUND).cacheControl(PER_USER_CACHE_CONTROL).build();
+    } catch (IllegalAccessException e) {
+      // defensive: the attachment service declares this refusal of the process's documents and does not throw it at this version
+      LOG.debug("User '{}' can't read the documents to fill of the process '{}'", currentIdentityId, workflowId, e);
+      return Response.status(Response.Status.FORBIDDEN).cacheControl(PER_USER_CACHE_CONTROL).build();
+    } catch (Exception e) {
+      LOG.error("Error while reading the documents to fill of the process '{}'", workflowId, e);
+      return Response.status(Response.Status.INTERNAL_SERVER_ERROR).cacheControl(PER_USER_CACHE_CONTROL).build();
+    }
+  }
+
+  /**
+   * Turns a process's document into what the request drawer needs: no path and
+   * no download link, only its stored file name.
+   *
+   * @param attachment the process's document
+   * @return its entity
+   */
+  private static DocumentToFillEntity toDocumentToFill(Attachment attachment) {
+    String path = attachment.getPath() == null ? "" : attachment.getPath();
+    return new DocumentToFillEntity(attachment.getId(),
+                                    attachment.getTitle(),
+                                    path.substring(path.lastIndexOf('/') + 1),
+                                    attachment.getMimetype(),
+                                    attachment.getSize(),
+                                    attachment.getUpdated(),
+                                    attachment.getAcl() != null && attachment.getAcl().isCanAccess());
   }
 
   /**
