@@ -184,7 +184,7 @@ public class ProcessCategoryPluginTest {
    * unchanged and this test fails.
    */
   @Test
-  public void aLinkIsStoredWithTheCanonicalProcessId() {
+  public void aLinkIsStoredWithTheCanonicalProcessId() throws IllegalAccessException {
     CategoryObject padded = plugin().getObject(new CategoryObject("process", "057", null, 3L));
     assertEquals("57", padded.getId());
     assertEquals("process", padded.getType());

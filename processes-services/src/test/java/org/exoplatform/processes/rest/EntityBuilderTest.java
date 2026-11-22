@@ -414,7 +414,7 @@ public class EntityBuilderTest {
 
     assertEquals("Congés", ((WorkFlowEntity) frenchRest.getWorkFlowById(9L, "", true).getEntity()).getTitle());
     assertEquals("Leave", ((WorkFlowEntity) frenchRest.getWorkFlowById(9L, "", false).getEntity()).getTitle());
-    Response list = frenchRest.getWorkFlows(null, true, null, null, "", 0, 10);
+    Response list = frenchRest.getWorkFlows(null, true, null, null, null, "", 0, 10);
     assertEquals("Congés", ((List<?>) list.getEntity()).stream().map(WorkFlowEntity.class::cast).findFirst().orElseThrow().getTitle());
 
     // The editor's project choice names the processes a project feeds in the user's language
