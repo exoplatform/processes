@@ -180,6 +180,15 @@
                 name="status"
                 v-model="workflowEnabled" />
             </div>
+            <!-- the platform's categories the process is filed under, saved once the process is saved -->
+            <category-input
+              v-if="categoriesOffered"
+              id="processCategoriesInput"
+              :key="`categoriesInput${formKey}`"
+              v-model="categoryIds"
+              label="processes.workflow.form.categories"
+              label-class="text-header"
+              class="mt-4" />
             <div v-if="!expanded" class="mt-10">
               <v-btn
                 :disabled="!valid"
@@ -290,15 +299,6 @@
             v-model="labels"
             :project-id="projectMode === 'EXISTING' && projectId || null"
             :space-id="managingSpaceId" />
-          <!-- the platform's categories the process is filed under, saved once the process is -->
-          <category-input
-            v-if="categoriesOffered"
-            id="processCategoriesInput"
-            :key="`categoriesInput${formKey}`"
-            v-model="categoryIds"
-            label="processes.workflow.form.categories"
-            label-class="text-header"
-            class="mt-4 ms-1 pe-1" />
           <processes-extension-sections
             ref="editorSections"
             :key="`editorSections${formKey}`"
