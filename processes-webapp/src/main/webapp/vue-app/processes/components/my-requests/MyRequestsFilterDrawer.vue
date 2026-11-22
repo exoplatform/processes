@@ -22,19 +22,25 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     </template>
     <template v-if="drawer" #content>
       <div class="d-flex flex-column">
-        <!-- the label on the left, the switch on the right, as social's LoginFormSettingsDrawer -->
-        <div class="d-flex align-center mx-4 mt-4">
-          <div class="text-header">
-            {{ $t('processes.myRequests.filter.groupByStatus') }}
-          </div>
-          <div class="spacer"></div>
-          <v-switch
-            id="myRequestsGroupByStatus"
-            v-model="grouped"
-            :aria-label="$t('processes.myRequests.filter.groupByStatus')"
-            class="mt-0"
-            hide-details />
+        <div class="text-header mx-4 mt-4">
+          {{ $t('processes.myRequests.filter.groupBy') }}
         </div>
+        <v-radio-group
+          id="myRequestsGroupBy"
+          v-model="groupBy"
+          class="mt-2 ms-3"
+          mandatory>
+          <v-radio
+            v-for="item in groupByItems"
+            :id="`myRequestsGroupByItem-${item.value}`"
+            :key="item.value"
+            :value="item.value"
+            class="mt-0">
+            <template #label>
+              <div class="text-body">{{ item.text }}</div>
+            </template>
+          </v-radio>
+        </v-radio-group>
         <div class="text-header mx-4 mt-4">
           {{ $t('processes.myRequests.filter.status') }}
         </div>
@@ -112,9 +118,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 </template>
 
 <script>
+import {GROUP_BY_NONE, GROUP_BY_PROCESS, GROUP_BY_STATUS} from '../../js/MyRequestsFilters.js';
+
 /**
- * The advanced filter of « My requests »: the grouping by status, the status and the process, chosen
- * in a drawer and applied together, as social's spaces directory does (`SpacesListFilterDrawer`).
+ * The advanced filter of « My requests »: the grouping, none, by status or by process, the status and
+ * the process, chosen in a drawer and applied together, as social's spaces directory does
+ * (`SpacesListFilterDrawer`).
  */
 export default {
   props: {
@@ -133,21 +142,35 @@ export default {
   },
   data: () => ({
     drawer: false,
-    grouped: false,
+    groupBy: GROUP_BY_NONE,
     status: null,
     workflowId: null,
   }),
+  computed: {
+    /**
+     * Lists the groupings: none, by status, by process.
+     *
+     * @returns {Array} the choices, as {text, value}
+     */
+    groupByItems() {
+      return [
+        {text: this.$t('processes.myRequests.filter.groupBy.none'), value: GROUP_BY_NONE},
+        {text: this.$t('processes.myRequests.filter.groupBy.status'), value: GROUP_BY_STATUS},
+        {text: this.$t('processes.myRequests.filter.groupBy.process'), value: GROUP_BY_PROCESS},
+      ];
+    },
+  },
   methods: {
     /**
      * Opens the drawer on the grouping, the status and the process applied now.
      *
      * @param {String} status the applied status
      * @param {String|Number} workflowId the applied process
-     * @param {Boolean} grouped whether the requests are grouped by status
+     * @param {String} groupBy the applied grouping
      * @returns {void}
      */
-    open(status, workflowId, grouped) {
-      this.grouped = !!grouped;
+    open(status, workflowId, groupBy) {
+      this.groupBy = groupBy || GROUP_BY_NONE;
       this.status = status;
       this.workflowId = workflowId;
       this.$refs.drawer.open();
@@ -166,7 +189,7 @@ export default {
      * @returns {void}
      */
     reset() {
-      this.grouped = false;
+      this.groupBy = GROUP_BY_NONE;
       this.status = this.allValue;
       this.workflowId = this.allValue;
     },
@@ -176,7 +199,7 @@ export default {
      * @returns {void}
      */
     apply() {
-      this.$emit('apply', {grouped: this.grouped, status: this.status, workflowId: this.workflowId});
+      this.$emit('apply', {groupBy: this.groupBy, status: this.status, workflowId: this.workflowId});
       this.close();
     },
   },

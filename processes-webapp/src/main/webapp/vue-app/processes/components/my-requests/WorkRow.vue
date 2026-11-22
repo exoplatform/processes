@@ -41,7 +41,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     <td v-if="wide" class="my-request-cell-comments">
       <v-btn
         v-if="!isDraft && commentsCount > 0"
-        :title="$t('processes.myRequests.comments')"
+        :title="commentsLabel"
+        :aria-label="commentsLabel"
         class="my-request-comments-button text-light-color px-1"
         small
         text
@@ -109,6 +110,16 @@ export default {
     },
   },
   computed: {
+    /**
+     * Says what the comment bubble counts, « 1 comment » or « 3 comments ».
+     *
+     * @returns {String} the bubble's label
+     */
+    commentsLabel() {
+      return this.commentsCount === 1
+        ? this.$t('processes.myRequests.commentsCountOne')
+        : this.$t('processes.myRequests.commentsCount', {0: this.commentsCount});
+    },
     /**
      * Tells whether the screen is wide enough for the comments and the status cells, the same
      * test as the table's columns.

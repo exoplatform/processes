@@ -143,7 +143,7 @@ export default {
       return [
         {text: this.$t('processes.myRequests.column.request'), value: 'request', sortable: false, class: 'my-request-col-request text-no-wrap'},
         wide && {text: this.$t('processes.myRequests.column.comments'), value: 'comments', sortable: false, width: 72, class: 'text-no-wrap'},
-        large && {text: this.$t('processes.myRequests.column.process'), value: 'process', sortable: false, width: 200, class: 'text-no-wrap'},
+        large && {text: this.$t('processes.myRequests.column.process'), value: 'process', sortable: true, width: 200, class: 'text-no-wrap'},
         {text: this.$t('processes.myRequests.column.date'), value: 'date', width: 110, class: 'text-no-wrap'},
         wide && {text: this.$t('processes.myRequests.column.status'), value: 'status', width: 130, class: 'text-no-wrap'},
         {text: '', value: 'actions', sortable: false, width: 48},
