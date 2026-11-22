@@ -55,7 +55,9 @@ public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
   /**
    * Builds the listing query. Null memberships list every process: only a
    * processes administrator's listing passes them; any other user's is
-   * restricted to the processes their memberships participate in.
+   * restricted to the processes their memberships participate in. The filter's
+   * ids, when set, restrict the listing further to those processes, none when
+   * the list is empty.
    */
   private String buildWorkflowQuery(ProcessesFilter processesFilter, List<String> memberships) {
 
@@ -83,6 +85,10 @@ public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
     if (enabled != null) {
       predicates.add("workFlow.enabled = :enabled");
     }
+    if (processesFilter.getIds() != null) {
+      // An empty id list restricts to no process
+      predicates.add(processesFilter.getIds().isEmpty() ? "workFlow.id IS NULL" : "workFlow.id IN :ids");
+    }
     if (memberships != null) {
       if (Boolean.FALSE.equals(manager)) {
         predicates.add("(manager IN :managers OR participator IN :memberships)");
@@ -107,6 +113,10 @@ public class WorkFlowDAO extends GenericDAOJPAImpl<WorkFlowEntity, Long> {
 
     if (processesFilter.getEnabled() != null) {
       query.setParameter("enabled", processesFilter.getEnabled());
+    }
+
+    if (processesFilter.getIds() != null && !processesFilter.getIds().isEmpty()) {
+      query.setParameter("ids", processesFilter.getIds());
     }
 
     if (memberships != null) {

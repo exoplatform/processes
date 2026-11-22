@@ -130,7 +130,7 @@ public class EntityBuilderTest {
     List<WorkFlow> fromRestEntities = EntityBuilder.fromRestEntities(workFlowEntities);
     assertNotNull(fromRestEntities);
     List<WorkFlowEntity> toRestEntities = EntityBuilder.toRestEntities(workFlows, "test");
-    processesRest.getWorkFlows(1L, true, null, "test", "test", 0, 10);
+    processesRest.getWorkFlows(1L, true, null, "test", null, "test", 0, 10);
     assertNotNull(toRestEntities);
   }
 
@@ -414,7 +414,7 @@ public class EntityBuilderTest {
 
     assertEquals("Congés", ((WorkFlowEntity) frenchRest.getWorkFlowById(9L, "", true).getEntity()).getTitle());
     assertEquals("Leave", ((WorkFlowEntity) frenchRest.getWorkFlowById(9L, "", false).getEntity()).getTitle());
-    Response list = frenchRest.getWorkFlows(null, true, null, null, "", 0, 10);
+    Response list = frenchRest.getWorkFlows(null, true, null, null, null, "", 0, 10);
     assertEquals("Congés", ((List<?>) list.getEntity()).stream().map(WorkFlowEntity.class::cast).findFirst().orElseThrow().getTitle());
 
     // The editor's project choice names the processes a project feeds in the user's language

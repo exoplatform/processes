@@ -17,6 +17,7 @@
 package org.exoplatform.processes.service;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
@@ -56,6 +57,32 @@ public interface ProcessesService {
 
   int countWorkFlows(ProcessesFilter filter,
                      long userIdentityId) throws IllegalAccessException;
+
+  /**
+   * Reads the categories a user may filter the processes by: those the
+   * processes the user sees are filed under. A user sees a process they
+   * participate in or may add a request to, and a disabled one only when they
+   * manage it.
+   *
+   * @param userIdentityId the user's identity technical identifier
+   * @return the category ids, without duplicates
+   * @throws IllegalAccessException when the identity isn't an active user
+   */
+  default List<Long> getCategoryIds(long userIdentityId) throws IllegalAccessException {
+    return Collections.emptyList();
+  }
+
+  /**
+   * Reads the categories each process is filed under, in one read. It checks
+   * no right: the caller reads processes the user already sees.
+   *
+   * @param workflowIds the process ids
+   * @return the category ids by process id; a process filed under none is
+   *         absent
+   */
+  default Map<Long, List<Long>> getCategoryIds(List<Long> workflowIds) {
+    return Collections.emptyMap();
+  }
 
   /**
    * Retrieves a workflow by its id, with the user's permissions on it
