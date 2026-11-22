@@ -140,12 +140,32 @@ export default {
   methods: {
     /**
      * Reads the categories the user may filter the processes by again: filing a process under a
-     * category, or out of one, changes them.
+     * category, or out of one, changes them. A category view then drops the processes the new tree
+     * places outside the chosen category.
      *
      * @returns {Promise} resolved once they are read
      */
     refreshCategories() {
-      return loadCategories(this.$categoryService).then(categories => this.categories = categories);
+      return loadCategories(this.$categoryService).then(categories => {
+        this.categories = categories;
+        this.dropOutsideChosenCategory();
+      });
+    },
+    /**
+     * Removes from a category view the processes no longer filed under the chosen category or one of
+     * its subcategories, as the page's tree now places them.
+     *
+     * @returns {void}
+     */
+    dropOutsideChosenCategory() {
+      if (!this.categoryId) {
+        return;
+      }
+      for (let index = this.workflowList.length - 1; index >= 0; index--) {
+        if (!this.isUnderChosenCategory(this.workflowList[index])) {
+          this.workflowList.splice(index, 1);
+        }
+      }
     },
     /**
      * @param {Object} workflow a process
@@ -158,8 +178,8 @@ export default {
      * @param {Object} workflow a process
      * @returns {Boolean} whether the chosen category, or no category, lists it: filed under that
      *          category or one of its subcategories, as the server's filter reads it. A process filed
-     *          under a category the page's tree doesn't hold yet, as one just used for the first time
-     *          while the tree reloads, stays: the page can't tell where that category sits.
+     *          under a category the page's tree doesn't hold, as one just used for the first time
+     *          while the tree reloads, stays until the reloaded tree places it.
      */
     isUnderChosenCategory(workflow) {
       return !this.categoryId
