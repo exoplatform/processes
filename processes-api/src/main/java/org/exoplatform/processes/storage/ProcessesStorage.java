@@ -119,8 +119,8 @@ public interface ProcessesStorage {
   WorkFlow saveWorkFlow(WorkFlow workFlow, long userId) throws IllegalArgumentException;
 
   /**
-   * Creates the task project of a new process in its managing space, with the
-   * process statuses, and gives the process that project and the space's
+   * Creates the task project of a new process in its managing space, with
+   * Task's initial columns, and gives the process that project and the space's
    * memberships. Task commits each write on its own.
    *
    * @param workFlow the new process
