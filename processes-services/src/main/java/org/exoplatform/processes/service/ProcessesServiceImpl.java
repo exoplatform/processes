@@ -1439,7 +1439,8 @@ public class ProcessesServiceImpl implements ProcessesService {
     // The request stays in its process project, whatever the client sent
     work.setProjectId(oldWork.getProjectId());
     if (!checkRequesterChange(oldWork, work.getStatus(), work.isCompleted(), userId)) {
-      // A requester who doesn't manage the process only cancels: the content stays
+      // A requester who doesn't manage the process changes nothing here: cancel
+      // and archive have their own calls, and the content stays
       work.setTitle(oldWork.getTitle());
       work.setDescription(oldWork.getDescription());
     }

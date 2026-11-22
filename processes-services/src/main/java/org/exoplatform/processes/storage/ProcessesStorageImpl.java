@@ -823,12 +823,13 @@ public class ProcessesStorageImpl implements ProcessesStorage {
 
   /**
    * Creates the task of a new request in the request's project, in the
-   * project's Request status.
+   * project's first column.
    *
    * @param work the request, whose project id the Service set from its process
    * @param identity the requester
    * @return the created task
-   * @throws IllegalArgumentException when the project does not exist
+   * @throws IllegalArgumentException when the project does not exist, or
+   *           processes.project.noStatus when it has no column
    */
   private TaskDto createWorkTask(Work work, Identity identity) {
     TaskDto taskDto;

@@ -147,9 +147,8 @@ public interface ProcessesService {
    * Lists the task projects a process of a space may feed: the projects
    * attached to the space, whose managers hold the space's manager membership
    * and whose managers and participants hold no group membership but the
-   * space's, users being allowed, less the projects with a column named like a
-   * process status in another case. Each comes with the processes of that
-   * space that already feed it.
+   * space's, users being allowed, whatever their columns. Each comes with the
+   * processes of that space that already feed it.
    *
    * @param spaceId the managing space id
    * @param offset the index of the first project of the page

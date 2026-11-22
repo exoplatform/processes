@@ -640,9 +640,11 @@ public interface ProcessesStorage {
    * Moves a request's task to a project, unless it is already there or no
    * longer exists: first its labels of its former project are removed, so
    * that a task found in the target has nothing left to do; then it takes the
-   * target's status of the same name, else the one whose name equals it
-   * trimmed, case aside, of lowest id, else a status of that name created in
-   * the target; then the task is saved. Each Task call commits on its own.
+   * target's column of the same name, read as a label only, else the one
+   * whose name equals it trimmed, case aside, of lowest id, else the target's
+   * first column, never creating one; then the task is saved. A target with
+   * no column refuses the move with an IllegalArgumentException
+   * processes.project.noStatus. Each Task call commits on its own.
    * The task is saved as read: a copy of it saved in Tasks after this read and
    * before this save is overwritten, and the description goes through Task's
    * sanitizer again, as on every task edit. As on every task edit, Task then
