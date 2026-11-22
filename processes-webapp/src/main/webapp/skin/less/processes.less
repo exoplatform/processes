@@ -141,8 +141,15 @@
     padding-right: 0;
   }
 
+  // the toolbar's right side truncates its content (social's text-truncate): the filter count, which
+  // overlaps the filter icon's corner, would be clipped
+  #processesToolbar #applicationToolbarRight {
+    overflow: visible;
+  }
+
   // the count of the filters chosen, small enough to sit on the filter icon
   .processes-filter-count .v-badge__badge {
+    box-sizing: border-box;
     font-size: 10px;
     height: 16px;
     min-width: 16px;
