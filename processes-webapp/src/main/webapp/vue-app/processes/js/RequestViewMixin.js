@@ -39,7 +39,7 @@ export default {
   },
   methods: {
     /**
-     * Prepares the view of a sent request: its task's link, once the viewer may open the task, and its
+     * Prepares the view of a sent request: its task's number and link, once the viewer may edit the task, and its
      * process's documents, whose names tell the request's copies.
      *
      * @returns {void}
@@ -54,9 +54,10 @@ export default {
       this.loadViewDocuments();
     },
     /**
-     * Offers the task's link only when GET /rest/tasks/{id} answers 200 for the viewer: Tasks refuses a
-     * requester outside the task's project, and nothing on the request says it. An answer for a request
-     * the drawer no longer shows is ignored.
+     * Offers the task's number and link only when GET /rest/tasks/{id} says the viewer may edit the task
+     * (`editable`: a member of the process's space, the task's assignee or a coworker, or a platform
+     * administrator). A requester outside the process's space, who sees and comments on the request here,
+     * does not open its task from the drawer. An answer for a request the drawer no longer shows is ignored.
      *
      * @param {Object} work the request
      * @returns {Promise} resolved once the answer is read
@@ -67,8 +68,9 @@ export default {
         return Promise.resolve();
       }
       return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/tasks/${taskId}`, {credentials: 'include'})
-        .then(resp => {
-          if (resp && resp.ok && this.work === work) {
+        .then(resp => (resp && resp.ok ? resp.json() : null))
+        .then(task => {
+          if (task && task.editable === true && this.work === work) {
             this.taskLink = `${eXo.env.portal.context}/${eXo.env.portal.metaPortalName}/tasks/taskDetail/${taskId}`;
           }
         })
