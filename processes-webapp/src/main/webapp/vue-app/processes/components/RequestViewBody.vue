@@ -24,15 +24,14 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         <custom-date-format
           :timestamp="work.createdTime && work.createdTime.time"
           :message="$t('processes.myRequests.sentOn')" />
-        <template v-if="!viewDraft && taskId">
+        <!-- the task's number and link, only for a viewer who may edit the task: not for a requester outside the process's space -->
+        <template v-if="!viewDraft && taskId && taskLink">
           ·
           <a
-            v-if="taskLink"
             id="requestDetailTaskLink"
             :href="taskLink"
             target="_blank"
             rel="noopener">{{ $t('processes.request.taskNumber', {0: taskId}) }}</a>
-          <span v-else>{{ $t('processes.request.taskNumber', {0: taskId}) }}</span>
         </template>
       </span>
     </div>
@@ -173,7 +172,7 @@ export default {
       type: Function,
       default: () => true
     },
-    /** The task's link, null while the viewer may not open the task */
+    /** The task's link, null while the viewer may not edit the task: the number is then not shown either */
     taskLink: {
       type: String,
       default: null
