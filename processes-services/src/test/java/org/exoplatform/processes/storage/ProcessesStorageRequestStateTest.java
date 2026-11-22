@@ -18,7 +18,6 @@ package org.exoplatform.processes.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -113,10 +112,10 @@ class ProcessesStorageRequestStateTest {
 
   /**
    * The state's write sets the flags it is given on the record, keeps the
-   * others, then writes the task's completion when given; with no completion
-   * the task is not written. Mutation: overwrite a flag given as null, write
-   * the task before the record, or complete the task when not asked, and this
-   * test fails.
+   * others, then writes the task's completion through Task, which commits and
+   * broadcasts it on its own; with no completion the task is not written.
+   * Mutation: overwrite a flag given as null, write the task before the
+   * record, or complete the task when not asked, and this test fails.
    *
    * @throws Exception never, the mocks throw nothing
    */
@@ -129,7 +128,7 @@ class ProcessesStorageRequestStateTest {
     when(taskService.getTask(40L)).thenReturn(task);
     when(taskService.updateTask(task)).thenReturn(task);
 
-    processesStorage.writeRequestState(40L, Boolean.TRUE, null, Boolean.TRUE);
+    processesStorage.saveRequestState(40L, Boolean.TRUE, null, Boolean.TRUE);
 
     ArgumentCaptor<RequestEntity> written = ArgumentCaptor.forClass(RequestEntity.class);
     InOrder order = inOrder(requestDAO, taskService);
@@ -139,7 +138,7 @@ class ProcessesStorageRequestStateTest {
     assertEquals(Boolean.TRUE, written.getValue().getArchived());
     assertTrue(task.isCompleted());
 
-    processesStorage.writeRequestState(40L, null, Boolean.FALSE, null);
+    processesStorage.saveRequestState(40L, null, Boolean.FALSE, null);
     assertEquals(Boolean.FALSE, record.getArchived());
     assertEquals(Boolean.TRUE, record.getCanceled());
     verify(taskService).updateTask(task);
@@ -152,29 +151,41 @@ class ProcessesStorageRequestStateTest {
   @Test
   void aTaskWithoutRecordGetsNoState() {
     assertThrows(jakarta.persistence.EntityNotFoundException.class,
-                 () -> processesStorage.writeRequestState(41L, Boolean.TRUE, null, Boolean.TRUE));
+                 () -> processesStorage.saveRequestState(41L, Boolean.TRUE, null, Boolean.TRUE));
     verify(requestDAO, never()).update(any());
     verify(requestDAO, never()).create(any());
   }
 
   /**
-   * The state and the completion commit together: the write is an atomic
-   * transaction. Mutation: drop the annotation or its atomic flag and this
-   * test fails.
+   * A completion that fails after the flags were written writes the former
+   * flags back, a null one included, and throws: no cancel stays without its
+   * completion, and an upgrade step is read again by the next run. Mutation:
+   * drop the write-back, or write the task first, and this test fails.
    *
-   * @throws NoSuchMethodException never
+   * @throws Exception never, the mocks throw nothing but the stubbed failure
    */
   @Test
-  void theStateWriteIsAtomic() throws NoSuchMethodException {
-    io.meeds.common.ContainerTransactional transactional =
-                                                       ProcessesStorageImpl.class.getMethod("saveRequestState",
-                                                                                            long.class,
-                                                                                            Boolean.class,
-                                                                                            Boolean.class,
-                                                                                            Boolean.class)
-                                                                                 .getAnnotation(io.meeds.common.ContainerTransactional.class);
-    assertNotNull(transactional);
-    assertTrue(transactional.atomic());
+  void aFailingCompletionWritesTheFormerFlagsBack() throws Exception {
+    RequestEntity record = new RequestEntity(40L, 3L, 1L);
+    when(requestDAO.find(40L)).thenReturn(record);
+    TaskDto task = new TaskDto();
+    task.setId(40L);
+    when(taskService.getTask(40L)).thenReturn(task);
+    when(taskService.updateTask(task)).thenThrow(new IllegalStateException("task write refused"));
+    java.util.List<Boolean[]> written = new java.util.ArrayList<>();
+    org.mockito.Mockito.doAnswer(invocation -> {
+      RequestEntity entity = invocation.getArgument(0);
+      written.add(new Boolean[] { entity.getCanceled(), entity.getArchived() });
+      return entity;
+    }).when(requestDAO).update(any(RequestEntity.class));
+
+    assertThrows(IllegalStateException.class, () -> processesStorage.saveRequestState(40L, Boolean.TRUE, Boolean.FALSE, Boolean.TRUE));
+
+    assertEquals(2, written.size());
+    assertEquals(Boolean.TRUE, written.get(0)[0]);
+    assertNull(written.get(1)[0]);
+    assertNull(written.get(1)[1]);
+    assertNull(record.getCanceled());
   }
 
   /**

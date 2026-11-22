@@ -1076,7 +1076,9 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    */
   private void recordRequest(TaskDto taskDto, long workFlowId, long requesterIdentityId) {
     try {
-      requestDAO.create(new RequestEntity(taskDto.getId(), workFlowId, requesterIdentityId));
+      // A new request's state is known: neither cancelled nor archived. Only
+      // the records of older requests have none, which the state upgrade fills
+      requestDAO.create(new RequestEntity(taskDto.getId(), workFlowId, requesterIdentityId, Boolean.FALSE, Boolean.FALSE));
     } catch (RuntimeException e) {
       try {
         taskService.removeTask(taskDto.getId());
@@ -1191,66 +1193,60 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   }
 
   /**
-   * {@inheritDoc} The record's flags and the task's completion commit
-   * together: Task's task write joins the transaction this method begins (its
-   * DAO's write joins an active one), so a failure leaves both as they were.
+   * {@inheritDoc} The record's flags are written first, in their own
+   * transaction, then the task's completion through Task, which commits it and
+   * broadcasts its update after that commit, as for any task update: no
+   * transaction of processes wraps it, so Task's listeners never read the task
+   * before its write is committed. When the task's write fails, the record's
+   * former flags are written back and the failure is thrown, so neither half
+   * stays alone: a cancel left without its completion would read pending yet
+   * cancelled at the next completion, and an upgrade step would not be read
+   * again by the next run.
    */
   @Override
-  @ContainerTransactional(atomic = true)
   public Work saveRequestState(long workId, Boolean canceled, Boolean archived, Boolean completed) {
-    return writeRequestState(workId, canceled, archived, completed);
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public void broadcastRequestCanceled(long workId) {
-    TaskDto taskDto;
-    try {
-      taskDto = taskService.getTask(workId);
-    } catch (EntityNotFoundException e) {
-      LOG.debug("The cancelled request {} has no task left to notify", workId, e);
-      return;
-    }
-    ProjectDto projectDto = taskDto == null || taskDto.getStatus() == null ? null : taskDto.getStatus().getProject();
-    if (projectDto == null) {
-      LOG.debug("The cancelled request {} is in no project: no notification", workId);
-      return;
-    }
-    ProcessesUtils.broadcast(listenerService, ProcessesEvents.REQUEST_CANCELED, taskDto, projectDto);
-  }
-
-  /**
-   * The un-advised body of {@link #saveRequestState}: writes the given flags
-   * on the request record, then the task's completion when given.
-   *
-   * @param workId the request's task id
-   * @param canceled the cancelled flag to write, null to keep it
-   * @param archived the archived flag to write, null to keep it
-   * @param completed the task's completion to write, null to keep it
-   * @return the request as stored after the write
-   * @throws jakarta.persistence.EntityNotFoundException when the task has no
-   *           request record, or no task
-   */
-  Work writeRequestState(long workId, Boolean canceled, Boolean archived, Boolean completed) {
     RequestEntity request = requestDAO.find(workId);
     if (request == null) {
       throw new jakarta.persistence.EntityNotFoundException("request not found");
     }
-    if (canceled != null || archived != null) {
-      if (canceled != null) {
-        request.setCanceled(canceled);
-      }
-      if (archived != null) {
-        request.setArchived(archived);
-      }
-      requestDAO.update(request);
+    Boolean formerCanceled = request.getCanceled();
+    Boolean formerArchived = request.getArchived();
+    boolean flagsWritten = writeRequestFlags(request, canceled, archived);
+    if (completed == null) {
+      return getWorkById(workId);
     }
-    if (completed != null) {
+    try {
       return updateWorkCompleted(workId, completed);
+    } catch (RuntimeException e) {
+      if (flagsWritten) {
+        request.setCanceled(formerCanceled);
+        request.setArchived(formerArchived);
+        requestDAO.update(request);
+      }
+      throw e;
     }
-    return getWorkById(workId);
+  }
+
+  /**
+   * Writes the given flags on a request record, keeping a flag given as null.
+   *
+   * @param request the request record
+   * @param canceled the cancelled flag to write, null to keep it
+   * @param archived the archived flag to write, null to keep it
+   * @return true when the record was written
+   */
+  private boolean writeRequestFlags(RequestEntity request, Boolean canceled, Boolean archived) {
+    if (canceled == null && archived == null) {
+      return false;
+    }
+    if (canceled != null) {
+      request.setCanceled(canceled);
+    }
+    if (archived != null) {
+      request.setArchived(archived);
+    }
+    requestDAO.update(request);
+    return true;
   }
 
   /**

@@ -46,13 +46,14 @@ import org.exoplatform.task.service.TaskService;
  * so it reads decided and not pending, not archived;</li>
  * <li>in « Validated » or « Refused », completed: archived;</li>
  * <li>in another column, completed (archived while open): archived, its task
- * left completed, so it reads closed (PO, 22 Nov);</li>
+ * left completed, so it reads closed;</li>
  * <li>in another column, open: neither, it stays pending.</li>
  * </ul>
- * Each request's flags and its task's completion are written in one
- * transaction ({@link ProcessesStorage#saveRequestState}); only the records
- * whose flags are both null are read, so a rerun after a failure handles what
- * is left. Each task it completes fires Task's update listeners once. It runs
+ * Each request's flags and its task's completion are written together by
+ * {@link ProcessesStorage#saveRequestState}, which writes the flags back when
+ * the completion fails; only the records whose flags are both null are read,
+ * and a request created since names its state, so a rerun after a failure
+ * handles only what is left of the older requests. Each task it completes fires Task's update listeners once. It runs
  * after {@link ProcessesRequestUpgradePlugin}, which records the older
  * requests first. A failure is thrown, so the upgrade is not recorded as done.
  */

@@ -1285,7 +1285,9 @@ public class ProcessesServiceImpl implements ProcessesService {
    * within the same request as the selection, which may serve its tasks from
    * the request's persistence context: a change another user commits while
    * the run lasts is not guaranteed to be seen, the window being the run's
-   * duration. The archive then goes through
+   * duration; the re-read's request record, its archive flag, is read through
+   * the same persistence context as the selection's records, with the same
+   * window. The archive then goes through
    * {@link #archiveWork(long, boolean, long)}, which checks the user's right
    * on the request and touches its record only, never its task. Each archive stands alone, as a single archive does:
    * a failure other than a refusal, the re-read's included, stops the run and
@@ -1790,8 +1792,6 @@ public class ProcessesServiceImpl implements ProcessesService {
       throw new IllegalAccessException("User " + userIdentityId + " isn't the requester of the request " + workId);
     }
     return work;
-  }
-
   }
 
   /**

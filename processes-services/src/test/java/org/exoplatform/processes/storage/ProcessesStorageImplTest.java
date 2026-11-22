@@ -590,7 +590,7 @@ public class ProcessesStorageImplTest {
 
     verify(taskService).createTask(createdTask.capture());
     assertEquals(Long.valueOf(3L), createdTask.getValue().getStatus().getId());
-    verify(requestDAO).create(new RequestEntity(40L, 3L, 1L));
+    verify(requestDAO).create(new RequestEntity(40L, 3L, 1L, Boolean.FALSE, Boolean.FALSE));
     assertEquals("the created request names its process, which its answer shows", 3L, created.getWorkFlowId());
   }
 
@@ -621,7 +621,7 @@ public class ProcessesStorageImplTest {
 
     assertNotNull(created);
     InOrder order = inOrder(requestDAO, labelService);
-    order.verify(requestDAO).create(new RequestEntity(40L, 3L, 1L));
+    order.verify(requestDAO).create(new RequestEntity(40L, 3L, 1L, Boolean.FALSE, Boolean.FALSE));
     order.verify(labelService).addTaskToLabel(any(TaskDto.class), eq(11L));
     order.verify(labelService).addTaskToLabel(any(TaskDto.class), eq(14L));
     verify(labelService, never()).addTaskToLabel(any(TaskDto.class), eq(12L));

@@ -76,7 +76,9 @@ public class RequestEntity implements Serializable {
   private Boolean           archived;
 
   /**
-   * Creates the record of a new request, neither cancelled nor archived.
+   * Creates a request record whose state is not known: the record of a request
+   * created before EXO-94923, which the state upgrade fills. A new request's
+   * record names its state.
    *
    * @param taskId the request's task id
    * @param workFlowId the process that created it
