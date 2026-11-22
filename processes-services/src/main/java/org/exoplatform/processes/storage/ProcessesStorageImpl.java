@@ -1286,7 +1286,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     String userName = userMemberships.getKey();
     List<String> memberships = userMemberships.getValue();
     List<String> listedMemberships = listedMemberships(processesFilter, memberships);
-    if (listedMemberships != null && listedMemberships.isEmpty()) {
+    if (listsNothing(processesFilter, listedMemberships)) {
       return new ArrayList<>();
     }
     List<WorkFlowEntity> workFlowEntities = workFlowDAO.findWorkFlows(processesFilter, listedMemberships, offset, limit);
@@ -1321,7 +1321,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   public List<WorkFlow> findWorkFlowRights(ProcessesFilter processesFilter, long userIdentityId) {
     List<String> memberships = getUserMemberships(userIdentityId).getValue();
     List<String> listedMemberships = listedMemberships(processesFilter, memberships);
-    if (listedMemberships != null && listedMemberships.isEmpty()) {
+    if (listsNothing(processesFilter, listedMemberships)) {
       return new ArrayList<>();
     }
     return workFlowDAO.findWorkFlows(processesFilter, listedMemberships, 0, 0)
@@ -1339,7 +1339,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    *         empty when that leaves none; null for a processes administrator
    */
   private static List<String> listedMemberships(ProcessesFilter processesFilter, List<String> memberships) {
-    if (memberships != null && processesFilter != null && Boolean.TRUE.equals(processesFilter.getManager())) {
+    if (memberships != null && isManagerListing(processesFilter)) {
       // The processes a user manages are those whose managing space the user
       // administers, not every one whose space the user is a member of
       return memberships.stream()
@@ -1347,6 +1347,24 @@ public class ProcessesStorageImpl implements ProcessesStorage {
                         .toList();
     }
     return memberships;
+  }
+
+  /**
+   * @param processesFilter the listing's filter
+   * @param listedMemberships the memberships the listing matches against
+   * @return whether the « I manage » listing has no manager membership to
+   *         match, so lists nothing without a query
+   */
+  private static boolean listsNothing(ProcessesFilter processesFilter, List<String> listedMemberships) {
+    return isManagerListing(processesFilter) && listedMemberships != null && listedMemberships.isEmpty();
+  }
+
+  /**
+   * @param processesFilter the listing's filter
+   * @return whether it is the « I manage » listing
+   */
+  private static boolean isManagerListing(ProcessesFilter processesFilter) {
+    return processesFilter != null && Boolean.TRUE.equals(processesFilter.getManager());
   }
 
   /**
