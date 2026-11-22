@@ -503,13 +503,32 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
       // platform, and the user's denied access is kept
       Attachment document = readAsPlatform(systemSession, workspace, attachment.getId());
       if (document != null) {
-        document.setAcl(attachment.getAcl());
-        document.setDownloadUrl(null);
-        document.setOpenUrl(null);
-        documents.add(document);
+        documents.add(withMetadataOnly(document, attachment.getAcl()));
       }
     }
     return documents;
+  }
+
+  /**
+   * Keeps of a document read as the platform only its metadata: id, title,
+   * path (its stored name), type, size and update date, with the user's own
+   * permission; its links, preview breadcrumb, creator and last modifier,
+   * creation date, version and drive are dropped.
+   *
+   * @param document the document read as the platform
+   * @param userAcl the user's permission on it
+   * @return a document holding its metadata only
+   */
+  private static Attachment withMetadataOnly(Attachment document, org.exoplatform.services.attachments.model.Permission userAcl) {
+    Attachment metadata = new Attachment();
+    metadata.setId(document.getId());
+    metadata.setTitle(document.getTitle());
+    metadata.setPath(document.getPath());
+    metadata.setMimetype(document.getMimetype());
+    metadata.setSize(document.getSize());
+    metadata.setUpdated(document.getUpdated());
+    metadata.setAcl(userAcl);
+    return metadata;
   }
 
   /**

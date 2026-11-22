@@ -154,8 +154,9 @@ public interface ProcessesAttachmentService {
      * Lists a process's own documents for a user, the list a request's draft
      * copies from: a document the user may read as the attachment service
      * gives it to them; one they may not read, which that service gives by its
-     * id alone, read as the platform, with its title, stored name, type, size
-     * and update date, no download or open link, and the user's denied access.
+     * id alone, read as the platform and reduced to its id, title, path (its
+     * stored name), type, size and update date, with the user's denied
+     * access: no link, preview, author, creation date or version.
      * The caller checks the user's right on the process first.
      *
      * @param userId the identity id of the user

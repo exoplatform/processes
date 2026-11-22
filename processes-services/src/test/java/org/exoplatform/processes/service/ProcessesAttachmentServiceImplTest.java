@@ -1196,10 +1196,11 @@ public class ProcessesAttachmentServiceImplTest {
    * A process document the user may read is answered as the attachment
    * service lists it for them; one they may not read, which that list holds by
    * its id alone, is read as the platform, with its title, type, size and
-   * update date, no download or open link, and the user's denied access; one
-   * that is gone is left out (EXO-94918). Mutation: answer the user's list
-   * unchanged, keep the platform's access instead of the user's, keep the
-   * download link, or let a gone document fail the list, and this test fails.
+   * update date and the user's denied access, and nothing else it holds (no
+   * link, author, creation date, version or preview); one that is gone is left
+   * out (EXO-94918). Mutation: answer the user's list unchanged, keep the
+   * platform's access instead of the user's, keep any other field, or let a
+   * gone document fail the list, and this test fails.
    *
    * @throws Exception never, the mocks throw what the test asks
    */
@@ -1230,6 +1231,10 @@ public class ProcessesAttachmentServiceImplTest {
     platformRead.setUpdated("2026-11-22T18:06:00");
     platformRead.setDownloadUrl("/rest/jcr/form.pdf");
     platformRead.setOpenUrl("/portal/dw/documents?documentPreviewId=hidden");
+    platformRead.setUpdater("manager");
+    platformRead.setVersion("3");
+    platformRead.setCreated("2026-11-20T09:00:00");
+    platformRead.setPreviewBreadcrumb(new java.util.LinkedHashMap<>(java.util.Map.of("hr", "/Groups/spaces/hr")));
     platformRead.setAcl(permission(true));
     try (org.mockito.MockedStatic<org.exoplatform.services.attachments.utils.EntityBuilder> entityBuilder =
         mockStatic(org.exoplatform.services.attachments.utils.EntityBuilder.class)) {
@@ -1259,6 +1264,12 @@ public class ProcessesAttachmentServiceImplTest {
       assertFalse(document.getAcl().isCanAccess());
       assertEquals(null, document.getDownloadUrl());
       assertEquals(null, document.getOpenUrl());
+      assertEquals(null, document.getUpdater());
+      assertEquals(null, document.getVersion());
+      assertEquals(null, document.getCreated());
+      assertEquals(null, document.getPreviewBreadcrumb());
+      assertEquals("application/pdf", document.getMimetype());
+      assertEquals(878L, document.getSize());
       entityBuilder.verify(() -> org.exoplatform.services.attachments.utils.EntityBuilder.fromAttachmentNode(any(),
                                                                                                              any(),
                                                                                                              any(),
