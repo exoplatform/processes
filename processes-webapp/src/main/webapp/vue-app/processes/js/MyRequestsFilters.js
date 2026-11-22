@@ -28,6 +28,18 @@ export const CAPPED_STATUSES = ['Validated', 'Refused'];
 export const FINISHED_STATUSES = ['Validated', 'Refused', 'Canceled'];
 
 /**
+ * How « My requests » groups its requests: not at all, by status or by process.
+ */
+export const GROUP_BY_NONE = 'none';
+export const GROUP_BY_STATUS = 'status';
+export const GROUP_BY_PROCESS = 'process';
+
+/**
+ * Where this browser remembers the grouping chosen in « My requests ».
+ */
+const GROUP_BY_STORAGE_KEY = 'processes.myRequests.groupBy';
+
+/**
  * How many completed requests « My requests » loads at a time.
  */
 export const COMPLETED_PAGE_SIZE = 50;
@@ -156,19 +168,60 @@ export function hookKeyOf(key) {
 }
 
 /**
- * Sorts requests by date or by status label, without changing the given list.
+ * Reads the grouping this browser remembers for « My requests ».
+ *
+ * @returns {String} the remembered grouping, none when nothing is remembered or the storage is unavailable
+ */
+export function readGroupBy() {
+  try {
+    const value = window.localStorage.getItem(GROUP_BY_STORAGE_KEY);
+    return [GROUP_BY_STATUS, GROUP_BY_PROCESS].includes(value) ? value : GROUP_BY_NONE;
+  } catch (e) {
+    return GROUP_BY_NONE;
+  }
+}
+
+/**
+ * Remembers in this browser the grouping chosen in « My requests »; an unavailable storage remembers nothing.
+ *
+ * @param {String} groupBy the chosen grouping
+ * @returns {void}
+ */
+export function storeGroupBy(groupBy) {
+  try {
+    window.localStorage.setItem(GROUP_BY_STORAGE_KEY, groupBy || GROUP_BY_NONE);
+  } catch (e) {
+    // a private window or blocked site data: the grouping lasts until the page is left
+  }
+}
+
+/**
+ * Reads the title of a request's process.
+ *
+ * @param {Object} work the request or the draft
+ * @returns {String} the process title, empty when the request carries no process
+ */
+export function processTitleOf(work) {
+  return work && work.workFlow && work.workFlow.title || '';
+}
+
+/**
+ * Sorts requests by date, by status label or by process title, without changing the given list.
  *
  * @param {Array} works the requests
- * @param {String} sortBy date or status
+ * @param {String} sortBy date, status or process
  * @param {Boolean} sortDesc whether the order is descending
  * @param {Function} statusLabelOf gives a request's status label
  * @returns {Array} a sorted copy
  */
 export function sortWorks(works, sortBy, sortDesc, statusLabelOf) {
   const direction = sortDesc ? -1 : 1;
-  // by status, the requests of one status stay most recent first, whatever the direction
-  const compare = sortBy === 'status'
-    ? (a, b) => direction * statusLabelOf(a).localeCompare(statusLabelOf(b)) || createdTimeOf(b) - createdTimeOf(a)
-    : (a, b) => direction * (createdTimeOf(a) - createdTimeOf(b));
+  // by status or by process, the requests of one status or process stay most recent first, whatever the direction
+  let compare = (a, b) => direction * (createdTimeOf(a) - createdTimeOf(b));
+  if (sortBy === 'status') {
+    compare = (a, b) => direction * statusLabelOf(a).localeCompare(statusLabelOf(b)) || createdTimeOf(b) - createdTimeOf(a);
+  } else if (sortBy === 'process') {
+    compare = (a, b) => direction * processTitleOf(a).localeCompare(processTitleOf(b)) || createdTimeOf(b) - createdTimeOf(a);
+  }
   return (works || []).slice().sort(compare);
 }
