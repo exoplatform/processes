@@ -1197,11 +1197,13 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    * transaction, then the task's completion through Task, which commits it and
    * broadcasts its update after that commit, as for any task update: no
    * transaction of processes wraps it, so Task's listeners never read the task
-   * before its write is committed. When the task's write fails, the record's
-   * former flags are written back and the failure is thrown, so neither half
-   * stays alone: a cancel left without its completion would read pending yet
-   * cancelled at the next completion, and an upgrade step would not be read
-   * again by the next run.
+   * before its write is committed. Between the two commits a reader sees the
+   * new flags on an open task, which reads pending
+   * ({@link org.exoplatform.processes.util.RequestState}). When the task's
+   * write fails, the record's former flags are written back and the failure
+   * is thrown, so neither half stays alone: a cancel left without its
+   * completion would read cancelled at the next completion, and an upgrade
+   * step would not be read again by the next run.
    */
   @Override
   public Work saveRequestState(long workId, Boolean canceled, Boolean archived, Boolean completed) {
@@ -1219,12 +1221,52 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       return updateWorkCompleted(workId, completed);
     } catch (RuntimeException e) {
       if (flagsWritten) {
-        request.setCanceled(formerCanceled);
-        request.setArchived(formerArchived);
-        requestDAO.update(request);
+        restoreRequestFlags(request, formerCanceled, formerArchived, e);
       }
       throw e;
     }
+  }
+
+  /**
+   * Writes a request record's former flags back after its task's write
+   * failed. A write-back that fails too is logged and added to the task's
+   * failure as suppressed, which stays the one thrown: the record then keeps
+   * the new flags, which read pending as long as the task is open.
+   *
+   * @param request the request record
+   * @param formerCanceled the cancelled flag before the write
+   * @param formerArchived the archived flag before the write
+   * @param failure the task's write failure
+   */
+  private void restoreRequestFlags(RequestEntity request, Boolean formerCanceled, Boolean formerArchived, RuntimeException failure) {
+    request.setCanceled(formerCanceled);
+    request.setArchived(formerArchived);
+    try {
+      requestDAO.update(request);
+    } catch (RuntimeException restoreFailure) {
+      LOG.warn("The state of the request {} could not be written back after its task's write failed", request.getTaskId(), restoreFailure);
+      failure.addSuppressed(restoreFailure);
+    }
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void broadcastRequestCanceled(long workId) {
+    TaskDto taskDto;
+    try {
+      taskDto = taskService.getTask(workId);
+    } catch (EntityNotFoundException e) {
+      LOG.debug("The cancelled request {} has no task left to notify", workId, e);
+      return;
+    }
+    ProjectDto projectDto = taskDto == null || taskDto.getStatus() == null ? null : taskDto.getStatus().getProject();
+    if (projectDto == null) {
+      LOG.debug("The cancelled request {} is in no project: no notification", workId);
+      return;
+    }
+    ProcessesUtils.broadcast(listenerService, ProcessesEvents.REQUEST_CANCELED, taskDto, projectDto);
   }
 
   /**
