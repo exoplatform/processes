@@ -50,17 +50,23 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
             id="myRequestsAdvancedFilterButton"
             :aria-label="advancedFilterLabel"
             :title="advancedFilterLabel"
-            :class="filtersCount && 'primary--text'"
-            class="width-auto px-0"
-            small
-            text
+            icon
             @click="openFilterDrawer">
-            <v-icon
-              :class="filtersCount && 'primary--text' || 'icon-default-color'"
-              size="20">
-              fa-sliders-h
-            </v-icon>
-            <span v-if="filtersCount" class="ps-1">({{ filtersCount }})</span>
+            <v-badge
+              :value="filtersCount > 0"
+              :content="filtersCount"
+              class="processes-filter-count"
+              color="primary"
+              offset-x="8"
+              offset-y="8"
+              bordered
+              overlap>
+              <v-icon
+                :class="filtersCount && 'primary--text' || 'icon-default-color'"
+                size="20">
+                fa-sliders-h
+              </v-icon>
+            </v-badge>
           </v-btn>
         </div>
       </template>
