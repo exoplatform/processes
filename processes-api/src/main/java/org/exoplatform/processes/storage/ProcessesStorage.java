@@ -326,9 +326,12 @@ public interface ProcessesStorage {
   List<WorkFlow> findWorkFlows(ProcessesFilter processesFilter, long userIdentityId, int offset, int limit);
 
   /**
-   * Lists, in one read, every process the filter lists to a user, each with
-   * its id, its enabled flag and the user's rights on it only: no request
-   * makers, no illustration, no managing space and no pending-requests flag.
+   * Lists every process the filter lists to a user, in one unpaged listing
+   * query, with at least its id, its enabled flag and the user's rights on it.
+   * The rights read each process's managers and participators. An
+   * implementation should map nothing else (no request makers, illustration,
+   * managing space or pending-requests flag); this default falls back to the
+   * full, unpaged listing.
    *
    * @param processesFilter processes filter
    * @param userIdentityId {@link Identity} technical identifier of the user

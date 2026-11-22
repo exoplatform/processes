@@ -199,8 +199,8 @@ public class ProcessesServiceImpl implements ProcessesService {
     ProcessesFilter filter = new ProcessesFilter();
     // Every process the user sees, those they may only request included
     filter.setManager(false);
-    // One read, with the rights only: the listing query has no order a paging
-    // could rely on
+    // One unpaged listing query, mapped to the rights only: the query has no
+    // order a paging could rely on
     Set<String> workflowIds = new LinkedHashSet<>();
     processesStorage.findWorkFlowRights(filter, userIdentityId)
                     .stream()
