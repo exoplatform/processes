@@ -32,7 +32,7 @@
 </template>
 
 <script>
-import {CAPPED_GROUP_SIZE, CAPPED_STATUSES, FINISHED_STATUSES, matchesQuery, processesOf, sortRecentFirst, statusesOf, workflowIdOf} from '../js/MyRequestsFilters.js';
+import {CAPPED_GROUP_SIZE, CAPPED_STATUSES, FINISHED_STATUSES, GROUP_BY_NONE, GROUP_BY_PROCESS, GROUP_BY_STATUS, matchesQuery, processesOf, sortRecentFirst, statusesOf, workflowIdOf} from '../js/MyRequestsFilters.js';
 import MyWorkListUpdatesMixin from '../js/MyWorkListUpdatesMixin.js';
 
 export default {
@@ -83,7 +83,7 @@ export default {
     }
   },
   data: () => ({
-    filter: {query: null, workflowId: null, status: null, grouped: false},
+    filter: {query: null, workflowId: null, status: null, groupBy: GROUP_BY_NONE},
     toolbarKey: 0,
     // the table's sort, held here so it outlives the table between a loading and its rows
     tableOptions: {sortBy: ['date'], sortDesc: [true]},
@@ -163,14 +163,17 @@ export default {
     },
     /**
      * Builds what the table shows: by default one flat list of every kept request, drafts included,
-     * or, when « Group by status » is chosen, the status groups.
+     * or, when a grouping is chosen, the status groups or the process groups.
      *
      * @returns {Array} the groups, as {key, label, works, isDraft, cap, hint}, or the flat list's
      *   single group, as {key, flat, works, drafts, hint}
      */
     groups() {
-      if (this.filter.grouped) {
+      if (this.filter.groupBy === GROUP_BY_STATUS) {
         return this.statusGroups;
+      }
+      if (this.filter.groupBy === GROUP_BY_PROCESS) {
+        return this.processGroups;
       }
       const works = this.statusGroups.flatMap(group => group.works);
       if (!works.length) {
@@ -234,6 +237,31 @@ export default {
         drafts.hint = this.$t('processes.myRequests.draftsOnly');
       }
       return shown;
+    },
+    /**
+     * Builds the process groups: the requests and drafts the filters keep, one group per process,
+     * sorted by title, each most recent first; the loading of older completed requests follows the
+     * last group.
+     *
+     * @returns {Array} the groups, as {key, label, works, drafts, hasMore}
+     */
+    processGroups() {
+      const works = this.statusGroups.flatMap(group => group.works);
+      const drafts = new Set(this.draftList);
+      const groups = processesOf(works).map(process => ({
+        key: `process-${process.id}`,
+        label: process.title,
+        works: sortRecentFirst(works.filter(work => workflowIdOf(work) === process.id)),
+        drafts,
+      }));
+      const withoutProcess = works.filter(work => !workflowIdOf(work));
+      if (withoutProcess.length) {
+        groups.push({key: 'process-none', label: this.$t('processes.myRequests.group.noProcess'), works: withoutProcess, drafts});
+      }
+      if (groups.length && this.statusGroups.some(group => group.hasMore)) {
+        groups[groups.length - 1].hasMore = true;
+      }
+      return groups;
     },
     /**
      * Tells whether the chosen process holds drafts only among the loaded requests: no open request.
@@ -305,7 +333,8 @@ export default {
       if (this.filter.status) {
         this.$root.$emit('work-filter-changed', {status: null});
       }
-      this.filter = {query: null, workflowId: null, status: null, grouped: false};
+      // the grouping is no filter: the toolbar, mounted again, keeps the one this browser remembers
+      this.filter = {query: null, workflowId: null, status: null, groupBy: this.filter.groupBy};
       this.toolbarKey++;
     },
     /**
