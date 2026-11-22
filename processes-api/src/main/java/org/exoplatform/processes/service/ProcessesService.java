@@ -402,7 +402,9 @@ public interface ProcessesService {
    * Reacts to the reopening of a task, in Tasks or in processes: a request
    * whose task is not completed any more is pending again, so its record's
    * cancelled and archived flags are cleared. A task that is no request, or
-   * a request with neither flag, is left as it is.
+   * a request with neither flag, is left as it is. It is the platform's own
+   * call, for Task's update listener: it checks no user's right, so no user
+   * path may call it.
    *
    * @param taskId the reopened task's id
    */

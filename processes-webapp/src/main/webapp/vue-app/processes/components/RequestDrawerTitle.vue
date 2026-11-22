@@ -68,9 +68,9 @@ export default {
     titleLine() {
       return this.work && this.work.workFlow && this.work.workFlow.title || '';
     },
-    /** @returns {String} the line's style, struck through once the request is completed */
+    /** @returns {String} the line's style, struck through once the requester archived or cancelled the request */
     textDecoration() {
-      return this.work && this.work.completed && 'text-decoration:line-through' || '';
+      return this.work && (this.work.archived || this.work.completed && this.work.canceled) && 'text-decoration:line-through' || '';
     }
   }
 };

@@ -688,8 +688,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
 
   /**
    * Builds the query of the request tasks a user created: the tasks a request
-   * record names, by that creator, with the filter's status, text and
-   * completion.
+   * record names, by that creator, with the filter's status, text,
+   * completion and archive flag (the request record's, null for both).
    *
    * @param userIdentityId the creator's identity id
    * @param workFilter the filter
