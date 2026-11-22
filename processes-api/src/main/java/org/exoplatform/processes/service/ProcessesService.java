@@ -114,16 +114,15 @@ public interface ProcessesService {
    * stated), or the existing one its project id names
    * ({@link org.exoplatform.processes.constant.ProjectMode#EXISTING}), which
    * must be one {@link #listEligibleProjects} returns for its managing space;
-   * the process statuses missing from that project are added to it.
+   * that project's columns are left as they are.
    *
    * @param workFlow the process to create
    * @param userId the creator's identity id
    * @return the created process
    * @throws IllegalAccessException when the user isn't a processes administrator
    * @throws IllegalArgumentException with the message code
-   *           processes.project.notEligible or
-   *           processes.project.statusNameConflict when the existing project
-   *           cannot be used
+   *           processes.project.notEligible when the existing project cannot
+   *           be used
    */
   WorkFlow createWorkFlow(WorkFlow workFlow, long userId) throws IllegalAccessException;
 
@@ -138,9 +137,8 @@ public interface ProcessesService {
    * @throws ObjectNotFoundException when the space does not exist
    * @throws IllegalAccessException when the user is neither a processes
    *           administrator nor a manager of the space
-   * @throws IllegalArgumentException processes.project.notEligible or
-   *           processes.project.statusNameConflict when a process of the space
-   *           may not feed the project
+   * @throws IllegalArgumentException processes.project.notEligible when a
+   *           process of the space may not feed the project
    */
   List<WorkFlowLabel> listProjectLabels(String spaceId, long projectId, long userIdentityId) throws ObjectNotFoundException,
                                                                                             IllegalAccessException;
