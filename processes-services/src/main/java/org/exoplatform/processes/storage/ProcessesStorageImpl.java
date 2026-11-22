@@ -1207,8 +1207,9 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    * write-back fails too, its failure logged and attached to the thrown one,
    * or when the process stops between the two writes. The request then reads
    * pending; a cancel retried by the requester completes it as cancelled, a
-   * manager who completes it in Tasks sees it read cancelled rather than
-   * decided, and only a reopen of its task clears the flags.
+   * manager who completes it, in Tasks or in processes, sees it read
+   * cancelled rather than decided, and only a reopen of its task clears the
+   * flags.
    */
   @Override
   public Work saveRequestState(long workId, Boolean canceled, Boolean archived, Boolean completed) {
