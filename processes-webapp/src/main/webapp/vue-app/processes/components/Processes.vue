@@ -73,7 +73,6 @@ export default {
       workflowSaveErrorCodes: [
         'processes.project.invalidMode',
         'processes.project.notEligible',
-        'processes.project.statusNameConflict',
         'processes.label.notInProject',
         'processes.label.invalidName',
         'processes.space.notFound',
@@ -85,6 +84,7 @@ export default {
         'processes.request.formValuesInvalid',
         'processes.request.formValuesUnsupported',
         'processes.request.draftMismatch',
+        'processes.project.noStatus',
       ],
       work: null,
       workComments: [],
