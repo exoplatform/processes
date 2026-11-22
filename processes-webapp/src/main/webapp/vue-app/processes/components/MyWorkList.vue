@@ -186,8 +186,10 @@ export default {
       }];
     },
     /**
-     * Builds the status groups: the drafts, each status in the order the processes list them,
-     * then the completed requests, each filtered and sorted most recent first, without the empty ones.
+     * Builds the status groups: the drafts, each status label in the order the processes list
+     * their statuses, then the completed requests, each filtered and sorted most recent first,
+     * without the empty ones. Statuses shown with the same label are one group, and the status
+     * filter keeps the group of the chosen status's label.
      *
      * @returns {Array} the groups, as {key, label, works, isDraft, cap, hint}
      */
@@ -198,12 +200,22 @@ export default {
         groups.push({key: 'drafts', label: this.$t('processes.myWorks.status.draft'), works: this.draftList, isDraft: true});
       }
       if (status !== 'drafts' && status !== 'completed') {
-        statusesOf(this.workList).filter(name => !status || name === status).forEach(name => groups.push({
-          key: `status-${name}`,
-          label: this.statusI18n(name),
-          works: this.workList.filter(work => work.status === name),
-          cap: CAPPED_STATUSES.includes(name) ? CAPPED_GROUP_SIZE : 0,
-        }));
+        const chosenLabel = status && this.statusI18n(status);
+        const namesByLabel = new Map();
+        statusesOf(this.workList).forEach(name => {
+          const label = this.statusI18n(name);
+          namesByLabel.set(label, [...(namesByLabel.get(label) || []), name]);
+        });
+        namesByLabel.forEach((names, label) => {
+          if (!chosenLabel || label === chosenLabel) {
+            groups.push({
+              key: `status-${names[0]}`,
+              label,
+              works: this.workList.filter(work => names.includes(work.status)),
+              cap: names.some(name => CAPPED_STATUSES.includes(name)) ? CAPPED_GROUP_SIZE : 0,
+            });
+          }
+        });
       }
       if (!status || status === 'completed') {
         groups.push({

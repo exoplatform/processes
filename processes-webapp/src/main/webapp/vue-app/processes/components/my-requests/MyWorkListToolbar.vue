@@ -120,14 +120,18 @@ export default {
   computed: {
     /**
      * Builds the status choices: all, each status the requests may take, drafts, and completed.
+     * Statuses shown with the same label are one choice, valued with the first of their names:
+     * a shared project's own « InProgress » column and the processes' « RequestInProgress » both
+     * read « In Progress », and the list matches a choice by its label.
      *
      * @returns {Array} the choices, as {text, value}
      */
     filterItems() {
       const items = [{text: this.$t('processes.myRequests.filter.all'), value: this.ALL_FILTER}];
       (this.availableWorkStatuses || []).forEach(status => {
-        if (status && status.name && !items.find(item => item.value === status.name)) {
-          items.push({text: this.statusI18n(status.name), value: status.name});
+        const text = status && status.name && this.statusI18n(status.name);
+        if (text && !items.find(item => item.value === status.name || item.text === text)) {
+          items.push({text, value: status.name});
         }
       });
       items.push({text: this.$t('processes.myWorks.status.draft'), value: 'drafts'});
