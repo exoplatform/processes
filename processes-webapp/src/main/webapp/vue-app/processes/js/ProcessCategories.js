@@ -30,8 +30,9 @@ export const CATEGORY_DEPTH = 4;
  * Reads the categories the user may filter the processes by: those of the processes they see.
  *
  * @param {object} categoryService social's category service, absent when social ships none
- * @returns {Promise<Map<number, object>>} every category below the root, by id; empty when none
- *          could be read
+ * @returns {Promise<Map<number, object>|null>} every category below the root, by id; empty when
+ *          social ships no category service; null when the read failed, so a caller keeps the tree
+ *          it holds
  */
 export function loadCategories(categoryService) {
   if (!categoryService) {
@@ -44,7 +45,7 @@ export function loadCategories(categoryService) {
     limit: -1,
   })
     .then(flattenCategories)
-    .catch(() => new Map());
+    .catch(() => null);
 }
 
 /**

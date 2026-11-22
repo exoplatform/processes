@@ -142,15 +142,16 @@ export default {
     /**
      * Reads the categories the user may filter the processes by again: filing a process under a
      * category, or out of one, changes them. A category view then drops the processes the new tree
-     * places outside the chosen category. Only the latest read applies: two saves in a row start two
-     * reads, which may answer in either order.
+     * places outside the chosen category. Only the latest read applies, and only when it succeeds: two
+     * saves in a row start two reads, which may answer in either order, and a failed read keeps the
+     * tree the page holds.
      *
      * @returns {Promise} resolved once they are read
      */
     refreshCategories() {
       const readId = ++this.categoriesReadId;
       return loadCategories(this.$categoryService).then(categories => {
-        if (readId !== this.categoriesReadId) {
+        if (readId !== this.categoriesReadId || !categories) {
           return;
         }
         this.categories = categories;
