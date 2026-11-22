@@ -32,7 +32,8 @@ import io.meeds.spring.kernel.PortalApplicationContextInitializer;
  * {@code ApplicationContext}, so its Spring-annotated beans (notably the
  * {@code ProcessesMcpTool} {@code @Service}, active under the {@code mcp-server}
  * profile in the processes-services jar) are discovered and collected by the
- * mcp-server tool registry.
+ * mcp-server tool registry, and the {@code ProcessCategoryPlugin} is built and
+ * registers itself with the platform's categories.
  * <p>
  * The add-on's existing persistence (JPA / Liquibase, wired through the kernel
  * {@code configuration.xml}) is untouched: this Spring context lives alongside
@@ -45,6 +46,7 @@ import io.meeds.spring.kernel.PortalApplicationContextInitializer;
  */
 @SpringBootApplication(scanBasePackages = {
   ProcessesApplication.MODULE_NAME,
+  ProcessesApplication.CATEGORY_MODULE,
   AvailableIntegration.KERNEL_MODULE,
   AvailableIntegration.WEB_MODULE,
 }, exclude = {
@@ -58,6 +60,12 @@ import io.meeds.spring.kernel.PortalApplicationContextInitializer;
 @PropertySource("classpath:application-common.properties")
 public class ProcessesApplication extends PortalApplicationContextInitializer {
 
-  public static final String MODULE_NAME = "org.exoplatform.processes.mcp";
+  public static final String MODULE_NAME     = "org.exoplatform.processes.mcp";
+
+  /**
+   * The package of the plug-in that files processes under the platform's
+   * categories, which registers itself with social's categories once built.
+   */
+  public static final String CATEGORY_MODULE = "org.exoplatform.processes.category";
 
 }

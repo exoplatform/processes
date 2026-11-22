@@ -130,4 +130,10 @@ public class WorkFlowEntity {
    */
   private List<Long>                  requesterFormIds;
 
+  /**
+   * The categories the process is filed under, read only: a save ignores
+   * them, the categories being changed through the platform's category links.
+   */
+  private List<Long>                  categoryIds;
+
 }

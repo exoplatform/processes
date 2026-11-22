@@ -16,6 +16,8 @@
  */
 package org.exoplatform.processes.model;
 
+import java.util.List;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -34,4 +36,31 @@ public class ProcessesFilter {
    */
   @Deprecated(forRemoval = true)
   private Boolean isProcessManager;
+
+  /**
+   * The category the listed processes are filed under, itself or one of its
+   * subcategories; null for any category.
+   */
+  private Long categoryId;
+
+  /**
+   * The only processes to list, by id: set by the processes service once it
+   * resolved {@link #categoryId}, never read from a client; null for no
+   * restriction.
+   */
+  private List<Long> ids;
+
+  /**
+   * Builds a filter on the text, the state and the managed processes, for any
+   * category.
+   *
+   * @param query a search on the title, the description and the summary
+   * @param enabled whether to list the enabled or the disabled processes, null
+   *          for both
+   * @param manager whether to list the processes the user manages
+   * @param isProcessManager not read
+   */
+  public ProcessesFilter(String query, Boolean enabled, Boolean manager, Boolean isProcessManager) {
+    this(query, enabled, manager, isProcessManager, null, null);
+  }
 }

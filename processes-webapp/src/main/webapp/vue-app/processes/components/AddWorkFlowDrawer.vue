@@ -180,6 +180,15 @@
                 name="status"
                 v-model="workflowEnabled" />
             </div>
+            <!-- the platform's categories the process is filed under, saved once the process is saved -->
+            <category-input
+              v-if="categoriesOffered"
+              id="processCategoriesInput"
+              :key="`categoriesInput${formKey}`"
+              v-model="categoryIds"
+              label="processes.workflow.form.categories"
+              label-class="text-header"
+              class="mt-4" />
             <div v-if="!expanded" class="mt-10">
               <v-btn
                 :disabled="!valid"
@@ -530,6 +539,9 @@ export default {
       projectName: null,
       labels: [],
       openedLabels: [],
+      // The categories the process is filed under, and those the drawer opened with
+      categoryIds: [],
+      openedCategoryIds: [],
       labelsRead: false,
       requestCount: null,
       formKey: 0,
@@ -582,7 +594,7 @@ export default {
      */
     confirmClose() {
       return this.valid && (JSON.stringify(this.workflow) !== JSON.stringify(this.oldWorkflow)
-        || this.projectChoiceString() !== this.originalProjectChoice || this.sectionsChanged);
+        || this.projectChoiceString() !== this.originalProjectChoice || this.sectionsChanged || this.categoriesChanged);
     },
     /**
      * @returns {Boolean} true when an edited process differs from what the
@@ -596,7 +608,20 @@ export default {
         || this.projectChoiceString() !== this.originalProjectChoice
         || this.sectionsChanged
         || this.translationsToSave().changed
+        || this.categoriesChanged
         || this.requestCreatorsString(this.workflowRequest) !== this.openedRequestCreators;
+    },
+    /**
+     * @returns {Boolean} true when the categories module is on the page: social ships it
+     */
+    categoriesOffered() {
+      return !!this.$categoryLinkService && !!this.$options.components['category-input'];
+    },
+    /**
+     * @returns {Boolean} true when the categories chosen differ from those the drawer opened with
+     */
+    categoriesChanged() {
+      return this.categoryIdsString(this.categoryIds) !== this.categoryIdsString(this.openedCategoryIds);
     },
     /**
      * @returns {Boolean} true when an edited process can be updated: its
@@ -755,6 +780,8 @@ export default {
           // object's illustration is kept, or the save would drop it
           .then(storedWorkflow => this.openWorkflow(Object.assign({}, storedWorkflow, {
             illustrativeAttachment: workflow.illustrativeAttachment,
+            // The read by id carries no category: the list object's are the stored ones
+            categoryIds: workflow.categoryIds,
           }), mode))
           .catch(() => this.$root.$emit('show-alert', {type: 'error', message: this.$t('processes.workflow.open.error.message')}));
       } else {
@@ -771,6 +798,12 @@ export default {
      * @returns {void}
      */
     openWorkflow(workflow, mode) {
+      this.categoryIds = workflow && Array.isArray(workflow.categoryIds) && workflow.categoryIds.slice() || [];
+      this.openedCategoryIds = this.categoryIds.slice();
+      if (workflow) {
+        workflow = Object.assign({}, workflow);
+        delete workflow.categoryIds;
+      }
       this.labels = workflow && Array.isArray(workflow.labels) && workflow.labels.slice() || [];
       this.openedLabels = this.labels.slice();
       this.labelsRead = !!workflow && Array.isArray(workflow.labels);
@@ -1004,7 +1037,7 @@ export default {
      */
     addNewWorkFlow() {
       this.saving = true;
-      this.$root.$emit('add-workflow', this.buildSavePayload(), this.translationsToSave());
+      this.$root.$emit('add-workflow', this.buildSavePayload(), this.translationsToSave(), this.categoriesToSave());
     },
     /**
      * Asks the application to update the process from the form.
@@ -1013,7 +1046,28 @@ export default {
      */
     updateWorkFlow() {
       this.saving = true;
-      this.$root.$emit('update-workflow', this.buildSavePayload(), this.translationsToSave());
+      this.$root.$emit('update-workflow', this.buildSavePayload(), this.translationsToSave(), this.categoriesToSave());
+    },
+    /**
+     * Gives the categories to file the process under once it is saved, and those it leaves.
+     *
+     * @return {Object} the category ids added and removed since the drawer opened
+     */
+    categoriesToSave() {
+      const opened = this.openedCategoryIds.map(Number);
+      const chosen = (this.categoryIds || []).map(Number);
+      return {
+        categoryIds: chosen,
+        added: chosen.filter(id => !opened.includes(id)),
+        removed: opened.filter(id => !chosen.includes(id)),
+      };
+    },
+    /**
+     * @param {Array<Number>} ids category ids
+     * @return {String} the ids in an order-free form, to compare two choices
+     */
+    categoryIdsString(ids) {
+      return JSON.stringify((ids || []).map(Number).sort((a, b) => a - b));
     },
     /**
      * Keeps a translation field's values as the drawer opened with them. A

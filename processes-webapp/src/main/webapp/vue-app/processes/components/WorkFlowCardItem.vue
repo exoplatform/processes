@@ -53,6 +53,22 @@
           {{ $t('processes.workflow.card.noDescription') }}
         </div>
         <div
+          v-if="categories.length"
+          :aria-label="$t('processes.workflow.card.categories')"
+          class="workflow-card-categories d-flex flex-wrap px-3 pt-2"
+          role="list">
+          <v-chip
+            v-for="category in categories"
+            :key="category.id"
+            :title="category.path.join(' › ')"
+            class="workflow-card-category me-1 mb-1"
+            role="listitem"
+            x-small
+            outlined>
+            {{ category.name }}
+          </v-chip>
+        </div>
+        <div
           v-if="showPending && openRequestsCount !== null"
           class="workflow-card-footer d-flex align-center mt-auto ps-3 pe-2 py-2">
           <v-tooltip bottom>
@@ -80,6 +96,11 @@
 <script>
 export default {
   props: {
+    /** The categories the process is filed under, by name. */
+    categories: {
+      type: Array,
+      default: () => [],
+    },
     workflow: {
       type: Object,
       default: () => ({}),

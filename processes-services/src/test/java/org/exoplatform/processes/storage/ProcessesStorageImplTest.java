@@ -70,6 +70,7 @@ import org.exoplatform.processes.entity.WorkFlowEntity;
 import org.exoplatform.processes.model.CreatorIdentityEntity;
 import org.exoplatform.processes.model.IdentityEntity;
 import org.exoplatform.processes.model.IllustrativeAttachment;
+import org.exoplatform.processes.model.ProcessPermission;
 import org.exoplatform.processes.model.ProcessesFilter;
 import org.exoplatform.processes.model.ProfileEntity;
 import org.exoplatform.processes.model.Work;
@@ -1571,6 +1572,62 @@ public class ProcessesStorageImplTest {
     ProcessesFilter managedFilter = new ProcessesFilter("managed", null, true, false);
 
     assertTrue(this.processesStorage.findWorkFlows(managedFilter, 5L, 0, 10).isEmpty());
+    verify(workFlowDAO, never()).findWorkFlows(eq(managedFilter), any(), anyInt(), anyInt());
+  }
+
+  /**
+   * The rights read lists every process in one unpaged query, matched against
+   * the same memberships as the listing, and maps each to its id, its enabled
+   * flag and its rights only: no full mapping, which resolves the request
+   * makers through spaces and groups, no illustration and no space. Mutations:
+   * page the query, use the full mapping, read the illustrations or the
+   * managing spaces, or compute the rights with other memberships, and this
+   * test fails.
+   */
+  @Test
+  public void findWorkFlowRightsReadsEveryProcessOnceWithItsRightsOnly() {
+    // The static mapper mock lives across tests: only this test's calls count
+    ENTITY_MAPPER.clearInvocations();
+    mockAclIdentity(5L, "john", new MembershipEntry("/spaces/hr", "member"));
+    ProcessesFilter filter = new ProcessesFilter("all", null, false, false);
+    WorkFlowEntity entity = new WorkFlowEntity();
+    entity.setId(7L);
+    entity.setEnabled(true);
+    entity.setIllustrationImageId(12L);
+    List<String> memberships = List.of("john", "member:/spaces/hr");
+    when(workFlowDAO.findWorkFlows(eq(filter),
+                                   argThat(listed -> listed != null && listed.size() == 2 && listed.containsAll(memberships)),
+                                   eq(0),
+                                   eq(0))).thenReturn(List.of(entity));
+    ProcessPermission rights = new ProcessPermission(true, false, false, true);
+    ENTITY_MAPPER.when(() -> EntityMapper.getACL(eq(entity), argThat(given -> given != null && given.containsAll(memberships))))
+                 .thenReturn(rights);
+
+    List<WorkFlow> listed = this.processesStorage.findWorkFlowRights(filter, 5L);
+
+    assertEquals(1, listed.size());
+    assertEquals(7L, listed.get(0).getId());
+    assertTrue(listed.get(0).isEnabled());
+    assertEquals(rights, listed.get(0).getAcl());
+    ENTITY_MAPPER.verify(() -> EntityMapper.fromEntity(any(WorkFlowEntity.class), any()), never());
+
+    verify(workFlowDAO, never()).findWorkFlows(any(), any(), anyInt(), org.mockito.ArgumentMatchers.intThat(limit -> limit > 0));
+    org.mockito.Mockito.verifyNoInteractions(fileService);
+    verify(spaceService, never()).getSpaceById(anyString());
+    ENTITY_MAPPER.verify(() -> EntityMapper.fromEntity(any(WorkFlowEntity.class), any(), any()), never());
+  }
+
+  /**
+   * The rights read of the « I manage » listing, for a user who administers
+   * no space, lists nothing without a query, as the listing does. Mutation:
+   * query with every membership and this test fails.
+   */
+  @Test
+  public void findWorkFlowRightsManagedByASpaceMemberListsNothing() {
+    mockAclIdentity(5L, "jane", new MembershipEntry("/spaces/hr", "member"));
+    ProcessesFilter managedFilter = new ProcessesFilter("managed", null, true, false);
+
+    assertTrue(this.processesStorage.findWorkFlowRights(managedFilter, 5L).isEmpty());
     verify(workFlowDAO, never()).findWorkFlows(eq(managedFilter), any(), anyInt(), anyInt());
   }
 

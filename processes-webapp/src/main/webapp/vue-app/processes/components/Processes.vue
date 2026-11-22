@@ -100,6 +100,7 @@ export default {
       query: null,
       enabled: null,
       manager: false,
+      categoryId: null,
       status: null,
       offset: 0,
       limit: 0,
@@ -176,11 +177,11 @@ export default {
     this.$root.$on('add-work', work => {
       this.addWork(work);
     });
-    this.$root.$on('add-workflow', (workflow, translations) => {
-      this.addNewWorkFlow(this.withTranslations(workflow, translations));
+    this.$root.$on('add-workflow', (workflow, translations, categories) => {
+      this.addNewWorkFlow(this.withTranslations(workflow, translations), categories);
     });
-    this.$root.$on('update-workflow', (workflow, translations) => {
-      this.updateWorkFlow(this.withTranslations(workflow, translations));
+    this.$root.$on('update-workflow', (workflow, translations, categories) => {
+      this.updateWorkFlow(this.withTranslations(workflow, translations), categories);
     });
     this.$root.$on('refresh-works', () => {
       this.getWorks();
@@ -191,6 +192,7 @@ export default {
     this.$root.$on('workflow-filter-changed', event => {
       this.workflows = [];
       this.query = event.query;
+      this.categoryId = event.categoryId || null;
       if (this.isManager) {
         switch (event.filter)
         {
@@ -340,7 +342,8 @@ export default {
     },
     showFilter(){
       if (this.isManager){
-        if ((this.enabled == null && !this.query)||this.workflows.length){
+        // a view the category narrows to nothing keeps its toolbar, to choose another category
+        if ((this.enabled == null && !this.query && !this.categoryId)||this.workflows.length){
           this.showProcessFilter = this.workflows.length > 0;
         }
       } else {
@@ -456,6 +459,9 @@ export default {
         filter.enabled = this.enabled;
       }
       filter.manager = this.manager;
+      if (this.categoryId) {
+        filter.categoryId = this.categoryId;
+      }
       const expand = '';
       this.limit = this.limit || this.pageSize;
       this.offset = this.workflows.length || 0;
@@ -604,16 +610,20 @@ export default {
      * so it can be saved again.
      *
      * @param {Object} workflow the process to create
+     * @param {Object} categories the categories to file it under, once created
      * @returns {void}
      */
-    addNewWorkFlow(workflow) {
+    addNewWorkFlow(workflow, categories) {
       this.saving = true;
       this.$processesService.addNewWorkFlow(workflow).then(workflow => {
         if (workflow){
-          this.getWorkFlows(workflow);
-          this.$root.$emit('workflow-added');
-          this.displayMessage({type: 'success', message: this.$t('processes.workflow.add.success.message')});
-          this.showProcessFilter = true;
+          // filed under its categories before the list reads it again, so it shows with them
+          return this.saveCategories(workflow, categories).then(() => {
+            this.getWorkFlows(workflow);
+            this.$root.$emit('workflow-added');
+            this.displayMessage({type: 'success', message: this.$t('processes.workflow.add.success.message')});
+            this.showProcessFilter = true;
+          });
         }
       }).catch(e => {
         this.$root.$emit('workflow-save-failed');
@@ -815,19 +825,66 @@ export default {
      * so it can be saved again.
      *
      * @param {Object} workflow the process to update
+     * @param {Object} categories the categories to file it under, and those it leaves
      * @returns {void}
      */
-    updateWorkFlow(workflow) {
+    updateWorkFlow(workflow, categories) {
       this.saving = true;
       this.$processesService.updateWorkflow(workflow).then(newWorkflow => {
         if (newWorkflow) {
-          this.$root.$emit('workflow-updated', newWorkflow);
-          this.displayMessage({type: 'success', message: this.$t('processes.workflow.update.success.message')});
+          const saved = JSON.parse(newWorkflow);
+          return this.saveCategories(saved, categories).then(categoryIds => {
+            saved.categoryIds = categoryIds;
+            this.$root.$emit('workflow-updated', JSON.stringify(saved));
+            this.displayMessage({type: 'success', message: this.$t('processes.workflow.update.success.message')});
+          });
         }
       }).catch(e => {
         this.$root.$emit('workflow-save-failed');
         this.displayMessage({type: 'error', message: this.saveErrorMessage(e, 'update', workflow)});
       });
+    },
+    /**
+     * Files a saved process under the categories added in its editor and takes it out of those
+     * removed, one at a time: social's link service answers each refusal, which this method reports
+     * once, the process staying saved. The category list is read again when anything changed.
+     *
+     * @param {Object} workflow the saved process
+     * @param {Object} categories the chosen, added and removed category ids, or nothing
+     * @returns {Promise<Array<Number>>} the categories the process is filed under afterwards
+     */
+    saveCategories(workflow, categories) {
+      const chosen = categories && categories.categoryIds || [];
+      if (!categories || !this.$categoryLinkService || (!categories.added.length && !categories.removed.length)) {
+        return Promise.resolve(chosen);
+      }
+      const object = {
+        type: 'process',
+        id: String(workflow.id),
+        spaceId: workflow.parentSpace && Number(workflow.parentSpace.id) || 0,
+      };
+      const filed = chosen.slice();
+      let failed = false;
+      const steps = [
+        ...categories.added.map(id => () => this.$categoryLinkService.link(id, object)
+          .catch(() => {
+            failed = true;
+            filed.splice(filed.indexOf(id), 1);
+          })),
+        ...categories.removed.map(id => () => this.$categoryLinkService.unlink(id, object)
+          .catch(() => {
+            failed = true;
+            filed.push(id);
+          })),
+      ];
+      return steps.reduce((done, step) => done.then(step), Promise.resolve())
+        .then(() => {
+          if (failed) {
+            this.displayMessage({type: 'error', message: this.$t('processes.workflow.categories.error')});
+          }
+          this.$root.$emit('workflow-categories-updated');
+          return filed;
+        });
     },
     /**
      * Adds to a process to save the title, description and summary per

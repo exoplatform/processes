@@ -112,10 +112,13 @@ public class ProcessesRest implements ResourceContainer {
    * @param enabled whether to list the enabled or the disabled processes
    * @param manager whether to list the processes the user manages
    * @param query a search on the process title
+   * @param categoryId the category the processes are filed under, itself or
+   *          one of its subcategories, or null for any
    * @param expand the properties to expand
    * @param offset the offset of the first process
    * @param limit the number of processes
-   * @return the processes, or the refusal status
+   * @return the processes, each with the categories it is filed under, or the
+   *         refusal status
    */
   @GET
   @Produces(MediaType.APPLICATION_JSON)
@@ -142,6 +145,9 @@ public class ProcessesRest implements ResourceContainer {
                                   @Parameter(description = "Search query entered by the user", required = false)
                                   @QueryParam("query")
                                   String query,
+                                  @Parameter(description = "Category the processes are filed under, itself or a subcategory", required = false)
+                                  @QueryParam("categoryId")
+                                  Long categoryId,
                                   @Parameter(description = "Processes properties to expand.", required = false)
                                   @QueryParam("expand")
                                   String expand,
@@ -168,13 +174,16 @@ public class ProcessesRest implements ResourceContainer {
       if (query != null) {
         filter.setQuery(query);
       }
+      filter.setCategoryId(categoryId);
 
       if (userId != null && userId != currentIdentityId) {
         return Response.status(Response.Status.FORBIDDEN).entity(ONLY_CURRENT_USER_MESSAGE).build();
       }
       long userIdentityId = currentIdentityId;
       List<WorkFlow> workFlows = processesService.getWorkFlows(filter, offset, limit, userIdentityId);
-      return Response.ok(EntityBuilder.toRestEntities(workFlows, expand, getLocale())).cacheControl(PER_USER_CACHE_CONTROL).build();
+      List<WorkFlowEntity> entities = EntityBuilder.toRestEntities(workFlows, expand, getLocale());
+      setCategoryIds(entities);
+      return Response.ok(entities).cacheControl(PER_USER_CACHE_CONTROL).build();
     } catch (IllegalAccessException e) {
       LOG.debug("User '{}' isn't allowed to list the workflows", currentIdentityId, e);
       return Response.status(Response.Status.FORBIDDEN).build();
@@ -1334,6 +1343,20 @@ public class ProcessesRest implements ResourceContainer {
    */
   protected Locale getLocale() {
     return LocalizationFilter.getCurrentLocale();
+  }
+
+  /**
+   * Sets on each listed process the categories it is filed under, read in one
+   * go; a process filed under none gets an empty list.
+   *
+   * @param entities the listed processes
+   */
+  private void setCategoryIds(List<WorkFlowEntity> entities) {
+    if (entities.isEmpty()) {
+      return;
+    }
+    Map<Long, List<Long>> categoryIds = processesService.getCategoryIds(entities.stream().map(WorkFlowEntity::getId).toList());
+    entities.forEach(entity -> entity.setCategoryIds(categoryIds.getOrDefault(entity.getId(), List.of())));
   }
 
 }

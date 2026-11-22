@@ -123,18 +123,50 @@ public class ProcessesRestTest {
     List<WorkFlowEntity> workFlowEntities = new ArrayList<>();
     ProcessesFilter processesFilter = new ProcessesFilter();
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
-    Response response1 = processesRest.getWorkFlows(1L, null, null, null, null, 0, 10);
+    Response response1 = processesRest.getWorkFlows(1L, null, null, null, null, null, 0, 10);
     assertEquals(response1.getStatus(), Response.Status.UNAUTHORIZED.getStatusCode());
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
     when(processesService.getWorkFlows(processesFilter, 0, 10, 1L)).thenReturn(workFlows);
     ENTITY_BUILDER.when(() -> EntityBuilder.toRestEntities(workFlows, null)).thenReturn(workFlowEntities);
-    Response response2 = processesRest.getWorkFlows(1L, true, null, "test", null, 0, 10);
+    Response response2 = processesRest.getWorkFlows(1L, true, null, "test", null, null, 0, 10);
     assertEquals(response2.getStatus(), Response.Status.OK.getStatusCode());
     assertNeitherSharedNorStored(response2);
     when(processesService.getWorkFlows(any(ProcessesFilter.class), anyInt(), anyInt(), anyLong())).thenThrow(RuntimeException.class);
-    Response response3 = processesRest.getWorkFlows(1L, null, null, null, null, 0, 10);
+    Response response3 = processesRest.getWorkFlows(1L, null, null, null, null, null, 0, 10);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response3.getStatus());
 
+  }
+
+  /**
+   * The category filter reaches the service, and each listed process comes
+   * with the categories it is filed under, read in one go; one filed under
+   * none gets an empty list. Mutations: drop the categoryId, or the
+   * decoration, and this test fails.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listedProcessesComeWithTheirCategories() throws Exception {
+    REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setId(5L);
+    List<WorkFlow> workFlows = List.of(workFlow);
+    when(processesService.getWorkFlows(any(ProcessesFilter.class), eq(0), eq(10), eq(1L))).thenReturn(workFlows);
+    WorkFlowEntity filed = new WorkFlowEntity();
+    filed.setId(5L);
+    WorkFlowEntity unfiled = new WorkFlowEntity();
+    unfiled.setId(6L);
+    ENTITY_BUILDER.when(() -> EntityBuilder.toRestEntities(eq(workFlows), any(), any())).thenReturn(new ArrayList<>(List.of(filed, unfiled)));
+    when(processesService.getCategoryIds(List.of(5L, 6L))).thenReturn(java.util.Map.of(5L, List.of(31L)));
+
+    Response response = processesRest.getWorkFlows(1L, null, false, null, 20L, null, 0, 10);
+
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    org.mockito.ArgumentCaptor<ProcessesFilter> filter = org.mockito.ArgumentCaptor.forClass(ProcessesFilter.class);
+    verify(processesService).getWorkFlows(filter.capture(), eq(0), eq(10), eq(1L));
+    assertEquals(Long.valueOf(20L), filter.getValue().getCategoryId());
+    assertEquals(List.of(31L), filed.getCategoryIds());
+    assertEquals(List.of(), unfiled.getCategoryIds());
   }
 
   /**
@@ -150,7 +182,7 @@ public class ProcessesRestTest {
                                        anyLong())).thenThrow(IllegalAccessException.class);
 
     assertEquals(Response.Status.FORBIDDEN.getStatusCode(),
-                 processesRest.getWorkFlows(1L, null, null, null, null, 0, 10).getStatus());
+                 processesRest.getWorkFlows(1L, null, null, null, null, null, 0, 10).getStatus());
   }
 
   /**
@@ -164,7 +196,7 @@ public class ProcessesRestTest {
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
 
     assertEquals(Response.Status.FORBIDDEN.getStatusCode(),
-                 processesRest.getWorkFlows(2L, null, null, null, null, 0, 10).getStatus());
+                 processesRest.getWorkFlows(2L, null, null, null, null, null, 0, 10).getStatus());
     assertEquals(Response.Status.FORBIDDEN.getStatusCode(),
                  processesRest.getWorks(2L, null, null, null, null, 0, 10).getStatus());
     assertEquals(Response.Status.FORBIDDEN.getStatusCode(), processesRest.getWorkDrafts(2L, null, null, 0, 10).getStatus());
@@ -326,6 +358,7 @@ public class ProcessesRestTest {
                                                         null,
                                                         null,
                                                         false,
+                                                        null,
                                                         null,
                                                         null,
                                                         null,
