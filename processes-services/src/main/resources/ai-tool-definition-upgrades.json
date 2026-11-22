@@ -7,7 +7,29 @@
         "b44da91deb5c3a16baa1f1aa4682058a93906d57ecb019897ee8cedd446c712f",
         "6bfd32b490e70f6c95d545ea7dfbca7378399d0648d8999e537c459cd66f65dd",
         "82e841b90e02b04a5aa29c87302b10f2357355863189f3d93ecfa49a2fb03ee1",
-        "ae731d2d7c38625543a885431086495d90c8e1513a05f662baf3e8da2b3e154a"
+        "ae731d2d7c38625543a885431086495d90c8e1513a05f662baf3e8da2b3e154a",
+        "757e20e45e52d23ed8cbc915a2778cd8660dbe451496a70bd23e665e018c0f64"
+      ]
+    },
+    {
+      "name": "get_my_requests",
+      "replaced_definitions": [
+        "72f3b1d9ba6bd2eea9245ad552e549445bfa0fe0d69171f0d45e93440d561a52"
+      ]
+    },
+    {
+      "name": "cancel_work_request",
+      "replaced_definitions": [
+        "7dca2e6cb1ca688055db93439d0734cba8629abd28e1ecc709dc8f5a0137e7b0"
+      ]
+    },
+    {
+      "name": "get_pending_approvals",
+      "replaced_definitions": [
+        "2d2fcc6f36e4ea43d35f9d8ddb21ba5d6bcc0a2c9fb409ddd4d1016e5a229bca",
+        "5d9b3980c731acbd45b4f0688e2fe30eea1324ab376e6f9491399dbd0fa02350",
+        "84f3e49a5290cb60c210338839c3eef18c23c73a6c5270eb6fe622836181c8cc",
+        "967ca04b8fa312aecdbfcac96d6191ff8d19e8d2b8dda5f0b23010e56dd1819e"
       ]
     }
   ]
