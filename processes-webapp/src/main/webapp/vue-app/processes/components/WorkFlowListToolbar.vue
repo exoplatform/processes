@@ -141,7 +141,7 @@ export default {
   watch: {
     categories(categories) {
       // a category no longer offered, its last process moved out of it, filters nothing any more
-      if (this.categoryId && categories.size && !categories.has(this.categoryId)) {
+      if (this.categoryId && !categories.has(this.categoryId)) {
         this.categoryId = null;
         this.emitFilter();
       }
