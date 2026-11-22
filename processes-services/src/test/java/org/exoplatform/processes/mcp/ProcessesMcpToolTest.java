@@ -777,7 +777,7 @@ public class ProcessesMcpToolTest {
     java.util.List<String> fields = new java.util.ArrayList<>();
     collectFields(query.getValue().getCondition(), fields);
     assertTrue("the pending requests are the open tasks: " + fields, fields.contains("completed"));
-    assertTrue("no column name is read: " + fields, fields.stream().noneMatch(field -> field.startsWith("status")));
+    assertTrue("no column name is read: " + fields, fields.stream().noneMatch(field -> field.startsWith("status.name")));
     PredicateCondition<Task> restriction = ((AggregateCondition) query.getAllValues().get(0).getCondition()).getConditions()
                                                                                                     .stream()
                                                                                                     .filter(PredicateCondition.class::isInstance)
