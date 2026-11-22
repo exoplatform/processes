@@ -469,6 +469,36 @@ export function deleteWorkDraftById(draftId) {
   });
 }
 
+/**
+ * Lists the documents a process asks its requesters to fill in, as the request drawer needs them: their id,
+ * title, stored file name, type, size, update date and whether the user may open the process's own file.
+ *
+ * @param {Number} workflowId the process id
+ * @returns {Promise<Array>} the documents
+ */
+export function getDocumentsToFill(workflowId) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/workflows/${workflowId}/documentsToFill`, {
+    credentials: 'include',
+    method: 'GET',
+  }).then(resp => {
+    if (resp && resp.ok) {
+      return resp.json();
+    }
+    throw new Error('Error getting the documents to fill in of the process');
+  });
+}
+
+/**
+ * Turns a process's document to fill in into the shape the request drawer's documents have: its title as its name,
+ * and the user's right to open the process's own file as its access right.
+ *
+ * @param {Object} document a document the process asks to fill in
+ * @returns {Object} the document, as an attachment of the drawer
+ */
+export function toProcessDocument(document) {
+  return Object.assign({}, document, {name: document.title, acl: {canAccess: !!document.canAccess}});
+}
+
 export function getAvailableWorkStatuses() {
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/works/statuses`, {
     credentials: 'include',

@@ -149,4 +149,21 @@ public interface ProcessesAttachmentService {
                                      String templateName,
                                      String entityType,
                                      Long entityId) throws Exception;
+
+    /**
+     * Lists a process's own documents for a user, the list a request's draft
+     * copies from: a document the user may read as the attachment service
+     * gives it to them; one they may not read, which that service gives by its
+     * id alone, read as the platform and reduced to its id, title, path (its
+     * stored name), type, size and update date, with the user's denied
+     * access: no link, preview, author, creation date or version.
+     * The caller checks the user's right on the process first.
+     *
+     * @param userId the identity id of the user
+     * @param workflowId the process id
+     * @return the process's documents, each with the user's permission on it
+     * @throws IllegalAccessException when the attachment service refuses the
+     *           user, which it declares and does not throw at this version
+     */
+    List<Attachment> getProcessDocuments(long userId, long workflowId) throws IllegalAccessException;
 }

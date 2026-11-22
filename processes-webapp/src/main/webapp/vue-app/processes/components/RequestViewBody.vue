@@ -53,6 +53,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       :documents="documents"
       :is-filled="isFilled"
       :name-of="nameOf"
+      :can-open-original="canOpenOriginal"
       :expanded="expanded"
       readonly
       @open="$emit('open-document', $event)"
@@ -166,6 +167,11 @@ export default {
     nameOf: {
       type: Function,
       default: () => null
+    },
+    /** Tells whether the viewer may open a copy's original */
+    canOpenOriginal: {
+      type: Function,
+      default: () => true
     },
     /** The task's link, null while the viewer may not open the task */
     taskLink: {

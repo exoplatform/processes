@@ -41,6 +41,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       {{ $t(buttonLabelKey) }}
     </v-btn>
     <v-menu
+      v-if="canOpenOriginal"
       ref="menu"
       v-model="showMenu"
       bottom
@@ -99,6 +100,11 @@ export default {
     name: {
       type: String,
       default: null,
+    },
+    /** Whether the menu offers to open the process's original, which a requester outside the managing space may not */
+    canOpenOriginal: {
+      type: Boolean,
+      default: true,
     },
     /** A sent request's copy: the button opens it, read-only, rather than filling it */
     readonly: {

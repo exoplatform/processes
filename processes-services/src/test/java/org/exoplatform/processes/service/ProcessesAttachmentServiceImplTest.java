@@ -115,6 +115,12 @@ public class ProcessesAttachmentServiceImplTest {
   @Mock
   private SpaceService               spaceService;
 
+  @Mock
+  private org.exoplatform.services.cms.documents.DocumentService documentService;
+
+  @Mock
+  private org.exoplatform.services.cms.link.LinkManager linkManager;
+
   private ProcessesAttachmentService processesAttachmentService;
 
   private static final long          REQUESTER_ID       = 5L;
@@ -158,7 +164,9 @@ public class ProcessesAttachmentServiceImplTest {
                                                                          projectService,
                                                                          identityManager,
                                                                          userACL,
-                                                                         spaceService);
+                                                                         spaceService,
+                                                                         documentService,
+                                                                         linkManager);
     ConversationState conversationState = mock(ConversationState.class);
     CONVERSATION_STATE.when(() -> ConversationState.getCurrent()).thenReturn(conversationState);
     Identity identity = mock(Identity.class);
@@ -1182,5 +1190,108 @@ public class ProcessesAttachmentServiceImplTest {
       assertTrue(participators + ": the space group manages the folder", permissions.getValue().containsKey("*:/spaces/hr"));
       assertFalse(participators + ": no user is taken for the group", permissions.getValue().containsKey("*:mary"));
     }
+  }
+
+  /**
+   * A process document the user may read is answered as the attachment
+   * service lists it for them; one they may not read, which that list holds by
+   * its id alone, is read as the platform, with its title, type, size and
+   * update date and the user's denied access, and nothing else it holds (no
+   * link, author, creation date, version or preview); one that is gone is left
+   * out (EXO-94918). Mutation: answer the user's list unchanged, keep the
+   * platform's access instead of the user's, keep any other field, or let a
+   * gone document fail the list, and this test fails.
+   *
+   * @throws Exception never, the mocks throw what the test asks
+   */
+  @Test
+  public void theProcessDocumentsAUserCannotReadAreReadAsThePlatform() throws Exception {
+    org.exoplatform.services.attachments.model.Permission readable = permission(true);
+    org.exoplatform.services.attachments.model.Permission denied = permission(false);
+    Attachment open = new Attachment();
+    open.setId("open");
+    open.setTitle("Guide.docx");
+    open.setAcl(readable);
+    Attachment hidden = new Attachment();
+    hidden.setId("hidden");
+    hidden.setAcl(denied);
+    Attachment gone = new Attachment();
+    gone.setId("gone");
+    gone.setAcl(denied);
+    when(attachmentService.getAttachmentsByEntity(REQUESTER_ID, 9L, "workflow")).thenReturn(List.of(open, hidden, gone));
+    Session systemSession = mock(Session.class);
+    UTILS.when(() -> Utils.getSystemSession(sessionProviderService, repositoryService)).thenReturn(systemSession);
+    UTILS.when(() -> Utils.getCurrentWorkspace(repositoryService)).thenReturn("collaboration");
+    Attachment platformRead = new Attachment();
+    platformRead.setId("hidden");
+    platformRead.setTitle("Form.pdf");
+    platformRead.setPath("/Groups/spaces/hr/Documents/Processes/9/form.pdf");
+    platformRead.setMimetype("application/pdf");
+    platformRead.setSize(878L);
+    platformRead.setUpdated("2026-11-22T18:06:00");
+    platformRead.setDownloadUrl("/rest/jcr/form.pdf");
+    platformRead.setOpenUrl("/portal/dw/documents?documentPreviewId=hidden");
+    platformRead.setUpdater("manager");
+    platformRead.setVersion("3");
+    platformRead.setCreated("2026-11-20T09:00:00");
+    platformRead.setPreviewBreadcrumb(new java.util.LinkedHashMap<>(java.util.Map.of("hr", "/Groups/spaces/hr")));
+    platformRead.setAcl(permission(true));
+    try (org.mockito.MockedStatic<org.exoplatform.services.attachments.utils.EntityBuilder> entityBuilder =
+        mockStatic(org.exoplatform.services.attachments.utils.EntityBuilder.class)) {
+      entityBuilder.when(() -> org.exoplatform.services.attachments.utils.EntityBuilder.fromAttachmentNode(repositoryService,
+                                                                                                           documentService,
+                                                                                                           linkManager,
+                                                                                                           "collaboration",
+                                                                                                           systemSession,
+                                                                                                           "hidden"))
+                   .thenReturn(platformRead);
+      entityBuilder.when(() -> org.exoplatform.services.attachments.utils.EntityBuilder.fromAttachmentNode(repositoryService,
+                                                                                                           documentService,
+                                                                                                           linkManager,
+                                                                                                           "collaboration",
+                                                                                                           systemSession,
+                                                                                                           "gone"))
+                   .thenThrow(new ItemNotFoundException("gone"));
+
+      List<Attachment> documents = processesAttachmentService.getProcessDocuments(REQUESTER_ID, 9L);
+
+      assertEquals(2, documents.size());
+      assertEquals(open, documents.get(0));
+      Attachment document = documents.get(1);
+      assertEquals("Form.pdf", document.getTitle());
+      assertEquals("/Groups/spaces/hr/Documents/Processes/9/form.pdf", document.getPath());
+      assertEquals("2026-11-22T18:06:00", document.getUpdated());
+      assertFalse(document.getAcl().isCanAccess());
+      assertEquals(null, document.getDownloadUrl());
+      assertEquals(null, document.getOpenUrl());
+      assertEquals(null, document.getUpdater());
+      assertEquals(null, document.getVersion());
+      assertEquals(null, document.getCreated());
+      assertEquals(null, document.getPreviewBreadcrumb());
+      assertEquals("application/pdf", document.getMimetype());
+      assertEquals(878L, document.getSize());
+      entityBuilder.verify(() -> org.exoplatform.services.attachments.utils.EntityBuilder.fromAttachmentNode(any(),
+                                                                                                             any(),
+                                                                                                             any(),
+                                                                                                             any(),
+                                                                                                             any(),
+                                                                                                             eq("open")),
+                           never());
+    }
+  }
+
+  /**
+   * Builds a permission that grants or denies every right.
+   *
+   * @param granted whether the rights are granted
+   * @return the permission
+   */
+  private static org.exoplatform.services.attachments.model.Permission permission(boolean granted) {
+    org.exoplatform.services.attachments.model.Permission permission = new org.exoplatform.services.attachments.model.Permission();
+    permission.setCanAccess(granted);
+    permission.setCanView(granted);
+    permission.setCanEdit(granted);
+    permission.setCanDetach(granted);
+    return permission;
   }
 }
