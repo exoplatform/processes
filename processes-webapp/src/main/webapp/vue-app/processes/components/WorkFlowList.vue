@@ -157,10 +157,14 @@ export default {
     /**
      * @param {Object} workflow a process
      * @returns {Boolean} whether the chosen category, or no category, lists it: filed under that
-     *          category or one of its subcategories, as the server's filter reads it
+     *          category or one of its subcategories, as the server's filter reads it. A process filed
+     *          under a category the page's tree doesn't hold yet, as one just used for the first time
+     *          while the tree reloads, stays: the page can't tell where that category sits.
      */
     isUnderChosenCategory(workflow) {
-      return !this.categoryId || isFiledUnder(workflow, this.categoryId, this.categories);
+      return !this.categoryId
+        || isFiledUnder(workflow, this.categoryId, this.categories)
+        || (workflow.categoryIds || []).some(id => !this.categories.has(id));
     },
     /**
      * Replaces an updated process in the list, or removes it when it no longer matches the selected
