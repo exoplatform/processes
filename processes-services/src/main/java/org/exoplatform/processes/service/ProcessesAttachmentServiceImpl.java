@@ -461,6 +461,23 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
     return selected;
   }
 
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<Attachment> getProcessDocuments(long userId, long workflowId) throws IllegalAccessException {
+    return attachmentService.getAttachmentsByEntity(userId, workflowId, WORKFLOW_ENTITY_TYPE);
+  }
+
+  /**
+   * Reads the ids of a process's own attachments, as the attachment service
+   * lists them for a user.
+   *
+   * @param userId the identity id of the user
+   * @param workflowId the process id
+   * @return the attachment ids
+   * @throws IllegalAccessException when the attachment service refuses the user
+   */
   private Set<String> getLinkedIds(long userId, long workflowId) throws IllegalAccessException {
     return attachmentService.getAttachmentsByEntity(userId, workflowId, WORKFLOW_ENTITY_TYPE)
                             .stream()
