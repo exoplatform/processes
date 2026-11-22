@@ -551,6 +551,9 @@ export default {
       expanded: false,
       // The form chosen in the Forms section before the layout changed, which the re-mounted section shows again
       pendingFormId: null,
+      // The project's forms checked for the requesters before the layout changed, which the re-mounted section checks
+      // again; null when the checklist kept the saved choice
+      pendingRequesterFormIds: null,
       // The translation fields that read their stored translations since the drawer opened, by field name
       initializedTranslations: {},
     };
@@ -676,7 +679,7 @@ export default {
      *          existing project chosen, the stored one on an edit that keeps
      *          it, none for a new project) and that project's name, once the
      *          project choice lists it,
-     *          the form chosen before the layout changed, if any, and in
+     *          the form chosen and the project's forms checked for the requesters before the layout changed, if any, and in
      *          full screen the preview of the form picked
      */
     editorSectionsParams() {
@@ -687,6 +690,7 @@ export default {
           : this.projectMode === 'EXISTING' && this.projectId || null,
         projectName: this.projectMode === 'EXISTING' && this.projectName || null,
         selected: this.pendingFormId,
+        selectedRequesterFormIds: this.pendingRequesterFormIds,
         preview: this.expanded,
       };
     },
@@ -696,6 +700,7 @@ export default {
     // included, which the space picker does not report as a change. Re-feeding the same space changes nothing
     managingSpaceId() {
       this.pendingFormId = null;
+      this.pendingRequesterFormIds = null;
     },
     workflowEnabled(value) {
       this.workflow.enabled = value;
@@ -772,6 +777,7 @@ export default {
       this.openedTranslations = {};
       this.initializedTranslations = {};
       this.pendingFormId = null;
+      this.pendingRequesterFormIds = null;
       if (workflow && workflow.id && mode === 'edit_workflow') {
         // The editor edits the stored default-language texts: the list object
         // carries them in the user's language, so it is never edited
@@ -1132,8 +1138,9 @@ export default {
     },
     /**
      * Follows the drawer's full screen. Changing the layout re-mounts the
-     * settings and the Forms section: the form chosen is kept for the new
-     * section, read while the former one is still mounted, and the space and
+     * settings and the Forms section: the form chosen and the project's
+     * forms checked for the requesters are kept for the new section, read
+     * while the former one is still mounted, and the space and
      * request pickers, which the steps' Continue fill, are given their values
      * once the new ones are mounted. A drawer that is closing keeps its
      * layout, so that nothing is re-mounted while it closes: the next
@@ -1151,6 +1158,7 @@ export default {
       }
       const fields = this.$refs.editorSections && this.$refs.editorSections.fields() || {};
       this.pendingFormId = fields.requestFormId ?? null;
+      this.pendingRequesterFormIds = fields.requesterFormIds ?? null;
       this.expanded = expanded;
       this.$nextTick(() => this.syncPickers());
     },
