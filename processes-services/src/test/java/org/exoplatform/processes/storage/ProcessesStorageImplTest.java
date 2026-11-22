@@ -239,7 +239,6 @@ public class ProcessesStorageImplTest {
     workFlow.setTitle("title");
     workFlow.setProjectId(1L);
     workFlow.setSpaceId("1");
-    workFlow.setRequestsCreators(new ArrayList<>());
     List<CreatorIdentityEntity> identityEntities = new ArrayList<>();
     ProfileEntity profile =
                           new ProfileEntity(StringUtils.isNotEmpty(space.getAvatarUrl()) ? space.getAvatarUrl()
@@ -685,7 +684,6 @@ public class ProcessesStorageImplTest {
     workFlow.setTitle("title");
     workFlow.setProjectId(1L);
     workFlow.setSpaceId("1");
-    workFlow.setRequestsCreators(new ArrayList<>());
     PROJECT_UTIL.when(() -> ProjectUtil.newProjectInstanceDto(workFlow.getTitle(),
                                            workFlow.getDescription(),
                                            managers,
@@ -793,7 +791,6 @@ public class ProcessesStorageImplTest {
     workFlow.setTitle("title");
     workFlow.setProjectId(1L);
     workFlow.setSpaceId("1");
-    workFlow.setRequestsCreators(new ArrayList<>());
     PROJECT_UTIL.when(() -> ProjectUtil.newProjectInstanceDto(workFlow.getTitle(),
                                            workFlow.getDescription(),
                                            managers,
