@@ -103,6 +103,7 @@ export default {
     grouped: false,
     categoryId: null,
     categories: new Map(),
+    categoriesReadId: 0,
   }),
   computed: {
     workflowList() {
@@ -141,12 +142,17 @@ export default {
     /**
      * Reads the categories the user may filter the processes by again: filing a process under a
      * category, or out of one, changes them. A category view then drops the processes the new tree
-     * places outside the chosen category.
+     * places outside the chosen category. Only the latest read applies: two saves in a row start two
+     * reads, which may answer in either order.
      *
      * @returns {Promise} resolved once they are read
      */
     refreshCategories() {
+      const readId = ++this.categoriesReadId;
       return loadCategories(this.$categoryService).then(categories => {
+        if (readId !== this.categoriesReadId) {
+          return;
+        }
         this.categories = categories;
         this.dropOutsideChosenCategory();
       });
