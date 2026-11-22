@@ -74,6 +74,8 @@ export default {
       this.openKey++;
       if (mode === 'create_work') {
         this.work = {description: '', workFlow: object};
+        // The drawer is reused across openings: its message editor keeps the text typed in a former one until emptied
+        this.$refs.messageRow?.setEditorData('');
         this.editDraft = false;
         this.viewMode = false;
         this.$root.$emit('update-url-path', 'createRequest', `/${this.work.workFlow.id}/createRequest` );
