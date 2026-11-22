@@ -209,7 +209,10 @@ public class ProcessesStorageImpl implements ProcessesStorage {
                                                        workFlowEntity.getId(),
                                                        WORKFLOW_ENTITY_TYPE,
                                                        workFlowEntity.getProjectId());
-    return EntityMapper.fromEntity(workFlowEntity, illustrativeAttachment, null);
+    WorkFlow savedWorkFlow = EntityMapper.fromEntity(workFlowEntity, illustrativeAttachment, null);
+    // Same flag as the list, so a card replaced by this answer keeps its open requests line
+    setCanShowPending(savedWorkFlow, identity.getRemoteId());
+    return savedWorkFlow;
   }
 
   /**
@@ -608,12 +611,17 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     });
     String finalUserName = userName;
     workFlows.forEach(workflow -> {
-      if (workflow != null) {
-        Space space = ProcessesUtils.getProjectParentSpace(workflow.getProjectId());
-        workflow.setCanShowPending(space != null && (spaceService.isSuperManager(finalUserName) || spaceService.isMember(space, finalUserName)));
-      }
+      setCanShowPending(workflow, finalUserName);
     });
     return workFlows;
+  }
+
+  private void setCanShowPending(WorkFlow workflow, String userName) {
+    if (workflow != null) {
+      Space space = ProcessesUtils.getProjectParentSpace(workflow.getProjectId());
+      workflow.setCanShowPending(space != null
+                                 && (spaceService.isSuperManager(userName) || spaceService.isMember(space, userName)));
+    }
   }
 
   /**
