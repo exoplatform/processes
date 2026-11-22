@@ -12,6 +12,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
@@ -569,27 +570,28 @@ public class ProcessesStorageImplTest {
 
   /**
    * A new request is recorded as a request of its process, with its
-   * requester, once its task exists, and starts in the project's status named
-   * Request exactly, the one of lowest id when a column was duplicated, never
-   * the project's first column; the created request names its process.
-   * Mutation: drop the record, go back to the default status, or drop the
-   * process id from the created request, and this test fails.
+   * requester, once its task exists, and starts in the project's first
+   * column, the one of lowest rank, whatever the names of the project's
+   * columns: a column named « Request » elsewhere on the board is not looked
+   * for (EXO-94923); the created request names its process. Mutation: drop the
+   * record, look the « Request » column up again, or drop the process id from
+   * the created request, and this test fails.
    *
    * @throws Exception never, the mocks throw nothing
    */
   @Test
-  public void aNewRequestIsRecordedAndStartsInTheRequestStatus() throws Exception {
+  public void aNewRequestIsRecordedAndStartsInTheFirstColumn() throws Exception {
     Work work = newRequest();
-    when(statusService.getStatuses(9L)).thenReturn(Arrays.asList(status(1L, "To Do"), status(7L, "Request"), status(5L, "Request")));
+    when(statusService.getStatuses(9L)).thenReturn(Arrays.asList(status(3L, "Backlog"), status(7L, "Request")));
+    when(statusService.getDefaultStatus(9L)).thenReturn(status(3L, "Backlog"));
     ArgumentCaptor<TaskDto> createdTask = ArgumentCaptor.forClass(TaskDto.class);
 
     Work created = processesStorage.saveWork(work, 1L);
 
     verify(taskService).createTask(createdTask.capture());
-    assertEquals(Long.valueOf(5L), createdTask.getValue().getStatus().getId());
+    assertEquals(Long.valueOf(3L), createdTask.getValue().getStatus().getId());
     verify(requestDAO).create(new RequestEntity(40L, 3L, 1L));
     assertEquals("the created request names its process, which its answer shows", 3L, created.getWorkFlowId());
-    verify(statusService, never()).getDefaultStatus(anyLong());
   }
 
   /**
@@ -604,7 +606,7 @@ public class ProcessesStorageImplTest {
   @Test
   public void aNewRequestGetsTheLabelsOfItsProcess() throws Exception {
     Work work = newRequest();
-    when(statusService.getStatuses(9L)).thenReturn(Arrays.asList(status(7L, "Request")));
+    when(statusService.getDefaultStatus(9L)).thenReturn(status(7L, "To Do"));
     WorkFlowEntity process = new WorkFlowEntity();
     process.setId(3L);
     process.setProjectId(9L);
@@ -644,23 +646,23 @@ public class ProcessesStorageImplTest {
   }
 
   /**
-   * A project whose Request column a manager deleted takes the project's
-   * default status, as before.
+   * A project with no column receives no request: the request is refused
+   * with processes.project.noStatus before any task is created, Task's
+   * lowest-rank read throwing on such a project. Mutation: let the null or
+   * the exception through and the task is created, or the refusal is another.
    *
    * @throws Exception never, the mocks throw nothing
    */
   @Test
-  public void aProjectWithoutARequestColumnTakesItsDefaultStatus() throws Exception {
+  public void aProjectWithNoColumnReceivesNoRequest() throws Exception {
     Work work = newRequest();
-    StatusDto toDo = status(1L, "To Do");
-    when(statusService.getStatuses(9L)).thenReturn(Arrays.asList(toDo));
-    when(statusService.getDefaultStatus(9L)).thenReturn(toDo);
-    ArgumentCaptor<TaskDto> createdTask = ArgumentCaptor.forClass(TaskDto.class);
+    when(statusService.getDefaultStatus(9L)).thenThrow(new jakarta.persistence.NoResultException("no column"));
 
-    processesStorage.saveWork(work, 1L);
+    IllegalArgumentException refusal = assertThrows(IllegalArgumentException.class, () -> processesStorage.saveWork(work, 1L));
 
-    verify(taskService).createTask(createdTask.capture());
-    assertEquals(Long.valueOf(1L), createdTask.getValue().getStatus().getId());
+    assertEquals("processes.project.noStatus", refusal.getMessage());
+    verify(taskService, never()).createTask(any(TaskDto.class));
+    verify(statusService, never()).createStatus(nullable(ProjectDto.class), nullable(String.class));
   }
 
   /**
@@ -675,7 +677,7 @@ public class ProcessesStorageImplTest {
   public void aRequestWhoseRecordFailsRemovesItsTask() throws Exception {
     Work work = newRequest();
     work.setDraftId(8L);
-    when(statusService.getStatuses(9L)).thenReturn(Arrays.asList(status(7L, "Request")));
+    when(statusService.getDefaultStatus(9L)).thenReturn(status(7L, "To Do"));
     doThrow(new jakarta.persistence.PersistenceException("the process is gone")).when(requestDAO).create(any(RequestEntity.class));
 
     assertThrows(IllegalStateException.class, () -> processesStorage.saveWork(work, 1L));
@@ -699,7 +701,7 @@ public class ProcessesStorageImplTest {
     Work work = newRequest();
     work.setDraftId(8L);
     work.setAttachments(new ArrayList<>());
-    when(statusService.getStatuses(9L)).thenReturn(Arrays.asList(status(7L, "Request")));
+    when(statusService.getDefaultStatus(9L)).thenReturn(status(7L, "To Do"));
     org.exoplatform.processes.entity.WorkEntity draftRow = mock(org.exoplatform.processes.entity.WorkEntity.class);
     when(workDraftDAO.find(8L)).thenReturn(draftRow);
     List<String> steps = new ArrayList<>();
@@ -897,6 +899,7 @@ public class ProcessesStorageImplTest {
     ENTITY_MAPPER.when(() -> EntityMapper.taskToWork(taskDto)).thenReturn(work);
     when(taskDto.getTitle()).thenReturn("");
     when(taskService.createTask(taskDto)).thenReturn(taskDto);
+    when(statusService.getDefaultStatus(1L)).thenReturn(statusDto);
     processesStorage.saveWork(work, 1L);
     PROCESSES_UTILS.verify(() -> ProcessesUtils.broadcast(listenerService, "exo.process.request.created", work, projectDto), times(1));
 
@@ -927,7 +930,8 @@ public class ProcessesStorageImplTest {
     when(statusService.getStatuses(1L)).thenReturn(statuses);
     work.setStatus("Canceled");
     processesStorage.saveWork(work, 1L);
-    PROCESSES_UTILS.verify(() -> ProcessesUtils.broadcast(listenerService, "exo.process.request.canceled", updatedTask, updatedTask.getStatus().getProject()), times(1));
+    // A column named « Canceled » is a label: only the requester's cancel broadcasts (EXO-94923)
+    PROCESSES_UTILS.verify(() -> ProcessesUtils.broadcast(any(), eq("exo.process.request.canceled"), any(), any()), never());
     verify(taskService, times(1)).updateTask(taskDto);
 
     when(taskService.getTask(work.getId())).thenThrow(EntityNotFoundException.class);
@@ -1177,13 +1181,16 @@ public class ProcessesStorageImplTest {
     Work plain = new Work();
     plain.setId(500L);
     ENTITY_MAPPER.when(() -> EntityMapper.tasksToWorkList(tasks)).thenReturn(new ArrayList<>(List.of(request, plain)));
-    when(requestDAO.findWorkFlowIdsByTaskIds(any())).thenReturn(Map.of(22014L, 2L));
+    when(requestDAO.findByTaskIds(any())).thenReturn(Map.of(22014L, new RequestEntity(22014L, 2L, 1L, Boolean.TRUE, null)));
 
     List<Work> works = processesStorage.getWorks(1L, new WorkFilter(), 0, 10);
 
     assertEquals(2L, works.get(0).getWorkFlowId());
+    assertTrue("the record's cancel is read with the page", works.get(0).isCanceled());
+    assertFalse(works.get(0).isArchived());
     assertEquals(0L, works.get(1).getWorkFlowId());
-    verify(requestDAO, times(1)).findWorkFlowIdsByTaskIds(any());
+    assertFalse(works.get(1).isCanceled());
+    verify(requestDAO, times(1)).findByTaskIds(any());
   }
 
   /**

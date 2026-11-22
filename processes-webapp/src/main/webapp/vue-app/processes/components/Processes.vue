@@ -292,7 +292,7 @@ export default {
       this.getWorkFlows();
     });
     this.$root.$on('update-work-completed', work => {
-      this.updateWorkCompleted(work, !work.completed);
+      this.archiveWork(work, !work.archived);
     });
     this.$root.$on('update-url-path',  this.handleUpdateUrlPath);
   },
@@ -481,7 +481,7 @@ export default {
         });
     },
     getWorks() {
-      const filter = {completed: false};
+      const filter = {archived: false};
       const expand = 'workFlow,commentsCount';
       this.limit = this.limit || this.pageSize;
       this.loading = true;
@@ -503,7 +503,7 @@ export default {
     getCompletedWorks(append, all) {
       const expand = 'workFlow,commentsCount';
       const filter = {
-        completed: true
+        archived: true
       };
       const offset = append ? this.completedWorks.length : 0;
       // counted, not flagged: a quick Completed, All, Completed starts a second load before the first answers
@@ -558,7 +558,7 @@ export default {
       });
     },
     /**
-     * Archives every validated, refused and canceled request of the user, then reloads the lists
+     * Archives every finished request of the user (decided or canceled), then reloads the lists
      * the archive changed, after a failure too: the requests archived before it stay archived.
      *
      * @returns {Promise} resolved once the outcome is shown
@@ -777,8 +777,8 @@ export default {
       if (reason === 'archive_finished_works') {
         // the model is the number of requests the archive takes
         this.confirmMessage = model === 1
-          ? this.$t('processes.myRequests.archiveAll.confirm.one')
-          : this.$t('processes.myRequests.archiveAll.confirm.many', {0: model});
+          ? this.$t('processes.myRequests.archiveAll.finished.confirm.one')
+          : this.$t('processes.myRequests.archiveAll.finished.confirm.many', {0: model});
       }
       this.$refs.confirmDialog.open();
     },
@@ -793,7 +793,7 @@ export default {
         this.deleteWorkDraftById(this.targetModel);
       }
       if (this.dialogAction && this.dialogAction === 'cancel_work') {
-        this.updateWorkCompleted(this.targetModel, true, true);
+        this.cancelWork(this.targetModel);
       }
       if (this.dialogAction === 'archive_finished_works') {
         this.archiveFinishedWorks();
@@ -920,32 +920,39 @@ export default {
         this.displayMessage({type: 'error', message: this.$t('processes.work.delete.error.message')});
       });
     },
-    updateWorkStatus(work, status) {
-      work.status = status;
-      return this.$processesService.updateWork(work);
+    /**
+     * Cancels one of the user's pending requests: it closes as canceled, its column left as it is.
+     *
+     * @param {Object} work the request
+     * @returns {Promise} resolved once the outcome is shown
+     */
+    cancelWork(work) {
+      return this.$processesService.cancelWork(work.id).then(canceledWork => {
+        this.$root.$emit('work-canceled', canceledWork);
+        this.displayMessage({type: 'success', message: this.$t('processes.work.cancel.success.message')});
+      }).catch(() => {
+        this.displayMessage({type: 'error', message: this.$t('processes.work.cancel.error.message')});
+      });
     },
-    updateWorkCompleted(work, completed, cancel) {
-      return this.$processesService.updateWorkCompleted(work.id, completed).then(patchedWork => {
-        if (patchedWork) {
-          if (completed && cancel) {
-            this.updateWorkStatus(patchedWork, 'Canceled').then((newWork) => {
-              this.$root.$emit('work-canceled', newWork);
-              this.displayMessage({type: 'success', message: this.$t('processes.work.cancel.success.message')});
-            });
-          } else if (completed) {
-            this.$root.$emit('work-completed', patchedWork);
-            this.displayMessage({type: 'success', message: this.$t('processes.work.complete.success.message')});
-          } else {
-            this.$root.$emit('work-uncanceled', patchedWork);
-            this.displayMessage({type: 'success', message: this.$t('processes.work.unComplete.success.message')});
-          }
+    /**
+     * Archives a finished request in « My requests », or restores an archived one: its task is not
+     * touched.
+     *
+     * @param {Object} work the request
+     * @param {Boolean} archived true to archive it, false to restore it
+     * @returns {Promise} resolved once the outcome is shown
+     */
+    archiveWork(work, archived) {
+      return this.$processesService.archiveWork(work.id, archived).then(patchedWork => {
+        if (archived) {
+          this.$root.$emit('work-completed', patchedWork);
+          this.displayMessage({type: 'success', message: this.$t('processes.work.complete.success.message')});
+        } else {
+          this.$root.$emit('work-uncanceled', patchedWork);
+          this.displayMessage({type: 'success', message: this.$t('processes.work.unComplete.success.message')});
         }
       }).catch(() => {
-        if (cancel) {
-          this.displayMessage({type: 'error', message: this.$t('processes.work.cancel.error.message')});
-        } else {
-          this.displayMessage({type: 'error', message: this.$t('processes.work.complete.error.message')});
-        }
+        this.displayMessage({type: 'error', message: this.$t('processes.work.complete.error.message')});
       });
     },
   }

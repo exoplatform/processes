@@ -43,6 +43,13 @@ public final class ProcessesEvents {
    */
   public static final String PROCESS_PROJECT_CHANGED = "exo.process.projectChanged";
 
+  /**
+   * A request was cancelled by its requester, its cancel committed. The
+   * source is the request's task, the data the task's project, as the
+   * cancel's notification reads them.
+   */
+  public static final String REQUEST_CANCELED = "exo.process.request.canceled";
+
   private ProcessesEvents() {
   }
 }

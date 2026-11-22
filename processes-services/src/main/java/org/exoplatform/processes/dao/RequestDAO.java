@@ -64,6 +64,43 @@ public class RequestDAO extends GenericDAOJPAImpl<RequestEntity, Long> {
   }
 
   /**
+   * Reads the request records of the tasks that are requests, by chunks of
+   * {@link #REQUEST_CHUNK_SIZE} task ids: one query per chunk.
+   *
+   * @param taskIds the task ids
+   * @return task id → request record, for the tasks that have one
+   */
+  public Map<Long, RequestEntity> findByTaskIds(Collection<Long> taskIds) {
+    Map<Long, RequestEntity> requests = new HashMap<>();
+    List<Long> ids = new ArrayList<>(taskIds);
+    for (int from = 0; from < ids.size(); from += REQUEST_CHUNK_SIZE) {
+      List<Long> chunk = ids.subList(from, Math.min(from + REQUEST_CHUNK_SIZE, ids.size()));
+      getEntityManager().createNamedQuery("ProcessesRequest.findByTaskIds", RequestEntity.class)
+                        .setParameter("taskIds", chunk)
+                        .getResultList()
+                        .forEach(request -> requests.put(request.getTaskId(), request));
+    }
+    return requests;
+  }
+
+  /**
+   * Reads a page of the request records whose state was never set, neither
+   * cancelled nor archived being known: the records of the requests created
+   * before EXO-94923, which the state upgrade fills. A keyset read by task id,
+   * so the records a page fills change none of the next.
+   *
+   * @param afterTaskId the last task id of the previous page, 0 for the first
+   * @param limit the page size, strictly positive
+   * @return the records, by ascending task id
+   */
+  public List<RequestEntity> findWithoutStateAfter(long afterTaskId, int limit) {
+    return getEntityManager().createNamedQuery("ProcessesRequest.findWithoutStateAfter", RequestEntity.class)
+                             .setParameter("afterTaskId", afterTaskId)
+                             .setMaxResults(limit)
+                             .getResultList();
+  }
+
+  /**
    * Reads the task ids of every request record of a process, whether the task
    * still exists or not.
    *
@@ -145,6 +182,32 @@ public class RequestDAO extends GenericDAOJPAImpl<RequestEntity, Long> {
     Subquery<Long> requests = query.subquery(Long.class);
     Root<RequestEntity> request = requests.from(RequestEntity.class);
     requests.select(request.<Long> get("taskId")).where(cb.equal(request.<Long> get("taskId"), taskId));
+    return cb.exists(requests);
+  }
+
+  /**
+   * Builds the restriction of a query to the tasks that are requests of any
+   * process, archived or not by their requester: an EXISTS on the request
+   * records, correlated by the task id, which the primary key serves. A record
+   * whose archive flag is null is not archived.
+   *
+   * @param cb the criteria builder of the query
+   * @param query the query, to create the subquery from
+   * @param taskId the task id expression of the query
+   * @param archived true for the archived requests only, false for the others
+   *          only, null for both
+   * @return the restriction
+   */
+  public static Predicate isRequest(CriteriaBuilder cb, CommonAbstractCriteria query, Expression<Long> taskId, Boolean archived) {
+    if (archived == null) {
+      return isRequest(cb, query, taskId);
+    }
+    Subquery<Long> requests = query.subquery(Long.class);
+    Root<RequestEntity> request = requests.from(RequestEntity.class);
+    Expression<Boolean> archivedFlag = request.<Boolean> get("archived");
+    Predicate archiveCondition = archived.booleanValue() ? cb.isTrue(archivedFlag)
+                                                         : cb.or(cb.isNull(archivedFlag), cb.isFalse(archivedFlag));
+    requests.select(request.<Long> get("taskId")).where(cb.equal(request.<Long> get("taskId"), taskId), archiveCondition);
     return cb.exists(requests);
   }
 

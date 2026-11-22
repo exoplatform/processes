@@ -19,6 +19,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         :status="work.status"
         :is-draft="viewDraft"
         :is-completed="work.completed"
+        :is-canceled="work.canceled"
+        :archived="work.archived"
         class="me-3" />
       <span class="text-caption text-light-color">
         <custom-date-format

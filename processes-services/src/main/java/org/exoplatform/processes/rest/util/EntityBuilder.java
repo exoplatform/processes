@@ -486,6 +486,8 @@ public class EntityBuilder {
       // TODO: Add comments
     }
     workEntity.setCommentsCount(work.getCommentsCount());
+    workEntity.setCanceled(work.isCanceled());
+    workEntity.setArchived(work.isArchived());
     workEntity.setAttachments(work.getAttachments());
 
     try {

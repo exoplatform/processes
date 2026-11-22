@@ -74,6 +74,7 @@ import org.exoplatform.task.util.ProjectUtil;
 import org.exoplatform.task.util.UserUtil;
 import java.util.Collection;
 import java.util.Collections;
+import jakarta.persistence.NoResultException;
 import jakarta.persistence.criteria.CommonAbstractCriteria;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Expression;
@@ -91,12 +92,14 @@ import org.exoplatform.services.security.IdentityConstants;
 
 public class ProcessesStorageImpl implements ProcessesStorage {
 
+  /** The refusal of a request in a task project that has no column. */
+  public static final String               NO_STATUS                = "processes.project.noStatus";
+
+
   private static final Log                 LOG                      = ExoLogger.getLogger(ProcessesStorageImpl.class);
   private static final String              WORK_DRAFT_ENTITY_TYPE   = "workdraft";
   private static final String              TASK_ENTITY_TYPE         = "task";
   private static final String              WORKFLOW_ENTITY_TYPE     = "workflow";
-  private static final String[]            DEFAULT_PROCESS_STATUS   = { "Request", "RequestInProgress", "Validated", "Refused",
-      "Canceled" };
   private static final String              PROCESS_FILES_NAME_SPACE = "processesApp";
   /** How many ids a query receives at most, below every database's parameter limit */
   private static final int                 ID_CHUNK_SIZE            = 1000;
@@ -695,7 +698,12 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    */
   private TaskQuery toWorksQuery(long userIdentityId, WorkFilter workFilter) {
     TaskQuery taskQuery = new TaskQuery();
-    taskQuery.add(new PredicateCondition<Task>((cb, query, root) -> RequestDAO.isRequest(cb, query, root.<Long> get("id"))));
+    taskQuery.add(new PredicateCondition<Task>((cb,
+                                                query,
+                                                root) -> RequestDAO.isRequest(cb,
+                                                                              query,
+                                                                              root.<Long> get("id"),
+                                                                              workFilter.getArchived())));
     if (workFilter.getStatus() != null) {
       taskQuery.setStatusName(workFilter.getStatus());
     }
@@ -719,15 +727,32 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    * @return the same requests
    */
   private List<Work> withRequestWorkFlows(List<Work> works) {
-    List<Long> taskIds = works.stream()
-                              .filter(work -> work != null && work.getWorkFlowId() <= 0)
-                              .map(Work::getId)
-                              .toList();
-    Map<Long, Long> workFlowIds = getRequestWorkFlowIds(taskIds);
-    works.stream()
-         .filter(work -> work != null && workFlowIds.containsKey(work.getId()))
-         .forEach(work -> work.setWorkFlowId(workFlowIds.get(work.getId())));
+    List<Long> taskIds = works.stream().filter(Objects::nonNull).map(Work::getId).toList();
+    if (taskIds.isEmpty()) {
+      return works;
+    }
+    Map<Long, RequestEntity> requests = requestDAO.findByTaskIds(taskIds);
+    works.stream().filter(Objects::nonNull).forEach(work -> withRequestRecord(work, requests.get(work.getId())));
     return works;
+  }
+
+  /**
+   * Sets a request read from its task to what its request record holds: the
+   * process it was created for, unless the request already names one, and
+   * whether its requester cancelled or archived it.
+   *
+   * @param work the request read from its task
+   * @param request its request record, or null when the task has none
+   */
+  private static void withRequestRecord(Work work, RequestEntity request) {
+    if (request == null) {
+      return;
+    }
+    if (work.getWorkFlowId() <= 0 && request.getWorkFlowId() != null) {
+      work.setWorkFlowId(request.getWorkFlowId());
+    }
+    work.setCanceled(request.isCanceledRequest());
+    work.setArchived(request.isArchivedRequest());
   }
 
   /**
@@ -791,11 +816,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    * @return the same request
    */
   private Work withRequestWorkFlow(Work work) {
-    if (work != null && work.getWorkFlowId() <= 0) {
-      Long workFlowId = getRequestWorkFlowId(work.getId());
-      if (workFlowId != null) {
-        work.setWorkFlowId(workFlowId);
-      }
+    if (work != null) {
+      withRequestRecord(work, requestDAO.find(work.getId()));
     }
     return work;
   }
@@ -827,22 +849,25 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   }
 
   /**
-   * Reads the status a new request starts in: the project's status named
-   * Request exactly, the one of lowest id when several are, else, when a
-   * manager deleted it in Tasks, the project's default status. A shared project
-   * starts with its own columns, so its default status is not a request
-   * status.
+   * Reads the status a new request starts in: the project's first column, the
+   * one of lowest rank, whatever its name, so a project's columns may have any
+   * names and any number.
    *
    * @param projectId the request's project id
    * @return the status
+   * @throws IllegalArgumentException processes.project.noStatus when the
+   *           project has no column
    */
   private StatusDto getRequestStatus(long projectId) {
-    StatusDto status = findStatusByName(projectId, DEFAULT_PROCESS_STATUS[0]);
+    StatusDto status;
+    try {
+      status = statusService.getDefaultStatus(projectId);
+    } catch (NoResultException e) {
+      // Task's lowest-rank read throws on a project with no column
+      status = null;
+    }
     if (status == null) {
-      LOG.warn("The project {} has no status named {}, the request is created in its default status",
-               projectId,
-               DEFAULT_PROCESS_STATUS[0]);
-      return statusService.getDefaultStatus(projectId);
+      throw new IllegalArgumentException(NO_STATUS);
     }
     return status;
   }
@@ -892,12 +917,7 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     if (status != null) {
       taskDto.setStatus(status);
     }
-    taskDto = taskService.updateTask(taskDto);
-    if (taskDto.isCompleted() && taskDto.getStatus().getName().equals(DEFAULT_PROCESS_STATUS[4])) {
-      ProjectDto projectDto = taskDto.getStatus().getProject();
-      ProcessesUtils.broadcast(listenerService, "exo.process.request.canceled", taskDto, projectDto);
-    }
-    return taskDto;
+    return taskService.updateTask(taskDto);
   }
 
   /**
@@ -1086,9 +1106,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     ProjectDto project =
                        ProjectUtil.newProjectInstanceDto(workFlow.getTitle(), workFlow.getDescription(), managers, participators);
     project = projectService.createProject(project);
-    for (String statusName : DEFAULT_PROCESS_STATUS) {
-      statusService.createStatus(project, statusName);
-    }
+    // Task's own initial columns: processes reads none of their names
+    statusService.createInitialStatuses(project);
     workFlow.setProjectId(project.getId());
     workFlow.setProjectId(project.getId());
     participators.addAll(managers);
@@ -1169,6 +1188,69 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       throw new jakarta.persistence.EntityNotFoundException("work not found");
     }
     return withRequestWorkFlow(EntityMapper.taskToWork(taskDto));
+  }
+
+  /**
+   * {@inheritDoc} The record's flags and the task's completion commit
+   * together: Task's task write joins the transaction this method begins (its
+   * DAO's write joins an active one), so a failure leaves both as they were.
+   */
+  @Override
+  @ContainerTransactional(atomic = true)
+  public Work saveRequestState(long workId, Boolean canceled, Boolean archived, Boolean completed) {
+    return writeRequestState(workId, canceled, archived, completed);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void broadcastRequestCanceled(long workId) {
+    TaskDto taskDto;
+    try {
+      taskDto = taskService.getTask(workId);
+    } catch (EntityNotFoundException e) {
+      LOG.debug("The cancelled request {} has no task left to notify", workId, e);
+      return;
+    }
+    ProjectDto projectDto = taskDto == null || taskDto.getStatus() == null ? null : taskDto.getStatus().getProject();
+    if (projectDto == null) {
+      LOG.debug("The cancelled request {} is in no project: no notification", workId);
+      return;
+    }
+    ProcessesUtils.broadcast(listenerService, ProcessesEvents.REQUEST_CANCELED, taskDto, projectDto);
+  }
+
+  /**
+   * The un-advised body of {@link #saveRequestState}: writes the given flags
+   * on the request record, then the task's completion when given.
+   *
+   * @param workId the request's task id
+   * @param canceled the cancelled flag to write, null to keep it
+   * @param archived the archived flag to write, null to keep it
+   * @param completed the task's completion to write, null to keep it
+   * @return the request as stored after the write
+   * @throws jakarta.persistence.EntityNotFoundException when the task has no
+   *           request record, or no task
+   */
+  Work writeRequestState(long workId, Boolean canceled, Boolean archived, Boolean completed) {
+    RequestEntity request = requestDAO.find(workId);
+    if (request == null) {
+      throw new jakarta.persistence.EntityNotFoundException("request not found");
+    }
+    if (canceled != null || archived != null) {
+      if (canceled != null) {
+        request.setCanceled(canceled);
+      }
+      if (archived != null) {
+        request.setArchived(archived);
+      }
+      requestDAO.update(request);
+    }
+    if (completed != null) {
+      return updateWorkCompleted(workId, completed);
+    }
+    return getWorkById(workId);
   }
 
   /**
@@ -1645,23 +1727,15 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     if (formerProject != null && formerProject.getId() == projectId) {
       return TaskMoveResult.IN_PROJECT;
     }
-    ProjectDto targetProject;
     try {
-      targetProject = projectService.getProject(projectId);
+      projectService.getProject(projectId);
     } catch (EntityNotFoundException e) {
       throw new IllegalStateException("The project " + projectId + " was not found", e);
     }
     if (formerProject != null) {
       removeProjectLabels(task, formerProject.getId());
     }
-    String statusName = formerStatus == null ? DEFAULT_PROCESS_STATUS[0] : formerStatus.getName();
-    StatusDto targetStatus = findStatusByName(projectId, statusName);
-    if (targetStatus == null) {
-      targetStatus = findStatusByNameIgnoreCase(projectId, statusName);
-    }
-    if (targetStatus == null) {
-      targetStatus = statusService.createStatus(targetProject, statusName);
-    }
+    StatusDto targetStatus = getMoveTargetStatus(formerStatus, projectId);
     // Task maps the status by its id
     StatusDto movedStatus = new StatusDto();
     movedStatus.setId(targetStatus.getId());
@@ -1669,6 +1743,26 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     task.setStatus(movedStatus);
     taskService.updateTask(task);
     return TaskMoveResult.MOVED;
+  }
+
+  /**
+   * Reads the column a moved request lands in: the target project's column of
+   * the former column's name, read as a label only (exactly, then case
+   * aside), else the target's first column. It never creates a column.
+   *
+   * @param formerStatus the request's column before the move, or null
+   * @param projectId the target project id
+   * @return the target column
+   * @throws IllegalArgumentException processes.project.noStatus when the
+   *           target project has no column
+   */
+  private StatusDto getMoveTargetStatus(StatusDto formerStatus, long projectId) {
+    String statusName = formerStatus == null ? null : formerStatus.getName();
+    StatusDto targetStatus = statusName == null ? null : findStatusByName(projectId, statusName);
+    if (targetStatus == null && statusName != null) {
+      targetStatus = findStatusByNameIgnoreCase(projectId, statusName);
+    }
+    return targetStatus == null ? getRequestStatus(projectId) : targetStatus;
   }
 
   /**

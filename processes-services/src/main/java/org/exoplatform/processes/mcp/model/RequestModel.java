@@ -18,15 +18,34 @@ package org.exoplatform.processes.mcp.model;
 
 import java.util.Date;
 
-// Lean, serialization-safe view of a work request (a Work / Task). id is the
-// request/work id (the underlying task id); status is the Kanban column name
-// (Request, RequestInProgress, Validated, Refused, Canceled). Returned by
-// get_my_requests, get_request_details, submit_work_request and cancel_work_request.
+/**
+ * Lean, serialization-safe view of a work request (a Work / Task). id is the
+ * request/work id (the underlying task id); status is the name of the column
+ * of the process's task project the request sits in, a label whose wording
+ * the project's owners choose; completed tells a closed request (decided or
+ * cancelled) from a pending one, canceled a request its requester cancelled,
+ * archived one its requester archived. Returned by get_my_requests,
+ * get_request_details, submit_work_request and cancel_work_request.
+ *
+ * @param id the request id
+ * @param title its title
+ * @param description its description
+ * @param status the name of its column
+ * @param completed true when closed, false while pending
+ * @param canceled true when its requester cancelled it
+ * @param archived true when its requester archived it
+ * @param createdBy its requester's user name
+ * @param createdDate its creation date
+ * @param dueDate its due date
+ * @param projectId its task project id
+ */
 public record RequestModel(long id,
                            String title,
                            String description,
                            String status,
                            boolean completed,
+                           boolean canceled,
+                           boolean archived,
                            String createdBy,
                            Date createdDate,
                            Date dueDate,

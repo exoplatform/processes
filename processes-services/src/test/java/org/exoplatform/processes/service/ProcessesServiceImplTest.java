@@ -36,6 +36,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.MockitoJUnitRunner;
@@ -1252,66 +1253,173 @@ public class ProcessesServiceImplTest {
     assertEquals(PROCESS_PROJECT_ID, saved.getValue().getProjectId());
   }
 
+  /**
+   * A change of a request's column and completion is a manager's: the process
+   * managers and the administrators save it, the requester who doesn't manage
+   * the process is refused like a stranger (EXO-94923). Mutation: let the
+   * requester through and the creator's write is saved.
+   */
   @Test
   public void updateWorkIsGuarded() {
-    assertWorkWriteIsGuarded((workId, userId) -> {
+    WorkWrite move = (workId, userId) -> {
       Work work = storedWork(workId, PROCESS_PROJECT_ID);
-      work.setStatus("Canceled");
+      work.setStatus("Any column");
       work.setCompleted(true);
       processesService.updateWork(work, userId);
-    },
-                             () -> verify(processesStorage, never()).saveWork(any(), anyLong()),
-                             () -> verify(processesStorage, times(4)).saveWork(any(), anyLong()));
+    };
+    assertThrows(ObjectNotFoundException.class, () -> move.run(UNKNOWN_ID, CREATOR_ID));
+    assertThrows(IllegalAccessException.class, () -> move.run(NON_PROCESS_TASK_ID, PROCESSES_ADMIN_ID));
+    for (long refusedUserId : Arrays.asList(CREATOR_ID, NON_MEMBER_ID, OTHER_SPACE_ID, PARTICIPANT_ID, DISABLED_USER_ID, UNKNOWN_ID)) {
+      assertThrows("user " + refusedUserId + " must be refused", IllegalAccessException.class, () -> move.run(WORK_ID, refusedUserId));
+    }
+    verify(processesStorage, never()).saveWork(any(), anyLong());
+    for (long allowedUserId : Arrays.asList(PROJECT_MANAGER_ID, PROCESSES_ADMIN_ID, PLATFORM_ADMIN_ID)) {
+      try {
+        move.run(WORK_ID, allowedUserId);
+      } catch (Exception e) {
+        throw new AssertionError("user " + allowedUserId + " must be allowed", e);
+      }
+    }
+    verify(processesStorage, times(3)).saveWork(any(), anyLong());
   }
 
   /**
-   * A requester who doesn't manage the process only cancels a pending request:
-   * setting any other status or cancelling a decided request is refused, and a
-   * content change is ignored, while a manager of the process may set any
-   * status. Mutation: drop the status guard, the content reset or the manager
-   * branch, and this test fails.
+   * A requester who doesn't manage the process changes neither the column nor
+   * the completion of their request through an update, whatever the column is
+   * named: they cancel and archive through their own calls, and a content
+   * change of theirs is ignored. A manager may set any column. Mutation: let
+   * the requester complete or move their request and a refusal of this test
+   * passes; drop the content reset and the requester's description is saved.
    */
   @Test
-  public void updateWorkLetsTheRequesterOnlyCancel() throws Exception {
+  public void updateWorkLeavesTheColumnAndTheCompletionToTheManagers() throws Exception {
     Work validation = storedWork(WORK_ID, PROCESS_PROJECT_ID);
     validation.setStatus("Validated");
     validation.setCompleted(true);
     assertThrows(IllegalAccessException.class, () -> processesService.updateWork(validation, CREATOR_ID));
-    Work decidedCancel = storedWork(DECIDED_WORK_ID, PROCESS_PROJECT_ID);
-    decidedCancel.setStatus("Canceled");
-    decidedCancel.setCompleted(true);
-    assertThrows(IllegalAccessException.class, () -> processesService.updateWork(decidedCancel, CREATOR_ID));
+    Work cancelByColumn = storedWork(WORK_ID, PROCESS_PROJECT_ID);
+    cancelByColumn.setStatus("Canceled");
+    cancelByColumn.setCompleted(true);
+    assertThrows(IllegalAccessException.class, () -> processesService.updateWork(cancelByColumn, CREATOR_ID));
+    Work reopen = storedWork(DECIDED_WORK_ID, PROCESS_PROJECT_ID);
+    reopen.setStatus("Validated");
+    reopen.setCompleted(false);
+    assertThrows(IllegalAccessException.class, () -> processesService.updateWork(reopen, CREATOR_ID));
+    Work rewrite = storedWork(WORK_ID, PROCESS_PROJECT_ID);
+    rewrite.setDescription("rewritten");
+    assertThrows(IllegalArgumentException.class, () -> processesService.updateWork(rewrite, CREATOR_ID));
     verify(processesStorage, never()).saveWork(any(), anyLong());
-
-    Work cancel = storedWork(WORK_ID, PROCESS_PROJECT_ID);
-    cancel.setStatus("Canceled");
-    cancel.setCompleted(true);
-    cancel.setDescription("rewritten");
-    processesService.updateWork(cancel, CREATOR_ID);
-    ArgumentCaptor<Work> saved = ArgumentCaptor.forClass(Work.class);
-    verify(processesStorage).saveWork(saved.capture(), eq(CREATOR_ID));
-    assertEquals("Canceled", saved.getValue().getStatus());
-    assertEquals("description", saved.getValue().getDescription());
 
     processesService.updateWork(validation, PROJECT_MANAGER_ID);
     verify(processesStorage).saveWork(validation, PROJECT_MANAGER_ID);
   }
 
   /**
-   * A requester who doesn't manage the process can't reopen a decided request,
-   * while a manager can, and the requester can still reopen a pending one.
-   * Mutation: drop the reopen guard, or the manager branch, and this test
-   * fails.
+   * Completing or reopening a request's task is a manager's decision: the
+   * requester who doesn't manage the process is refused both, a manager does
+   * either (EXO-94923). Mutation: let the requester through and the storage is
+   * written.
    */
   @Test
-  public void updateWorkCompletedNeverLetsTheRequesterReopenADecision() throws Exception {
+  public void updateWorkCompletedIsAManagersDecision() throws Exception {
     assertThrows(IllegalAccessException.class, () -> processesService.updateWorkCompleted(DECIDED_WORK_ID, false, CREATOR_ID));
+    assertThrows(IllegalAccessException.class, () -> processesService.updateWorkCompleted(WORK_ID, true, CREATOR_ID));
     verify(processesStorage, never()).updateWorkCompleted(anyLong(), anyBoolean());
 
-    processesService.updateWorkCompleted(WORK_ID, false, CREATOR_ID);
+    processesService.updateWorkCompleted(WORK_ID, true, PROJECT_MANAGER_ID);
     processesService.updateWorkCompleted(DECIDED_WORK_ID, false, PROJECT_MANAGER_ID);
-    verify(processesStorage).updateWorkCompleted(WORK_ID, false);
+    verify(processesStorage).updateWorkCompleted(WORK_ID, true);
     verify(processesStorage).updateWorkCompleted(DECIDED_WORK_ID, false);
+  }
+
+  /**
+   * The requester cancels their pending request: its record says cancelled
+   * and its task is completed in one write, its column left as it is, and the
+   * cancel is broadcast once, after the write; a request already cancelled is
+   * answered as it is, a closed one and a manager who isn't the requester are
+   * refused (EXO-94923). Mutation: write the cancel without the completion or
+   * without the flag, drop the broadcast, cancel a closed request, or let a
+   * manager cancel another's request, and this test fails.
+   */
+  @Test
+  public void cancelWorkCancelsThePendingRequestOfItsRequesterOnly() throws Exception {
+    Work canceled = storedWork(WORK_ID, PROCESS_PROJECT_ID);
+    canceled.setCompleted(true);
+    canceled.setCanceled(true);
+    when(processesStorage.saveRequestState(WORK_ID, Boolean.TRUE, null, Boolean.TRUE)).thenReturn(canceled);
+
+    assertEquals(canceled, processesService.cancelWork(WORK_ID, CREATOR_ID));
+    InOrder order = inOrder(processesStorage);
+    order.verify(processesStorage).saveRequestState(WORK_ID, Boolean.TRUE, null, Boolean.TRUE);
+    order.verify(processesStorage).broadcastRequestCanceled(WORK_ID);
+
+    assertThrows(IllegalAccessException.class, () -> processesService.cancelWork(DECIDED_WORK_ID, CREATOR_ID));
+    assertThrows(IllegalAccessException.class, () -> processesService.cancelWork(WORK_ID, PROJECT_MANAGER_ID));
+    assertThrows(ObjectNotFoundException.class, () -> processesService.cancelWork(UNKNOWN_ID, CREATOR_ID));
+    assertThrows(IllegalAccessException.class, () -> processesService.cancelWork(NON_PROCESS_TASK_ID, CREATOR_ID));
+
+    when(processesStorage.getWorkById(WORK_ID)).thenReturn(canceled);
+    assertEquals(canceled, processesService.cancelWork(WORK_ID, CREATOR_ID));
+    verify(processesStorage, times(1)).saveRequestState(anyLong(), any(), any(), any());
+    verify(processesStorage, times(1)).broadcastRequestCanceled(anyLong());
+  }
+
+  /**
+   * The requester archives a finished request, decided or cancelled, and
+   * restores an archived one: only the record's flag is written, never the
+   * task; a pending request, another user's request, or an archive that
+   * changes nothing writes nothing (EXO-94923). Mutation: archive through the
+   * task's completion, archive a pending request, or let a manager archive
+   * another's request, and this test fails.
+   */
+  @Test
+  public void archiveWorkWritesOnlyTheRequestersFlag() throws Exception {
+    processesService.archiveWork(DECIDED_WORK_ID, true, CREATOR_ID);
+    verify(processesStorage).saveRequestState(DECIDED_WORK_ID, null, Boolean.TRUE, null);
+
+    assertThrows(IllegalAccessException.class, () -> processesService.archiveWork(WORK_ID, true, CREATOR_ID));
+    assertThrows(IllegalAccessException.class, () -> processesService.archiveWork(DECIDED_WORK_ID, true, PROJECT_MANAGER_ID));
+    processesService.archiveWork(DECIDED_WORK_ID, false, CREATOR_ID);
+
+    Work archived = storedWork(DECIDED_WORK_ID, PROCESS_PROJECT_ID);
+    archived.setCompleted(true);
+    archived.setArchived(true);
+    when(processesStorage.getWorkById(DECIDED_WORK_ID)).thenReturn(archived);
+    processesService.archiveWork(DECIDED_WORK_ID, false, CREATOR_ID);
+    verify(processesStorage).saveRequestState(DECIDED_WORK_ID, null, Boolean.FALSE, null);
+
+    verify(processesStorage, times(2)).saveRequestState(anyLong(), any(), any(), any());
+    verify(processesStorage, never()).updateWorkCompleted(anyLong(), anyBoolean());
+    verify(processesStorage, never()).saveWork(any(), anyLong());
+  }
+
+  /**
+   * A request whose task is reopened, in Tasks or in processes, is pending
+   * again: its cancelled and archived flags are cleared. A task still
+   * completed, a task that is no request, or a request with neither flag is
+   * left (EXO-94923). Mutation: drop the clearing, or clear a completed
+   * request's flags, and this test fails.
+   */
+  @Test
+  public void aReopenedRequestIsPendingAgain() {
+    Work reopened = storedWork(WORK_ID, PROCESS_PROJECT_ID);
+    reopened.setCanceled(true);
+    reopened.setArchived(true);
+    when(processesStorage.getWorkById(WORK_ID)).thenReturn(reopened);
+    processesService.requestTaskReopened(WORK_ID);
+    verify(processesStorage).saveRequestState(WORK_ID, Boolean.FALSE, Boolean.FALSE, null);
+
+    Work stillCompleted = storedWork(DECIDED_WORK_ID, PROCESS_PROJECT_ID);
+    stillCompleted.setCompleted(true);
+    stillCompleted.setCanceled(true);
+    when(processesStorage.getWorkById(DECIDED_WORK_ID)).thenReturn(stillCompleted);
+    processesService.requestTaskReopened(DECIDED_WORK_ID);
+    Work plain = storedWork(PLAIN_TASK_ID, PROCESS_PROJECT_ID);
+    plain.setCanceled(true);
+    when(processesStorage.getWorkById(PLAIN_TASK_ID)).thenReturn(plain);
+    processesService.requestTaskReopened(PLAIN_TASK_ID);
+    processesService.requestTaskReopened(UNKNOWN_ID);
+    verify(processesStorage, times(1)).saveRequestState(anyLong(), any(), any(), any());
   }
 
   @Test
@@ -1353,12 +1461,26 @@ public class ProcessesServiceImplTest {
                              () -> verify(processesStorage, times(4)).deleteWorkById(WORK_ID));
   }
 
+  /**
+   * Completing a request's task is refused to every user but its process's
+   * managers and the administrators, its requester included (EXO-94923).
+   * Mutation: let the requester through and the storage is written four times.
+   */
   @Test
-  public void updateWorkCompletedWithUserIsGuarded() {
+  public void updateWorkCompletedWithUserIsGuarded() throws Exception {
     assertThrows(IllegalArgumentException.class, () -> processesService.updateWorkCompleted(null, true, CREATOR_ID));
-    assertWorkWriteIsGuarded((workId, userId) -> processesService.updateWorkCompleted(workId, true, userId),
-                             () -> verify(processesStorage, never()).updateWorkCompleted(anyLong(), anyBoolean()),
-                             () -> verify(processesStorage, times(4)).updateWorkCompleted(WORK_ID, true));
+    assertThrows(ObjectNotFoundException.class, () -> processesService.updateWorkCompleted(UNKNOWN_ID, true, CREATOR_ID));
+    assertThrows(IllegalAccessException.class, () -> processesService.updateWorkCompleted(NON_PROCESS_TASK_ID, true, PROCESSES_ADMIN_ID));
+    for (long refusedUserId : Arrays.asList(CREATOR_ID, NON_MEMBER_ID, OTHER_SPACE_ID, PARTICIPANT_ID, DISABLED_USER_ID, UNKNOWN_ID)) {
+      assertThrows("user " + refusedUserId + " must be refused",
+                   IllegalAccessException.class,
+                   () -> processesService.updateWorkCompleted(WORK_ID, true, refusedUserId));
+    }
+    verify(processesStorage, never()).updateWorkCompleted(anyLong(), anyBoolean());
+    for (long allowedUserId : Arrays.asList(PROJECT_MANAGER_ID, PROCESSES_ADMIN_ID, PLATFORM_ADMIN_ID)) {
+      processesService.updateWorkCompleted(WORK_ID, true, allowedUserId);
+    }
+    verify(processesStorage, times(3)).updateWorkCompleted(WORK_ID, true);
   }
 
   @Test

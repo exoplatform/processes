@@ -252,6 +252,29 @@ public interface ProcessesStorage {
   Work updateWorkCompleted(Long workId, boolean completed);
 
   /**
+   * Writes a request's own state, which no column of its task project
+   * carries: the requester's cancel and archive flags on its request record,
+   * and its task's completion, in one transaction. It is the platform's own
+   * write, with no user's permission: the caller checks the user's right.
+   *
+   * @param workId the request's task id
+   * @param canceled the cancelled flag to write, null to keep it
+   * @param archived the archived flag to write, null to keep it
+   * @param completed the task's completion to write, null to keep it
+   * @return the request as stored after the write
+   */
+  Work saveRequestState(long workId, Boolean canceled, Boolean archived, Boolean completed);
+
+  /**
+   * Broadcasts a committed cancel of a request as
+   * {@link org.exoplatform.processes.constant.ProcessesEvents#REQUEST_CANCELED},
+   * with the request's task as source and its project as data.
+   *
+   * @param workId the cancelled request's task id
+   */
+  void broadcastRequestCanceled(long workId);
+
+  /**
    * Retrieves a list of accessible WorkDraft, for a selected user.
    *
    * @param workFilter work filter

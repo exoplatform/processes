@@ -76,7 +76,7 @@ export function getWorks(itemsFilter, offset, limit, expand) {
 /**
  * Counts the current user's requests, as « My requests » lists them.
  *
- * @param {Object} itemsFilter the criteria: completed, status; null values are left out
+ * @param {Object} itemsFilter the criteria: archived, status (a column name); null values are left out
  * @return {Promise} the count, as a number
  */
 export function countWorks(itemsFilter) {
@@ -101,7 +101,8 @@ export function countWorks(itemsFilter) {
 }
 
 /**
- * Archives every request of the current user that is Validated, Refused or Canceled and not archived yet.
+ * Archives every request of the current user that is finished (decided or canceled, its task completed,
+ * whatever its column) and not archived yet.
  *
  * @return {Promise} how many requests were archived, as a number
  */
@@ -351,19 +352,46 @@ export function deleteWorkById(workId) {
   });
 }
 
-export function updateWorkCompleted(workId, completed) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/work/${workId}`, {
+/**
+ * Archives or restores one of the current user's requests in « My requests »: only the request's own
+ * flag changes, never its task.
+ *
+ * @param {Number} workId the request id
+ * @param {Boolean} archived true to archive it, false to restore it
+ * @return {Promise} the request
+ */
+export function archiveWork(workId, archived) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/work/${workId}/archive`, {
     method: 'PATCH',
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      value: completed,
+      value: archived,
     }),
   }).then(resp => {
     if (!resp || !resp.ok) {
-      throw new Error('Error while canceling a work');
+      throw new Error('Error while archiving a request');
+    } else {
+      return resp.json();
+    }
+  });
+}
+
+/**
+ * Cancels one of the current user's pending requests: it closes as canceled, its column left as it is.
+ *
+ * @param {Number} workId the request id
+ * @return {Promise} the canceled request
+ */
+export function cancelWork(workId) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/processes/work/${workId}/cancel`, {
+    method: 'POST',
+    credentials: 'include',
+  }).then(resp => {
+    if (!resp || !resp.ok) {
+      throw new Error('Error while canceling a request');
     } else {
       return resp.json();
     }
