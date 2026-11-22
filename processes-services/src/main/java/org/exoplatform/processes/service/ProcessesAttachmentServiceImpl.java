@@ -10,9 +10,12 @@ import org.exoplatform.processes.Utils.ProcessesUtils;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.services.attachments.model.Attachment;
 import org.exoplatform.services.attachments.service.AttachmentService;
+import org.exoplatform.services.attachments.utils.EntityBuilder;
 import org.exoplatform.services.attachments.utils.Utils;
+import org.exoplatform.services.cms.documents.DocumentService;
 import org.exoplatform.services.cms.drives.DriveData;
 import org.exoplatform.services.cms.drives.ManageDriveService;
+import org.exoplatform.services.cms.link.LinkManager;
 import org.exoplatform.services.cms.link.NodeFinder;
 import org.exoplatform.services.jcr.RepositoryService;
 import org.exoplatform.services.jcr.access.PermissionType;
@@ -66,6 +69,10 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
 
   private final SpaceService           spaceService;
 
+  private final DocumentService        documentService;
+
+  private final LinkManager            linkManager;
+
   private static final String          PRIVATE_FOLDER       = "/Private";
 
   private static final String          PUBLIC_FOLDER        = "/Public";
@@ -97,7 +104,9 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
                                         ProjectService projectService,
                                         IdentityManager identityManager,
                                         UserACL userACL,
-                                        SpaceService spaceService) {
+                                        SpaceService spaceService,
+                                        DocumentService documentService,
+                                        LinkManager linkManager) {
     this.attachmentService = attachmentService;
     this.repositoryService = repositoryService;
     this.sessionProviderService = sessionProviderService;
@@ -108,6 +117,8 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
     this.identityManager = identityManager;
     this.userACL = userACL;
     this.spaceService = spaceService;
+    this.documentService = documentService;
+    this.linkManager = linkManager;
   }
 
   @Override
@@ -466,7 +477,60 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
    */
   @Override
   public List<Attachment> getProcessDocuments(long userId, long workflowId) throws IllegalAccessException {
-    return attachmentService.getAttachmentsByEntity(userId, workflowId, WORKFLOW_ENTITY_TYPE);
+    List<Attachment> attachments = attachmentService.getAttachmentsByEntity(userId, workflowId, WORKFLOW_ENTITY_TYPE);
+    List<Attachment> documents = new ArrayList<>();
+    if (attachments == null || attachments.isEmpty()) {
+      return documents;
+    }
+    Session systemSession;
+    String workspace;
+    try {
+      systemSession = Utils.getSystemSession(sessionProviderService, repositoryService);
+      workspace = Utils.getCurrentWorkspace(repositoryService);
+    } catch (RepositoryException e) {
+      throw new IllegalStateException("Can't read the documents of the process " + workflowId, e);
+    }
+    for (Attachment attachment : attachments) {
+      if (attachment == null || StringUtils.isBlank(attachment.getId())) {
+        continue;
+      }
+      if (attachment.getAcl() != null && attachment.getAcl().isCanAccess()) {
+        documents.add(attachment);
+        continue;
+      }
+      // The user's session lists a document it can't read by its id alone: its
+      // title, stored name, type, size and update date are read as the
+      // platform, and the user's denied access is kept
+      Attachment document = readAsPlatform(systemSession, workspace, attachment.getId());
+      if (document != null) {
+        document.setAcl(attachment.getAcl());
+        document.setDownloadUrl(null);
+        document.setOpenUrl(null);
+        documents.add(document);
+      }
+    }
+    return documents;
+  }
+
+  /**
+   * Builds a process document as the platform reads it, the way the
+   * attachment service builds one for a user who may read it, so that its
+   * update date compares with the request copy's.
+   *
+   * @param systemSession the platform's session
+   * @param workspace the current workspace
+   * @param attachmentId the document's node id
+   * @return the document, or null when it is gone or trashed
+   */
+  private Attachment readAsPlatform(Session systemSession, String workspace, String attachmentId) {
+    try {
+      return EntityBuilder.fromAttachmentNode(repositoryService, documentService, linkManager, workspace, systemSession, attachmentId);
+    } catch (ObjectNotFoundException | ItemNotFoundException | PathNotFoundException e) {
+      LOG.debug("Process document {} can't be read and is left out: {}", attachmentId, e.getClass().getSimpleName());
+      return null;
+    } catch (Exception e) {
+      throw new IllegalStateException("Can't read the process document " + attachmentId, e);
+    }
   }
 
   /**

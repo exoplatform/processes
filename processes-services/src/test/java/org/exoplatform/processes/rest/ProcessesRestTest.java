@@ -1144,20 +1144,24 @@ public class ProcessesRestTest {
   }
 
   /**
-   * The documents to fill in of a process answer, for the user, each
-   * document's id, title, stored file name, type, size, update date and
-   * whether they may open the process's file, with no path and no download
-   * link; a process the user may not use answers 404, a signed-out user 401
-   * (EXO-94918). Mutation: answer the path instead of the stored name, map
-   * the refusal to another status, or drop the access flag, and this test
-   * fails.
+   * The REST mapping of the documents to fill in: each document the service
+   * gives becomes its id, title, stored file name, type, size, update date
+   * and whether the user may open the process's file, with no path and no
+   * download link; a process the user may not use answers 404, a refusal of
+   * its documents 403, a signed-out user 401, each private and not stored
+   * (EXO-94918). The read of a document the user may not open is pinned in
+   * ProcessesAttachmentServiceImplTest. Mutation: answer the path instead of
+   * the stored name, map a refusal to another status, drop the access flag
+   * or the cache control, and this test fails.
    *
    * @throws Exception never, the mocks throw what the test asks
    */
   @Test
   public void theDocumentsToFillAnswerTheirStoredNameAndNoPath() throws Exception {
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
-    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), processesRest.getDocumentsToFill(9L).getStatus());
+    Response signedOut = processesRest.getDocumentsToFill(9L);
+    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), signedOut.getStatus());
+    assertTrue(cacheControl(signedOut).isNoStore());
 
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
     org.exoplatform.services.attachments.model.Attachment pdf = new org.exoplatform.services.attachments.model.Attachment();
@@ -1168,11 +1172,13 @@ public class ProcessesRestTest {
     pdf.setSize(878L);
     pdf.setUpdated("2026-11-22T18:06:00");
     pdf.setDownloadUrl("/rest/jcr/repository/collaboration/Groups/spaces/hr/form.pdf");
-    pdf.setAcl(new org.exoplatform.services.attachments.model.Permission(false, false, false, false));
+    pdf.setAcl(new org.exoplatform.services.attachments.model.Permission());
     when(processesService.getDocumentsToFill(9L, 1L)).thenReturn(List.of(pdf));
 
     Response response = processesRest.getDocumentsToFill(9L);
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    assertTrue(cacheControl(response).isPrivate());
+    assertTrue(cacheControl(response).isNoStore());
     @SuppressWarnings("unchecked")
     List<org.exoplatform.processes.rest.model.DocumentToFillEntity> documents =
         (List<org.exoplatform.processes.rest.model.DocumentToFillEntity>) response.getEntity();
@@ -1186,6 +1192,14 @@ public class ProcessesRestTest {
                  documents);
 
     when(processesService.getDocumentsToFill(10L, 1L)).thenThrow(new org.exoplatform.commons.exception.ObjectNotFoundException("no"));
-    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), processesRest.getDocumentsToFill(10L).getStatus());
+    Response refused = processesRest.getDocumentsToFill(10L);
+    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), refused.getStatus());
+    assertTrue(cacheControl(refused).isPrivate());
+    assertTrue(cacheControl(refused).isNoStore());
+
+    when(processesService.getDocumentsToFill(11L, 1L)).thenThrow(new IllegalAccessException("no"));
+    Response forbidden = processesRest.getDocumentsToFill(11L);
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), forbidden.getStatus());
+    assertTrue(cacheControl(forbidden).isNoStore());
   }
 }

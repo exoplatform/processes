@@ -809,17 +809,19 @@ public class ProcessesRest implements ResourceContainer {
           method = "GET")
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Request fulfilled"),
           @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "403", description = "Forbidden operation"),
           @ApiResponse(responseCode = "404", description = "Object not found"),
           @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
           @ApiResponse(responseCode = "500", description = "Internal server error"),})
   public Response getDocumentsToFill(@Parameter(description = "Process id", required = true)
                                      @PathParam("workflowId") Long workflowId) {
+    // every answer is the user's own, refusals included: none is stored
     long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
     if (currentIdentityId == 0) {
-      return Response.status(Response.Status.UNAUTHORIZED).build();
+      return Response.status(Response.Status.UNAUTHORIZED).cacheControl(PER_USER_CACHE_CONTROL).build();
     }
     if (workflowId == null) {
-      return Response.status(Response.Status.BAD_REQUEST).entity("Process id is mandatory").build();
+      return Response.status(Response.Status.BAD_REQUEST).entity("Process id is mandatory").cacheControl(PER_USER_CACHE_CONTROL).build();
     }
     try {
       List<DocumentToFillEntity> documents = processesService.getDocumentsToFill(workflowId, currentIdentityId)
@@ -828,13 +830,14 @@ public class ProcessesRest implements ResourceContainer {
                                                              .toList();
       return Response.ok(documents).type(MediaType.APPLICATION_JSON_TYPE).cacheControl(PER_USER_CACHE_CONTROL).build();
     } catch (ObjectNotFoundException e) {
-      return Response.status(Response.Status.NOT_FOUND).build();
+      return Response.status(Response.Status.NOT_FOUND).cacheControl(PER_USER_CACHE_CONTROL).build();
     } catch (IllegalAccessException e) {
+      // the user sees the process, and the attachment service refuses them its documents
       LOG.debug("User '{}' can't read the documents to fill of the process '{}'", currentIdentityId, workflowId, e);
-      return Response.status(Response.Status.NOT_FOUND).build();
+      return Response.status(Response.Status.FORBIDDEN).cacheControl(PER_USER_CACHE_CONTROL).build();
     } catch (Exception e) {
       LOG.error("Error while reading the documents to fill of the process '{}'", workflowId, e);
-      return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+      return Response.status(Response.Status.INTERNAL_SERVER_ERROR).cacheControl(PER_USER_CACHE_CONTROL).build();
     }
   }
 
