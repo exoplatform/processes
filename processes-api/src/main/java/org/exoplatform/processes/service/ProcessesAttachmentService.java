@@ -163,7 +163,7 @@ public interface ProcessesAttachmentService {
      * @param workflowId the process id
      * @return the process's documents, each with the user's permission on it
      * @throws IllegalAccessException when the attachment service refuses the
-     *           user
+     *           user, which it declares and does not throw at this version
      */
     List<Attachment> getProcessDocuments(long userId, long workflowId) throws IllegalAccessException;
 }

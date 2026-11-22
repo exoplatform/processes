@@ -832,7 +832,7 @@ public class ProcessesRest implements ResourceContainer {
     } catch (ObjectNotFoundException e) {
       return Response.status(Response.Status.NOT_FOUND).cacheControl(PER_USER_CACHE_CONTROL).build();
     } catch (IllegalAccessException e) {
-      // the user sees the process, and the attachment service refuses them its documents
+      // defensive: the attachment service declares this refusal of the process's documents and does not throw it at this version
       LOG.debug("User '{}' can't read the documents to fill of the process '{}'", currentIdentityId, workflowId, e);
       return Response.status(Response.Status.FORBIDDEN).cacheControl(PER_USER_CACHE_CONTROL).build();
     } catch (Exception e) {

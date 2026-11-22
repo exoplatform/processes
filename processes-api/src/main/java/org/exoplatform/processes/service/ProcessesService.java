@@ -566,7 +566,9 @@ public interface ProcessesService {
    * @return the process's documents
    * @throws ObjectNotFoundException when the process does not exist, or the
    *           user may neither make a request on it nor see it
-   * @throws IllegalAccessException when the user's identity can't be resolved
+   * @throws IllegalAccessException when the attachment service refuses the
+   *           user the process's documents, which it declares and does not
+   *           throw at this version
    */
   List<org.exoplatform.services.attachments.model.Attachment> getDocumentsToFill(long workFlowId,
                                                                                long userIdentityId) throws ObjectNotFoundException,
