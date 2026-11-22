@@ -75,6 +75,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 </template>
 
 <script>
+import {GROUP_BY_NONE, readGroupBy, storeGroupBy} from '../../js/MyRequestsFilters.js';
+
 export default {
   props: {
     availableWorkStatuses: {
@@ -114,7 +116,7 @@ export default {
     filter: 'all',
     workflowId: 'all',
     query: null,
-    grouped: false,
+    groupBy: readGroupBy(),
     filterExpand: false,
   }),
   computed: {
@@ -185,6 +187,12 @@ export default {
       return `${requests} · ${drafts}`;
     },
   },
+  created() {
+    // the grouping this browser remembers applies from the list's first display
+    if (this.groupBy !== GROUP_BY_NONE) {
+      this.emitFilter(false);
+    }
+  },
   methods: {
     /**
      * Applies the text typed in the filter.
@@ -202,19 +210,20 @@ export default {
      * @returns {void}
      */
     openFilterDrawer() {
-      this.$refs.filterDrawer.open(this.filter, this.workflowId, this.grouped);
+      this.$refs.filterDrawer.open(this.filter, this.workflowId, this.groupBy);
     },
     /**
      * Applies the grouping, the status and the process chosen in the advanced filter drawer.
      *
-     * @param {Object} filters the chosen `grouped`, `status` and `workflowId`
+     * @param {Object} filters the chosen `groupBy`, `status` and `workflowId`
      * @returns {void}
      */
     applyFilters(filters) {
       const statusChanged = filters.status !== this.filter;
       this.filter = filters.status;
       this.workflowId = filters.workflowId;
-      this.grouped = filters.grouped;
+      this.groupBy = filters.groupBy;
+      storeGroupBy(this.groupBy);
       this.emitFilter(statusChanged);
     },
     /**
@@ -228,7 +237,7 @@ export default {
     emitFilter(statusChanged) {
       const status = this.filter === this.ALL_FILTER ? null : this.filter;
       const workflowId = this.workflowId === this.ALL_FILTER ? null : this.workflowId;
-      this.$emit('change', {query: this.query, workflowId, status, grouped: this.grouped});
+      this.$emit('change', {query: this.query, workflowId, status, groupBy: this.groupBy});
       if (statusChanged) {
         this.$root.$emit('work-filter-changed', {status});
       }
