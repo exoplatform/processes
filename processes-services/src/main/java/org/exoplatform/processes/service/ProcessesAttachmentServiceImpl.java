@@ -238,10 +238,18 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
           workspace.move(attachmentNode.getPath(), destPath);
           Node copyNode = (Node) session.getItem(destPath);
           copyNode.addMixin(NodetypeConstant.EXO_HIDDENABLE);
-          if (attachments.size() - 1 == index && isEntityFolder(sourceEntityIdNode, rootNode, sourceEntityType, sourceEntityId)) {
+          Node removedFolderParent = null;
+          if (attachments.size() - 1 == index
+              && isEntityFolder(sourceEntityIdNode, rootNode, sourceEntityType, sourceEntityId)
+              && !sourceEntityIdNode.hasNodes()) {
+            removedFolderParent = sourceEntityIdNode.getParent();
             sourceEntityIdNode.remove();
           }
           copyNode.save();
+          if (removedFolderParent != null) {
+            // A node save commits only its own subtree: the removal is saved through the removed folder's parent
+            removedFolderParent.save();
+          }
         } else {
           session.save();
           Workspace workspace = session.getWorkspace();

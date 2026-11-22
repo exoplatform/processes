@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -38,6 +39,7 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.MockitoJUnitRunner;
@@ -249,6 +251,87 @@ public class ProcessesAttachmentServiceImplTest {
     processesAttachmentService.moveAttachmentsToEntity(1L, 1L, "workflow", 1L, "workdraft", 1L);
     verify(workspace, times(1)).move("srcPath", "destPath/test");
 
+  }
+
+  @Test
+  public void moveAttachmentsToEntitySavesTheRemovalOfTheEmptiedSourceFolder() throws Exception {
+    Node[] folders = moveLastAttachmentOutOfSourceFolder(false);
+    InOrder order = inOrder(folders[0], folders[1]);
+    order.verify(folders[0]).remove();
+    // The removal is only committed by a save on an ancestor of the removed folder
+    order.verify(folders[1]).save();
+  }
+
+  @Test
+  public void moveAttachmentsToEntityKeepsASourceFolderThatStillHoldsNodes() throws Exception {
+    Node[] folders = moveLastAttachmentOutOfSourceFolder(true);
+    verify(folders[0], never()).remove();
+    verify(folders[1], never()).save();
+  }
+
+  /** Runs a move of the only attachment out of an entity folder, returns {sourceFolder, sourceFolderParent}. */
+  private Node[] moveLastAttachmentOutOfSourceFolder(boolean sourceFolderHoldsNodes) throws Exception {
+    Attachment attachment = new Attachment();
+    attachment.setId("1");
+    Workspace workspace = mock(Workspace.class);
+    Session session = mock(Session.class);
+    when(session.getWorkspace()).thenReturn(workspace);
+    Node driveRoot = mock(Node.class);
+    when(driveRoot.getPath()).thenReturn("path");
+    when(driveRoot.hasNode(anyString())).thenReturn(true);
+    Node entityTypeFolder = mock(Node.class);
+    when(driveRoot.getNode(anyString())).thenReturn(entityTypeFolder);
+    when(entityTypeFolder.hasNode(anyString())).thenReturn(true);
+    // The source entity folder is an nt:folder at <drive>/workflow/1, parent of the moved node
+    NodeType folderType = mock(NodeType.class);
+    when(folderType.isNodeType(NodetypeConstant.NT_FOLDER)).thenReturn(true);
+    Node sourceFolderParent = mock(Node.class);
+    Node sourceFolder = mock(Node.class);
+    when(sourceFolder.getPath()).thenReturn("path/workflow/1");
+    when(sourceFolder.getPrimaryNodeType()).thenReturn(folderType);
+    when(sourceFolder.getParent()).thenReturn(sourceFolderParent);
+    when(sourceFolder.hasNodes()).thenReturn(sourceFolderHoldsNodes);
+    Node attachmentNode = mock(Node.class);
+    when(attachmentNode.getName()).thenReturn("test");
+    when(attachmentNode.getPath()).thenReturn("srcPath");
+    when(attachmentNode.getParent()).thenReturn(sourceFolder);
+    Node movedNode = mock(Node.class);
+    when(session.getItem("destPath/test")).thenReturn(movedNode);
+    ProjectDto projectDto = new ProjectDto();
+    projectDto.setId(1L);
+    projectDto.setManager(new HashSet<>(Arrays.asList("manager:/spaces/processes_space")));
+    projectDto.setParticipator(new HashSet<>(Arrays.asList("members:/spaces/processes_space")));
+    Space space = new Space();
+    space.setGroupId("/spaces/processes_space");
+    when(projectService.getProject(1L)).thenReturn(projectDto);
+    PROCESSES_UTILS.when(() -> ProcessesUtils.getProjectParentSpace(1L)).thenReturn(space);
+    UTILS.when(() -> Utils.getSystemSession(sessionProviderService, repositoryService)).thenReturn(session);
+    DriveData driveData = new DriveData();
+    driveData.setHomePath("path");
+    driveData.setName("processes.drive");
+    when(manageDriveService.getGroupDrive("/spaces/processes_space")).thenReturn(driveData);
+    when(session.getItem("path")).thenReturn(driveRoot);
+    when(session.getNodeByUUID("1")).thenReturn(attachmentNode);
+    ExtendedNode destNode = mock(ExtendedNode.class);
+    when(destNode.canAddMixin(NodetypeConstant.EXO_PRIVILEGEABLE)).thenReturn(true);
+    when(destNode.getPath()).thenReturn("destPath");
+    UTILS.when(() -> Utils.getParentFolderNode(session,
+                                               this.manageDriveService,
+                                               this.nodeHierarchyCreator,
+                                               this.nodeFinder,
+                                               driveData.getName(),
+                                               "workdraft/2")).thenReturn(destNode);
+
+    processesAttachmentService.moveAttachmentsToEntity(new ArrayList<>(Arrays.asList(attachment)),
+                                                       1L,
+                                                       1L,
+                                                       "workflow",
+                                                       2L,
+                                                       "workdraft",
+                                                       1L);
+
+    verify(workspace).move("srcPath", "destPath/test");
+    return new Node[] { sourceFolder, sourceFolderParent };
   }
 
   @Test
