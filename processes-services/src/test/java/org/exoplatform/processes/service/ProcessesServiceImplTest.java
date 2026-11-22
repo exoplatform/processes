@@ -1334,7 +1334,7 @@ public class ProcessesServiceImplTest {
 
   /**
    * The requester cancels their pending request: its record says cancelled
-   * and its task is completed in one write, its column left as it is, and the
+   * and its task is completed by one state write, its column left as it is, and the
    * cancel is broadcast once, after the write; a request already cancelled is
    * answered as it is, a closed one and a manager who isn't the requester are
    * refused (EXO-94923). Mutation: write the cancel without the completion or

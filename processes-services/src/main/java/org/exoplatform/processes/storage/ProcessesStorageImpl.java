@@ -95,7 +95,6 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   /** The refusal of a request in a task project that has no column. */
   public static final String               NO_STATUS                = "processes.project.noStatus";
 
-
   private static final Log                 LOG                      = ExoLogger.getLogger(ProcessesStorageImpl.class);
   private static final String              WORK_DRAFT_ENTITY_TYPE   = "workdraft";
   private static final String              TASK_ENTITY_TYPE         = "task";
@@ -1203,9 +1202,11 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    * write fails, the record's former flags are written back and the task's
    * failure is thrown: a cancel left without its completion would read
    * cancelled at the next completion, and an upgrade step would not be read
-   * again by the next run. Only when that write-back fails too do the new
-   * flags stay on the open task, the write-back's failure logged and attached
-   * to the thrown one.
+   * again by the next run. The new flags stay on the open task only when that
+   * write-back fails too, its failure logged and attached to the thrown one,
+   * or when the process stops between the two writes; nothing clears them
+   * then but a cancel retried by the requester, which sees a pending
+   * request.
    */
   @Override
   public Work saveRequestState(long workId, Boolean canceled, Boolean archived, Boolean completed) {

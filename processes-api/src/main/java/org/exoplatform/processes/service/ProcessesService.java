@@ -371,8 +371,10 @@ public interface ProcessesService {
 
   /**
    * Cancels a pending request, when the user is its requester: its record
-   * says cancelled and its task is completed, in one transaction, its column
-   * left as it is; its managers are then notified. An already cancelled
+   * says cancelled, then its task is completed through Task, its column left
+   * as it is, the flag written back when the completion fails
+   * ({@link org.exoplatform.processes.storage.ProcessesStorage#saveRequestState});
+   * its managers are then notified. An already cancelled
    * request is returned as it is.
    *
    * @param workId the request's task id

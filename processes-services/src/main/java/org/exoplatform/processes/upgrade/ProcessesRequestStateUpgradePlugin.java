@@ -37,8 +37,10 @@ import org.exoplatform.task.service.TaskService;
  * Carries the meaning of the requests created before EXO-94923 over to their
  * own state, once: a request's progress was then read from the names of the
  * columns processes created, which it now never reads. Those names are read
- * here, once, as data; the columns stay on the boards as ordinary columns and
- * no task moves. Per request, on its record still without state:
+ * here, once, as data; the columns stay on the boards as ordinary columns.
+ * A task the upgrade completes is first moved to its process's stored project
+ * when it sits elsewhere, as every completion of a request is; the others stay
+ * where they are. Per request, on its record still without state:
  * <ul>
  * <li>in « Canceled »: cancelled, its task completed, archived when its task
  * was completed (cancelled requests were listed with the archived ones);</li>
@@ -53,7 +55,10 @@ import org.exoplatform.task.service.TaskService;
  * {@link ProcessesStorage#saveRequestState}, which writes the flags back when
  * the completion fails; only the records whose flags are both null are read,
  * and a request created since names its state, so a rerun after a failure
- * handles only what is left of the older requests. Each task it completes fires Task's update listeners once. It runs
+ * handles only what is left of the older requests. One case is not handled
+ * again: a run stopped between a request's flags and its task's completion
+ * leaves the flags written and the task open, which the next run skips; that
+ * request then reads pending. Each task it completes fires Task's update listeners once. It runs
  * after {@link ProcessesRequestUpgradePlugin}, which records the older
  * requests first. A failure is thrown, so the upgrade is not recorded as done.
  */
@@ -84,8 +89,8 @@ public class ProcessesRequestStateUpgradePlugin extends UpgradeProductPlugin {
    * @param initParams the plugin's parameters
    * @param requestDAO the request records' storage
    * @param taskService the Task add-on's tasks
-   * @param processesStorage writes a request's state and its task's
-   *          completion in one transaction
+   * @param processesStorage writes a request's state, then its task's
+   *          completion, writing the state back when the completion fails
    * @param entityManagerService the entity manager of the startup, cleared
    *          after each page
    */
