@@ -108,3 +108,26 @@ export function categoriesOf(workflow, categories) {
     .map(id => categories.get(id))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
+
+/**
+ * @param {object} workflow a process
+ * @param {number} categoryId a category id
+ * @param {Map<number, object>} categories the page's categories
+ * @returns {boolean} whether the process is filed under that category or one of its subcategories
+ *          the page knows, as the server's category filter reads it
+ */
+export function isFiledUnder(workflow, categoryId, categories) {
+  return (workflow.categoryIds || []).some(id => {
+    let category = categories.get(id);
+    if (id === categoryId) {
+      return true;
+    }
+    while (category?.parentId) {
+      if (category.parentId === categoryId) {
+        return true;
+      }
+      category = categories.get(category.parentId);
+    }
+    return false;
+  });
+}

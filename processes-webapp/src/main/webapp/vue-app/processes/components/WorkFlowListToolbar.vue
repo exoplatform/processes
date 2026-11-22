@@ -212,6 +212,7 @@ export default {
       const filter = this.filter === this.ALL_FILTER ? null : this.filter;
       this.$emit('change', {
         filter,
+        categoryId: this.categoryId,
         grouped: this.grouped,
         filtered: !!this.query || this.filter !== this.defaultFilter || !!this.categoryId,
       });

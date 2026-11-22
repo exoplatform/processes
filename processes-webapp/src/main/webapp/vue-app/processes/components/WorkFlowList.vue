@@ -80,7 +80,7 @@
 </template>
 
 <script>
-import {categoriesOf, groupByCategory, loadCategories} from '../js/ProcessCategories.js';
+import {categoriesOf, groupByCategory, isFiledUnder, loadCategories} from '../js/ProcessCategories.js';
 
 export default {
   props: {
@@ -101,6 +101,7 @@ export default {
     checkingDisabled: false,
     checkId: 0,
     grouped: false,
+    categoryId: null,
     categories: new Map(),
   }),
   computed: {
@@ -154,7 +155,17 @@ export default {
       return categoriesOf(workflow, this.categories);
     },
     /**
-     * Replaces an updated process in the list, or removes it when it no longer matches the selected filter.
+     * @param {Object} workflow a process
+     * @returns {Boolean} whether the chosen category, or no category, lists it: filed under that
+     *          category or one of its subcategories, as the server's filter reads it
+     */
+    isUnderChosenCategory(workflow) {
+      return !this.categoryId || isFiledUnder(workflow, this.categoryId, this.categories);
+    },
+    /**
+     * Replaces an updated process in the list, or removes it when it no longer matches the selected
+     * status or category. An answer that carries no categories, as the enable toggle's, keeps the
+     * ones the list holds.
      *
      * @param {String} workflowJson the updated process, as JSON
      * @returns {void}
@@ -163,6 +174,9 @@ export default {
       const workflow = JSON.parse(workflowJson);
       const index = this.workflowList.findIndex(item => item.id === workflow.id);
       if (index >= 0) {
+        if (!Array.isArray(workflow.categoryIds)) {
+          workflow.categoryIds = this.workflowList[index].categoryIds;
+        }
         // a non-administrator's « I manage » and « All » views list enabled processes only
         const enabledOrAdministrator = this.isProcessesManager || workflow.enabled;
         const matches = {
@@ -170,7 +184,8 @@ export default {
           deactivated: !workflow.enabled,
           manager: !!(workflow.acl && workflow.acl.canEdit) && enabledOrAdministrator,
         }[this.filter] ?? enabledOrAdministrator;
-        this.workflowList.splice(index, 1, ...(matches === false ? [] : [workflow]));
+        const listed = matches !== false && this.isUnderChosenCategory(workflow);
+        this.workflowList.splice(index, 1, ...(listed ? [workflow] : []));
       }
     },
     /**
@@ -227,15 +242,16 @@ export default {
         });
     },
     /**
-     * Keeps the status the toolbar selected, which decides whether an updated process stays listed,
-     * and whether the processes are grouped by category.
+     * Keeps the status and the category the toolbar selected, which decide whether an updated process
+     * stays listed, and whether the processes are grouped by category.
      *
-     * @param {Object} event the selected status, the grouping, and whether the view differs from the
-     *          default one
+     * @param {Object} event the selected status, the category, the grouping, and whether the view
+     *          differs from the default one
      * @returns {void}
      */
     applyFilter(event) {
       this.filter = event.filter;
+      this.categoryId = event.categoryId || null;
       this.isFiltered = event.filtered;
       this.grouped = !!event.grouped;
     },

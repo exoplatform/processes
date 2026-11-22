@@ -107,7 +107,6 @@ public class ProcessesServiceImpl implements ProcessesService {
   /** The size of a Task label name (TASK_LABELS.NAME). */
   private static final int         LABEL_NAME_MAX_LENGTH = 50;
 
-
   private static final Log         LOG                  = ExoLogger.getLogger(ProcessesServiceImpl.class);
 
   private final ProcessesStorage processesStorage;
