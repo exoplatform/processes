@@ -67,7 +67,8 @@ export function flattenCategories(tree) {
 
 /**
  * Groups the shown processes by category: a group per category a process is filed under, by
- * name, a process filed under two showing in both, then the processes filed under none.
+ * path, a process filed under two showing in both, then the processes the page knows no category
+ * of: filed under none, or only under categories the page's tree doesn't hold.
  *
  * @param {Array<object>} workflows the processes shown, in the page's order
  * @param {Map<number, object>} categories the page's categories
@@ -89,7 +90,7 @@ export function groupByCategory(workflows, categories) {
       groups.get(id).workflows.push(workflow);
     });
   });
-  const sorted = [...groups.values()].sort((a, b) => a.category.name.localeCompare(b.category.name));
+  const sorted = [...groups.values()].sort((a, b) => a.category.path.join(' › ').localeCompare(b.category.path.join(' › ')));
   if (none.length) {
     sorted.push({key: 'category-none', category: null, workflows: none});
   }

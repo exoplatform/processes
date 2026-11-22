@@ -1285,16 +1285,9 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     Map.Entry<String, List<String>> userMemberships = getUserMemberships(userIdentityId);
     String userName = userMemberships.getKey();
     List<String> memberships = userMemberships.getValue();
-    List<String> listedMemberships = memberships;
-    if (memberships != null && processesFilter != null && Boolean.TRUE.equals(processesFilter.getManager())) {
-      // The processes a user manages are those whose managing space the user
-      // administers, not every one whose space the user is a member of
-      listedMemberships = memberships.stream()
-                                     .filter(membership -> membership.startsWith(ProcessesUtils.MANAGER_MEMBERSHIP_TYPE + ":"))
-                                     .toList();
-      if (listedMemberships.isEmpty()) {
-        return new ArrayList<>();
-      }
+    List<String> listedMemberships = listedMemberships(processesFilter, memberships);
+    if (listedMemberships != null && listedMemberships.isEmpty()) {
+      return new ArrayList<>();
     }
     List<WorkFlowEntity> workFlowEntities = workFlowDAO.findWorkFlows(processesFilter, listedMemberships, offset, limit);
     List<WorkFlow> workFlows = new ArrayList<>();
@@ -1319,6 +1312,41 @@ public class ProcessesStorageImpl implements ProcessesStorage {
       }
     });
     return workFlows;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<WorkFlow> findWorkFlowRights(ProcessesFilter processesFilter, long userIdentityId) {
+    List<String> memberships = getUserMemberships(userIdentityId).getValue();
+    List<String> listedMemberships = listedMemberships(processesFilter, memberships);
+    if (listedMemberships != null && listedMemberships.isEmpty()) {
+      return new ArrayList<>();
+    }
+    return workFlowDAO.findWorkFlows(processesFilter, listedMemberships, 0, 0)
+                      .stream()
+                      .map(workflowEntity -> EntityMapper.fromEntity(workflowEntity, memberships))
+                      .toList();
+  }
+
+  /**
+   * @param processesFilter the listing's filter
+   * @param memberships the user's memberships, null for a processes
+   *          administrator
+   * @return the memberships the listing matches the processes against: those
+   *         given, or only the manager ones for the « I manage » filter,
+   *         empty when that leaves none; null for a processes administrator
+   */
+  private static List<String> listedMemberships(ProcessesFilter processesFilter, List<String> memberships) {
+    if (memberships != null && processesFilter != null && Boolean.TRUE.equals(processesFilter.getManager())) {
+      // The processes a user manages are those whose managing space the user
+      // administers, not every one whose space the user is a member of
+      return memberships.stream()
+                        .filter(membership -> membership.startsWith(ProcessesUtils.MANAGER_MEMBERSHIP_TYPE + ":"))
+                        .toList();
+    }
+    return memberships;
   }
 
   /**

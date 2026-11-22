@@ -326,6 +326,19 @@ public interface ProcessesStorage {
   List<WorkFlow> findWorkFlows(ProcessesFilter processesFilter, long userIdentityId, int offset, int limit);
 
   /**
+   * Lists, in one read, every process the filter lists to a user, each with
+   * its id, its enabled flag and the user's rights on it only: no
+   * illustration, no managing space and no pending-requests flag.
+   *
+   * @param processesFilter processes filter
+   * @param userIdentityId {@link Identity} technical identifier of the user
+   * @return every process listed, its {@link WorkFlow#getAcl()} set
+   */
+  default List<WorkFlow> findWorkFlowRights(ProcessesFilter processesFilter, long userIdentityId) {
+    return findWorkFlows(processesFilter, userIdentityId, 0, 0);
+  }
+
+  /**
    * Retrieves an illustration image by its given id
    *
    * @param illustrationId illustration file id

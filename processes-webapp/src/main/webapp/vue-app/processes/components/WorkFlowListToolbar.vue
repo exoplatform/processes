@@ -70,7 +70,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     <categories-filter
       v-if="showFilter && categories.size"
       id="processesCategoryChips"
-      :value="categoryId && String(categoryId) || null"
+      :key="categoriesKey"
+      :value="categoryId"
       :category-depth="CATEGORY_DEPTH"
       object-type="process"
       filter-type="category"
@@ -112,6 +113,13 @@ export default {
   computed: {
     isMobile() {
       return this.$vuetify.breakpoint.mobile;
+    },
+    /**
+     * @returns {String} the ids of the page's categories: the chips, which read their own tree once,
+     *          read it again whenever these change
+     */
+    categoriesKey() {
+      return [...this.categories.keys()].sort((a, b) => a - b).join(',');
     },
     /**
      * @returns {Number} how many filters narrow the processes: the status when it isn't the one the

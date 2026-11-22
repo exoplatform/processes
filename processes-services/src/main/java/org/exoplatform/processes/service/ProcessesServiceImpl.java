@@ -107,8 +107,6 @@ public class ProcessesServiceImpl implements ProcessesService {
   /** The size of a Task label name (TASK_LABELS.NAME). */
   private static final int         LABEL_NAME_MAX_LENGTH = 50;
 
-  /** How many processes a category read lists at once. */
-  private static final int         CATEGORY_PAGE_SIZE   = 100;
 
   private static final Log         LOG                  = ExoLogger.getLogger(ProcessesServiceImpl.class);
 
@@ -201,17 +199,14 @@ public class ProcessesServiceImpl implements ProcessesService {
     ProcessesFilter filter = new ProcessesFilter();
     // Every process the user sees, those they may only request included
     filter.setManager(false);
+    // One read, with the rights only: the listing query has no order a paging
+    // could rely on
     Set<String> workflowIds = new LinkedHashSet<>();
-    int offset = 0;
-    List<WorkFlow> page;
-    do {
-      page = processesStorage.findWorkFlows(filter, userIdentityId, offset, CATEGORY_PAGE_SIZE);
-      page.stream()
-          .filter(ProcessesServiceImpl::isShownTo)
-          .map(workFlow -> String.valueOf(workFlow.getId()))
-          .forEach(workflowIds::add);
-      offset += CATEGORY_PAGE_SIZE;
-    } while (page.size() == CATEGORY_PAGE_SIZE);
+    processesStorage.findWorkFlowRights(filter, userIdentityId)
+                    .stream()
+                    .filter(ProcessesServiceImpl::isShownTo)
+                    .map(workFlow -> String.valueOf(workFlow.getId()))
+                    .forEach(workflowIds::add);
     if (workflowIds.isEmpty()) {
       return Collections.emptyList();
     }
@@ -1525,7 +1520,12 @@ public class ProcessesServiceImpl implements ProcessesService {
 
   /**
    * Reads the processes filed under a category or one of its subcategories,
-   * down to the depth the Processes page shows.
+   * down to the depth the Processes page shows. It reads the subtree, then the
+   * links of each of its categories: 1 + K reads, K being the subtree's size
+   * down to {@link ProcessCategories#FILTER_DEPTH}, as social offers no read of
+   * several categories' links at once. The ids then narrow the listing query
+   * as one IN list, unchunked: a category subtree filing more processes than a
+   * database's IN-list cap (1,000 on some) is beyond the expected use.
    *
    * @param categoryId the category id
    * @return the process ids, without duplicates

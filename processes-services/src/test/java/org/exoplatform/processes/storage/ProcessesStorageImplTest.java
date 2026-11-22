@@ -1575,6 +1575,52 @@ public class ProcessesStorageImplTest {
   }
 
   /**
+   * The rights read lists every process in one unpaged query, matched against
+   * the same memberships as the listing, and maps each with its rights only,
+   * reading no illustration and no space. Mutations: page the query, read the
+   * illustrations or the managing spaces, or map with other memberships, and
+   * this test fails.
+   */
+  @Test
+  public void findWorkFlowRightsReadsEveryProcessOnceWithItsRightsOnly() {
+    // The static mapper mock lives across tests: only this test's calls count
+    ENTITY_MAPPER.clearInvocations();
+    mockAclIdentity(5L, "john", new MembershipEntry("/spaces/hr", "member"));
+    ProcessesFilter filter = new ProcessesFilter("all", null, false, false);
+    WorkFlowEntity entity = new WorkFlowEntity();
+    entity.setIllustrationImageId(12L);
+    List<String> memberships = List.of("john", "member:/spaces/hr");
+    when(workFlowDAO.findWorkFlows(eq(filter),
+                                   argThat(listed -> listed != null && listed.size() == 2 && listed.containsAll(memberships)),
+                                   eq(0),
+                                   eq(0))).thenReturn(List.of(entity));
+    WorkFlow listed = new WorkFlow();
+    ENTITY_MAPPER.when(() -> EntityMapper.fromEntity(eq(entity), argThat(given -> given != null && given.containsAll(memberships))))
+                 .thenReturn(listed);
+
+    assertEquals(List.of(listed), this.processesStorage.findWorkFlowRights(filter, 5L));
+
+    verify(workFlowDAO, never()).findWorkFlows(any(), any(), anyInt(), org.mockito.ArgumentMatchers.intThat(limit -> limit > 0));
+    org.mockito.Mockito.verifyNoInteractions(fileService);
+    verify(spaceService, never()).getSpaceById(anyString());
+    ENTITY_MAPPER.verify(() -> EntityMapper.fromEntity(any(WorkFlowEntity.class), any(), any()), never());
+  }
+
+  /**
+   * The rights read of the « I manage » listing, for a user who administers
+   * no space, lists nothing without a query, as the listing does. Mutation:
+   * query with every membership and this test fails.
+   */
+  @Test
+  public void findWorkFlowRightsManagedByASpaceMemberListsNothing() {
+    mockAclIdentity(5L, "jane", new MembershipEntry("/spaces/hr", "member"));
+    ProcessesFilter managedFilter = new ProcessesFilter("managed", null, true, false);
+
+    assertTrue(this.processesStorage.findWorkFlowRights(managedFilter, 5L).isEmpty());
+    verify(workFlowDAO, never()).findWorkFlows(eq(managedFilter), any(), anyInt(), anyInt());
+  }
+
+  /**
    * A processes administrator, platform administrators included, holds every
    * permission on every process: the storage maps the process without
    * membership restriction. Mutation: test the /platform/processes membership

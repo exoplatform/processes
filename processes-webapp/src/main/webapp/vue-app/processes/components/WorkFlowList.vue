@@ -19,7 +19,7 @@
           :key="group.key"
           class="processes-category-group mb-4">
           <h2 class="processes-category-group-title text-header text-truncate mb-1">
-            {{ group.category && group.category.name || $t('processes.workflow.filter.noCategory') }}
+            {{ group.category && group.category.path.join(' › ') || $t('processes.workflow.filter.noCategory') }}
           </h2>
           <v-row class="mx-n2 my-0">
             <v-col

@@ -161,35 +161,34 @@ public class ProcessesServiceCategoriesTest {
   /**
    * The categories a user may filter by are those of the processes they see:
    * those they participate in or may request, enabled, or disabled when they
-   * manage them; every process they may request is read, through pages.
-   * Mutations: keep a disabled process the user doesn't manage, a process the
-   * user can't see, read a single page, or the participated processes only,
-   * and this test fails.
+   * manage them; every process they may request is read, in one read of
+   * their rights. Mutations: keep a disabled process the user doesn't manage,
+   * a process the user can't see, or the participated processes only, and
+   * this test fails.
    *
    * @throws Exception never
    */
   @Test
   public void theCategoriesToFilterByAreThoseOfTheProcessesTheUserSees() throws Exception {
     activeUser();
-    List<WorkFlow> firstPage = new ArrayList<>();
-    LongStream.rangeClosed(1, 99).forEach(id -> firstPage.add(workFlow(id + 100, true, true, false, false)));
+    List<WorkFlow> listed = new ArrayList<>();
+    LongStream.rangeClosed(1, 99).forEach(id -> listed.add(workFlow(id + 100, true, true, false, false)));
     // Enabled, may only add a request
-    firstPage.add(workFlow(1L, true, false, true, false));
-    List<WorkFlow> secondPage = List.of(
-                                        // Disabled, managed
-                                        workFlow(2L, false, true, false, true),
-                                        // Disabled, not managed
-                                        workFlow(3L, false, true, false, false),
-                                        // Enabled, not seen
-                                        workFlow(4L, true, false, false, false));
-    when(processesStorage.findWorkFlows(any(ProcessesFilter.class), eq(USER_ID), eq(0), eq(100))).thenReturn(firstPage);
-    when(processesStorage.findWorkFlows(any(ProcessesFilter.class), eq(USER_ID), eq(100), eq(100))).thenReturn(secondPage);
+    listed.add(workFlow(1L, true, false, true, false));
+    // Disabled, managed
+    listed.add(workFlow(2L, false, true, false, true));
+    // Disabled, not managed
+    listed.add(workFlow(3L, false, true, false, false));
+    // Enabled, not seen
+    listed.add(workFlow(4L, true, false, false, false));
+    when(processesStorage.findWorkFlowRights(any(ProcessesFilter.class), eq(USER_ID))).thenReturn(listed);
     when(categoryLinkService.getLinkedIds(eq("process"), any())).thenReturn(Map.of("1", List.of(31L), "2", List.of(31L, 32L)));
 
     assertEquals(List.of(31L, 32L), service().getCategoryIds(USER_ID).stream().sorted().toList());
 
     ArgumentCaptor<ProcessesFilter> filter = ArgumentCaptor.forClass(ProcessesFilter.class);
-    verify(processesStorage).findWorkFlows(filter.capture(), eq(USER_ID), eq(0), eq(100));
+    verify(processesStorage).findWorkFlowRights(filter.capture(), eq(USER_ID));
+    verify(processesStorage, never()).findWorkFlows(any(), anyLong(), anyInt(), anyInt());
     assertEquals(Boolean.FALSE, filter.getValue().getManager());
     assertNull(filter.getValue().getEnabled());
     @SuppressWarnings("unchecked")
@@ -211,7 +210,7 @@ public class ProcessesServiceCategoriesTest {
   @Test
   public void aUserSeeingNoProcessIsOfferedNoCategory() throws Exception {
     activeUser();
-    when(processesStorage.findWorkFlows(any(ProcessesFilter.class), eq(USER_ID), eq(0), eq(100))).thenReturn(List.of());
+    when(processesStorage.findWorkFlowRights(any(ProcessesFilter.class), eq(USER_ID))).thenReturn(List.of());
 
     assertTrue(service().getCategoryIds(USER_ID).isEmpty());
 
@@ -227,7 +226,7 @@ public class ProcessesServiceCategoriesTest {
 
     org.junit.Assert.assertThrows(IllegalAccessException.class, () -> service().getCategoryIds(USER_ID));
 
-    verify(processesStorage, never()).findWorkFlows(any(), anyLong(), anyInt(), anyInt());
+    verify(processesStorage, never()).findWorkFlowRights(any(), anyLong());
   }
 
   /**
