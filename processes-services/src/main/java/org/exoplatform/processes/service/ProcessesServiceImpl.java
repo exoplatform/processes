@@ -438,6 +438,7 @@ public class ProcessesServiceImpl implements ProcessesService {
    * {@inheritDoc}
    */
   @Override
+  @Deprecated(forRemoval = true)
   public List<WorkStatus> getAvailableWorkStatuses() {
     return processesStorage.getAvailableWorkStatuses();
   }

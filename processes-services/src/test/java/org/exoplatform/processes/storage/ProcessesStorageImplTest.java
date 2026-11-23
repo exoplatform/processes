@@ -693,6 +693,48 @@ public class ProcessesStorageImplTest {
   }
 
   /**
+   * A user also gets the request statuses of a process they no longer list, when
+   * it holds requests they created, and not those of one holding none.
+   * Mutation: drop the processes of the user's own requests, and this test
+   * fails.
+   */
+  @Test
+  public void getAvailableWorkStatusesIncludeThoseOfTheUsersOwnRequests() throws Exception {
+    Identity identity = mock(Identity.class);
+    when(identityManager.getIdentity(5L)).thenReturn(identity);
+    when(identity.getRemoteId()).thenReturn("user");
+    org.exoplatform.services.security.Identity aclIdentity = mock(org.exoplatform.services.security.Identity.class);
+    when(userACL.getUserIdentity("user")).thenReturn(aclIdentity);
+    WorkFlowEntity listed = new WorkFlowEntity();
+    listed.setProjectId(1L);
+    ProcessesFilter filter = new ProcessesFilter();
+    filter.setManager(false);
+    when(workFlowDAO.findWorkFlows(filter, List.of("user"), 0, 0)).thenReturn(List.of(listed));
+    WorkFlowEntity withOwnRequests = new WorkFlowEntity();
+    withOwnRequests.setProjectId(2L);
+    WorkFlowEntity withNone = new WorkFlowEntity();
+    withNone.setProjectId(3L);
+    when(workFlowDAO.findAllWorkFlows(0, 0)).thenReturn(List.of(listed, withOwnRequests, withNone));
+    when(taskService.countTasks(any(TaskQuery.class))).thenAnswer(invocation -> {
+      TaskQuery query = invocation.getArgument(0);
+      return List.of(2L).equals(query.getProjectIds()) ? 1 : 0;
+    });
+    List<StatusDto> listedStatuses = List.of(mock(StatusDto.class));
+    List<StatusDto> ownStatuses = List.of(mock(StatusDto.class));
+    when(statusService.getStatuses(1L)).thenReturn(listedStatuses);
+    when(statusService.getStatuses(2L)).thenReturn(ownStatuses);
+    WorkStatus listedStatus = new WorkStatus();
+    listedStatus.setRank(10);
+    WorkStatus ownStatus = new WorkStatus();
+    ownStatus.setRank(20);
+    ENTITY_MAPPER.when(() -> EntityMapper.toWorkStatuses(listedStatuses)).thenReturn(new ArrayList<>(List.of(listedStatus)));
+    ENTITY_MAPPER.when(() -> EntityMapper.toWorkStatuses(ownStatuses)).thenReturn(new ArrayList<>(List.of(ownStatus)));
+
+    assertEquals(List.of(listedStatus, ownStatus), processesStorage.getAvailableWorkStatuses(5L));
+    verify(statusService, never()).getStatuses(3L);
+  }
+
+  /**
    * A processes administrator gets the request statuses of every process.
    * Mutation: query an empty membership list instead of none, and this test
    * fails.
