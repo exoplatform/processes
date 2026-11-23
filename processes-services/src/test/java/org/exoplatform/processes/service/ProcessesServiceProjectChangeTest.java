@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
@@ -99,7 +100,7 @@ class ProcessesServiceProjectChangeTest {
 
   private static final long          TASKS_APP_ID     = 12L;
 
-  private static final long          CONFLICT_ID      = 13L;
+  private static final long          OWN_COLUMNS_ID      = 13L;
 
   @Mock
   private LabelService               labelService;
@@ -184,9 +185,9 @@ class ProcessesServiceProjectChangeTest {
     project(OTHER_SPACE_PROJECT_ID, OTHER_GROUP);
     ProjectDto tasksApp = project(TASKS_APP_ID, SPACE_GROUP);
     tasksApp.setManager(new HashSet<>(Set.of("john")));
-    project(CONFLICT_ID, SPACE_GROUP);
+    project(OWN_COLUMNS_ID, SPACE_GROUP);
     when(statusService.getStatuses(anyLong())).thenReturn(statuses(TARGET_ID, "To Do", "Request", "Done"));
-    when(statusService.getStatuses(CONFLICT_ID)).thenReturn(statuses(CONFLICT_ID, "To Do", "request"));
+    when(statusService.getStatuses(OWN_COLUMNS_ID)).thenReturn(statuses(OWN_COLUMNS_ID, "To Do", "request"));
 
     storedWorkFlow = new WorkFlow();
     storedWorkFlow.setId(WORKFLOW_ID);
@@ -202,10 +203,11 @@ class ProcessesServiceProjectChangeTest {
 
   /**
    * An update naming an eligible project of the managing space saves that
-   * project, adds to it the process statuses it lacks, flags the move of the
+   * project, leaves its columns as they are (EXO-94923), flags the move of the
    * requests in the same save as the editor, and hands the move over once the
-   * save is done. Mutation: keep the stored project, and the saved
-   * project stays {@value #STORED_ID}.
+   * save is done. Mutation: keep the stored project, and the saved project
+   * stays {@value #STORED_ID}; add the former process columns again and the
+   * never() fails.
    *
    * @throws Exception on an unexpected refusal
    */
@@ -218,9 +220,7 @@ class ProcessesServiceProjectChangeTest {
     assertEquals(TARGET_ID, saved.getValue().getProjectId());
     verify(processesStorage).requestProjectMove(eq(WORKFLOW_ID), eq("editor"), anyLong());
     verify(listenerService).broadcast(ProcessesEvents.PROCESS_PROJECT_CHANGED, WORKFLOW_ID, "editor");
-    ArgumentCaptor<String> created = ArgumentCaptor.forClass(String.class);
-    verify(statusService, org.mockito.Mockito.atLeastOnce()).createStatus(any(ProjectDto.class), created.capture());
-    assertEquals(List.of("RequestInProgress", "Validated", "Refused", "Canceled"), created.getAllValues());
+    verify(statusService, never()).createStatus(nullable(ProjectDto.class), nullable(String.class));
   }
 
   /**
@@ -261,11 +261,6 @@ class ProcessesServiceProjectChangeTest {
                                                                                                     OTHER_SPACE_PROJECT_ID),
                                                                                              EDITOR_ID));
     assertEquals("processes.project.notEligible", otherSpace.getMessage());
-    IllegalArgumentException conflict = assertThrows(IllegalArgumentException.class,
-                                                     () -> processesService.updateWorkFlow(update(ProjectMode.EXISTING,
-                                                                                                  CONFLICT_ID),
-                                                                                           EDITOR_ID));
-    assertEquals("processes.project.statusNameConflict", conflict.getMessage());
     verify(processesStorage, never()).saveWorkFlow(any(), anyLong());
     verify(processesStorage, never()).requestProjectMove(anyLong(), anyString(), anyLong());
     verify(statusService, never()).createStatus(any(ProjectDto.class), anyString());

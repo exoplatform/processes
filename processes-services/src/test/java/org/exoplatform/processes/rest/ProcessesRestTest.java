@@ -198,13 +198,13 @@ public class ProcessesRestTest {
     assertEquals(Response.Status.FORBIDDEN.getStatusCode(),
                  processesRest.getWorkFlows(2L, null, null, null, null, null, 0, 10).getStatus());
     assertEquals(Response.Status.FORBIDDEN.getStatusCode(),
-                 processesRest.getWorks(2L, null, null, null, null, 0, 10).getStatus());
+                 processesRest.getWorks(2L, null, null, null, null, null, 0, 10).getStatus());
     assertEquals(Response.Status.FORBIDDEN.getStatusCode(), processesRest.getWorkDrafts(2L, null, null, 0, 10).getStatus());
     verify(processesService, times(0)).getWorkFlows(any(), anyInt(), anyInt(), anyLong());
     verify(processesService, times(0)).getWorks(anyLong(), any(), anyInt(), anyInt());
     verify(processesService, times(0)).getWorkDrafts(anyLong(), any(), anyInt(), anyInt());
 
-    assertEquals(Response.Status.OK.getStatusCode(), processesRest.getWorks(1L, null, null, null, null, 0, 10).getStatus());
+    assertEquals(Response.Status.OK.getStatusCode(), processesRest.getWorks(1L, null, null, null, null, null, 0, 10).getStatus());
     verify(processesService, times(1)).getWorks(eq(1L), any(), anyInt(), anyInt());
   }
 
@@ -419,15 +419,15 @@ public class ProcessesRestTest {
     workFilter.setStatus("ToDo");
     workFilter.setQuery("test");
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
-    Response response1 = processesRest.getWorks(0L, "", false, "ToDo", "test", 0, 10);
+    Response response1 = processesRest.getWorks(0L, "", null, false, "ToDo", "test", 0, 10);
     assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response1.getStatus());
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
     when(processesService.getWorks(1L, workFilter, 0, 10)).thenReturn(works);
-    Response response2 = processesRest.getWorks(null, "", false, "ToDo", "test", 0, 10);
+    Response response2 = processesRest.getWorks(null, "", null, false, "ToDo", "test", 0, 10);
     assertEquals(Response.Status.OK.getStatusCode(), response2.getStatus());
-    workFilter.setCompleted(true);
+    workFilter.setArchived(true);
     when(processesService.getWorks(1L, workFilter, 0, 10)).thenThrow(RuntimeException.class);
-    Response response3 = processesRest.getWorks(1L, "", true, "ToDo", "test", 0, 10);
+    Response response3 = processesRest.getWorks(1L, "", null, true, "ToDo", "test", 0, 10);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response3.getStatus());
   }
 
@@ -914,6 +914,68 @@ public class ProcessesRestTest {
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response6.getStatus());
   }
 
+  /**
+   * The lists filter on the requester's archive: the « archived » parameter
+   * wins, the deprecated « completed » one is read only without it, and the
+   * task's completion is never filtered from either (EXO-94923). Mutation:
+   * read « completed » as the task's completion again, or let it win over
+   * « archived », and this test fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  public void theListsFilterOnTheRequestersArchive() throws Exception {
+    REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+    org.mockito.ArgumentCaptor<WorkFilter> filter = org.mockito.ArgumentCaptor.forClass(WorkFilter.class);
+
+    processesRest.getWorks(null, null, false, true, null, null, 0, 10);
+    processesRest.getWorks(null, null, null, true, null, null, 0, 10);
+    processesRest.countWorks(null, true, false, null);
+
+    verify(processesService, times(2)).getWorks(eq(1L), filter.capture(), eq(0), eq(10));
+    assertEquals(Boolean.FALSE, filter.getAllValues().get(0).getArchived());
+    assertEquals(Boolean.TRUE, filter.getAllValues().get(1).getArchived());
+    assertEquals(null, filter.getAllValues().get(0).getCompleted());
+    assertEquals(null, filter.getAllValues().get(1).getCompleted());
+    org.mockito.ArgumentCaptor<WorkFilter> counted = org.mockito.ArgumentCaptor.forClass(WorkFilter.class);
+    verify(processesService).countWorks(eq(1L), counted.capture());
+    assertEquals(Boolean.TRUE, counted.getValue().getArchived());
+    assertEquals(null, counted.getValue().getCompleted());
+  }
+
+  /**
+   * The requester's cancel and archive map the service's refusals to their
+   * statuses, and an archive without its value is a bad request. Mutation:
+   * map a refusal to another status, or call the service without a value, and
+   * this test fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  public void theCancelAndTheArchiveMapTheirRefusals() throws Exception {
+    REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
+    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), processesRest.cancelWork(1L).getStatus());
+    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), processesRest.archiveWork(Map.of("value", true), 1L).getStatus());
+    REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
+
+    assertEquals(Response.Status.OK.getStatusCode(), processesRest.cancelWork(1L).getStatus());
+    verify(processesService).cancelWork(1L, 1L);
+    doThrow(new IllegalAccessException()).when(processesService).cancelWork(2L, 1L);
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), processesRest.cancelWork(2L).getStatus());
+    doThrow(new ObjectNotFoundException("")).when(processesService).cancelWork(3L, 1L);
+    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), processesRest.cancelWork(3L).getStatus());
+
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), processesRest.archiveWork(new HashMap<>(), 1L).getStatus());
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), processesRest.archiveWork(null, 1L).getStatus());
+    verify(processesService, never()).archiveWork(anyLong(), anyBoolean(), anyLong());
+    assertEquals(Response.Status.OK.getStatusCode(), processesRest.archiveWork(Map.of("value", true), 1L).getStatus());
+    verify(processesService).archiveWork(1L, true, 1L);
+    doThrow(new IllegalAccessException()).when(processesService).archiveWork(2L, true, 1L);
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), processesRest.archiveWork(Map.of("value", true), 2L).getStatus());
+    doThrow(new ObjectNotFoundException("")).when(processesService).archiveWork(3L, false, 1L);
+    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), processesRest.archiveWork(Map.of("value", false), 3L).getStatus());
+  }
+
   @Test
   public void getAvailableWorkStatuses() {
     List<WorkStatus> statuses = new ArrayList<>();
@@ -1082,17 +1144,17 @@ public class ProcessesRestTest {
   @Test
   public void theRequestsCountIsTheSessionUsers() throws Exception {
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
-    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), processesRest.countWorks(null, true, null).getStatus());
+    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), processesRest.countWorks(null, null, true, null).getStatus());
 
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
-    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), processesRest.countWorks(2L, true, null).getStatus());
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), processesRest.countWorks(2L, null, true, null).getStatus());
     verify(processesService, times(0)).countWorks(anyLong(), any());
 
     WorkFilter expected = new WorkFilter();
-    expected.setCompleted(true);
+    expected.setArchived(true);
     expected.setStatus("Validated");
     when(processesService.countWorks(1L, expected)).thenReturn(42);
-    Response response = processesRest.countWorks(null, true, "Validated");
+    Response response = processesRest.countWorks(null, null, true, "Validated");
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
     assertEquals("42", response.getEntity());
     assertNeitherSharedNorStored(response);
@@ -1135,8 +1197,8 @@ public class ProcessesRestTest {
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
     org.mockito.ArgumentCaptor<WorkFilter> filter = org.mockito.ArgumentCaptor.forClass(WorkFilter.class);
 
-    processesRest.getWorks(null, "workFlow, commentsCount", false, null, null, 0, 51);
-    processesRest.getWorks(null, "workFlow", false, null, null, 0, 51);
+    processesRest.getWorks(null, "workFlow, commentsCount", null, false, null, null, 0, 51);
+    processesRest.getWorks(null, "workFlow", null, false, null, null, 0, 51);
 
     verify(processesService, times(2)).getWorks(eq(1L), filter.capture(), eq(0), eq(51));
     assertEquals(Boolean.TRUE, filter.getAllValues().get(0).getWithCommentsCount());

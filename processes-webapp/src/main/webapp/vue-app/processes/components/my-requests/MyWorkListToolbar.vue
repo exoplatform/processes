@@ -37,8 +37,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
           <v-btn
             v-if="archivableCount"
             id="myRequestsArchiveAllButton"
-            :aria-label="$t('processes.myRequests.archiveAll.hint')"
-            :title="$t('processes.myRequests.archiveAll.hint')"
+            :aria-label="$t('processes.myRequests.archiveAll.finished.hint')"
+            :title="$t('processes.myRequests.archiveAll.finished.hint')"
             class="my-requests-archive-all text-none me-2"
             small
             text
@@ -127,10 +127,10 @@ export default {
   }),
   computed: {
     /**
-     * Builds the status choices: all, each status the requests may take, drafts, and completed.
-     * Statuses shown with the same label are one choice, valued with the first of their names:
-     * a shared project's own « InProgress » column and the processes' « RequestInProgress » both
-     * read « In Progress », and the list matches a choice by its label.
+     * Builds the status choices: all, each column of the processes' task projects, drafts, and the
+     * archived requests. Columns shown with the same label are one choice, valued with the first of
+     * their names: two projects' « InProgress » and « RequestInProgress » columns both read
+     * « In Progress », and the list matches a choice by its label.
      *
      * @returns {Array} the choices, as {text, value}
      */

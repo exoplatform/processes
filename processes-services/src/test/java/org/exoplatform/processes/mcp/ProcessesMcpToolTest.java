@@ -651,62 +651,74 @@ public class ProcessesMcpToolTest {
     tool.cancelWorkRequest(99L);
   }
 
+  /**
+   * A request its requester already cancelled is answered as it is, whatever
+   * its column. Mutation: cancel it again and the service is called.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
   @Test
   public void cancelWorkRequestReturnsAsIsWhenAlreadyCanceled() throws Exception {
     Work work = new Work();
     work.setId(3L);
-    work.setStatus("Canceled");
+    work.setStatus("Any column");
     work.setCompleted(true);
+    work.setCanceled(true);
     when(processesService.getWorkById(1L, 3L)).thenReturn(work);
 
-    tool.cancelWorkRequest(3L);
+    assertTrue(tool.cancelWorkRequest(3L).canceled());
 
+    verify(processesService, never()).cancelWork(anyLong(), anyLong());
     verify(processesService, never()).updateWork(any(Work.class), anyLong());
   }
 
+  /**
+   * A pending request is cancelled through the service's cancel, its column
+   * left as it is: no column name is written (EXO-94923). Mutation: write a
+   * « Canceled » column through updateWork again and the never() fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
   @Test
   public void cancelWorkRequestCancelsPendingRequest() throws Exception {
     Work work = new Work();
     work.setId(3L);
-    work.setStatus("Request");
+    work.setStatus("New requests");
     work.setCompleted(false);
     when(processesService.getWorkById(1L, 3L)).thenReturn(work);
-    when(processesService.updateWork(any(Work.class), eq(1L))).thenAnswer(invocation -> invocation.getArgument(0));
+    Work canceled = new Work();
+    canceled.setId(3L);
+    canceled.setStatus("New requests");
+    canceled.setCompleted(true);
+    canceled.setCanceled(true);
+    when(processesService.cancelWork(3L, 1L)).thenReturn(canceled);
 
     RequestModel result = tool.cancelWorkRequest(3L);
 
-    assertEquals("Canceled", result.status());
+    assertEquals("New requests", result.status());
     assertTrue(result.completed());
-    ArgumentCaptor<Work> captor = ArgumentCaptor.forClass(Work.class);
-    verify(processesService).updateWork(captor.capture(), eq(1L));
-    assertEquals("Canceled", captor.getValue().getStatus());
-    assertTrue(captor.getValue().isCompleted());
+    assertTrue(result.canceled());
+    verify(processesService, never()).updateWork(any(Work.class), anyLong());
   }
 
+  /**
+   * A closed request, decided by a manager, is refused whatever its column is
+   * named. Mutation: read the column name again and a request closed in a
+   * column named otherwise is cancelled.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
   @Test
-  public void cancelWorkRequestRejectsAnAlreadyValidatedRequest() throws Exception {
+  public void cancelWorkRequestRejectsAClosedRequest() throws Exception {
     Work work = new Work();
     work.setId(3L);
-    work.setStatus("Validated");
+    work.setStatus("Approved by HR");
     work.setCompleted(true);
     when(processesService.getWorkById(1L, 3L)).thenReturn(work);
 
     assertThrows(IllegalArgumentException.class, () -> tool.cancelWorkRequest(3L));
 
-    verify(processesService, never()).updateWork(any(Work.class), anyLong());
-  }
-
-  @Test
-  public void cancelWorkRequestRejectsAnAlreadyRefusedRequest() throws Exception {
-    Work work = new Work();
-    work.setId(3L);
-    work.setStatus("Refused");
-    work.setCompleted(true);
-    when(processesService.getWorkById(1L, 3L)).thenReturn(work);
-
-    assertThrows(IllegalArgumentException.class, () -> tool.cancelWorkRequest(3L));
-
-    verify(processesService, never()).updateWork(any(Work.class), anyLong());
+    verify(processesService, never()).cancelWork(anyLong(), anyLong());
   }
 
   @Test
@@ -723,11 +735,13 @@ public class ProcessesMcpToolTest {
   }
 
   /**
-   * The pending requests are the tasks of the shown processes' requests only:
-   * the task query is restricted to their request records, and each request
-   * is named by the process its record names, even when two processes share
-   * its project. Mutation: drop the restriction, restrict it to another list,
-   * or name the request by its project, and this test fails.
+   * The pending requests are the tasks of the shown processes' requests only,
+   * not completed, read in one query that names no column (EXO-94923): the
+   * task query is restricted to their request records, and each request is
+   * named by the process its record names, even when two processes share its
+   * project. Mutation: drop the restriction, restrict it to another list, name
+   * the request by its project, or query by a column name again, and this
+   * test fails.
    *
    * @throws Exception never, the mocks throw nothing
    */
@@ -748,8 +762,7 @@ public class ProcessesMcpToolTest {
                                                                                                                        hidden));
     TaskDto onboardingRequest = pendingTask(21L, 5L);
     TaskDto leaveRequest = pendingTask(22L, 5L);
-    when(taskService.findTasks(any(TaskQuery.class), anyInt(), anyInt())).thenReturn(List.of(onboardingRequest, leaveRequest))
-                                                                          .thenReturn(Collections.emptyList());
+    when(taskService.findTasks(any(TaskQuery.class), anyInt(), anyInt())).thenReturn(List.of(onboardingRequest, leaveRequest));
     when(processesService.getRequestWorkFlowIds(List.of(21L, 22L))).thenReturn(Map.of(21L, 7L, 22L, 8L));
 
     List<PendingApprovalModel> pending = tool.getPendingApprovals();
@@ -760,7 +773,11 @@ public class ProcessesMcpToolTest {
     assertEquals(5L, pending.get(0).projectId());
 
     ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
-    verify(taskService, times(2)).findTasks(query.capture(), anyInt(), anyInt());
+    verify(taskService, times(1)).findTasks(query.capture(), anyInt(), anyInt());
+    java.util.List<String> fields = new java.util.ArrayList<>();
+    collectFields(query.getValue().getCondition(), fields);
+    assertTrue("the pending requests are the open tasks: " + fields, fields.contains("completed"));
+    assertTrue("no column name is read: " + fields, fields.stream().noneMatch(field -> field.startsWith("status.name")));
     PredicateCondition<Task> restriction = ((AggregateCondition) query.getAllValues().get(0).getCondition()).getConditions()
                                                                                                     .stream()
                                                                                                     .filter(PredicateCondition.class::isInstance)
@@ -777,6 +794,21 @@ public class ProcessesMcpToolTest {
   }
 
   /**
+   * Collects the fields of a Task query's single conditions, its aggregates
+   * walked.
+   *
+   * @param condition the condition
+   * @param fields the fields, appended
+   */
+  private static void collectFields(org.exoplatform.task.dao.condition.Condition condition, java.util.List<String> fields) {
+    if (condition instanceof AggregateCondition aggregate) {
+      aggregate.getConditions().forEach(child -> collectFields(child, fields));
+    } else if (condition instanceof org.exoplatform.task.dao.condition.SingleCondition<?> single) {
+      fields.add(single.getField());
+    }
+  }
+
+  /**
    * @param id the task id
    * @param projectId its project id
    * @return a pending request task
@@ -785,7 +817,7 @@ public class ProcessesMcpToolTest {
     ProjectDto project = new ProjectDto();
     project.setId(projectId);
     StatusDto status = new StatusDto();
-    status.setName("Request");
+    status.setName("To Do");
     status.setProject(project);
     TaskDto task = new TaskDto();
     task.setId(id);

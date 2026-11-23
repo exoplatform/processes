@@ -24,13 +24,13 @@
     {
       "name": "get_my_requests",
       "title": "List my work requests",
-      "description": "Lists the current user's OWN work requests (the requests they submitted through a process), most recent first. Optionally filter by status. The 'id' of each result is the request id to pass to get_request_details or cancel_work_request.",
+      "description": "Lists the current user's OWN work requests (the requests they submitted through a process), most recent first. Optionally filter by the column of the process's task board the request sits in. Each result tells 'completed' (closed: decided or canceled) from a pending request, 'canceled' when the user canceled it, and 'archived' when the user archived it. The 'id' of each result is the request id to pass to get_request_details or cancel_work_request.",
       "input_schema": {
         "type": "object",
         "properties": {
           "status": {
             "type": "string",
-            "description": "Optional status filter. One of: Request, RequestInProgress, Validated, Refused, Canceled. Omit to list requests in every status."
+            "description": "Optional filter: the name of a column of the process's task board, which the board's owners name freely. Omit to list requests in every column."
           }
         }
       },
@@ -68,7 +68,7 @@
     {
       "name": "submit_work_request",
       "title": "Submit a new work request",
-      "description": "Submits a new work request under a process type, on behalf of the current user. The request is created in the initial 'Request' status, and the platform names it '<process> - <yyyy/MM/dd> - <requester>'. Get 'process_id' from list_processes. A process with documents to fill is not submitted here: its requester fills them in the Process app, and this tool refuses it with processes.request.documentToFill, creating nothing. Prepare what you can for it (the description, the form values), then give the user the process's 'requestUrl' from list_processes to finish and submit there. A request may carry forms: the process's own and those of its board. Before submitting, read them: get_form_places with the place {kind 'task', place_type 'processes.process', place_id the process id} lists every form the request carries, then get_form with each form_id, place_type 'processes.process' and place_id the process id gives its fields. Send their values in 'form_values', filling every required field of every form, and put any other details the approver needs into the 'description'. A refusal names a code, followed by ':' and the field's form id and ':' and its key when it is about one field (such as forms.value.required:<formId>:<key>), or ':' and the key alone: fix that field of that form and submit again. In a call limited to a space, 'form_values' is refused.",
+      "description": "Submits a new work request under a process type, on behalf of the current user. The request is created in the first column of the process's task board, and the platform names it '<process> - <yyyy/MM/dd> - <requester>'. Get 'process_id' from list_processes. A process with documents to fill is not submitted here: its requester fills them in the Process app, and this tool refuses it with processes.request.documentToFill, creating nothing. Prepare what you can for it (the description, the form values), then give the user the process's 'requestUrl' from list_processes to finish and submit there. A request may carry forms: the process's own and those of its board. Before submitting, read them: get_form_places with the place {kind 'task', place_type 'processes.process', place_id the process id} lists every form the request carries, then get_form with each form_id, place_type 'processes.process' and place_id the process id gives its fields. Send their values in 'form_values', filling every required field of every form, and put any other details the approver needs into the 'description'. A refusal names a code, followed by ':' and the field's form id and ':' and its key when it is about one field (such as forms.value.required:<formId>:<key>), or ':' and the key alone: fix that field of that form and submit again. In a call limited to a space, 'form_values' is refused.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -111,7 +111,7 @@
     {
       "name": "cancel_work_request",
       "title": "Cancel a work request",
-      "description": "Cancels one of the current user's own requests: sets its status to 'Canceled' and closes it. Only the request's creator can cancel it. Call get_my_requests first to get the request_id.",
+      "description": "Cancels one of the current user's own requests: closes it as canceled, leaving it in its column, and notifies the process's managers. Only the request's creator can cancel it, and only while it is pending: a request already closed (decided) is refused, one already canceled is returned as it is. Call get_my_requests first to get the request_id.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -136,7 +136,7 @@
     {
       "name": "get_pending_approvals",
       "title": "List pending requests I can see",
-      "description": "Lists the requests still pending a decision in the enabled processes whose space the current user is a member of, or, for a platform administrator, in every enabled process that has a space. It reads at most 200 processes and 100 requests per status. To respond to one, use the eXo Task tools on the returned 'taskId': call update_task_status to move it to 'Validated' or 'Refused', and add_task_comment to leave a note. Returns an empty list when the user is neither a member of a process space nor a platform administrator, or has nothing pending.",
+      "description": "Lists the requests still pending a decision in the enabled processes whose space the current user is a member of, or, for a platform administrator, in every enabled process that has a space. A request is pending while its task is not completed, whatever column of the board it sits in ('status' names that column). It reads at most 200 processes and 100 requests. To respond to one, use the eXo Task tools on the returned 'taskId': call update_task_status to move it to the board's column that words the outcome, complete_task to close it as decided, and add_task_comment to leave a note. Returns an empty list when the user is neither a member of a process space nor a platform administrator, or has nothing pending.",
       "input_schema": {
         "type": "object",
         "properties": {}

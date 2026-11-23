@@ -17,7 +17,7 @@
 
 /**
  * Keeps « My requests » lists in step with what happens to a request elsewhere in the
- * application (a draft saved or deleted, a request deleted, canceled, completed or reopened),
+ * application (a draft saved or deleted, a request deleted, canceled, archived or restored),
  * without reloading them. The component gives the lists as `draftList`, `workList` and
  * `completedWorkList`.
  */
@@ -26,7 +26,7 @@ export default {
     this.$root.$on('work-draft-updated', this.replaceDraft);
     this.$root.$on('work-draft-removed', this.removeDraft);
     this.$root.$on('work-removed', this.removeWork);
-    this.$root.$on('work-canceled', this.handleCompleted);
+    this.$root.$on('work-canceled', this.handleCanceled);
     this.$root.$on('work-completed', this.handleCompleted);
     this.$root.$on('work-uncanceled', this.handleUncompleted);
   },
@@ -34,7 +34,7 @@ export default {
     this.$root.$off('work-draft-updated', this.replaceDraft);
     this.$root.$off('work-draft-removed', this.removeDraft);
     this.$root.$off('work-removed', this.removeWork);
-    this.$root.$off('work-canceled', this.handleCompleted);
+    this.$root.$off('work-canceled', this.handleCanceled);
     this.$root.$off('work-completed', this.handleCompleted);
     this.$root.$off('work-uncanceled', this.handleUncompleted);
   },
@@ -77,7 +77,20 @@ export default {
       }
     },
     /**
-     * Takes a request that was canceled or archived out of its status group.
+     * Shows a canceled request as canceled where it is listed: it stays among the open requests,
+     * whose « Archive » then archives it. Its process and comments count stay those listed.
+     *
+     * @param {Object} work the canceled request, as the server answered
+     * @returns {void}
+     */
+    handleCanceled(work) {
+      const listed = this.workList.find(item => item.id === work.id);
+      if (listed) {
+        Object.assign(listed, {status: work.status, completed: work.completed, canceled: work.canceled, archived: work.archived});
+      }
+    },
+    /**
+     * Takes an archived request out of its status group.
      *
      * @param {Object} work the request
      * @returns {void}
@@ -87,7 +100,7 @@ export default {
       if (index >= 0) {
         this.workList.splice(index, 1);
       }
-      work.completed = true;
+      work.archived = true;
     },
     /**
      * Takes an unarchived request out of the completed group, and reloads the open requests,
@@ -101,7 +114,7 @@ export default {
       if (index >= 0) {
         this.completedWorkList.splice(index, 1);
       }
-      work.completed = false;
+      work.archived = false;
       this.$root.$emit('refresh-works');
     },
   },

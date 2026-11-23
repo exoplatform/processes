@@ -32,7 +32,7 @@
 </template>
 
 <script>
-import {CAPPED_GROUP_SIZE, CAPPED_STATUSES, FINISHED_STATUSES, GROUP_BY_NONE, GROUP_BY_PROCESS, GROUP_BY_STATUS, matchesQuery, processesOf, sortRecentFirst, statusesOf, workflowIdOf} from '../js/MyRequestsFilters.js';
+import {CAPPED_GROUP_SIZE, GROUP_BY_NONE, GROUP_BY_PROCESS, GROUP_BY_STATUS, matchesQuery, processesOf, sortRecentFirst, statusesOf, workflowIdOf, isFinished} from '../js/MyRequestsFilters.js';
 import MyWorkListUpdatesMixin from '../js/MyWorkListUpdatesMixin.js';
 
 export default {
@@ -117,13 +117,13 @@ export default {
       return this.draftList.length + this.workList.length + completedCount;
     },
     /**
-     * Counts the open requests « Archive all » archives: the validated, refused and canceled ones.
+     * Counts the open requests « Archive all » archives: the finished ones, decided or canceled.
      * Every open request is loaded, so the count is the server's.
      *
      * @returns {Number} the count
      */
     archivableCount() {
-      return this.workList.filter(work => FINISHED_STATUSES.includes(work.status)).length;
+      return this.workList.filter(isFinished).length;
     },
     /**
      * Tells whether a text or a process filter is chosen, or the rows are sorted otherwise than
@@ -211,11 +211,13 @@ export default {
         });
         namesByLabel.forEach((names, label) => {
           if (!chosenLabel || label === chosenLabel) {
+            const works = this.workList.filter(work => names.includes(work.status));
             groups.push({
               key: `status-${names[0]}`,
               label,
-              works: this.workList.filter(work => names.includes(work.status)),
-              cap: names.some(name => CAPPED_STATUSES.includes(name)) ? CAPPED_GROUP_SIZE : 0,
+              works,
+              // a column whose requests are all closed shows its most recent ones first
+              cap: works.length && works.every(isFinished) ? CAPPED_GROUP_SIZE : 0,
             });
           }
         });

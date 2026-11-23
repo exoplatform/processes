@@ -16,16 +16,15 @@
  */
 
 /**
- * The statuses whose groups show their most recent requests first, then « Show N more »:
- * the decided ones, as the server names them.
+ * Tells whether a request changes no more unless reopened: decided or canceled, its task completed,
+ * whatever column it sits in. « Archive all » archives the open requests that are.
+ *
+ * @param {Object} work the request
+ * @returns {Boolean} true when finished
  */
-export const CAPPED_STATUSES = ['Validated', 'Refused'];
-
-/**
- * The statuses after which a request changes no more: « Archive all » archives the open requests
- * in them, as the server names them.
- */
-export const FINISHED_STATUSES = ['Validated', 'Refused', 'Canceled'];
+export function isFinished(work) {
+  return !!work && !!work.completed;
+}
 
 /**
  * How « My requests » groups its requests: not at all, by status or by process.

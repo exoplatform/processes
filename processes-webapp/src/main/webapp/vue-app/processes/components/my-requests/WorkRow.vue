@@ -35,6 +35,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         v-if="!wide"
         :is-draft="isDraft"
         :is-completed="work.completed"
+        :is-canceled="work.canceled"
+        :archived="work.archived"
         class="mt-1"
         x-small />
     </td>
@@ -68,7 +70,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
       <my-request-status-chip
         :status="work.status"
         :is-draft="isDraft"
-        :is-completed="work.completed" />
+        :is-completed="work.completed"
+        :is-canceled="work.canceled"
+        :archived="work.archived" />
     </td>
     <td class="my-request-cell-actions text-end">
       <work-actions-menu

@@ -409,6 +409,37 @@ public class ProcessesChangelogTest {
   }
 
   /**
+   * The request's own state (EXO-94923) is two nullable columns: a record
+   * written before them, or without them, holds null in both, which the code
+   * reads as neither cancelled nor archived; rolling back that changeset alone
+   * drops both and leaves the records, and it applies again. Mutation: make
+   * the columns NOT NULL and the insert fails; drop the rollback and the
+   * columns stay.
+   *
+   * @throws Exception when Liquibase or the engine fails
+   */
+  @Test
+  public void theRequestStateColumnsAreNullableAndRollBackAlone() throws Exception {
+    update(connection);
+    insertWorkFlow(1, 10);
+    insertRequest(100, 1, 5);
+    connection.commit();
+
+    assertEquals(1, count("SELECT COUNT(*) FROM " + REQUEST_TABLE + " WHERE CANCELED IS NULL AND ARCHIVED IS NULL"));
+
+    liquibase(connection).rollback(1, new Contexts(), new LabelExpression());
+
+    assertFalse("the cancel column must be dropped", columnExists(REQUEST_TABLE, "CANCELED"));
+    assertFalse("and the archive column", columnExists(REQUEST_TABLE, "ARCHIVED"));
+    assertEquals(1, count("SELECT COUNT(*) FROM " + REQUEST_TABLE));
+
+    update(connection);
+
+    assertTrue(columnExists(REQUEST_TABLE, "CANCELED"));
+    assertTrue(columnExists(REQUEST_TABLE, "ARCHIVED"));
+  }
+
+  /**
    * Checks that each column an entity maps exists in its table.
    *
    * @param entityClass the entity
