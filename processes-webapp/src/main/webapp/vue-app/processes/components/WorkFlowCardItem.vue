@@ -94,6 +94,11 @@
 </template>
 
 <script>
+// The page's events that change how many open requests a process has
+const REQUEST_EVENTS = ['work-added', 'work-canceled', 'work-uncanceled', 'work-completed', 'work-removed'];
+// How long the count waits before it is read again, so the events of one action read it once
+const RECOUNT_DELAY_MS = 300;
+
 export default {
   props: {
     /** The categories the process is filed under, by name. */
@@ -158,9 +163,35 @@ export default {
   created() {
     if (this.showPending) {
       this.countOpenRequests();
+      REQUEST_EVENTS.forEach(event => this.$root.$on(event, this.recountOnRequestChange));
     }
   },
+  beforeDestroy() {
+    REQUEST_EVENTS.forEach(event => this.$root.$off(event, this.recountOnRequestChange));
+    window.clearTimeout(this.recountTimer);
+  },
   methods: {
+    /**
+     * Reads the count again once a request of this process is sent, canceled, reopened, completed or deleted on the
+     * page, the card staying shown meanwhile. A request that names no process may be one of this process's: the count
+     * is read again then too.
+     *
+     * @param {Object} event the request, or for a sent one the event that carries it as work
+     * @returns {void}
+     */
+    recountOnRequestChange(event) {
+      const work = event && event.work || event;
+      const workflowId = work && work.workFlow && work.workFlow.id;
+      if (workflowId && String(workflowId) !== String(this.workflow.id)) {
+        return;
+      }
+      window.clearTimeout(this.recountTimer);
+      // Not reactive: the pending read of the count
+      this.recountTimer = window.setTimeout(() => {
+        this.recountTimer = null;
+        this.countOpenRequests();
+      }, RECOUNT_DELAY_MS);
+    },
     /**
      * Opens the request drawer on this process, when the user may make a request on it.
      *
