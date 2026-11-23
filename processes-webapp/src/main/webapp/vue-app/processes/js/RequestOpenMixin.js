@@ -97,6 +97,11 @@ export default {
           this.$root.$emit('update-url-path', 'requestDetails', `/myRequests/requestDetails/${this.work.id}`);
         }
       }
+      if (!this.viewMode) {
+        // The drawer is reused across openings, and the rich editor it reuses shows only the text set on it: a new
+        // request starts empty, a draft with its own message, never the text of a former opening
+        this.$refs.messageRow?.setEditorData(this.work.description || '');
+      }
       this.initDraftState();
       this.initExtrasState();
       this.initLayoutState();
