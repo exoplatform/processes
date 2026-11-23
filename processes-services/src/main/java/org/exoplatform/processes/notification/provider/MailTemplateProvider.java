@@ -134,5 +134,6 @@ public class MailTemplateProvider extends TemplateProvider {
     templateContext.put("FIRST_NAME", encoder.encode(receiver.getProfile().getProperty(Profile.FIRST_NAME).toString()));
     // Footer
     templateContext.put("FOOTER_LINK", LinkProviderUtils.getRedirectUrl("notification_settings", receiver.getRemoteId()));
+    templateContext.put("COMPANY_LINK", LinkProviderUtils.getBaseUrl());
   }
 }
