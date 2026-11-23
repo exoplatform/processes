@@ -334,7 +334,7 @@
 export default {
   data () {
     return {
-      // the illustration types the server stores and serves as an image
+      // the illustration types the server stores and serves as an image: IllustrativeAttachment.IMAGE_TYPES
       illustrationTypes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp'],
       storedIllustrationInput: null,
       stp: 1,

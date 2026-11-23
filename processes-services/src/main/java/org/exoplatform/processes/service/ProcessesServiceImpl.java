@@ -590,14 +590,19 @@ public class ProcessesServiceImpl implements ProcessesService {
    * An illustration sent with a process is an image of a type
    * {@link IllustrativeAttachment#isImageType(String)} accepts, stored with
    * that type trimmed and lower-cased, of at most
-   * {@link #MAX_ILLUSTRATION_SIZE} bytes once decoded
+   * {@link #MAX_ILLUSTRATION_SIZE} bytes once decoded. A body sent with no
+   * {@code base64,} marker, or with no data after it, is refused: only a null
+   * body makes the storage keep the stored illustration.
    */
   private void checkIllustration(IllustrativeAttachment illustration) {
     String body = illustration == null ? null : illustration.getFileBody();
-    int dataIndex = body == null ? -1 : body.indexOf(BASE64_DATA_PREFIX);
-    if (dataIndex < 0 || dataIndex + BASE64_DATA_PREFIX.length() == body.length()) {
-      // No image data: the storage keeps the stored illustration as it is
+    if (body == null) {
+      // No image data sent: the storage keeps the stored illustration as it is
       return;
+    }
+    int dataIndex = body.indexOf(BASE64_DATA_PREFIX);
+    if (dataIndex < 0 || dataIndex + BASE64_DATA_PREFIX.length() == body.length()) {
+      throw new IllegalArgumentException("The process illustration isn't base64 data");
     }
     if (!IllustrativeAttachment.isImageType(illustration.getMimeType())) {
       throw new IllegalArgumentException("The process illustration must be an image");

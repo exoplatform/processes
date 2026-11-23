@@ -416,12 +416,26 @@ public class ProcessesServiceImplTest {
     assertThrows(IllegalArgumentException.class, () -> processesService.updateWorkFlow(updated, PARTICIPANT_ID));
     verify(processesStorage, never()).saveWorkFlow(any(), anyLong());
 
+    // A body that holds no image data is refused as a whole, whatever its
+    // type: only a null body keeps the stored illustration
+    for (String noData : new String[] { "data:image/svg+xml,<svg/>", "data:image/png,AAAA", "", "AAAA", "data:image/svg+xml;base64,",
+        "data:image/png;base64," }) {
+      for (String type : new String[] { "image/svg+xml", "image/png" }) {
+        WorkFlow noImageData = new WorkFlow();
+        noImageData.setId(WORKFLOW_ID);
+        noImageData.setIllustrativeAttachment(sentIllustration("image", noData, type));
+        assertThrows(noData + " " + type, IllegalArgumentException.class, () -> processesService.updateWorkFlow(noImageData, PARTICIPANT_ID));
+        assertThrows(noData + " " + type, IllegalArgumentException.class, () -> processesService.createWorkFlow(noImageData, PROCESSES_ADMIN_ID));
+      }
+    }
+    verify(processesStorage, never()).saveWorkFlow(any(), anyLong());
+
     // A process edited with its stored illustration resends no image data,
     // whatever type is stored: it is saved and keeps that illustration
     WorkFlow kept = new WorkFlow();
     kept.setId(WORKFLOW_ID);
     kept.setTitle("edited");
-    kept.setIllustrativeAttachment(sentIllustration("image.svg", "data:image/svg+xml;base64,", "image/svg+xml"));
+    kept.setIllustrativeAttachment(sentIllustration("image.svg", null, "image/svg+xml"));
     processesService.updateWorkFlow(kept, PARTICIPANT_ID);
     verify(processesStorage).saveWorkFlow(kept, PARTICIPANT_ID);
 
@@ -436,6 +450,13 @@ public class ProcessesServiceImplTest {
     processesService.createWorkFlow(largest, PROCESSES_ADMIN_ID);
     verify(processesStorage).saveWorkFlow(largest, PROCESSES_ADMIN_ID);
     assertEquals("image/webp", largest.getIllustrativeAttachment().getMimeType());
+    String maxPaddedBody = "data:image/png;base64,"
+        + Base64.getEncoder().encodeToString(new byte[(int) ProcessesServiceImpl.MAX_ILLUSTRATION_SIZE]);
+    assertEquals(true, maxPaddedBody.endsWith("="));
+    WorkFlow largestPadded = new WorkFlow();
+    largestPadded.setIllustrativeAttachment(sentIllustration("image.png", maxPaddedBody, "image/png"));
+    processesService.createWorkFlow(largestPadded, PROCESSES_ADMIN_ID);
+    verify(processesStorage).saveWorkFlow(largestPadded, PROCESSES_ADMIN_ID);
   }
 
   private static IllustrativeAttachment sentIllustration(String fileName, String fileBody, String mimeType) {
