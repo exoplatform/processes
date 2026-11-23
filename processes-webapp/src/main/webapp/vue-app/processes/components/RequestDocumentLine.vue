@@ -28,12 +28,27 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     </a>
     <span class="requestDocumentLine-meta text-caption text-light-color">{{ meta }}</span>
     <v-chip
+      v-if="checking"
+      class="requestDocumentLine-state requestDocumentLine-checking"
+      role="status"
+      small>
+      <v-progress-circular
+        class="me-1"
+        color="primary"
+        size="12"
+        width="2"
+        indeterminate />
+      {{ $t('processes.request.documentToFill.checking') }}
+    </v-chip>
+    <v-chip
+      v-else
       :class="stateClass"
       class="requestDocumentLine-state"
       small>
       {{ state }}
     </v-chip>
     <v-btn
+      :disabled="checking"
       class="requestFillDocumentButton requestDocumentLine-button font-weight-bold"
       color="primary"
       outlined
@@ -93,6 +108,11 @@ export default {
       default: '',
     },
     filled: {
+      type: Boolean,
+      default: false,
+    },
+    // The drawer waits for the copy's new version, after the requester came back from the editor
+    checking: {
       type: Boolean,
       default: false,
     },
