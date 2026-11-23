@@ -47,26 +47,14 @@ export default {
     }
   },
   computed: {
+    /**
+     * Picks the colour for the request's state, never for its column, whose names the board's
+     * owners choose: closed blue, pending orange.
+     *
+     * @returns {String} a colour
+     */
     statusColor() {
-      if (this.isCompleted) {
-        return '#6596cd';
-      }
-      switch (this.statusLabel.toLowerCase())
-      {
-      case 'accepted':
-      case 'done':
-      case 'validated':
-        return 'green';
-      case 'pending':
-      case 'requestinprogress':
-      case 'waitingon':
-      case 'inprogress':
-        return 'orange';
-      case 'refused':
-        return 'red';
-      default:
-        return 'grey';
-      }
+      return this.isCompleted ? '#6596cd' : 'orange';
     },
     statusLabel() {
       return !this.isDraft ? this.status: this.$t('processes.myWorks.status.draftLabel');

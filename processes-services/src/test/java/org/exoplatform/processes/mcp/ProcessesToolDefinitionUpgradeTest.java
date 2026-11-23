@@ -72,11 +72,26 @@ public class ProcessesToolDefinitionUpgradeTest {
   private static final String BOARD_FORMS_DIGEST = "ae731d2d7c38625543a885431086495d90c8e1513a05f662baf3e8da2b3e154a";
 
   /**
-   * The text Forms on processes (EXO-94526) ships, as `jq -jcS
-   * '{description, input_schema}' | shasum -a 256` gives it: the next change
-   * of this tool lists it.
+   * The text Forms on processes (EXO-94526) shipped, as `jq -jcS
+   * '{description, input_schema}' | shasum -a 256` gives it: the first column
+   * wording (EXO-94923) replaces it.
    */
-  private static final String CURRENT_DIGEST     = "757e20e45e52d23ed8cbc915a2778cd8660dbe451496a70bd23e665e018c0f64";
+  private static final String FORMS_DIGEST       = "757e20e45e52d23ed8cbc915a2778cd8660dbe451496a70bd23e665e018c0f64";
+
+  /**
+   * The text EXO-94923 ships, the request created in the board's first
+   * column: the next change of this tool lists it.
+   */
+  private static final String CURRENT_DIGEST     = "e012bfc50f85a9c8891283a9041764304a43a6e3da61293c5bc13f0a6ba2c375";
+
+  /**
+   * The texts the three other tools EXO-94923 rewords shipped before it,
+   * which named the five former columns, by tool.
+   */
+  private static final java.util.Map<String, String> COLUMN_WORDINGS = java.util.Map.of(
+      "get_my_requests", "72f3b1d9ba6bd2eea9245ad552e549445bfa0fe0d69171f0d45e93440d561a52",
+      "cancel_work_request", "7dca2e6cb1ca688055db93439d0734cba8629abd28e1ecc709dc8f5a0137e7b0",
+      "get_pending_approvals", "5d9b3980c731acbd45b4f0688e2fe30eea1324ab376e6f9491399dbd0fa02350");
 
   /**
    * The title is optional and its description says where it goes and that it
@@ -119,6 +134,7 @@ public class ProcessesToolDefinitionUpgradeTest {
     assertTrue(replaced.toString(), replaced.contains(FORM_VALUES_DIGEST));
     assertTrue(replaced.toString(), replaced.contains(FORM_ID_DIGEST));
     assertTrue(replaced.toString(), replaced.contains(BOARD_FORMS_DIGEST));
+    assertTrue(replaced.toString(), replaced.contains(FORMS_DIGEST));
 
     JsonNode definition = definition();
     ObjectNode text = JsonMapper.shared().createObjectNode();
@@ -127,6 +143,34 @@ public class ProcessesToolDefinitionUpgradeTest {
     String digest = sha256(canonical(text));
     assertEquals("the current text's digest, which the next change of the tool lists", CURRENT_DIGEST, digest);
     assertFalse("the current text replaces nothing", replaced.contains(digest));
+  }
+
+  /**
+   * Each other tool EXO-94923 rewords lists the text it shipped with the five
+   * former columns, never its current one, so a booted instance takes the new
+   * text unless an administrator edited it. Mutation: drop a tool's entry, or
+   * list its current text, and this test fails.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void theColumnFreeWordingsReplaceTheColumnOnes() throws Exception {
+    java.util.Map<String, Set<String>> replaced = new java.util.HashMap<>();
+    JsonMapper.shared()
+              .readTree(getClass().getResourceAsStream("/ai-tool-definition-upgrades.json"))
+              .get("tools")
+              .forEach(tool -> tool.get("replaced_definitions")
+                                   .forEach(digest -> replaced.computeIfAbsent(tool.get("name").asString(), name -> new HashSet<>())
+                                                              .add(digest.asString())));
+    for (java.util.Map.Entry<String, String> wording : COLUMN_WORDINGS.entrySet()) {
+      Set<String> listed = replaced.getOrDefault(wording.getKey(), Set.of());
+      assertTrue(wording.getKey() + " " + listed, listed.contains(wording.getValue()));
+      JsonNode definition = definition(wording.getKey());
+      ObjectNode text = JsonMapper.shared().createObjectNode();
+      text.put("description", definition.get("description").asString());
+      text.set("input_schema", definition.get("input_schema"));
+      assertFalse(wording.getKey() + " lists its current text", listed.contains(sha256(canonical(text))));
+    }
   }
 
   /**
@@ -176,11 +220,22 @@ public class ProcessesToolDefinitionUpgradeTest {
    * @throws Exception never
    */
   private JsonNode definition() throws Exception {
+    return definition(TOOL);
+  }
+
+  /**
+   * Reads a tool's shipped definition.
+   *
+   * @param name the tool's name
+   * @return its definition
+   * @throws Exception when the file can't be read or holds no such tool
+   */
+  private JsonNode definition(String name) throws Exception {
     JsonNode found = null;
     for (JsonNode tool : JsonMapper.shared()
                                    .readTree(getClass().getResourceAsStream("/ai-tool-definitions.json"))
                                    .get("tools")) {
-      if (TOOL.equals(tool.get("name").asString())) {
+      if (name.equals(tool.get("name").asString())) {
         found = tool;
       }
     }

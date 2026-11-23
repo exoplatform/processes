@@ -67,8 +67,14 @@ export default {
       }
       return this.workObject.commentsCount || 0;
     },
+    /**
+     * Tells whether the request may still be canceled: pending, its task not completed, whatever its
+     * column.
+     *
+     * @returns {Boolean} true while the request is pending
+     */
     allowCancel() {
-      return this.workObject && this.workObject.status !== 'Validated' && this.workObject.status !== 'Refused';
+      return !!this.workObject && !this.workObject.completed;
     },
     workflowAvatarUrl() {
       return this.workObject.workFlow && this.workObject.workFlow.illustrativeAttachment

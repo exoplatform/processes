@@ -114,16 +114,15 @@ public interface ProcessesService {
    * stated), or the existing one its project id names
    * ({@link org.exoplatform.processes.constant.ProjectMode#EXISTING}), which
    * must be one {@link #listEligibleProjects} returns for its managing space;
-   * the process statuses missing from that project are added to it.
+   * that project's columns are left as they are.
    *
    * @param workFlow the process to create
    * @param userId the creator's identity id
    * @return the created process
    * @throws IllegalAccessException when the user isn't a processes administrator
    * @throws IllegalArgumentException with the message code
-   *           processes.project.notEligible or
-   *           processes.project.statusNameConflict when the existing project
-   *           cannot be used
+   *           processes.project.notEligible when the existing project cannot
+   *           be used
    */
   WorkFlow createWorkFlow(WorkFlow workFlow, long userId) throws IllegalAccessException;
 
@@ -138,9 +137,8 @@ public interface ProcessesService {
    * @throws ObjectNotFoundException when the space does not exist
    * @throws IllegalAccessException when the user is neither a processes
    *           administrator nor a manager of the space
-   * @throws IllegalArgumentException processes.project.notEligible or
-   *           processes.project.statusNameConflict when a process of the space
-   *           may not feed the project
+   * @throws IllegalArgumentException processes.project.notEligible when a
+   *           process of the space may not feed the project
    */
   List<WorkFlowLabel> listProjectLabels(String spaceId, long projectId, long userIdentityId) throws ObjectNotFoundException,
                                                                                             IllegalAccessException;
@@ -149,9 +147,8 @@ public interface ProcessesService {
    * Lists the task projects a process of a space may feed: the projects
    * attached to the space, whose managers hold the space's manager membership
    * and whose managers and participants hold no group membership but the
-   * space's, users being allowed, less the projects with a column named like a
-   * process status in another case. Each comes with the processes of that
-   * space that already feed it.
+   * space's, users being allowed, whatever their columns. Each comes with the
+   * processes of that space that already feed it.
    *
    * @param spaceId the managing space id
    * @param offset the index of the first project of the page
@@ -211,10 +208,11 @@ public interface ProcessesService {
   int countWorks(long userIdentityId, WorkFilter workFilter) throws Exception;
 
   /**
-   * Archives every request the user created that is not archived yet and whose
-   * status is final: Validated, Refused or Canceled. Each request is archived
-   * through {@link #updateWorkCompleted(Long, boolean, long)} as that user; one
-   * refused, gone or no longer finished at its turn is skipped.
+   * Archives every request the user created that is not archived yet and is
+   * finished: decided or cancelled, its task completed, whatever its column.
+   * Each request is archived through {@link #archiveWork(long, boolean, long)}
+   * as that user; one refused, gone or no longer finished at its turn is
+   * skipped.
    *
    * @param userIdentityId the creator's identity id
    * @return how many requests were archived
@@ -351,8 +349,11 @@ public interface ProcessesService {
   Work updateWorkCompleted(Long workId, boolean completed);
 
   /**
-   * update the completed property of the task of a work to completed or
-   * uncompleted, when the user is its creator or a manager of its process
+   * Completes or reopens the task of a request, when the user manages its
+   * process: a manager decides a request by completing it, the column it sits
+   * in wording the outcome. A requester who doesn't manage the process is
+   * refused: they cancel with {@link #cancelWork(long, long)} and archive with
+   * {@link #archiveWork(long, boolean, long)}.
    *
    * @param workId work id
    * @param completed work completed property, can be true or false
@@ -364,6 +365,50 @@ public interface ProcessesService {
    */
   Work updateWorkCompleted(Long workId, boolean completed, long userIdentityId) throws ObjectNotFoundException,
                                                                                 IllegalAccessException;
+
+  /**
+   * Cancels a pending request, when the user is its requester: its record
+   * says cancelled, then its task is completed through Task, its column left
+   * as it is, the flag written back when the completion fails
+   * ({@link org.exoplatform.processes.storage.ProcessesStorage#saveRequestState});
+   * its managers are then notified. An already cancelled
+   * request is returned as it is.
+   *
+   * @param workId the request's task id
+   * @param userIdentityId the user's identity id
+   * @return the cancelled request
+   * @throws ObjectNotFoundException when the request doesn't exist
+   * @throws IllegalAccessException when the task isn't a request, the user
+   *           isn't its requester, or the request is closed
+   */
+  Work cancelWork(long workId, long userIdentityId) throws ObjectNotFoundException, IllegalAccessException;
+
+  /**
+   * Archives or restores a request in its requester's « My requests », when
+   * the user is its requester: only its record's flag changes, never its
+   * task. Only a finished request (decided or cancelled) is archived.
+   *
+   * @param workId the request's task id
+   * @param archived true to archive, false to restore
+   * @param userIdentityId the user's identity id
+   * @return the request
+   * @throws ObjectNotFoundException when the request doesn't exist
+   * @throws IllegalAccessException when the task isn't a request, the user
+   *           isn't its requester, or the request to archive is pending
+   */
+  Work archiveWork(long workId, boolean archived, long userIdentityId) throws ObjectNotFoundException, IllegalAccessException;
+
+  /**
+   * Reacts to the reopening of a task, in Tasks or in processes: a request
+   * whose task is not completed any more is pending again, so its record's
+   * cancelled and archived flags are cleared. A task that is no request, or
+   * a request with neither flag, is left as it is. It is the platform's own
+   * call, for Task's update listener: it checks no user's right, so no user
+   * path may call it.
+   *
+   * @param taskId the reopened task's id
+   */
+  void requestTaskReopened(long taskId);
 
   /**
    * Creates a work draft

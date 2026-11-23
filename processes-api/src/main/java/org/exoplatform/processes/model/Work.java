@@ -92,6 +92,20 @@ public class Work {
   private Integer  commentsCount;
 
   /**
+   * Whether the requester cancelled the request, read from its request record:
+   * set by the server, never taken from a client.
+   */
+  @EqualsAndHashCode.Exclude
+  private boolean  canceled;
+
+  /**
+   * Whether the requester archived the request from « My requests », read
+   * from its request record: set by the server, never taken from a client.
+   */
+  @EqualsAndHashCode.Exclude
+  private boolean  archived;
+
+  /**
    * constructor for Work task object
    *
    * @param id Work id

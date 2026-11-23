@@ -39,6 +39,7 @@ import org.exoplatform.processes.mcp.model.ProcessModel;
 import org.exoplatform.processes.mcp.model.RequestModel;
 import org.exoplatform.processes.model.ProcessesFilter;
 import org.exoplatform.processes.model.Work;
+import org.exoplatform.processes.util.RequestState;
 import org.exoplatform.processes.model.WorkFilter;
 import org.exoplatform.processes.model.WorkFlow;
 import org.exoplatform.processes.service.ProcessTranslationService;
@@ -62,8 +63,9 @@ import io.meeds.mcp.server.plugin.McpToolPlugin;
  * <p>
  * A <b>process type</b> ({@link WorkFlow}) is backed by a Task/Kanban project
  * ({@code WorkFlow.projectId}); a <b>request</b> ({@link Work}) IS a task
- * ({@code Work.taskId}) whose status is the task's Kanban column (default
- * columns: {@code Request, RequestInProgress, Validated, Refused, Canceled}).
+ * ({@code Work.taskId}) whose status is the name of the task's Kanban column, a
+ * label the board's owners word freely. A request is pending while its task is
+ * not completed; its requester's cancel and archive are its own state.
  * <p>
  * Every method acts as the current user: the current user's social identity id
  * is resolved and passed to the self-scoping {@link ProcessesService} calls
@@ -72,7 +74,8 @@ import io.meeds.mcp.server.plugin.McpToolPlugin;
  * <p>
  * <b>Approver actions ride the existing Task MCP tools by design:</b> to respond
  * to a pending request, the agent calls the eXo Task tools on the request's task
- * id ({@code update_task_status} to Validated/Refused, {@code add_task_comment}).
+ * id ({@code update_task_status} to the column that words the outcome,
+ * {@code complete_task} to decide it, {@code add_task_comment}).
  * This class deliberately does NOT duplicate that task-write path; it only
  * surfaces the pending requests to act on via {@link #getPendingApprovals()}.
  */
@@ -82,16 +85,6 @@ public class ProcessesMcpTool implements McpToolPlugin {
 
   /** The refusal of a request whose process has documents to fill. */
   static final String            DOCUMENT_TO_FILL       = "processes.request.documentToFill";
-
-  private static final String    STATUS_CANCELED        = "Canceled";
-
-  private static final String    STATUS_VALIDATED       = "Validated";
-
-  private static final String    STATUS_REFUSED         = "Refused";
-
-  // The two open (not-yet-decided) statuses a request goes through before an
-  // approver validates/refuses it; these are what get_pending_approvals surfaces.
-  private static final String[]  PENDING_STATUSES       = { "Request", "RequestInProgress" };
 
   private static final int       MAX_WORKFLOWS          = 200;
 
@@ -192,9 +185,16 @@ public class ProcessesMcpTool implements McpToolPlugin {
     return processes;
   }
 
-  // Lists the current user's OWN work requests (the requests they submitted),
-  // optionally filtered by status (Request, RequestInProgress, Validated, Refused,
-  // Canceled). Self-scoped to the current user. READ.
+  /**
+   * Lists the current user's OWN work requests (the requests they submitted),
+   * optionally filtered by the name of the column of the process's task
+   * project they sit in, archived ones included. Self-scoped to the current
+   * user. READ.
+   *
+   * @param status a column name, or blank for every column
+   * @return the requests
+   * @throws Exception when the requests can't be read
+   */
   public List<RequestModel> getMyRequests(String status) throws Exception {
     long userIdentityId = getCurrentUserIdentityId();
     WorkFilter workFilter = new WorkFilter();
@@ -205,8 +205,14 @@ public class ProcessesMcpTool implements McpToolPlugin {
     return works.stream().filter(Objects::nonNull).map(this::toRequestModel).toList();
   }
 
-  // Retrieves one of the current user's own work requests by its id (the request /
-  // task id). Self-scoped to the current user. READ.
+  /**
+   * Retrieves one of the current user's own work requests by its id (the
+   * request / task id). Self-scoped to the current user. READ.
+   *
+   * @param requestId the request id
+   * @return the request
+   * @throws ObjectNotFoundException when no request of the user has that id
+   */
   public RequestModel getRequestDetails(long requestId) throws ObjectNotFoundException {
     if (requestId <= 0) {
       throw new IllegalArgumentException("The 'request_id' parameter is mandatory (the id of one of your requests).");
@@ -222,8 +228,8 @@ public class ProcessesMcpTool implements McpToolPlugin {
 
   /**
    * Submits a new work request under a given process type, on behalf of the
-   * current user: a task in the process's project, in the initial 'Request'
-   * status, named by the fixed rule « Process name - yyyy/MM/dd - Requester
+   * current user: a task in the process's project, in the project's first
+   * column, named by the fixed rule « Process name - yyyy/MM/dd - Requester
    * name », followed by the agent's title when it sends one. The values of
    * the process's forms go in formValues, checked before the request is
    * created and written to its task; a refusal names a Forms or processes
@@ -289,10 +295,19 @@ public class ProcessesMcpTool implements McpToolPlugin {
     return toRequestModel(created);
   }
 
-  // Cancels one of the current user's own pending requests: sets its status to
-  // 'Canceled' and marks it completed (the combination that fires the
-  // 'exo.process.request.canceled' event and closes the request). WRITE
-  // (approval-gated).
+  /**
+   * Cancels one of the current user's own pending requests: it closes as
+   * cancelled, its column left as it is, and its managers are notified. An
+   * already cancelled request is returned as it is; a closed one is refused.
+   * WRITE (approval-gated).
+   *
+   * @param requestId the id of one of the user's requests
+   * @return the cancelled request
+   * @throws IllegalArgumentException when the id is missing, or the request is
+   *           closed
+   * @throws ObjectNotFoundException when no request of the user has that id
+   * @throws IllegalAccessException when the user is not its requester
+   */
   public RequestModel cancelWorkRequest(long requestId) throws IllegalArgumentException, ObjectNotFoundException, IllegalAccessException {
     if (requestId <= 0) {
       throw new IllegalArgumentException("The 'request_id' parameter is mandatory (the id of one of your requests to cancel).");
@@ -303,30 +318,26 @@ public class ProcessesMcpTool implements McpToolPlugin {
       throw new ObjectNotFoundException(("No request found with id %d among your requests. Call get_my_requests to list your "
           + "requests and their ids.").formatted(requestId));
     }
-    if (STATUS_CANCELED.equals(work.getStatus()) && work.isCompleted()) {
-      // Already canceled: return as-is (updateWork would reject a no-op change).
+    if (RequestState.isCanceled(work)) {
       return toRequestModel(work);
     }
-    if (work.isCompleted() || STATUS_VALIDATED.equals(work.getStatus()) || STATUS_REFUSED.equals(work.getStatus())) {
-      throw new IllegalArgumentException(("Request %d is already decided (status '%s') and can no longer be canceled.")
+    if (!RequestState.isPending(work)) {
+      throw new IllegalArgumentException(("Request %d is already closed (column '%s') and can no longer be canceled.")
           .formatted(requestId, work.getStatus()));
     }
-    work.setStatus(STATUS_CANCELED);
-    work.setCompleted(true);
-    Work updated = processesService.updateWork(work, userIdentityId);
-    return toRequestModel(updated);
+    return toRequestModel(processesService.cancelWork(requestId, userIdentityId));
   }
 
   /**
-   * Lists the requests awaiting a decision: tasks a process created, still in
-   * the 'Request' / 'RequestInProgress' status (not completed), of the enabled
+   * Lists the requests awaiting a decision: tasks a process created whose
+   * task is not completed, whatever column they sit in, of the enabled
    * processes whose space the current user is a member of, or of every enabled
    * process that has a space for a platform administrator, within the
    * MAX_WORKFLOWS and MAX_PENDING caps, each named by the title of the process
    * that created it in the user's language. A task created in Tasks, in a
    * project processes feed, is not listed. Use the returned task_id with the
-   * Task MCP tools (update_task_status to Validated/Refused, add_task_comment)
-   * to respond. READ.
+   * Task MCP tools to respond: update_task_status to the project's column that
+   * words the outcome, complete_task to decide it, add_task_comment. READ.
    *
    * @return the pending requests
    * @throws Exception when the processes or the tasks can't be read
@@ -351,29 +362,28 @@ public class ProcessesMcpTool implements McpToolPlugin {
       return new ArrayList<>();
     }
     List<Long> shownProcessIds = new ArrayList<>(shownProcesses.keySet());
+    // A request is pending while its task is not completed, whatever column
+    // of its project it sits in
+    TaskQuery taskQuery = new TaskQuery();
+    taskQuery.setProjectIds(new ArrayList<>(projectIds));
+    taskQuery.setCompleted(Boolean.FALSE);
+    // Only the requests of the shown processes: the other tasks of a shared
+    // project, and the requests of another process feeding it, are left out
+    taskQuery.add(new PredicateCondition<Task>((cb,
+                                                query,
+                                                root) -> processesService.requestOf(cb,
+                                                                                    query,
+                                                                                    root.<Long> get("id"),
+                                                                                    shownProcessIds)));
+    List<OrderBy> orderByList = new ArrayList<>();
+    orderByList.add(new OrderBy("id", false));
+    taskQuery.setOrderBy(orderByList);
+    List<TaskDto> tasks = taskService.findTasks(taskQuery, 0, MAX_PENDING);
+    Map<Long, Long> processOfTask = processesService.getRequestWorkFlowIds(tasks.stream().map(TaskDto::getId).toList());
     List<PendingApprovalModel> pending = new ArrayList<>();
-    for (String status : PENDING_STATUSES) {
-      TaskQuery taskQuery = new TaskQuery();
-      taskQuery.setProjectIds(new ArrayList<>(projectIds));
-      taskQuery.setStatusName(status);
-      taskQuery.setCompleted(Boolean.FALSE);
-      // Only the requests of the shown processes: the other tasks of a shared
-      // project, and the requests of another process feeding it, are left out
-      taskQuery.add(new PredicateCondition<Task>((cb,
-                                                  query,
-                                                  root) -> processesService.requestOf(cb,
-                                                                                      query,
-                                                                                      root.<Long> get("id"),
-                                                                                      shownProcessIds)));
-      List<OrderBy> orderByList = new ArrayList<>();
-      orderByList.add(new OrderBy("id", false));
-      taskQuery.setOrderBy(orderByList);
-      List<TaskDto> tasks = taskService.findTasks(taskQuery, 0, MAX_PENDING);
-      Map<Long, Long> processOfTask = processesService.getRequestWorkFlowIds(tasks.stream().map(TaskDto::getId).toList());
-      for (TaskDto task : tasks) {
-        Long workFlowId = processOfTask.get(task.getId());
-        pending.add(toPendingApprovalModel(task, workFlowId == null ? null : shownProcesses.get(workFlowId)));
-      }
+    for (TaskDto task : tasks) {
+      Long workFlowId = processOfTask.get(task.getId());
+      pending.add(toPendingApprovalModel(task, workFlowId == null ? null : shownProcesses.get(workFlowId)));
     }
     return pending;
   }
@@ -465,6 +475,8 @@ public class ProcessesMcpTool implements McpToolPlugin {
                             work.getDescription(),
                             work.getStatus(),
                             work.isCompleted(),
+                            work.isCanceled(),
+                            work.isArchived(),
                             work.getCreatedBy(),
                             work.getCreatedDate(),
                             work.getDueDate(),

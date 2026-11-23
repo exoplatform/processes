@@ -74,24 +74,11 @@ import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
 import java.util.Objects;
 import org.exoplatform.processes.constant.ProcessesEvents;
+import org.exoplatform.processes.util.RequestState;
 
 public class ProcessesServiceImpl implements ProcessesService {
 
-  private static final String      STATUS_CANCELED     = "Canceled";
-
-  private static final Set<String> PENDING_STATUSES    = Set.of("Request", "RequestInProgress");
-
-  private static final Set<String> DECIDED_STATUSES    = Set.of("Validated", "Refused");
-
-  /** The statuses after which a request changes no more, which « Archive all » archives */
-  private static final Set<String> FINISHED_STATUSES   = Set.of("Validated", "Refused", "Canceled");
-
-  /** The statuses of a process's task project, in their column order */
-  private static final List<String> PROCESS_STATUSES   = List.of("Request", "RequestInProgress", "Validated", "Refused", "Canceled");
-
   private static final String      PROJECT_NOT_ELIGIBLE = "processes.project.notEligible";
-
-  private static final String      STATUS_NAME_CONFLICT = "processes.project.statusNameConflict";
 
   private static final String      LABEL_NOT_IN_PROJECT = "processes.label.notInProject";
 
@@ -315,9 +302,8 @@ public class ProcessesServiceImpl implements ProcessesService {
     // Task commits each project, status and label it creates, before the
     // process's own rows are saved
     ProjectDto project = existingProject;
-    if (existingProject != null) {
-      ensureProcessStatuses(existingProject);
-    } else {
+    // An existing project keeps its columns as they are
+    if (existingProject == null) {
       workFlow = processesStorage.createProject(workFlow);
     }
     WorkFlow savedWorkFlow;
@@ -1059,9 +1045,8 @@ public class ProcessesServiceImpl implements ProcessesService {
                                                                                 workFlow.getAttachments()));
     // Task commits each project, status and label it creates, before the
     // process's own rows are saved
-    if (targetProject != null) {
-      ensureProcessStatuses(targetProject);
-    } else if (newProject) {
+    // An existing target project keeps its columns as they are
+    if (targetProject == null && newProject) {
       workFlow.setSpaceId(targetSpaceId);
       workFlow = processesStorage.createProject(workFlow);
       if (labelChoices != null && !labelChoices.isEmpty()) {
@@ -1300,16 +1285,19 @@ public class ProcessesServiceImpl implements ProcessesService {
    * within the same request as the selection, which may serve its tasks from
    * the request's persistence context: a change another user commits while
    * the run lasts is not guaranteed to be seen, the window being the run's
-   * duration. The archive then goes through
-   * {@link #updateWorkCompleted(Long, boolean, long)}, which checks the user's
-   * right on the request. Each archive stands alone, as a single archive does:
+   * duration; the re-read's request record, its archive flag, is read through
+   * the same persistence context as the selection's records, with the same
+   * window. The archive then goes through
+   * {@link #archiveWork(long, boolean, long)}, which checks the user's right
+   * on the request and touches its record only, never its task. Each archive stands alone, as a single archive does:
    * a failure other than a refusal, the re-read's included, stops the run and
    * leaves the requests already archived archived.
    */
   @Override
   public int archiveFinishedWorks(long userIdentityId) throws Exception {
     WorkFilter filter = new WorkFilter();
-    filter.setCompleted(false);
+    filter.setArchived(false);
+    filter.setCompleted(true);
     List<Work> candidates = processesStorage.getWorks(userIdentityId, filter, 0, 0);
     int archived = 0;
     for (Work candidate : candidates) {
@@ -1334,7 +1322,7 @@ public class ProcessesServiceImpl implements ProcessesService {
       return false;
     }
     try {
-      updateWorkCompleted(workId, true, userIdentityId);
+      archiveWork(workId, true, userIdentityId);
       return true;
     } catch (ObjectNotFoundException | IllegalAccessException e) {
       LOG.debug("The request {} isn't archived for the user {}", workId, userIdentityId, e);
@@ -1346,11 +1334,11 @@ public class ProcessesServiceImpl implements ProcessesService {
    * Tells whether a request is one « Archive all » archives.
    *
    * @param work the request, or null
-   * @return true when it exists, is not archived and its status is final
+   * @return true when it exists, is not archived and is finished: its task is
+   *         completed, whatever its column
    */
   private static boolean isUnarchivedAndFinished(Work work) {
-    // Set.of refuses a null lookup: a task that left its project has no status
-    return work != null && !work.isCompleted() && work.getStatus() != null && FINISHED_STATUSES.contains(work.getStatus());
+    return work != null && !work.isArchived() && RequestState.isFinished(work);
   }
 
   /**
@@ -1451,7 +1439,9 @@ public class ProcessesServiceImpl implements ProcessesService {
     // The request stays in its process project, whatever the client sent
     work.setProjectId(oldWork.getProjectId());
     if (!checkRequesterChange(oldWork, work.getStatus(), work.isCompleted(), userId)) {
-      // A requester who doesn't manage the process only cancels: the content stays
+      // A requester who doesn't manage the process changes neither the column,
+      // the completion nor the content here: cancel and archive have their own
+      // calls
       work.setTitle(oldWork.getTitle());
       work.setDescription(oldWork.getDescription());
     }
@@ -1734,8 +1724,76 @@ public class ProcessesServiceImpl implements ProcessesService {
       throw new IllegalArgumentException("Work id is mandatory");
     }
     Work work = getManageableWork(workId, userIdentityId);
-    checkRequesterChange(work, work.getStatus(), completed, userIdentityId);
+    if (!isWorkFlowManager(getAclIdentity(userIdentityId), work.getProjectId())) {
+      throw new IllegalAccessException("User " + userIdentityId + " can't decide or reopen the request " + workId
+          + ": only a manager of its process completes its task");
+    }
     return processesStorage.updateWorkCompleted(workId, completed);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Work cancelWork(long workId, long userIdentityId) throws ObjectNotFoundException, IllegalAccessException {
+    Work work = getOwnRequest(workId, userIdentityId);
+    if (RequestState.isCanceled(work)) {
+      return work;
+    }
+    if (!RequestState.isPending(work)) {
+      throw new IllegalAccessException("User " + userIdentityId + " can't cancel the closed request " + workId);
+    }
+    Work canceled = processesStorage.saveRequestState(workId, Boolean.TRUE, null, Boolean.TRUE);
+    processesStorage.broadcastRequestCanceled(workId);
+    return canceled;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Work archiveWork(long workId, boolean archived, long userIdentityId) throws ObjectNotFoundException,
+                                                                             IllegalAccessException {
+    Work work = getOwnRequest(workId, userIdentityId);
+    if (archived && !RequestState.isFinished(work)) {
+      throw new IllegalAccessException("User " + userIdentityId + " can't archive the pending request " + workId);
+    }
+    if (work.isArchived() == archived) {
+      return work;
+    }
+    return processesStorage.saveRequestState(workId, null, archived, null);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void requestTaskReopened(long taskId) {
+    Work work = processesStorage.getWorkById(taskId);
+    if (work == null || processesStorage.getRequestWorkFlowId(taskId) == null || work.isCompleted()
+        || (!work.isCanceled() && !work.isArchived())) {
+      return;
+    }
+    processesStorage.saveRequestState(taskId, Boolean.FALSE, Boolean.FALSE, null);
+  }
+
+  /**
+   * Reads a request its requester acts on: the user must be its creator,
+   * whether or not they also manage its process.
+   *
+   * @param workId the request's task id
+   * @param userIdentityId the user's identity id
+   * @return the request, its cancel and archive flags read from its record
+   * @throws ObjectNotFoundException when the request does not exist
+   * @throws IllegalAccessException when the task is no request, or the user
+   *           is not its creator
+   */
+  private Work getOwnRequest(long workId, long userIdentityId) throws ObjectNotFoundException, IllegalAccessException {
+    Work work = getManageableWork(workId, userIdentityId);
+    if (!getAclIdentity(userIdentityId).getUserId().equals(work.getCreatedBy())) {
+      throw new IllegalAccessException("User " + userIdentityId + " isn't the requester of the request " + workId);
+    }
+    return work;
   }
 
   /**
@@ -1979,8 +2037,8 @@ public class ProcessesServiceImpl implements ProcessesService {
 
   /**
    * Reads the projects a process of a space may feed, by name: the projects
-   * attached to the space ({@link #isAttachedToSpace}) whose columns hold no
-   * process status name in another case ({@link #hasStatusNameConflict}).
+   * attached to the space ({@link #isAttachedToSpace}), whatever their
+   * columns.
    *
    * @param space the managing space
    * @return the eligible projects
@@ -1995,23 +2053,20 @@ public class ProcessesServiceImpl implements ProcessesService {
     }
     return projects.stream()
                    .filter(project -> isAttachedToSpace(project, space.getGroupId()))
-                   .filter(project -> !hasStatusNameConflict(project))
                    .toList();
   }
 
   /**
    * Resolves the existing project a new process asks for, refusing it unless
    * {@link #findEligibleProjects} would list it for the process's space: the
-   * same attachment rule and the same column check, applied to that project.
+   * same attachment rule, applied to that project.
    *
    * @param projectId the project the client names
    * @param spaceId the managing space the client names
    * @return the project
    * @throws IllegalArgumentException processes.project.notEligible when the
    *           space or the project does not exist, or the project is not
-   *           attached to the space; processes.project.statusNameConflict when
-   *           a column of the project is named like a process status in another
-   *           case
+   *           attached to the space
    */
   private ProjectDto getEligibleProject(long projectId, String spaceId) {
     Space space = StringUtils.isBlank(spaceId) ? null : spaceService.getSpaceById(spaceId);
@@ -2026,9 +2081,6 @@ public class ProcessesServiceImpl implements ProcessesService {
     }
     if (project == null || !isAttachedToSpace(project, space.getGroupId())) {
       throw new IllegalArgumentException(PROJECT_NOT_ELIGIBLE);
-    }
-    if (hasStatusNameConflict(project)) {
-      throw new IllegalArgumentException(STATUS_NAME_CONFLICT);
     }
     return project;
   }
@@ -2055,47 +2107,6 @@ public class ProcessesServiceImpl implements ProcessesService {
     return java.util.stream.Stream.concat(managers.stream(), participators.stream())
                                   .filter(entry -> entry != null && entry.contains("/"))
                                   .allMatch(entry -> entry.equals(managerMembership) || entry.equals(memberMembership));
-  }
-
-  /**
-   * Tells whether a column of a task project is named like a process status in
-   * another case (request, CANCELED): Task would take it for the status and
-   * create none, while processes reads the status names exactly.
-   *
-   * @param project the task project
-   * @return true when such a column exists
-   */
-  private boolean hasStatusNameConflict(ProjectDto project) {
-    List<StatusDto> statuses = statusService.getStatuses(project.getId());
-    if (statuses == null) {
-      return false;
-    }
-    return statuses.stream()
-                   .map(StatusDto::getName)
-                   .filter(name -> name != null)
-                   .anyMatch(name -> PROCESS_STATUSES.stream()
-                                                     .anyMatch(statusName -> statusName.equalsIgnoreCase(name)
-                                                         && !statusName.equals(name)));
-  }
-
-  /**
-   * Adds to an existing task project the process statuses it lacks, compared
-   * exactly, after its columns. Only the missing ones: Task rewrites the whole
-   * project from its copy each time a status is created, whatever its name.
-   *
-   * @param project the task project
-   */
-  private void ensureProcessStatuses(ProjectDto project) {
-    List<StatusDto> statuses = statusService.getStatuses(project.getId());
-    Set<String> names = statuses == null ? Collections.emptySet()
-                                         : statuses.stream()
-                                                   .map(StatusDto::getName)
-                                                   .collect(java.util.stream.Collectors.toSet());
-    for (String statusName : PROCESS_STATUSES) {
-      if (!names.contains(statusName)) {
-        statusService.createStatus(project, statusName);
-      }
-    }
   }
 
   private WorkFlow checkCanAddRequest(long workFlowId, long userIdentityId) throws ObjectNotFoundException,
@@ -2153,11 +2164,18 @@ public class ProcessesServiceImpl implements ProcessesService {
 
   /**
    * Checks the change a user asks on a request they may manage: a manager of
-   * the process may set any status, the requester alone may only cancel a
-   * pending request, and never reopen a decided one
+   * the process may set any column and any completion. The requester alone
+   * changes neither: they cancel through {@link #cancelWork(long, long)} and
+   * archive through {@link #archiveWork(long, boolean, long)}.
    *
+   * @param storedWork the request as stored
+   * @param status the column name the user sent
+   * @param completed the completion the user sent
+   * @param userIdentityId the user's identity id
    * @return true when the user manages the request's process, false when the
-   *         user is its requester only
+   *         user is its requester only and changes neither
+   * @throws IllegalAccessException when the requester changes the column or
+   *           the completion
    */
   private boolean checkRequesterChange(Work storedWork,
                                        String status,
@@ -2167,12 +2185,9 @@ public class ProcessesServiceImpl implements ProcessesService {
       return true;
     }
     boolean statusChanged = status != null && !status.equals(storedWork.getStatus());
-    if (statusChanged
-        && !(STATUS_CANCELED.equals(status) && completed && PENDING_STATUSES.contains(storedWork.getStatus()))) {
-      throw new IllegalAccessException("User " + userIdentityId + " can only cancel the pending request " + storedWork.getId());
-    }
-    if (!completed && DECIDED_STATUSES.contains(storedWork.getStatus())) {
-      throw new IllegalAccessException("User " + userIdentityId + " can't reopen the decided request " + storedWork.getId());
+    if (statusChanged || completed != storedWork.isCompleted()) {
+      throw new IllegalAccessException("User " + userIdentityId + " can't change the column or the completion of the request "
+          + storedWork.getId() + ": a requester cancels or archives it");
     }
     return false;
   }

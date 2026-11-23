@@ -25,12 +25,12 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
@@ -105,7 +105,7 @@ public class ProcessesServiceProjectChoiceTest {
 
   private static final long          TASKS_APP_ID     = 12L;
 
-  private static final long          CONFLICT_ID      = 13L;
+  private static final long          OWN_COLUMNS_ID      = 13L;
 
   private static final long          OTHER_GROUP_ID   = 14L;
 
@@ -181,7 +181,7 @@ public class ProcessesServiceProjectChoiceTest {
     ProjectDto attached = project(ATTACHED_ID, "B project", Set.of(SPACE_MANAGER, "john"), Set.of(SPACE_MEMBER, "mary"));
     ProjectDto attached2 = project(ATTACHED_2_ID, "A project", Set.of(SPACE_MANAGER), Set.of(SPACE_MEMBER));
     ProjectDto tasksApp = project(TASKS_APP_ID, "Tasks app project", Set.of("john"), Set.of(SPACE_MEMBER));
-    ProjectDto conflict = project(CONFLICT_ID, "Conflict", Set.of(SPACE_MANAGER), Set.of(SPACE_MEMBER));
+    ProjectDto conflict = project(OWN_COLUMNS_ID, "Own columns", Set.of(SPACE_MANAGER), Set.of(SPACE_MEMBER));
     ProjectDto otherGroup = project(OTHER_GROUP_ID, "Other group", Set.of(SPACE_MANAGER), Set.of(SPACE_MEMBER, "member:/spaces/it"));
     when(projectService.findProjects(eq(Arrays.asList(SPACE_MANAGER, SPACE_MEMBER)), isNull(), any(OrderBy.class), eq(0), eq(0)))
                                                                                                                          .thenReturn(List.of(attached2,
@@ -193,7 +193,7 @@ public class ProcessesServiceProjectChoiceTest {
       when(projectService.getProject(project.getId())).thenReturn(project);
     }
     when(statusService.getStatuses(anyLong())).thenReturn(statuses(ATTACHED_ID, "To Do", "Done"));
-    when(statusService.getStatuses(CONFLICT_ID)).thenReturn(statuses(CONFLICT_ID, "To Do", "request"));
+    when(statusService.getStatuses(OWN_COLUMNS_ID)).thenReturn(statuses(OWN_COLUMNS_ID, "To Do", "request"));
     when(processesStorage.saveWorkFlow(any(WorkFlow.class), anyLong())).thenAnswer(invocation -> invocation.getArgument(0));
   }
 
@@ -222,25 +222,26 @@ public class ProcessesServiceProjectChoiceTest {
   }
 
   /**
-   * A space manager lists the projects attached to the space, less the one
-   * with a column named like a process status in another case, in the order
-   * Task returns them, each with the processes of that space feeding it.
-   * Mutation: drop the attachment filter or the column check and the listing
-   * holds an extra project.
+   * A space manager lists the projects attached to the space, whatever their
+   * columns, in the order Task returns them, each with the processes of that
+   * space feeding it. Mutation: drop the attachment filter and the listing
+   * holds an extra project; filter on the columns again and the project with
+   * its own columns is left out.
    *
    * @throws Exception on an unexpected refusal
    */
   @Test
   public void aSpaceManagerListsTheEligibleProjectsWithTheirProcesses() throws Exception {
-    when(processesStorage.findProcessesOfProjects(List.of(ATTACHED_2_ID, ATTACHED_ID), 3L))
+    when(processesStorage.findProcessesOfProjects(List.of(ATTACHED_2_ID, ATTACHED_ID, OWN_COLUMNS_ID), 3L))
                                                                                          .thenReturn(Map.of(ATTACHED_ID,
                                                                                                             List.of(new ProcessReference(7L,
                                                                                                                                          "Expense report"))));
 
     EligibleProjects projects = processesService.listEligibleProjects(SPACE_ID, 0, 0, SPACE_MANAGER_ID);
 
-    assertEquals(2, projects.getSize());
-    assertEquals(List.of(ATTACHED_2_ID, ATTACHED_ID), projects.getProjects().stream().map(EligibleProject::getId).toList());
+    assertEquals(3, projects.getSize());
+    assertEquals(List.of(ATTACHED_2_ID, ATTACHED_ID, OWN_COLUMNS_ID),
+                 projects.getProjects().stream().map(EligibleProject::getId).toList());
     assertEquals(List.of(), projects.getProjects().get(0).getWorkflows());
     assertEquals(List.of(new ProcessReference(7L, "Expense report")), projects.getProjects().get(1).getWorkflows());
   }
@@ -255,9 +256,11 @@ public class ProcessesServiceProjectChoiceTest {
   public void aPageIsCutAfterTheFilter() throws Exception {
     EligibleProjects page = processesService.listEligibleProjects(SPACE_ID, 1, 1, ADMIN_ID);
 
-    assertEquals(2, page.getSize());
+    assertEquals(3, page.getSize());
     assertEquals(List.of(ATTACHED_ID), page.getProjects().stream().map(EligibleProject::getId).toList());
     assertEquals(List.of(), processesService.listEligibleProjects(SPACE_ID, 5, 1, ADMIN_ID).getProjects());
+    assertEquals(List.of(OWN_COLUMNS_ID),
+                 processesService.listEligibleProjects(SPACE_ID, 2, 1, ADMIN_ID).getProjects().stream().map(EligibleProject::getId).toList());
   }
 
   /**
@@ -274,25 +277,25 @@ public class ProcessesServiceProjectChoiceTest {
   }
 
   /**
-   * A process created in an existing eligible project keeps that project, and
-   * only the process statuses the project lacks are added to it, before the
-   * process is saved. Mutation: force the project id to 0, or create every
-   * status, and this test fails.
+   * A process created in an existing eligible project keeps that project and
+   * leaves its columns as they are, two of them here, before the process is
+   * saved (EXO-94923). Mutation: force the project id to 0 and the saved
+   * project changes; add the former process columns again and the never()
+   * fails.
    *
    * @throws Exception on an unexpected refusal
    */
   @Test
-  public void aProcessCreatedInAnExistingProjectKeepsItAndGetsTheMissingStatuses() throws Exception {
-    when(statusService.getStatuses(ATTACHED_ID)).thenReturn(statuses(ATTACHED_ID, "To Do", "Request", "Validated"));
+  public void aProcessCreatedInAnExistingProjectKeepsItAndItsColumns() throws Exception {
+    when(statusService.getStatuses(ATTACHED_ID)).thenReturn(statuses(ATTACHED_ID, "To Do", "Done"));
 
     processesService.createWorkFlow(newWorkFlow(ProjectMode.EXISTING, ATTACHED_ID), ADMIN_ID);
 
     ArgumentCaptor<WorkFlow> saved = ArgumentCaptor.forClass(WorkFlow.class);
     verify(processesStorage).saveWorkFlow(saved.capture(), eq(ADMIN_ID));
     assertEquals(ATTACHED_ID, saved.getValue().getProjectId());
-    ArgumentCaptor<String> created = ArgumentCaptor.forClass(String.class);
-    verify(statusService, org.mockito.Mockito.times(3)).createStatus(any(ProjectDto.class), created.capture());
-    assertEquals(List.of("RequestInProgress", "Refused", "Canceled"), created.getAllValues());
+    verify(statusService, never()).createStatus(nullable(ProjectDto.class), nullable(String.class));
+    verify(statusService, never()).createInitialStatuses(nullable(ProjectDto.class));
   }
 
   /**
@@ -323,21 +326,21 @@ public class ProcessesServiceProjectChoiceTest {
   }
 
   /**
-   * An attached project with a column named like a process status in another
-   * case is refused with its own code, and gets no status. Mutation: drop the
-   * column check and the process is saved.
+   * An attached project whose columns are named like the former process
+   * columns in another case is a project like any other: the process is saved
+   * on it and the project gets no column (EXO-94923). Mutation: refuse such a
+   * project again and the process is not saved.
    *
+   * @throws Exception on an unexpected refusal
    */
   @Test
-  public void aProjectWithAColumnNamedLikeAStatusInAnotherCaseIsRefused() {
-    IllegalArgumentException refusal = assertThrows(IllegalArgumentException.class,
-                                                    () -> processesService.createWorkFlow(newWorkFlow(ProjectMode.EXISTING,
-                                                                                                      CONFLICT_ID),
-                                                                                          ADMIN_ID));
+  public void aProjectWithItsOwnColumnNamesIsKeptAsItIs() throws Exception {
+    processesService.createWorkFlow(newWorkFlow(ProjectMode.EXISTING, OWN_COLUMNS_ID), ADMIN_ID);
 
-    assertEquals("processes.project.statusNameConflict", refusal.getMessage());
-    verify(processesStorage, never()).saveWorkFlow(any(), anyLong());
-    verify(statusService, never()).createStatus(any(), anyString());
+    ArgumentCaptor<WorkFlow> saved = ArgumentCaptor.forClass(WorkFlow.class);
+    verify(processesStorage).saveWorkFlow(saved.capture(), eq(ADMIN_ID));
+    assertEquals(OWN_COLUMNS_ID, saved.getValue().getProjectId());
+    verify(statusService, never()).createStatus(nullable(ProjectDto.class), nullable(String.class));
   }
 
   /**
@@ -378,7 +381,7 @@ public class ProcessesServiceProjectChoiceTest {
    * is the project's stored label, whatever name the client sent; a name the
    * project has already, case and spaces aside, reuses that label; a name it
    * lacks is created there once, by the saving user, with no color, after the
-   * project's missing statuses and before the process's rows are saved, and
+   * project's columns, left as they are, and before the process's rows are saved, and
    * the creation is broadcast after the save. Mutation: trust the client's
    * name, compare names with their case, create the label twice, or
    * broadcast before the save or after the links, and this test fails.
@@ -414,8 +417,8 @@ public class ProcessesServiceProjectChoiceTest {
     verify(processesStorage).saveWorkFlow(saved.capture(), eq(ADMIN_ID));
     assertEquals(List.of(new WorkFlowLabel(101L, "Holiday"), new WorkFlowLabel(102L, "Urgent"), new WorkFlowLabel(103L, "New one")),
                  saved.getValue().getLabels());
-    InOrder order = inOrder(statusService, labelService, processesService, listenerService, processesStorage);
-    order.verify(statusService, atLeastOnce()).createStatus(any(), any());
+    verify(statusService, never()).createStatus(nullable(ProjectDto.class), nullable(String.class));
+    InOrder order = inOrder(labelService, processesService, listenerService, processesStorage);
     order.verify(labelService).createLabel(any());
     order.verify(processesService).saveWorkFlowRows(any(), eq(ADMIN_ID));
     // Broadcast once the rows are committed, before the attachments' links,

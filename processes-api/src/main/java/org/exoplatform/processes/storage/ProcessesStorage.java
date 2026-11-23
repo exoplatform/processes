@@ -119,8 +119,8 @@ public interface ProcessesStorage {
   WorkFlow saveWorkFlow(WorkFlow workFlow, long userId) throws IllegalArgumentException;
 
   /**
-   * Creates the task project of a new process in its managing space, with the
-   * process statuses, and gives the process that project and the space's
+   * Creates the task project of a new process in its managing space, with
+   * Task's initial columns, and gives the process that project and the space's
    * memberships. Task commits each write on its own.
    *
    * @param workFlow the new process
@@ -250,6 +250,31 @@ public interface ProcessesStorage {
    * @return {@link Work}
    * */
   Work updateWorkCompleted(Long workId, boolean completed);
+
+  /**
+   * Writes a request's own state, which no column of its task project
+   * carries: the requester's cancel and archive flags on its request record,
+   * and its task's completion; when the completion fails, the flags are
+   * written back as they were, unless that write fails too, and the
+   * completion's failure is thrown. It is the platform's own
+   * write, with no user's permission: the caller checks the user's right.
+   *
+   * @param workId the request's task id
+   * @param canceled the cancelled flag to write, null to keep it
+   * @param archived the archived flag to write, null to keep it
+   * @param completed the task's completion to write, null to keep it
+   * @return the request as stored after the write
+   */
+  Work saveRequestState(long workId, Boolean canceled, Boolean archived, Boolean completed);
+
+  /**
+   * Broadcasts a committed cancel of a request as
+   * {@link org.exoplatform.processes.constant.ProcessesEvents#REQUEST_CANCELED},
+   * with the request's task as source and its project as data.
+   *
+   * @param workId the cancelled request's task id
+   */
+  void broadcastRequestCanceled(long workId);
 
   /**
    * Retrieves a list of accessible WorkDraft, for a selected user.
@@ -615,9 +640,11 @@ public interface ProcessesStorage {
    * Moves a request's task to a project, unless it is already there or no
    * longer exists: first its labels of its former project are removed, so
    * that a task found in the target has nothing left to do; then it takes the
-   * target's status of the same name, else the one whose name equals it
-   * trimmed, case aside, of lowest id, else a status of that name created in
-   * the target; then the task is saved. Each Task call commits on its own.
+   * target's column of the same name, read as a label only, else the one
+   * whose name equals it trimmed, case aside, of lowest id, else the target's
+   * first column, never creating one; then the task is saved. A target with
+   * no column refuses the move with an IllegalArgumentException
+   * processes.project.noStatus. Each Task call commits on its own.
    * The task is saved as read: a copy of it saved in Tasks after this read and
    * before this save is overwritten, and the description goes through Task's
    * sanitizer again, as on every task edit. As on every task edit, Task then

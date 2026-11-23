@@ -57,6 +57,15 @@ class ProcessesServiceArchiveAllTest {
   @Mock
   private ProcessesStorage     processesStorage;
 
+  /** A request whose task is not completed. */
+  private static final int     PENDING  = 0;
+
+  /** A request a manager decided: its task completed. */
+  private static final int     CLOSED   = 1;
+
+  /** A request its requester cancelled: its task completed. */
+  private static final int     CANCELED = 2;
+
   private ProcessesServiceImpl processesService;
 
   /**
@@ -69,36 +78,42 @@ class ProcessesServiceArchiveAllTest {
   }
 
   /**
-   * The user's open requests are read once, theirs only, and each Validated,
-   * Refused or Canceled one is archived through the checked archive as that
-   * user; a pending one is left. Mutation: drop the status check, archive
-   * through the unchecked overload or the storage, or read another user's
-   * requests, and this test fails.
+   * The user's requests not archived yet are read once, theirs only, and each
+   * finished one, decided or cancelled (its task completed), is archived
+   * through the requester's archive as that user, its task untouched; a
+   * pending one is left, whatever its column (here one named « Validated »).
+   * Mutation: read the column name again, archive through the task's
+   * completion or the storage, or read another user's requests, and this test
+   * fails.
    *
    * @throws Exception never, the mocks throw nothing
    */
   @Test
   void theFinishedRequestsOfTheUserAreArchivedThroughTheCheckedArchive() throws Exception {
-    select(work(1L, "Validated"), work(2L, "Refused"), work(3L, "Canceled"), work(4L, "Request"), work(5L, "RequestInProgress"));
-    doReturn(null).when(processesService).updateWorkCompleted(anyLong(), eq(true), eq(USER_ID));
+    Work pendingInAValidatedColumn = work(5L, PENDING);
+    pendingInAValidatedColumn.setStatus("Validated");
+    select(work(1L, CLOSED), work(2L, CLOSED), work(3L, CANCELED), work(4L, PENDING), pendingInAValidatedColumn);
+    doReturn(null).when(processesService).archiveWork(anyLong(), eq(true), eq(USER_ID));
 
     assertEquals(3, processesService.archiveFinishedWorks(USER_ID));
 
-    verify(processesService).updateWorkCompleted(1L, true, USER_ID);
-    verify(processesService).updateWorkCompleted(2L, true, USER_ID);
-    verify(processesService).updateWorkCompleted(3L, true, USER_ID);
-    verify(processesService, never()).updateWorkCompleted(eq(4L), anyBoolean(), anyLong());
-    verify(processesService, never()).updateWorkCompleted(eq(5L), anyBoolean(), anyLong());
+    verify(processesService).archiveWork(1L, true, USER_ID);
+    verify(processesService).archiveWork(2L, true, USER_ID);
+    verify(processesService).archiveWork(3L, true, USER_ID);
+    verify(processesService, never()).archiveWork(eq(4L), anyBoolean(), anyLong());
+    verify(processesService, never()).archiveWork(eq(5L), anyBoolean(), anyLong());
     verify(processesService, never()).updateWorkCompleted(nullable(Long.class), anyBoolean());
     verify(processesStorage, never()).updateWorkCompleted(anyLong(), anyBoolean());
     ArgumentCaptor<WorkFilter> filter = ArgumentCaptor.forClass(WorkFilter.class);
     verify(processesStorage).getWorks(eq(USER_ID), filter.capture(), eq(0), eq(0));
-    assertEquals(Boolean.FALSE, filter.getValue().getCompleted());
+    assertEquals(Boolean.FALSE, filter.getValue().getArchived());
+    assertEquals(Boolean.TRUE, filter.getValue().getCompleted());
+    verify(processesService, never()).updateWorkCompleted(nullable(Long.class), anyBoolean(), anyLong());
   }
 
   /**
    * A request whose re-read at its turn says it is no longer finished, or
-   * already archived, is left: the status and the archive are read again at
+   * already archived, is left: the state and the archive are read again at
    * each turn. Mutation: archive from the selection's copy and this test
    * fails.
    *
@@ -106,18 +121,18 @@ class ProcessesServiceArchiveAllTest {
    */
   @Test
   void aRequestThatChangedBeforeItsTurnIsLeft() throws Exception {
-    select(work(1L, "Validated"), work(2L, "Refused"), work(3L, "Canceled"));
-    when(processesStorage.getWorkById(1L)).thenReturn(work(1L, "RequestInProgress"));
-    Work archivedMeanwhile = work(2L, "Refused");
-    archivedMeanwhile.setCompleted(true);
+    select(work(1L, CLOSED), work(2L, CLOSED), work(3L, CANCELED));
+    when(processesStorage.getWorkById(1L)).thenReturn(work(1L, PENDING));
+    Work archivedMeanwhile = work(2L, CLOSED);
+    archivedMeanwhile.setArchived(true);
     when(processesStorage.getWorkById(2L)).thenReturn(archivedMeanwhile);
-    doReturn(null).when(processesService).updateWorkCompleted(3L, true, USER_ID);
+    doReturn(null).when(processesService).archiveWork(3L, true, USER_ID);
 
     assertEquals(1, processesService.archiveFinishedWorks(USER_ID));
 
-    verify(processesService, never()).updateWorkCompleted(eq(1L), anyBoolean(), anyLong());
-    verify(processesService, never()).updateWorkCompleted(eq(2L), anyBoolean(), anyLong());
-    verify(processesService).updateWorkCompleted(3L, true, USER_ID);
+    verify(processesService, never()).archiveWork(eq(1L), anyBoolean(), anyLong());
+    verify(processesService, never()).archiveWork(eq(2L), anyBoolean(), anyLong());
+    verify(processesService).archiveWork(3L, true, USER_ID);
   }
 
   /**
@@ -129,15 +144,15 @@ class ProcessesServiceArchiveAllTest {
    */
   @Test
   void anArchiveThatChangesTheNextCandidateIsSeenAtItsTurn() throws Exception {
-    select(work(1L, "Validated"), work(1L, "Validated"));
-    Work archived = work(1L, "Validated");
-    archived.setCompleted(true);
-    when(processesStorage.getWorkById(1L)).thenReturn(work(1L, "Validated"), archived);
-    doReturn(null).when(processesService).updateWorkCompleted(1L, true, USER_ID);
+    select(work(1L, CLOSED), work(1L, CLOSED));
+    Work archived = work(1L, CLOSED);
+    archived.setArchived(true);
+    when(processesStorage.getWorkById(1L)).thenReturn(work(1L, CLOSED), archived);
+    doReturn(null).when(processesService).archiveWork(1L, true, USER_ID);
 
     assertEquals(1, processesService.archiveFinishedWorks(USER_ID));
 
-    verify(processesService).updateWorkCompleted(1L, true, USER_ID);
+    verify(processesService).archiveWork(1L, true, USER_ID);
   }
 
   /**
@@ -150,16 +165,16 @@ class ProcessesServiceArchiveAllTest {
    */
   @Test
   void aGoneOrRefusedRequestIsSkippedAndNotCounted() throws Exception {
-    select(work(1L, "Validated"), work(2L, "Refused"), work(3L, "Canceled"), work(4L, "Validated"));
+    select(work(1L, CLOSED), work(2L, CLOSED), work(3L, CANCELED), work(4L, CLOSED));
     when(processesStorage.getWorkById(4L)).thenReturn(null);
-    doThrow(new IllegalAccessException("not allowed")).when(processesService).updateWorkCompleted(1L, true, USER_ID);
-    doThrow(new ObjectNotFoundException("gone")).when(processesService).updateWorkCompleted(2L, true, USER_ID);
-    doReturn(null).when(processesService).updateWorkCompleted(3L, true, USER_ID);
+    doThrow(new IllegalAccessException("not allowed")).when(processesService).archiveWork(1L, true, USER_ID);
+    doThrow(new ObjectNotFoundException("gone")).when(processesService).archiveWork(2L, true, USER_ID);
+    doReturn(null).when(processesService).archiveWork(3L, true, USER_ID);
 
     assertEquals(1, processesService.archiveFinishedWorks(USER_ID));
 
-    verify(processesService).updateWorkCompleted(3L, true, USER_ID);
-    verify(processesService, never()).updateWorkCompleted(eq(4L), anyBoolean(), anyLong());
+    verify(processesService).archiveWork(3L, true, USER_ID);
+    verify(processesService, never()).archiveWork(eq(4L), anyBoolean(), anyLong());
   }
 
   /**
@@ -171,15 +186,15 @@ class ProcessesServiceArchiveAllTest {
    */
   @Test
   void aFailingReReadStopsTheRunAfterTheArchivedOnes() throws Exception {
-    select(work(1L, "Validated"), work(2L, "Refused"), work(3L, "Canceled"));
+    select(work(1L, CLOSED), work(2L, CLOSED), work(3L, CANCELED));
     when(processesStorage.getWorkById(2L)).thenThrow(new IllegalStateException("storage down"));
-    doReturn(null).when(processesService).updateWorkCompleted(anyLong(), eq(true), eq(USER_ID));
+    doReturn(null).when(processesService).archiveWork(anyLong(), eq(true), eq(USER_ID));
 
     assertThrows(IllegalStateException.class, () -> processesService.archiveFinishedWorks(USER_ID));
 
-    verify(processesService).updateWorkCompleted(1L, true, USER_ID);
-    verify(processesService, never()).updateWorkCompleted(eq(2L), anyBoolean(), anyLong());
-    verify(processesService, never()).updateWorkCompleted(eq(3L), anyBoolean(), anyLong());
+    verify(processesService).archiveWork(1L, true, USER_ID);
+    verify(processesService, never()).archiveWork(eq(2L), anyBoolean(), anyLong());
+    verify(processesService, never()).archiveWork(eq(3L), anyBoolean(), anyLong());
   }
 
   /**
@@ -189,11 +204,11 @@ class ProcessesServiceArchiveAllTest {
    */
   @Test
   void nothingIsArchivedWithoutAFinishedRequest() throws Exception {
-    select(work(4L, "Request"));
+    select(work(4L, PENDING));
 
     assertEquals(0, processesService.archiveFinishedWorks(USER_ID));
 
-    verify(processesService, never()).updateWorkCompleted(anyLong(), anyBoolean(), anyLong());
+    verify(processesService, never()).archiveWork(anyLong(), anyBoolean(), anyLong());
   }
 
   /**
@@ -206,14 +221,39 @@ class ProcessesServiceArchiveAllTest {
   private void select(Work... works) throws Exception {
     when(processesStorage.getWorks(eq(USER_ID), any(WorkFilter.class), eq(0), eq(0))).thenReturn(new ArrayList<>(List.of(works)));
     for (Work listed : works) {
-      org.mockito.Mockito.lenient().when(processesStorage.getWorkById(listed.getId())).thenReturn(work(listed.getId(), listed.getStatus()));
+      org.mockito.Mockito.lenient().when(processesStorage.getWorkById(listed.getId())).thenReturn(copy(listed));
     }
   }
 
-  private static Work work(long id, String status) {
+  /**
+   * Builds a request in a state, in a column that names no state.
+   *
+   * @param id the request id
+   * @param state one of {@link #PENDING}, {@link #CLOSED}, {@link #CANCELED}
+   * @return the request
+   */
+  private static Work work(long id, int state) {
     Work work = new Work();
     work.setId(id);
-    work.setStatus(status);
+    work.setStatus("Column " + id);
+    work.setCompleted(state != PENDING);
+    work.setCanceled(state == CANCELED);
     return work;
+  }
+
+  /**
+   * Copies a request as a re-read returns it.
+   *
+   * @param work the request
+   * @return its copy
+   */
+  private static Work copy(Work work) {
+    Work copy = new Work();
+    copy.setId(work.getId());
+    copy.setStatus(work.getStatus());
+    copy.setCompleted(work.isCompleted());
+    copy.setCanceled(work.isCanceled());
+    copy.setArchived(work.isArchived());
+    return copy;
   }
 }

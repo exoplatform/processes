@@ -58,8 +58,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
         class="my-request-archive"
         @click="$emit('archive')">
         <v-list-item-title class="subtitle-2">
-          <v-icon size="13" class="processes-work-menu-icon me-1">{{ work.completed && 'mdi-archive-arrow-up-outline' || 'mdi-archive-outline' }}</v-icon>
-          {{ work.completed && $t('processes.work.unComplete.request.message') || $t('processes.work.complete.request.message') }}
+          <v-icon size="13" class="processes-work-menu-icon me-1">{{ work.archived && 'mdi-archive-arrow-up-outline' || 'mdi-archive-outline' }}</v-icon>
+          {{ work.archived && $t('processes.work.unComplete.request.message') || $t('processes.work.complete.request.message') }}
         </v-list-item-title>
       </v-list-item>
       <v-list-item
@@ -114,16 +114,16 @@ export default {
   },
   computed: {
     /**
-     * Tells whether the requester may archive the request, or unarchive it: a sent request
-     * that is not decided (Validated or Refused), since the server reopens no decided request.
+     * Tells whether the requester may archive the request, or unarchive it: a sent request that is
+     * finished (decided or canceled, its task completed, whatever its column), or one archived.
      *
      * @returns {Boolean} true when Archive or Unarchive is offered
      */
     canArchive() {
-      return !this.isDraft && !['Validated', 'Refused'].includes(this.work.status);
+      return !this.isDraft && (!!this.work.completed || !!this.work.archived);
     },
     /**
-     * Tells whether the request may still be canceled: sent, not done, not decided.
+     * Tells whether the request may still be canceled: sent and pending, its task not completed.
      *
      * @returns {Boolean} true when Cancel request is offered
      */

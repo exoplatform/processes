@@ -120,6 +120,13 @@
             <set-method>addListener</set-method>
             <type>org.exoplatform.processes.listener.CancelRequestNotificationListener</type>
         </component-plugin>
+        <!-- A task reopened in Tasks or in processes makes its request pending
+             again: its cancelled and archived flags are cleared (EXO-94923). -->
+        <component-plugin>
+            <name>exo.task.taskUpdate</name>
+            <set-method>addListener</set-method>
+            <type>org.exoplatform.processes.listener.RequestTaskReopenedListener</type>
+        </component-plugin>
         <component-plugin>
             <name>exo.task.taskCommentCreation</name>
             <set-method>addListener</set-method>
@@ -177,6 +184,38 @@
                     <name>plugin.execution.order</name>
                     <description>The plugin execution order</description>
                     <value>100</value>
+                </value-param>
+                <value-param>
+                    <name>plugin.upgrade.execute.once</name>
+                    <description>The plugin must be executed only once</description>
+                    <value>true</value>
+                </value-param>
+                <value-param>
+                    <name>plugin.upgrade.async.execution</name>
+                    <description>The plugin runs at startup, before the requests are read</description>
+                    <value>false</value>
+                </value-param>
+            </init-params>
+        </component-plugin>
+        <!-- Carries the meaning of the requests created before EXO-94923,
+             read then from the names of the columns processes created, over
+             to their own state: cancelled and archived. Runs after
+             ProcessesRequestUpgradePlugin, which records them first. -->
+        <component-plugin>
+            <name>ProcessesRequestStateUpgradePlugin</name>
+            <set-method>addUpgradePlugin</set-method>
+            <type>org.exoplatform.processes.upgrade.ProcessesRequestStateUpgradePlugin</type>
+            <description>Sets the cancelled and archived state of the existing requests</description>
+            <init-params>
+                <value-param>
+                    <name>product.group.id</name>
+                    <description>The groupId of the product</description>
+                    <value>org.exoplatform.processes</value>
+                </value-param>
+                <value-param>
+                    <name>plugin.execution.order</name>
+                    <description>The plugin execution order</description>
+                    <value>110</value>
                 </value-param>
                 <value-param>
                     <name>plugin.upgrade.execute.once</name>

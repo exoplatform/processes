@@ -80,6 +80,18 @@ public class WorkEntity {
    */
   private Integer          commentsCount;
 
+  /**
+   * Whether the requester cancelled the request, read from its record; never
+   * read from a client.
+   */
+  private boolean          canceled;
+
+  /**
+   * Whether the requester archived the request in « My requests », read from
+   * its record; never read from a client.
+   */
+  private boolean          archived;
+
   public WorkEntity(long id,
                     String title,
                     String description,

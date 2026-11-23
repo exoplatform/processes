@@ -260,4 +260,22 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.-->
         </modifySql>
     </changeSet>
 
+    <!-- A request's own state, which the columns of its task project no longer
+         carry (EXO-94923): CANCELED when its requester cancelled it, ARCHIVED
+         when its requester archived it from « My requests ». Both are nullable
+         and read as false when null: the upgrade plugin
+         ProcessesRequestStateUpgradePlugin fills the rows of the requests
+         created before, and handles only those still null. The rollback drops
+         the columns only: the tasks the upgrade completed stay completed. -->
+    <changeSet author="processes" id="1.0.0-exo-94923-01">
+        <addColumn tableName="PROCESSES_REQUEST">
+            <column name="CANCELED" type="BOOLEAN"/>
+            <column name="ARCHIVED" type="BOOLEAN"/>
+        </addColumn>
+        <rollback>
+            <dropColumn tableName="PROCESSES_REQUEST" columnName="ARCHIVED"/>
+            <dropColumn tableName="PROCESSES_REQUEST" columnName="CANCELED"/>
+        </rollback>
+    </changeSet>
+
 </databaseChangeLog>

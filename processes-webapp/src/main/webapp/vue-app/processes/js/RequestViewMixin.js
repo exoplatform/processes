@@ -29,12 +29,13 @@ export default {
   }),
   computed: {
     /**
-     * Tells whether the request may still be canceled: neither validated nor refused.
+     * Tells whether the request may still be canceled: pending, its task not completed, whatever its
+     * column.
      *
      * @returns {Boolean} true while the request is pending
      */
     allowCancel() {
-      return !!this.work && !['Validated', 'Refused'].includes(this.work.status);
+      return !!this.work && !this.work.completed;
     },
   },
   methods: {

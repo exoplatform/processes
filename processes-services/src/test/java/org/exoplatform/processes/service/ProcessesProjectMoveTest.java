@@ -25,6 +25,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.after;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -219,11 +220,8 @@ class ProcessesProjectMoveTest {
     targetColumns.add(status(2001L, "Request", null));
     targetColumns.add(status(2002L, "Validated", null));
     when(statusService.getStatuses(TARGET_ID)).thenAnswer(invocation -> new ArrayList<>(targetColumns));
-    when(statusService.createStatus(any(ProjectDto.class), anyString())).thenAnswer(invocation -> {
-      StatusDto created = status(2100L + targetColumns.size(), invocation.getArgument(1), null);
-      targetColumns.add(created);
-      return created;
-    });
+    // The target's first column, as Task reads it: the lowest rank
+    when(statusService.getDefaultStatus(TARGET_ID)).thenAnswer(invocation -> targetColumns.get(0));
     when(taskService.getTask(anyLong())).thenAnswer(invocation -> {
       TaskDto task = tasks.get((Long) invocation.getArgument(0));
       if (task == null) {
@@ -500,14 +498,16 @@ class ProcessesProjectMoveTest {
   }
 
   /**
-   * A column missing in the target is created once for the whole pass, and a
-   * column named in another case is found by the lowest id, never created.
-   * Mutation: create the column at each turn and it is created twice.
+   * A request whose column the target project lacks lands in the target's
+   * first column, and the target gets no column (EXO-94923); a column named in
+   * another case is found by the lowest id. Mutation: create the missing
+   * column again in the move and the never() fails; take the target's last
+   * column and the first request lands in 2002.
    *
    * @throws Exception on a read failure
    */
   @Test
-  void aMissingColumnIsCreatedOnceAndAnotherCaseIsFoundByLowestId() throws Exception {
+  void aMissingColumnLandsInTheFirstColumnAndNoneIsCreated() throws Exception {
     request(101L, "Refused", true);
     request(102L, "Refused", true);
     targetColumns.add(status(2050L, "FOO", null));
@@ -515,10 +515,11 @@ class ProcessesProjectMoveTest {
     request(103L, " foo ", false);
 
     moveService.runMove(1L);
-    verify(statusService, times(1)).createStatus(any(ProjectDto.class), eq("Refused"));
-    verify(statusService, never()).createStatus(any(ProjectDto.class), eq(" foo "));
+    verify(statusService, never()).createStatus(nullable(ProjectDto.class), nullable(String.class));
     ArgumentCaptor<TaskDto> updated = ArgumentCaptor.forClass(TaskDto.class);
     verify(taskService, times(3)).updateTask(updated.capture());
+    assertEquals(2001L, updated.getAllValues().get(0).getStatus().getId());
+    assertEquals(2001L, updated.getAllValues().get(1).getStatus().getId());
     assertEquals(2040L, updated.getAllValues().get(2).getStatus().getId());
   }
 

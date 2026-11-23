@@ -38,6 +38,7 @@ import lombok.NoArgsConstructor;
 @NamedQuery(name = "ProcessesRequest.findTaskIdsByWorkFlowId", query = "SELECT r.taskId FROM ProcessesRequest r WHERE r.workFlowId = :workFlowId ORDER BY r.taskId")
 @NamedQuery(name = "ProcessesRequest.findTaskIdsAfter", query = "SELECT r.taskId FROM ProcessesRequest r WHERE r.workFlowId = :workFlowId AND r.taskId > :afterTaskId ORDER BY r.taskId")
 @NamedQuery(name = "ProcessesRequest.deleteByTaskId", query = "DELETE FROM ProcessesRequest r WHERE r.taskId = :taskId")
+@NamedQuery(name = "ProcessesRequest.findWithoutStateAfter", query = "SELECT r FROM ProcessesRequest r WHERE r.canceled IS NULL AND r.archived IS NULL AND r.taskId > :afterTaskId ORDER BY r.taskId")
 @Table(name = "PROCESSES_REQUEST")
 @Data
 @NoArgsConstructor
@@ -58,5 +59,51 @@ public class RequestEntity implements Serializable {
   /** The identity id of the requester */
   @Column(name = "CREATOR_ID", nullable = false)
   private Long              creatorId;
+
+  /**
+   * Whether the requester cancelled the request; null, read as false, until
+   * the request is cancelled or the upgrade filled the row.
+   */
+  @Column(name = "CANCELED")
+  private Boolean           canceled;
+
+  /**
+   * Whether the requester archived the request from « My requests »; null,
+   * read as false, until the request is archived or the upgrade filled the
+   * row. The task is not touched by an archive.
+   */
+  @Column(name = "ARCHIVED")
+  private Boolean           archived;
+
+  /**
+   * Creates a request record whose state is not known: the record of a request
+   * created before EXO-94923, which the state upgrade fills. A new request's
+   * record names its state.
+   *
+   * @param taskId the request's task id
+   * @param workFlowId the process that created it
+   * @param creatorId the requester's identity id
+   */
+  public RequestEntity(Long taskId, Long workFlowId, Long creatorId) {
+    this(taskId, workFlowId, creatorId, null, null);
+  }
+
+  /**
+   * Tells whether the requester cancelled the request.
+   *
+   * @return true when cancelled, false when not or not known
+   */
+  public boolean isCanceledRequest() {
+    return Boolean.TRUE.equals(canceled);
+  }
+
+  /**
+   * Tells whether the requester archived the request.
+   *
+   * @return true when archived, false when not or not known
+   */
+  public boolean isArchivedRequest() {
+    return Boolean.TRUE.equals(archived);
+  }
 
 }

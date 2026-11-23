@@ -292,8 +292,10 @@ public class ProcessesRest implements ResourceContainer {
    *
    * @param userId the current user's identity id
    * @param expand the properties to expand
-   * @param completed whether to list the completed requests
-   * @param status the status of the requests to list
+   * @param archived whether to list the requests the user archived, or the
+   *          others; null for both
+   * @param completed deprecated alias of archived, read when archived is null
+   * @param status the column name of the requests to list
    * @param query a search on the request
    * @param offset the offset of the first request
    * @param limit the number of requests
@@ -318,8 +320,9 @@ public class ProcessesRest implements ResourceContainer {
                                   @Parameter(description = "Processes properties to expand.")
                                   @QueryParam("expand")
                                           String expand,
-                                  @Parameter(description = "work completed property") @QueryParam("completed") Boolean completed,
-                                  @Parameter(description = "Works status") @QueryParam("status") String status,
+                                  @Parameter(description = "true for the requests the user archived, false for the others, absent for both") @QueryParam("archived") Boolean archived,
+                                  @Parameter(description = "Deprecated alias of archived, read when archived is absent", deprecated = true) @QueryParam("completed") Boolean completed,
+                                  @Parameter(description = "The name of the column of the requests") @QueryParam("status") String status,
                                   @Parameter(description = "Works query") @QueryParam("query") String query,
                                   @Parameter(description = "Offset of results to return")
                                   @Schema(defaultValue = "0")
@@ -346,9 +349,7 @@ public class ProcessesRest implements ResourceContainer {
       if (query != null) {
         workFilter.setQuery(query);
       }
-      if (completed != null) {
-        workFilter.setCompleted(completed);
-      }
+      workFilter.setArchived(archived == null ? completed : archived);
       if (StringUtils.isNotBlank(expand)
           && Arrays.asList(StringUtils.split(expand.replace(" ", ""), ",")).contains(COMMENTS_COUNT_EXPAND)) {
         workFilter.setWithCommentsCount(true);
@@ -362,12 +363,13 @@ public class ProcessesRest implements ResourceContainer {
   }
 
   /**
-   * Counts the current user's requests that match a completion and a status, as
-   * the list of {@code GET /works} holds them.
+   * Counts the current user's requests that match an archive flag and a
+   * column, as the list of {@code GET /works} holds them.
    *
    * @param userId the current user's identity id, or null
-   * @param completed whether the requests are archived, or null for both
-   * @param status the status name, or null for any
+   * @param archived whether the requests are archived, or null for both
+   * @param completed deprecated alias of archived, read when archived is null
+   * @param status the column name, or null for any
    * @return the count, as plain text, or the refusal status
    */
   @GET
@@ -376,15 +378,16 @@ public class ProcessesRest implements ResourceContainer {
   @Path("/works/count")
   @Operation(
           summary = "Counts the current user's requests",
-          description = "Counts the requests the current user created, by completion and status",
+          description = "Counts the requests the current user created, by archive flag and column",
           method = "GET")
   @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
           @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
           @ApiResponse(responseCode = "403", description = "Forbidden operation"),
           @ApiResponse(responseCode = "500", description = "Internal server error"), })
   public Response countWorks(@Parameter(description = "Identity technical identifier") @QueryParam("userId") Long userId,
-                             @Parameter(description = "work completed property") @QueryParam("completed") Boolean completed,
-                             @Parameter(description = "Works status") @QueryParam("status") String status) {
+                             @Parameter(description = "true for the requests the user archived, false for the others, absent for both") @QueryParam("archived") Boolean archived,
+                             @Parameter(description = "Deprecated alias of archived, read when archived is absent", deprecated = true) @QueryParam("completed") Boolean completed,
+                             @Parameter(description = "The name of the column of the requests") @QueryParam("status") String status) {
     long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
     if (currentIdentityId == 0) {
       return Response.status(Response.Status.UNAUTHORIZED).build();
@@ -394,7 +397,7 @@ public class ProcessesRest implements ResourceContainer {
     }
     try {
       WorkFilter workFilter = new WorkFilter();
-      workFilter.setCompleted(completed);
+      workFilter.setArchived(archived == null ? completed : archived);
       workFilter.setStatus(status);
       int count = processesService.countWorks(currentIdentityId, workFilter);
       return Response.ok(String.valueOf(count)).type(MediaType.TEXT_PLAIN).cacheControl(PER_USER_CACHE_CONTROL).build();
@@ -406,7 +409,7 @@ public class ProcessesRest implements ResourceContainer {
 
   /**
    * Archives every request of the current user that is not archived yet and
-   * whose status is final: Validated, Refused or Canceled.
+   * is finished: decided or cancelled, whatever its column.
    *
    * @return how many requests were archived, as plain text, or the refusal
    *         status
@@ -417,7 +420,7 @@ public class ProcessesRest implements ResourceContainer {
   @Path("/works/archive")
   @Operation(
           summary = "Archives the current user's finished requests",
-          description = "Archives every request the current user created that is Validated, Refused or Canceled and not archived yet",
+          description = "Archives every request the current user created that is decided or cancelled (its task completed, whatever its column) and not archived yet",
           method = "POST")
   @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
           @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
@@ -922,8 +925,10 @@ public class ProcessesRest implements ResourceContainer {
   }
 
   /**
-   * Completes or reopens a request, answered with its process in the user's
-   * language.
+   * Completes or reopens a request's task, as a manager of its process,
+   * answered with its process in the user's language: a manager decides a
+   * request by completing it. A requester cancels and archives through their
+   * own endpoints.
    *
    * @param completed whether the request is completed, under the key
    *          "value"
@@ -935,8 +940,8 @@ public class ProcessesRest implements ResourceContainer {
   @RolesAllowed("users")
   @Path("/work/{workId}")
   @Operation(
-          summary = "cancel or resume a work by its id",
-          description = "cancel or resume a work by its id",
+          summary = "Completes or reopens a request, as a manager of its process",
+          description = "Completes (decides) or reopens the task of a request; refused with 403 to a user who doesn't manage its process",
           method = "PATCH")
   @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
           @ApiResponse(responseCode = "400", description = "Invalid query input"),
@@ -972,6 +977,93 @@ public class ProcessesRest implements ResourceContainer {
       return Response.status(Response.Status.FORBIDDEN).entity("Not allowed to update this request").build();
     } catch (Exception e) {
       LOG.error("Error while canceling a work", e);
+      return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+    }
+  }
+
+  /**
+   * Cancels one of the current user's pending requests, answered with its
+   * process in the user's language: it closes as cancelled, its column left
+   * as it is, and its managers are notified.
+   *
+   * @param workId the request id
+   * @return the cancelled request, or the refusal status
+   */
+  @POST
+  @Produces(MediaType.APPLICATION_JSON)
+  @RolesAllowed("users")
+  @Path("/work/{workId}/cancel")
+  @Operation(
+          summary = "Cancels one of the current user's pending requests",
+          description = "Closes the request as cancelled, its column left as it is; an already cancelled request is answered as it is",
+          method = "POST")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "403", description = "Not the requester, or the request is closed"),
+          @ApiResponse(responseCode = "404", description = "Object not found"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"), })
+  public Response cancelWork(@Parameter(description = "the request id", required = true) @PathParam("workId") long workId) {
+    long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    if (currentIdentityId == 0) {
+      return Response.status(Response.Status.UNAUTHORIZED).build();
+    }
+    try {
+      Work work = processesService.cancelWork(workId, currentIdentityId);
+      return Response.ok(EntityBuilder.toWorkEntity(processesService, work, "workFlow", getLocale())).build();
+    } catch (ObjectNotFoundException | EntityNotFoundException e) {
+      return Response.status(Response.Status.NOT_FOUND).build();
+    } catch (IllegalAccessException e) {
+      LOG.debug("User '{}' can't cancel the request '{}'", currentIdentityId, workId, e);
+      return Response.status(Response.Status.FORBIDDEN).entity("Not allowed to cancel this request").build();
+    } catch (Exception e) {
+      LOG.warn("Error while cancelling the request {}", workId, e);
+      return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+    }
+  }
+
+  /**
+   * Archives or restores one of the current user's requests in « My
+   * requests », answered with its process in the user's language. Only the
+   * request's record changes, never its task.
+   *
+   * @param archived whether the request is archived, under the key "value"
+   * @param workId the request id
+   * @return the request, or the refusal status
+   */
+  @PATCH
+  @Produces(MediaType.APPLICATION_JSON)
+  @RolesAllowed("users")
+  @Path("/work/{workId}/archive")
+  @Operation(
+          summary = "Archives or restores one of the current user's requests",
+          description = "Archives a finished request (decided or cancelled), or restores an archived one, in the requester's « My requests »",
+          method = "PATCH")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "403", description = "Not the requester, or the request to archive is pending"),
+          @ApiResponse(responseCode = "404", description = "Object not found"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"), })
+  public Response archiveWork(@Parameter(description = "archived object property", required = true) Map<String, Boolean> archived,
+                              @Parameter(description = "the request id", required = true) @PathParam("workId") long workId) {
+    long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    if (currentIdentityId == 0) {
+      return Response.status(Response.Status.UNAUTHORIZED).build();
+    }
+    Boolean archivedValue = archived == null ? null : archived.get("value");
+    if (archivedValue == null) {
+      return Response.status(Response.Status.BAD_REQUEST).entity("archived property value should not be null").build();
+    }
+    try {
+      Work work = processesService.archiveWork(workId, archivedValue, currentIdentityId);
+      return Response.ok(EntityBuilder.toWorkEntity(processesService, work, "workFlow", getLocale())).build();
+    } catch (ObjectNotFoundException | EntityNotFoundException e) {
+      return Response.status(Response.Status.NOT_FOUND).build();
+    } catch (IllegalAccessException e) {
+      LOG.debug("User '{}' can't archive the request '{}'", currentIdentityId, workId, e);
+      return Response.status(Response.Status.FORBIDDEN).entity("Not allowed to archive this request").build();
+    } catch (Exception e) {
+      LOG.warn("Error while archiving the request {}", workId, e);
       return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
     }
   }

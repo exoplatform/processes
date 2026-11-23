@@ -53,6 +53,20 @@ export default {
       type: Boolean,
       default: false,
     },
+    /**
+     * Whether the requester canceled the request.
+     */
+    isCanceled: {
+      type: Boolean,
+      default: false,
+    },
+    /**
+     * Whether the requester archived the request.
+     */
+    archived: {
+      type: Boolean,
+      default: false,
+    },
     xSmall: {
       type: Boolean,
       default: false,
@@ -60,15 +74,16 @@ export default {
   },
   computed: {
     /**
-     * Tells whether the request is archived: completed without being canceled, whose chip says so.
+     * Tells whether the archive icon shows: the requester archived the request.
      *
      * @returns {Boolean} true when the archive icon shows
      */
     isArchived() {
-      return this.isCompleted && this.status !== 'Canceled';
+      return !this.isDraft && this.archived;
     },
     /**
-     * Reads the chip's label: « Draft », or the translated task status.
+     * Reads the chip's label: « Draft », « Canceled » for a request its requester canceled, else the
+     * translated name of the column the request sits in, whose wording the board's owners choose.
      *
      * @returns {String} the label
      */
@@ -76,38 +91,35 @@ export default {
       if (this.isDraft) {
         return this.$t('processes.myWorks.status.draftLabel');
       }
+      if (this.isCanceledRequest) {
+        // a cancel leaves the request in its column: the chip says the cancel
+        return this.$t('processes.request.state.canceled');
+      }
       const key = `tasks.status.${this.status}`;
       const translation = this.$t(key);
       return translation === key && (this.status || '') || translation;
     },
     /**
-     * Picks the chip's colour for the state, from the Material palette Vuetify ships, in a shade
-     * of each hue dark enough for its 12px text to reach 4.5:1 on the chip's light tint over a
-     * white row: a draft and any other status neutral grey, a pending request or one in progress
-     * deep orange, a decided request green or red, a canceled one grey.
+     * Picks the chip's colour for the request's state, never for its column, whose names the board's
+     * owners choose: from the Material palette Vuetify ships, in a shade of each hue dark enough for
+     * its 12px text to reach 4.5:1 on the chip's light tint over a white row. A draft neutral grey, a
+     * pending request deep orange, a closed (decided) one blue, a canceled one grey.
      *
      * @returns {String} a Vuetify colour
      */
     color() {
-      if (this.isDraft) {
+      if (this.isDraft || this.isCanceledRequest) {
         return 'grey darken-2';
       }
-      switch (this.statusKey) {
-      case 'accepted':
-      case 'done':
-      case 'validated':
-        return 'green darken-4';
-      case 'request':
-      case 'pending':
-      case 'requestinprogress':
-      case 'waitingon':
-      case 'inprogress':
-        return 'deep-orange darken-4';
-      case 'refused':
-        return 'red darken-4';
-      default:
-        return 'grey darken-2';
-      }
+      return this.isCompleted ? 'blue darken-4' : 'deep-orange darken-4';
+    },
+    /**
+     * Tells whether the requester canceled the request, still closed.
+     *
+     * @returns {Boolean} true when canceled
+     */
+    isCanceledRequest() {
+      return !this.isDraft && this.isCompleted && this.isCanceled;
     },
     /**
      * Tells whether the chip takes a light tint of its colour: every state but a canceled request,
@@ -116,15 +128,7 @@ export default {
      * @returns {Boolean} true when the chip is tinted
      */
     tinted() {
-      return this.isDraft || this.statusKey !== 'canceled';
-    },
-    /**
-     * Reads the status in lower case, for the colour choices.
-     *
-     * @returns {String} the status, or an empty string
-     */
-    statusKey() {
-      return String(this.status || '').toLowerCase();
+      return !this.isCanceledRequest;
     },
   },
 };

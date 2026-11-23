@@ -18,13 +18,24 @@ package org.exoplatform.processes.mcp.model;
 
 import java.util.Date;
 
-// Lean, serialization-safe view of a request pending in an enabled process
-// whose space the current user is a member of, or in any enabled process with a
-// space for a platform administrator (still in Request / RequestInProgress and not
-// completed).
-// taskId is the underlying task id: pass it to the Task MCP tools
-// (update_task_status to Validated/Refused, add_task_comment) to respond.
-// Returned by get_pending_approvals.
+/**
+ * Lean, serialization-safe view of a request pending in an enabled process
+ * whose space the current user is a member of, or in any enabled process with
+ * a space for a platform administrator: its task is not completed, whatever
+ * column of the process's task project it sits in. taskId is the underlying
+ * task id: pass it to the Task MCP tools to respond (update_task_status to move
+ * it to the project's column that words the outcome, complete_task to decide
+ * it, add_task_comment). Returned by get_pending_approvals.
+ *
+ * @param taskId the request's task id
+ * @param title its title
+ * @param description its description
+ * @param status the name of its column
+ * @param requestedBy its requester's user name
+ * @param createdDate its creation date
+ * @param projectId its task project id
+ * @param processTitle the title of its process, in the user's language
+ */
 public record PendingApprovalModel(long taskId,
                                    String title,
                                    String description,
