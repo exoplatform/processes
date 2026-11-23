@@ -74,8 +74,6 @@ export default {
       this.openKey++;
       if (mode === 'create_work') {
         this.work = {description: '', workFlow: object};
-        // The drawer is reused across openings: its message editor keeps the text typed in a former one until emptied
-        this.$refs.messageRow?.setEditorData('');
         this.editDraft = false;
         this.viewMode = false;
         this.$root.$emit('update-url-path', 'createRequest', `/${this.work.workFlow.id}/createRequest` );
@@ -98,6 +96,11 @@ export default {
         if (!this.viewDraft) {
           this.$root.$emit('update-url-path', 'requestDetails', `/myRequests/requestDetails/${this.work.id}`);
         }
+      }
+      if (!this.viewMode) {
+        // The drawer is reused across openings, and the rich editor it reuses shows only the text set on it: a new
+        // request starts empty, a draft with its own message, never the text of a former opening
+        this.$refs.messageRow?.setEditorData(this.work.description || '');
       }
       this.initDraftState();
       this.initExtrasState();
