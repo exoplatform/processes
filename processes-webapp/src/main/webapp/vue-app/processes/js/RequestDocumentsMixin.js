@@ -20,6 +20,11 @@ const COPY_TIMEOUT_MS = 10000;
 // How long the draft's documents wait before they are read again when the requester comes back, so the focus and
 // visibility events of one return read them once
 const RETURN_REFRESH_DELAY_MS = 500;
+// How often the draft's documents are read again while a document opened for filling is checked: the editor writes
+// the requester's version a few seconds after it closes
+const CHECK_INTERVAL_MS = 1500;
+// How long a document opened for filling is checked before the drawer stops waiting for its new version
+const CHECK_TIMEOUT_MS = 20000;
 
 /**
  * The request drawer's documents: opening and filling in the process's
@@ -29,9 +34,27 @@ const RETURN_REFRESH_DELAY_MS = 500;
  * holding the attachments list. While the drawer is open on a draft, the
  * draft's documents are read again when the requester comes back to the page,
  * from the editor's tab for instance, so a copy filled there shows filled.
+ * A copy opened for filling is checked on that return: its line says so, and
+ * the documents are read again until its new version shows up, or for twenty
+ * seconds.
  */
 export default {
-  data: () => ({returnRefreshTimer: null}),
+  data: () => ({
+    returnRefreshTimer: null,
+    // the update date of each copy opened for filling, by stored file name, when it was opened
+    openedCopies: {},
+    // the stored file names of the copies being checked
+    checkingNames: [],
+    checkTimer: null,
+    checkStartedAt: 0,
+  }),
+  watch: {
+    documentsToFill() {
+      if (this.checkingNames.length) {
+        this.settleDocumentChecks();
+      }
+    },
+  },
   mounted() {
     window.addEventListener('focus', this.refreshOnReturn);
     document.addEventListener('visibilitychange', this.refreshOnReturn);
@@ -40,6 +63,7 @@ export default {
     window.removeEventListener('focus', this.refreshOnReturn);
     document.removeEventListener('visibilitychange', this.refreshOnReturn);
     window.clearTimeout(this.returnRefreshTimer);
+    window.clearTimeout(this.checkTimer);
   },
   methods: {
     /**
@@ -57,9 +81,107 @@ export default {
       this.returnRefreshTimer = window.setTimeout(() => {
         this.returnRefreshTimer = null;
         if (this.hasDraft && this.$refs.work?.drawer) {
-          this.$root.$emit('init-list-attachments', {entityId: this.work.id, entityType: this.entityType});
+          if (Object.keys(this.openedCopies).length) {
+            this.startDocumentCheck();
+          } else {
+            this.readDraftDocuments();
+          }
         }
       }, RETURN_REFRESH_DELAY_MS);
+    },
+    /**
+     * Reads the draft's documents again.
+     *
+     * @returns {void}
+     */
+    readDraftDocuments() {
+      this.$root.$emit('init-list-attachments', {entityId: this.work.id, entityType: this.entityType});
+    },
+    /**
+     * Remembers a copy opened for filling, with its update date, so that the
+     * return to the drawer checks it.
+     *
+     * @param {Object} copy the request's copy
+     * @returns {void}
+     */
+    rememberOpenedCopy(copy) {
+      if (copy && this.fillMode(copy)) {
+        this.openedCopies = {...this.openedCopies, [this.storedName(copy)]: copy.updated || null};
+      }
+    },
+    /**
+     * Starts checking the copies opened for filling: their lines say so, and
+     * the draft's documents are read again until each shows a new version.
+     *
+     * @returns {void}
+     */
+    startDocumentCheck() {
+      window.clearTimeout(this.checkTimer);
+      this.checkingNames = Object.keys(this.openedCopies);
+      this.checkStartedAt = Date.now();
+      this.readDraftDocuments();
+      this.scheduleDocumentCheck();
+    },
+    /**
+     * Reads the draft's documents again after a while, while a copy is still
+     * checked, the drawer open and the check not timed out.
+     *
+     * @returns {void}
+     */
+    scheduleDocumentCheck() {
+      this.checkTimer = window.setTimeout(() => {
+        this.checkTimer = null;
+        if (!this.checkingNames.length) {
+          return;
+        }
+        if (!this.$refs.work?.drawer || Date.now() - this.checkStartedAt >= CHECK_TIMEOUT_MS) {
+          this.stopDocumentCheck();
+          return;
+        }
+        this.readDraftDocuments();
+        this.scheduleDocumentCheck();
+      }, CHECK_INTERVAL_MS);
+    },
+    /**
+     * Ends the check of each copy whose update date changed since it was
+     * opened, and the whole check once none is left.
+     *
+     * @returns {void}
+     */
+    settleDocumentChecks() {
+      const changed = this.documentsToFill
+        .filter(copy => this.checkingNames.includes(this.storedName(copy))
+          && (copy.updated || null) !== this.openedCopies[this.storedName(copy)])
+        .map(copy => this.storedName(copy));
+      if (!changed.length) {
+        return;
+      }
+      const openedCopies = {...this.openedCopies};
+      changed.forEach(name => delete openedCopies[name]);
+      this.openedCopies = openedCopies;
+      this.checkingNames = this.checkingNames.filter(name => !changed.includes(name));
+      if (!this.checkingNames.length) {
+        this.stopDocumentCheck();
+      }
+    },
+    /**
+     * Stops checking: a copy left unchanged is not filled, and its line shows
+     * its state again.
+     *
+     * @returns {void}
+     */
+    stopDocumentCheck() {
+      window.clearTimeout(this.checkTimer);
+      this.checkTimer = null;
+      this.checkingNames = [];
+      this.openedCopies = {};
+    },
+    /**
+     * @param {Object} copy the request's copy of a process document
+     * @returns {Boolean} true while the drawer waits for its new version
+     */
+    isCopyChecked(copy) {
+      return this.checkingNames.includes(this.storedName(copy));
     },
     /**
      * @param {Object} attachment a document to fill in
@@ -99,13 +221,17 @@ export default {
       if (this.hasDraft) {
         // The copy is known: the editor opens at once, inside the click, since a blank tab told where to go in the
         // same turn stays blank
+        this.rememberOpenedCopy(attachment);
         this.showDocumentInTab(null, attachment, this.fillMode(attachment));
         return Promise.resolve();
       }
       const tab = window.open('', '_blank');
       return this.createDraftForAttachment()
         .then(() => this.waitForCopy(attachment))
-        .then(target => this.showDocumentInTab(tab, target, this.fillMode(target)))
+        .then(target => {
+          this.rememberOpenedCopy(target);
+          this.showDocumentInTab(tab, target, this.fillMode(target));
+        })
         .catch(() => {
           this.closeDocumentTab(tab);
           this.$root.$emit('show-alert', {type: 'error', message: this.$t('processes.workDraft.save.error.message')});
