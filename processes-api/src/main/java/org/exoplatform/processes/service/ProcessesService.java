@@ -141,14 +141,16 @@ public interface ProcessesService {
   int countWorksByWorkflow(Long projectId, Boolean isCompleted) throws Exception;
 
   /**
-   * Counts the requests of a process, for a user who can see the process
+   * Counts the requests of a process, for a user who can see the process and
+   * who is a member of the space owning its project, or a space super manager
    *
    * @param projectId Tasks project id of the process
    * @param isCompleted filter by completed and uncompleted requests
    * @param userIdentityId user identity id
    * @return Filtered requests count
-   * @throws ObjectNotFoundException when no process has this project, or the
-   *           user can't see it
+   * @throws ObjectNotFoundException when no process has this project, the
+   *           user can't see it, or isn't a member of its project's space nor
+   *           a space super manager
    * @throws IllegalAccessException when the identity isn't an active user
    * @throws Exception when the count fails
    */

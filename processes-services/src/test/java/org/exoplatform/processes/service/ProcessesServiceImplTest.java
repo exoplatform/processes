@@ -518,9 +518,12 @@ public class ProcessesServiceImplTest {
 
   /**
    * A process's request counts are given to the active users who see the
-   * process in their lists (participators and request creators) only: a
-   * process the user can't see is answered as a missing one. Mutation: drop
-   * the visibility check or the active user check, and this test fails.
+   * process in their lists (participators and request creators) and to whom
+   * the process card shows them (canShowPending): the members of the space
+   * owning the process's project, and the space super managers. Anyone else
+   * is answered as if the process were missing. Mutation: drop the visibility
+   * check, the active user check, the space check, either branch of the
+   * space check or its missing-space guard, and this test fails.
    */
   @Test
   public void countWorksByWorkflowIsGuarded() throws Exception {
@@ -539,7 +542,14 @@ public class ProcessesServiceImplTest {
     when(processesStorage.getWorkFlowById(WORKFLOW_ID, NON_MEMBER_ID)).thenReturn(hidden);
     when(processesStorage.getWorkFlowById(WORKFLOW_ID, PARTICIPANT_ID)).thenReturn(participated);
     when(processesStorage.getWorkFlowById(WORKFLOW_ID, CREATOR_ID)).thenReturn(requestable);
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, PROJECT_MANAGER_ID)).thenReturn(requestable);
     when(processesStorage.countWorksByWorkflow(PROCESS_PROJECT_ID, false)).thenReturn(4);
+    Space processSpace = new Space();
+    processSpace.setId("1");
+    processSpace.setGroupId(PROCESS_SPACE_GROUP);
+    when(spaceService.getSpaceByGroupId(PROCESS_SPACE_GROUP)).thenReturn(processSpace);
+    when(spaceService.isMember(processSpace, "participant")).thenReturn(true);
+    when(spaceService.isSuperManager("manager")).thenReturn(true);
 
     assertThrows(ObjectNotFoundException.class, () -> processesService.countWorksByWorkflow(OTHER_PROJECT_ID, false, CREATOR_ID));
     assertThrows(ObjectNotFoundException.class, () -> processesService.countWorksByWorkflow(PROCESS_PROJECT_ID, false, NON_MEMBER_ID));
@@ -547,8 +557,23 @@ public class ProcessesServiceImplTest {
                  () -> processesService.countWorksByWorkflow(PROCESS_PROJECT_ID, false, DISABLED_USER_ID));
     verify(processesStorage, never()).countWorksByWorkflow(anyLong(), anyBoolean());
 
-    assertEquals(4, processesService.countWorksByWorkflow(PROCESS_PROJECT_ID, false, PARTICIPANT_ID));
-    assertEquals(4, processesService.countWorksByWorkflow(PROCESS_PROJECT_ID, false, CREATOR_ID));
+    assertThrows("a request creator outside the process's space is refused",
+                 ObjectNotFoundException.class,
+                 () -> processesService.countWorksByWorkflow(PROCESS_PROJECT_ID, false, CREATOR_ID));
+    verify(processesStorage, never()).countWorksByWorkflow(anyLong(), anyBoolean());
+
+    assertEquals("a member of the process's space gets the count",
+                 4,
+                 processesService.countWorksByWorkflow(PROCESS_PROJECT_ID, false, PARTICIPANT_ID));
+    assertEquals("a space super manager gets the count",
+                 4,
+                 processesService.countWorksByWorkflow(PROCESS_PROJECT_ID, false, PROJECT_MANAGER_ID));
+
+    when(spaceService.getSpaceByGroupId(PROCESS_SPACE_GROUP)).thenReturn(null);
+    assertThrows("no count for a process whose project has no space, even for a space super manager",
+                 ObjectNotFoundException.class,
+                 () -> processesService.countWorksByWorkflow(PROCESS_PROJECT_ID, false, PROJECT_MANAGER_ID));
+    verify(processesStorage, times(2)).countWorksByWorkflow(PROCESS_PROJECT_ID, false);
   }
 
   /**
