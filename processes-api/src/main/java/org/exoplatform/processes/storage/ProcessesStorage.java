@@ -360,7 +360,7 @@ public interface ProcessesStorage {
    *
    * @param processesFilter processes filter
    * @param userIdentityId {@link Identity} technical identifier of the user
-   * @return every process listed, its {@link WorkFlow#getAcl()} set
+   * @return every process listed, with its {@code acl} (the user's rights on it) set
    */
   default List<WorkFlow> findWorkFlowRights(ProcessesFilter processesFilter, long userIdentityId) {
     return findWorkFlows(processesFilter, userIdentityId, 0, 0);
