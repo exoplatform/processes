@@ -267,14 +267,16 @@ public interface ProcessesService {
    *
    * @return {@link List} of {@link WorkStatus}
    * @deprecated use {@link #getAvailableWorkStatuses(long)} instead, which
-   *             reads the processes the user can see. Since 7.3.0, for
-   *             removal.
+   *             reads only the processes the user lists or holds requests
+   *             in. Since 7.3.0, for removal.
    */
   @Deprecated(forRemoval = true)
   List<WorkStatus> getAvailableWorkStatuses();
 
   /**
-   * Retrieves the request statuses of the processes a user can see
+   * Retrieves the request statuses of the processes a user lists: those managed
+   * by or open to one of the user's memberships, every process for a processes
+   * administrator, plus those of the processes holding requests the user created
    *
    * @param userIdentityId user identity id
    * @return {@link List} of {@link WorkStatus}
