@@ -425,7 +425,11 @@ public class ProcessesServiceImplTest {
         noImageData.setId(WORKFLOW_ID);
         noImageData.setIllustrativeAttachment(sentIllustration("image", noData, type));
         assertThrows(noData + " " + type, IllegalArgumentException.class, () -> processesService.updateWorkFlow(noImageData, PARTICIPANT_ID));
-        assertThrows(noData + " " + type, IllegalArgumentException.class, () -> processesService.createWorkFlow(noImageData, PROCESSES_ADMIN_ID));
+        WorkFlow newNoImageData = new WorkFlow();
+        newNoImageData.setIllustrativeAttachment(sentIllustration("image", noData, type));
+        assertThrows(noData + " " + type,
+                     IllegalArgumentException.class,
+                     () -> processesService.createWorkFlow(newNoImageData, PROCESSES_ADMIN_ID));
       }
     }
     verify(processesStorage, never()).saveWorkFlow(any(), anyLong());
