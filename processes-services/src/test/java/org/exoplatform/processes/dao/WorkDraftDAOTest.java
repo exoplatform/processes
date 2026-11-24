@@ -20,6 +20,7 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mockStatic;
 
 import java.util.Date;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -37,6 +38,7 @@ import jakarta.persistence.EntityManagerFactory;
 import org.exoplatform.commons.persistence.impl.EntityManagerHolder;
 import org.exoplatform.processes.entity.WorkEntity;
 import org.exoplatform.processes.entity.WorkFlowEntity;
+import org.exoplatform.processes.model.WorkFilter;
 
 public class WorkDraftDAOTest {
 
@@ -51,6 +53,12 @@ public class WorkDraftDAOTest {
   private static long                       hrRowWithoutFlag;
 
   private static long                       itDraft;
+
+  private static final long                 CREATOR_ID   = 7L;
+
+  private static final long                 OTHER_ID     = 8L;
+
+  private static long                       otherUserDraft;
 
   private EntityManager                     entityManager;
 
@@ -80,6 +88,7 @@ public class WorkDraftDAOTest {
     hrRowNotFlagged = createWork(em, hr, false);
     hrRowWithoutFlag = createWork(em, hr, null);
     itDraft = createWork(em, it, true);
+    otherUserDraft = createWork(em, it, true, OTHER_ID);
     em.getTransaction().commit();
     em.close();
   }
@@ -114,6 +123,24 @@ public class WorkDraftDAOTest {
     assertEquals(Set.of(hrDraft, hrRowNotFlagged, hrRowWithoutFlag), rows);
   }
 
+  /**
+   * The draft listing of a user, with the filter the REST endpoint builds (no
+   * draft flag), lists the user's rows whatever their flag, the rows stored
+   * with the flag false or unset included, and no other user's row. Mutation:
+   * filter on {@code isDraft = true} again, and this test fails.
+   */
+  @Test
+  public void everyRowOfAUserIsListedAsADraft() {
+    Set<Long> rows = workDraftDAO.findAllWorkDraftsByUser(new WorkFilter(), CREATOR_ID, 0, 0)
+                                 .stream()
+                                 .map(WorkEntity::getId)
+                                 .collect(Collectors.toSet());
+
+    assertEquals(Set.of(hrDraft, hrRowNotFlagged, hrRowWithoutFlag, itDraft), rows);
+    assertEquals(List.of(otherUserDraft),
+                 workDraftDAO.findAllWorkDraftsByUser(new WorkFilter(), OTHER_ID, 0, 0).stream().map(WorkEntity::getId).toList());
+  }
+
   private static WorkFlowEntity createProcess(EntityManager em, String title) {
     WorkFlowEntity workFlow = new WorkFlowEntity();
     workFlow.setTitle(title);
@@ -125,7 +152,12 @@ public class WorkDraftDAOTest {
   }
 
   private static long createWork(EntityManager em, WorkFlowEntity workFlow, Boolean draft) {
+    return createWork(em, workFlow, draft, CREATOR_ID);
+  }
+
+  private static long createWork(EntityManager em, WorkFlowEntity workFlow, Boolean draft, long creatorId) {
     WorkEntity work = new WorkEntity();
+    work.setCreatorId(creatorId);
     work.setTitle("request");
     work.setWorkFlow(workFlow);
     work.setIsDraft(draft);

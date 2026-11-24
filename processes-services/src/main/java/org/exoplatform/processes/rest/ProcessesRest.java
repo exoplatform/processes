@@ -703,7 +703,7 @@ public class ProcessesRest implements ResourceContainer {
       if (query != null) {
         workFilter.setQuery(query);
       }
-      workFilter.setIsDraft(true);
+      // Every row of the user is a request draft, whatever flag it was stored with
       List<Work> works = processesService.getWorkDrafts(userIdentityId, workFilter, offset, limit);
       return Response.ok(EntityBuilder.toWorkEntityList(works)).build();
     } catch (Exception e) {
