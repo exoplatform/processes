@@ -25,8 +25,10 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.ws.rs.ext.RuntimeDelegate;
@@ -83,6 +85,8 @@ import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dao.TaskQuery;
+import org.exoplatform.task.dao.condition.AggregateCondition;
+import org.exoplatform.task.dao.condition.SingleCondition;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.dto.TaskDto;
@@ -695,10 +699,11 @@ public class ProcessesStorageImplTest {
   /**
    * A user also gets the request statuses of a process they no longer list, when
    * it holds requests they created, and not those of one holding none.
-   * Mutation: drop the processes of the user's own requests, and this test
-   * fails.
+   * Mutation: drop the processes of the user's own requests, drop the
+   * creator criterion, or query each process apart, and this test fails.
    */
   @Test
+  @SuppressWarnings("unchecked")
   public void getAvailableWorkStatusesIncludeThoseOfTheUsersOwnRequests() throws Exception {
     Identity identity = mock(Identity.class);
     when(identityManager.getIdentity(5L)).thenReturn(identity);
@@ -715,9 +720,14 @@ public class ProcessesStorageImplTest {
     WorkFlowEntity withNone = new WorkFlowEntity();
     withNone.setProjectId(3L);
     when(workFlowDAO.findAllWorkFlows(0, 0)).thenReturn(List.of(listed, withOwnRequests, withNone));
-    when(taskService.countTasks(any(TaskQuery.class))).thenAnswer(invocation -> {
+    // Process 2 holds a request of the user, process 3 only a request of
+    // someone else: the answer follows the query's creator criterion
+    when(taskService.selectTaskField(any(TaskQuery.class), eq("status.project.id"))).thenAnswer(invocation -> {
       TaskQuery query = invocation.getArgument(0);
-      return List.of(2L).equals(query.getProjectIds()) ? 1 : 0;
+      Map<String, Object> criteria = criteriaOf(query);
+      List<Long> projectsIds = (List<Long>) criteria.get("in status.project.id");
+      Object creator = criteria.get("eq createdBy");
+      return projectsIds.stream().filter(id -> id == 2L ? (creator == null || "user".equals(creator)) : id == 3L && creator == null).toList();
     });
     List<StatusDto> listedStatuses = List.of(mock(StatusDto.class));
     List<StatusDto> ownStatuses = List.of(mock(StatusDto.class));
@@ -732,11 +742,17 @@ public class ProcessesStorageImplTest {
 
     assertEquals(List.of(listedStatus, ownStatus), processesStorage.getAvailableWorkStatuses(5L));
     verify(statusService, never()).getStatuses(3L);
+    ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
+    verify(taskService, times(1)).selectTaskField(query.capture(), eq("status.project.id"));
+    assertEquals("one query, for the processes the user doesn't list, on the requests the user created",
+                 Map.of("in status.project.id", List.of(2L, 3L), "eq createdBy", "user"),
+                 criteriaOf(query.getValue()));
   }
 
   /**
    * A processes administrator gets the request statuses of every process.
-   * Mutation: query an empty membership list instead of none, and this test
+   * Mutation: query an empty membership list instead of none, or query the
+   * requests of the processes the administrator lists already, and this test
    * fails.
    */
   @Test
@@ -752,6 +768,7 @@ public class ProcessesStorageImplTest {
     ProcessesFilter filter = new ProcessesFilter();
     filter.setManager(false);
     when(workFlowDAO.findWorkFlows(filter, null, 0, 0)).thenReturn(List.of(process));
+    when(workFlowDAO.findAllWorkFlows(0, 0)).thenReturn(List.of(process));
     List<StatusDto> statuses = List.of(mock(StatusDto.class));
     when(statusService.getStatuses(3L)).thenReturn(statuses);
     WorkStatus status = new WorkStatus();
@@ -759,6 +776,7 @@ public class ProcessesStorageImplTest {
     ENTITY_MAPPER.when(() -> EntityMapper.toWorkStatuses(statuses)).thenReturn(new ArrayList<>(List.of(status)));
 
     assertEquals(List.of(status), processesStorage.getAvailableWorkStatuses(6L));
+    verify(taskService, never()).selectTaskField(any(), any());
   }
 
   @Test
@@ -1044,5 +1062,14 @@ public class ProcessesStorageImplTest {
                                                                                                              List.of(memberships));
     when(userACL.getUserIdentity(username)).thenReturn(aclIdentity);
     return aclIdentity;
+  }
+
+  private static Map<String, Object> criteriaOf(TaskQuery query) {
+    Map<String, Object> criteria = new HashMap<>();
+    ((AggregateCondition) query.getCondition()).getConditions().forEach(condition -> {
+      SingleCondition<?> single = (SingleCondition<?>) condition;
+      criteria.put(single.getType() + " " + single.getField(), single.getValue());
+    });
+    return criteria;
   }
 }

@@ -52,6 +52,7 @@ import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.TaskQuery;
+import org.exoplatform.task.dao.condition.Conditions;
 import org.exoplatform.task.domain.Priority;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
@@ -588,25 +589,25 @@ public class ProcessesStorageImpl implements ProcessesStorage {
                                        .collect(Collectors.toCollection(LinkedHashSet::new));
     // plus the processes holding requests the user created: "My requests" lists them
     // in every process, grouped by their status
-    workFlowDAO.findAllWorkFlows(0, 0)
-               .stream()
-               .map(WorkFlowEntity::getProjectId)
-               .filter(projectId -> !projectsIds.contains(projectId))
-               .filter(projectId -> hasWorksCreatedBy(projectId, userMemberships.getKey()))
-               .toList()
-               .forEach(projectsIds::add);
+    List<Long> otherProjectsIds = workFlowDAO.findAllWorkFlows(0, 0)
+                                             .stream()
+                                             .map(WorkFlowEntity::getProjectId)
+                                             .filter(projectId -> !projectsIds.contains(projectId))
+                                             .toList();
+    if (!otherProjectsIds.isEmpty()) {
+      Set<Long> withOwnWorks = getProjectsIdsWithWorksCreatedBy(otherProjectsIds, userMemberships.getKey());
+      otherProjectsIds.stream().filter(withOwnWorks::contains).forEach(projectsIds::add);
+    }
     return getWorkStatuses(new ArrayList<>(projectsIds));
   }
 
-  private boolean hasWorksCreatedBy(long projectId, String userName) {
+  // One query for every process: the distinct projects of the requests the user created
+  private Set<Long> getProjectsIdsWithWorksCreatedBy(List<Long> projectsIds, String userName) {
     TaskQuery taskQuery = new TaskQuery();
-    taskQuery.setProjectIds(Arrays.asList(projectId));
+    taskQuery.setProjectIds(projectsIds);
     taskQuery.setCreatedBy(userName);
-    try {
-      return taskService.countTasks(taskQuery) > 0;
-    } catch (Exception e) {
-      throw new IllegalStateException("Error counting the requests of process " + projectId, e);
-    }
+    List<Long> projectsIdsWithWorks = taskService.selectTaskField(taskQuery, Conditions.TASK_PROJECT);
+    return new HashSet<>(projectsIdsWithWorks);
   }
 
   private List<WorkStatus> getWorkStatuses(List<Long> projectsIds) {
