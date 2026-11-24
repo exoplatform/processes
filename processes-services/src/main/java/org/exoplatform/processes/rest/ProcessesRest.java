@@ -470,6 +470,7 @@ public class ProcessesRest implements ResourceContainer {
           @ApiResponse(responseCode = "400", description = "Invalid query input"),
           @ApiResponse(responseCode = "404", description = "Object not found"),
           @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "403", description = "The user isn't active"),
           @ApiResponse(responseCode = "500", description = "Internal server error"),})
   public Response countWorksByWorkflow(@Parameter(description = "Tasks project id", required = true)
                                        @PathParam("projectId") Long projectId,
@@ -477,10 +478,13 @@ public class ProcessesRest implements ResourceContainer {
                                        @QueryParam("isCompleted") @DefaultValue("true") Boolean isCompleted) {
     long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
     if (currentIdentityId == 0) {
-      return Response.status(Response.Status.UNAUTHORIZED).build();
+      return Response.status(Response.Status.UNAUTHORIZED).cacheControl(PER_USER_CACHE_CONTROL).build();
     }
     if (projectId == null) {
-      return Response.status(Response.Status.BAD_REQUEST).entity("Project id is mandatory").build();
+      return Response.status(Response.Status.BAD_REQUEST)
+                     .entity("Project id is mandatory")
+                     .cacheControl(PER_USER_CACHE_CONTROL)
+                     .build();
     }
     try {
       int worksCount = processesService.countWorksByWorkflow(projectId, isCompleted, currentIdentityId);
@@ -490,10 +494,10 @@ public class ProcessesRest implements ResourceContainer {
       return Response.status(Response.Status.NOT_FOUND).entity("workflow not found").cacheControl(PER_USER_CACHE_CONTROL).build();
     } catch (IllegalAccessException e) {
       LOG.debug("User {} isn't an active user", currentIdentityId, e);
-      return Response.status(Response.Status.UNAUTHORIZED).cacheControl(PER_USER_CACHE_CONTROL).build();
+      return Response.status(Response.Status.FORBIDDEN).cacheControl(PER_USER_CACHE_CONTROL).build();
     } catch (Exception e) {
       LOG.error("Error while getting works count", e);
-      return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+      return Response.status(Response.Status.INTERNAL_SERVER_ERROR).cacheControl(PER_USER_CACHE_CONTROL).build();
     }
   }
   @DELETE
