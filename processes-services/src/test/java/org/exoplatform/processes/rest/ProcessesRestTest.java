@@ -820,7 +820,9 @@ public class ProcessesRestTest {
     verify(processesService, never()).getAvailableWorkStatuses();
     doThrow(new IllegalAccessException()).when(processesService).getAvailableWorkStatuses(1L);
     Response refused = processesRest.getAvailableWorkStatuses();
-    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), refused.getStatus());
+    assertEquals("a user who isn't active is refused as forbidden",
+                 Response.Status.FORBIDDEN.getStatusCode(),
+                 refused.getStatus());
     assertNeitherSharedNorStored(refused);
     doThrow(new RuntimeException("engine detail")).when(processesService).getAvailableWorkStatuses(1L);
     Response response2 = processesRest.getAvailableWorkStatuses();

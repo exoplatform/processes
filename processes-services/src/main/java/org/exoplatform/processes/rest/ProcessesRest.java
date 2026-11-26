@@ -759,6 +759,7 @@ public class ProcessesRest implements ResourceContainer {
           method = "GET")
   @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
           @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "403", description = "The user isn't active"),
           @ApiResponse(responseCode = "500", description = "Internal server error"), })
   public Response getAvailableWorkStatuses() {
     long currentIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
@@ -770,7 +771,7 @@ public class ProcessesRest implements ResourceContainer {
       return Response.ok(statuses).type(MediaType.APPLICATION_JSON_TYPE).cacheControl(PER_USER_CACHE_CONTROL).build();
     } catch (IllegalAccessException e) {
       LOG.debug("User {} isn't an active user", currentIdentityId, e);
-      return Response.status(Response.Status.UNAUTHORIZED).cacheControl(PER_USER_CACHE_CONTROL).build();
+      return Response.status(Response.Status.FORBIDDEN).cacheControl(PER_USER_CACHE_CONTROL).build();
     } catch (Exception e) {
       LOG.warn("Error retrieving the available request statuses", e);
       return Response.serverError().entity("Error retrieving the request statuses").cacheControl(PER_USER_CACHE_CONTROL).build();
