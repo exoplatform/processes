@@ -1,6 +1,7 @@
 package org.exoplatform.processes.storage;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
@@ -280,6 +281,48 @@ public class ProcessesStorageImplTest {
     when(workFlow.getId()).thenReturn(1L);
     this.processesStorage.saveWorkFlow(workFlow, 1L);
     verify(workFlowDAO, times(1)).update(workFlowEntity);
+  }
+
+  /**
+   * The answer of a process save carries the same open requests flag as the
+   * list, since the card the answer replaces shows its open requests line
+   * only when the flag is set. Mutation: stop setting the flag on the saved
+   * process and this test fails.
+   */
+  @Test
+  public void saveWorkFlowAnswerCarriesTheFlagToShowOpenRequests() throws Exception {
+    Identity identity = mock(Identity.class);
+    when(identity.getRemoteId()).thenReturn("john");
+    when(identityManager.getIdentity(5L)).thenReturn(identity);
+    WorkFlow workFlow = new WorkFlow();
+    workFlow.setId(1L);
+    workFlow.setProjectId(1L);
+    WorkFlowEntity workFlowEntity = new WorkFlowEntity();
+    workFlowEntity.setId(1L);
+    workFlowEntity.setProjectId(1L);
+    WorkFlow savedWorkFlow = new WorkFlow();
+    savedWorkFlow.setId(1L);
+    savedWorkFlow.setProjectId(1L);
+    Space space = new Space();
+    space.setId("1");
+    ENTITY_MAPPER.when(() -> EntityMapper.toEntity(workFlow)).thenReturn(workFlowEntity);
+    ENTITY_MAPPER.when(() -> EntityMapper.fromEntity(eq(workFlowEntity), any(), any())).thenReturn(savedWorkFlow);
+    PROCESSES_UTILS.when(() -> ProcessesUtils.getProjectParentSpace(1L)).thenReturn(space);
+    when(workFlowDAO.find(1L)).thenReturn(workFlowEntity);
+    when(workFlowDAO.update(workFlowEntity)).thenReturn(workFlowEntity);
+    workFlow.setSpaceId("1");
+    workFlow.setRequestsCreators(new ArrayList<>());
+
+    try {
+      when(spaceService.isMember(space, "john")).thenReturn(true);
+      assertTrue(this.processesStorage.saveWorkFlow(workFlow, 5L).isCanShowPending());
+
+      when(spaceService.isMember(space, "john")).thenReturn(false);
+      assertFalse(this.processesStorage.saveWorkFlow(workFlow, 5L).isCanShowPending());
+    } finally {
+      // The static mock is shared by the class
+      PROCESSES_UTILS.when(() -> ProcessesUtils.getProjectParentSpace(1L)).thenReturn(null);
+    }
   }
 
   @Test
