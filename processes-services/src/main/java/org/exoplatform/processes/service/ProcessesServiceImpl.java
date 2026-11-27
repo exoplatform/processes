@@ -280,6 +280,37 @@ public class ProcessesServiceImpl implements ProcessesService {
    * {@inheritDoc}
    */
   @Override
+  public int countWorksByWorkflow(Long projectId, Boolean isCompleted, long userIdentityId) throws Exception {
+    if (projectId == null) {
+      throw new IllegalArgumentException("Project Id is mandatory");
+    }
+    if (isCompleted == null) {
+      throw new IllegalArgumentException("isCompleted should not be null");
+    }
+    org.exoplatform.services.security.Identity aclIdentity = getAclIdentity(userIdentityId);
+    WorkFlow workFlow = processesStorage.getWorkFlowById(getWorkFlowIdByProjectId(projectId), userIdentityId);
+    if (workFlow == null) {
+      throw new ObjectNotFoundException("No process found for project " + projectId);
+    }
+    try {
+      checkCanSee(workFlow, workFlow.getId(), userIdentityId);
+    } catch (IllegalAccessException e) {
+      // A process the user can't see is answered as a missing one
+      throw new ObjectNotFoundException("No process found for project " + projectId);
+    }
+    if (!canShowPending(projectId, aclIdentity.getUserId())) {
+      // The counts are shown on the process card only (canShowPending): to
+      // the members of the space owning the process's project, and to the
+      // space super managers
+      throw new ObjectNotFoundException("No process found for project " + projectId);
+    }
+    return processesStorage.countWorksByWorkflow(projectId, isCompleted);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
   @Deprecated(forRemoval = true)
   public void deleteWorkById(Long workId) {
     if (workId == null) {
@@ -576,6 +607,11 @@ public class ProcessesServiceImpl implements ProcessesService {
 
   private boolean isProcessesAdministrator(org.exoplatform.services.security.Identity aclIdentity) {
     return ProcessesUtils.isProcessesAdministrator(userACL, aclIdentity);
+  }
+
+  private boolean canShowPending(long projectId, String userName) {
+    Space space = ProcessesUtils.getProjectParentSpace(projectService, spaceService, projectId);
+    return space != null && (spaceService.isSuperManager(userName) || spaceService.isMember(space, userName));
   }
 
   // A user sees a process they participate in or may add a request to

@@ -517,6 +517,70 @@ public class ProcessesServiceImplTest {
   }
 
   /**
+   * A process's request counts are given to the active users who see the
+   * process in their lists (participators and request creators) and to whom
+   * the process card shows them (canShowPending): the members of the space
+   * owning the process's project, and the space super managers. Anyone else
+   * is answered as if the process were missing. Mutation: drop the visibility
+   * check, the active user check, the space check, either branch of the
+   * space check or its missing-space guard, and this test fails.
+   */
+  @Test
+  public void countWorksByWorkflowIsGuarded() throws Exception {
+    WorkFlow stored = new WorkFlow();
+    stored.setId(WORKFLOW_ID);
+    when(processesStorage.getWorkFlowByProjectId(PROCESS_PROJECT_ID)).thenReturn(stored);
+    WorkFlow hidden = new WorkFlow();
+    hidden.setId(WORKFLOW_ID);
+    hidden.setAcl(new ProcessPermission(false, false, false, false));
+    WorkFlow participated = new WorkFlow();
+    participated.setId(WORKFLOW_ID);
+    participated.setAcl(new ProcessPermission(true, true, false, false));
+    WorkFlow requestable = new WorkFlow();
+    requestable.setId(WORKFLOW_ID);
+    requestable.setAcl(new ProcessPermission(false, false, false, true));
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, NON_MEMBER_ID)).thenReturn(hidden);
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, PARTICIPANT_ID)).thenReturn(participated);
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, CREATOR_ID)).thenReturn(requestable);
+    when(processesStorage.getWorkFlowById(WORKFLOW_ID, PROJECT_MANAGER_ID)).thenReturn(requestable);
+    when(processesStorage.countWorksByWorkflow(PROCESS_PROJECT_ID, false)).thenReturn(4);
+    Space processSpace = new Space();
+    processSpace.setId("1");
+    processSpace.setGroupId(PROCESS_SPACE_GROUP);
+    when(spaceService.getSpaceByGroupId(PROCESS_SPACE_GROUP)).thenReturn(processSpace);
+    when(spaceService.isMember(processSpace, "participant")).thenReturn(true);
+    // "nonmember" is a member of the process's space, so only the visibility check refuses it
+    when(spaceService.isMember(processSpace, "nonmember")).thenReturn(true);
+    when(spaceService.isSuperManager("manager")).thenReturn(true);
+
+    assertThrows(ObjectNotFoundException.class, () -> processesService.countWorksByWorkflow(OTHER_PROJECT_ID, false, CREATOR_ID));
+    assertThrows("a space member who cannot see the process is refused",
+                 ObjectNotFoundException.class,
+                 () -> processesService.countWorksByWorkflow(PROCESS_PROJECT_ID, false, NON_MEMBER_ID));
+    assertThrows(IllegalAccessException.class,
+                 () -> processesService.countWorksByWorkflow(PROCESS_PROJECT_ID, false, DISABLED_USER_ID));
+    verify(processesStorage, never()).countWorksByWorkflow(anyLong(), anyBoolean());
+
+    assertThrows("a request creator outside the process's space is refused",
+                 ObjectNotFoundException.class,
+                 () -> processesService.countWorksByWorkflow(PROCESS_PROJECT_ID, false, CREATOR_ID));
+    verify(processesStorage, never()).countWorksByWorkflow(anyLong(), anyBoolean());
+
+    assertEquals("a member of the process's space gets the count",
+                 4,
+                 processesService.countWorksByWorkflow(PROCESS_PROJECT_ID, false, PARTICIPANT_ID));
+    assertEquals("a space super manager gets the count",
+                 4,
+                 processesService.countWorksByWorkflow(PROCESS_PROJECT_ID, false, PROJECT_MANAGER_ID));
+
+    when(spaceService.getSpaceByGroupId(PROCESS_SPACE_GROUP)).thenReturn(null);
+    assertThrows("no count for a process whose project has no space, even for a space super manager",
+                 ObjectNotFoundException.class,
+                 () -> processesService.countWorksByWorkflow(PROCESS_PROJECT_ID, false, PROJECT_MANAGER_ID));
+    verify(processesStorage, times(2)).countWorksByWorkflow(PROCESS_PROJECT_ID, false);
+  }
+
+  /**
    * A process illustration is served to the active users who see the process
    * in their lists (participators and request creators), never read with a
    * null user. Mutation: drop the canAccess/canAddRequest guard, either of its

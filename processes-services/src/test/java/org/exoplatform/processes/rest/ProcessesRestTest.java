@@ -14,6 +14,7 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.never;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -492,25 +493,49 @@ public class ProcessesRestTest {
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response6.getStatus());
   }
 
+  /**
+   * Every answer of the request count is private to its user and never stored
+   * (Cache-Control: private, no-store), and a user who isn't active is refused
+   * as forbidden. Mutation: answer 401 for an inactive user, or drop the cache
+   * directive from any answer, and this test fails.
+   */
   @Test
   public void countWorksByWorkflow() throws Exception {
-    WorkFlow workFlow = mock(WorkFlow.class);
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
     Response response = processesRest.countWorksByWorkflow(null, null);
     assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response.getStatus());
+    assertPerUserCacheControl(response);
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(1L);
     Response response1 = processesRest.countWorksByWorkflow(null, null);
     assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response1.getStatus());
-    when(processesService.getWorkFlowByProjectId(1L)).thenReturn(null);
-    Response response2 = processesRest.countWorksByWorkflow(1L, null);
+    assertPerUserCacheControl(response1);
+    when(processesService.countWorksByWorkflow(1L, false, 1L)).thenThrow(new ObjectNotFoundException("No process"));
+    Response response2 = processesRest.countWorksByWorkflow(1L, false);
     assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response2.getStatus());
-    when(processesService.getWorkFlowByProjectId(1L)).thenReturn(workFlow);
-    when(processesService.countWorksByWorkflow(1L, false)).thenReturn(2);
-    Response response3 = processesRest.countWorksByWorkflow(1L, false);
+    assertPerUserCacheControl(response2);
+    when(processesService.countWorksByWorkflow(2L, false, 1L)).thenThrow(new IllegalAccessException("inactive"));
+    Response inactive = processesRest.countWorksByWorkflow(2L, false);
+    assertEquals("a user who isn't active is refused as forbidden",
+                 Response.Status.FORBIDDEN.getStatusCode(),
+                 inactive.getStatus());
+    assertPerUserCacheControl(inactive);
+    when(processesService.countWorksByWorkflow(3L, false, 1L)).thenReturn(2);
+    Response response3 = processesRest.countWorksByWorkflow(3L, false);
     assertEquals(Response.Status.OK.getStatusCode(), response3.getStatus());
-    when(processesService.countWorksByWorkflow(1L, false)).thenThrow(RuntimeException.class);
-    Response response4 = processesRest.countWorksByWorkflow(1L, false);
+    assertEquals("2", response3.getEntity());
+    assertPerUserCacheControl(response3);
+    when(processesService.countWorksByWorkflow(4L, false, 1L)).thenThrow(RuntimeException.class);
+    Response response4 = processesRest.countWorksByWorkflow(4L, false);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response4.getStatus());
+    assertPerUserCacheControl(response4);
+    verify(processesService, never()).countWorksByWorkflow(any(Long.class), any(Boolean.class));
+  }
+
+  private static void assertPerUserCacheControl(Response response) {
+    Object cacheControl = response.getMetadata().getFirst("Cache-Control");
+    assertTrue("answer " + response.getStatus() + " is private and never stored: " + cacheControl,
+               cacheControl != null && String.valueOf(cacheControl).contains("private")
+                   && String.valueOf(cacheControl).contains("no-store"));
   }
 
   @Test
