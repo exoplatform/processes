@@ -85,4 +85,36 @@ class CreateRequestPwaPluginTest {
       assertEquals("John Smith a demandé : Congés", title);
     }
   }
+
+  /**
+   * The mobile push of a new request is still sent when its notification
+   * stores no process title: the title names no process, and the replacement
+   * of its placeholder never fails on a null (EXO-94567).
+   * Mutant: a missing stored title returned as null by the shared title read.
+   */
+  @Test
+  void thePushIsSentWithNoTitleWhenNoneIsStored() {
+    ResourceBundleService resourceBundleService = mock(ResourceBundleService.class);
+    IdentityManager identityManager = mock(IdentityManager.class);
+    LocaleConfig localeConfig = mock(LocaleConfig.class);
+    when(localeConfig.getLocale()).thenReturn(Locale.FRENCH);
+    when(resourceBundleService.getSharedString("pwa.notification.CreateRequestPwaPlugin.title", Locale.FRENCH))
+        .thenReturn("{0} a demandé : {1}");
+    Identity requester = new Identity(OrganizationIdentityProvider.NAME, "john");
+    Profile profile = new Profile(requester);
+    profile.setProperty(Profile.FULL_NAME, "John Smith");
+    requester.setProfile(profile);
+    when(identityManager.getOrCreateUserIdentity("john")).thenReturn(requester);
+    NotificationInfo notification = NotificationInfo.instance()
+                                                    .with(NotificationArguments.REQUEST_CREATOR.getKey(), "john")
+                                                    .with(NotificationArguments.REQUEST_URL.getKey(), "/portal/request/3");
+
+    try (MockedStatic<CommonsUtils> commonsUtils = mockStatic(CommonsUtils.class)) {
+      commonsUtils.when(CommonsUtils::getCurrentDomain).thenReturn("");
+
+      String title = new CreateRequestPwaPlugin(resourceBundleService, identityManager).process(notification, localeConfig).getTitle();
+
+      assertEquals("John Smith a demandé : ", title);
+    }
+  }
 }
