@@ -218,6 +218,9 @@ class MailTemplateProviderTest {
     MessageInfo messageInfo = mailTemplateProvider.getTemplateBuilder().get(PluginKey.key(pluginId)).buildMessage(notificationContext);
 
     assertNotNull(messageInfo);
+    ArgumentCaptor<Exception> exceptions = ArgumentCaptor.forClass(Exception.class);
+    verify(notificationContext, atLeastOnce()).setException(exceptions.capture());
+    exceptions.getAllValues().forEach(e -> assertNull(e, () -> "the mail rendering failed: " + e));
     TemplateContext templateContext = renderedContext.get();
     assertNotNull(templateContext, "the mail body was not rendered");
     assertEquals("", templateContext.get("PROCESS_TITLE"));
