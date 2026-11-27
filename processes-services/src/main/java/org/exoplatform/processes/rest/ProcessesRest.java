@@ -936,7 +936,10 @@ public class ProcessesRest implements ResourceContainer {
       Response.ResponseBuilder builder = request.evaluatePreconditions(eTag);
       if (builder == null) {
         InputStream stream = illustrativeAttachment.getFileInputStream();
-        builder = Response.ok(stream, illustrativeAttachment.getMimeType());
+        // A stored type that isn't a safe image type is served as bytes only
+        String mimeType = IllustrativeAttachment.isImageType(illustrativeAttachment.getMimeType()) ? illustrativeAttachment.getMimeType()
+                                                                                                       : MediaType.APPLICATION_OCTET_STREAM;
+        builder = Response.ok(stream, mimeType);
         builder.tag(eTag);
         if (lastModified > 0) {
           builder.lastModified(new Date(lastUpdated));
@@ -944,6 +947,7 @@ public class ProcessesRest implements ResourceContainer {
         }
       }
       builder.cacheControl(lastModified > 0 ? ILLUSTRATION_CACHE_CONTROL : UNVERSIONED_ILLUSTRATION_CACHE_CONTROL);
+      builder.header("X-Content-Type-Options", "nosniff");
       return builder.build();
     } catch (ObjectNotFoundException e) {
       LOG.debug("Illustrative image of workflow '{}' not found", workflowId, e);

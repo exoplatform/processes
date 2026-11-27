@@ -21,11 +21,15 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.InputStream;
+import java.util.Locale;
+import java.util.Set;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 public class IllustrativeAttachment {
+
+  private static final Set<String> IMAGE_TYPES = Set.of("image/png", "image/jpeg", "image/gif", "image/webp", "image/bmp");
 
   private Long   id;
 
@@ -62,5 +66,17 @@ public class IllustrativeAttachment {
     this.mimeType = mimeType;
     this.fileSize = fileSize;
     this.lastUpdated = lastUpdated;
+  }
+
+  /**
+   * Whether an illustration of this type may be stored and served as an
+   * image: one of the types the process form accepts, PNG, JPEG, GIF, WEBP or
+   * BMP, whatever its case or surrounding blanks.
+   *
+   * @param mimeType the illustration's type
+   * @return true for an image type the browser renders as an image only
+   */
+  public static boolean isImageType(String mimeType) {
+    return mimeType != null && IMAGE_TYPES.contains(mimeType.trim().toLowerCase(Locale.ROOT));
   }
 }
