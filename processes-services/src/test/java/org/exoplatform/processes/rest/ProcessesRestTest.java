@@ -588,7 +588,6 @@ public class ProcessesRestTest {
   public void getWorkDrafts() {
     List<Work> works = new ArrayList<>();
     WorkFilter workFilter = new WorkFilter();
-    workFilter.setIsDraft(true);
     workFilter.setQuery("test");
     List<WorkEntity> WorkEntityList = new ArrayList<>();
     REST_UTILS.when(() -> RestUtils.getCurrentUserIdentityId(identityManager)).thenReturn(0L);
@@ -599,6 +598,8 @@ public class ProcessesRestTest {
     ENTITY_BUILDER.when(() -> EntityBuilder.toWorkEntityList(works)).thenReturn(WorkEntityList);
     Response response1 = processesRest.getWorkDrafts(null, "", "test", 0, 10);
     assertEquals(Response.Status.OK.getStatusCode(), response1.getStatus());
+    // The listing leaves the draft flag out of the filter, so a row stored with the flag false or unset is listed
+    verify(processesService).getWorkDrafts(1L, workFilter, 0, 10);
     doThrow(new RuntimeException()).when(processesService).getWorkDrafts(1L, workFilter, 0, 10);
     Response response2 = processesRest.getWorkDrafts(1L, "", "test", 0, 10);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response2.getStatus());
