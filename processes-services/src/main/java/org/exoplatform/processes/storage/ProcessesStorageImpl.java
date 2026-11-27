@@ -11,6 +11,7 @@ import java.util.Base64;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -51,6 +52,7 @@ import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.TaskQuery;
+import org.exoplatform.task.dao.condition.Conditions;
 import org.exoplatform.task.domain.Priority;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
@@ -568,9 +570,48 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    */
   @Override
   public List<WorkStatus> getAvailableWorkStatuses() {
-    List<WorkStatus> statuses = new ArrayList<>();
     List<WorkFlow> workFlows = findAllWorkFlows(0, 0);
-    List<Long> projectsIds = workFlows.stream().map(WorkFlow::getProjectId).collect(Collectors.toList());
+    return getWorkStatuses(workFlows.stream().map(WorkFlow::getProjectId).collect(Collectors.toList()));
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<WorkStatus> getAvailableWorkStatuses(long userIdentityId) {
+    // The processes the user lists, read without their illustrations
+    ProcessesFilter processesFilter = new ProcessesFilter();
+    processesFilter.setManager(false);
+    Map.Entry<String, List<String>> userMemberships = getUserMemberships(userIdentityId);
+    Set<Long> projectsIds = workFlowDAO.findWorkFlows(processesFilter, userMemberships.getValue(), 0, 0)
+                                       .stream()
+                                       .map(WorkFlowEntity::getProjectId)
+                                       .collect(Collectors.toCollection(LinkedHashSet::new));
+    // plus the processes holding requests the user created: "My requests" lists them
+    // in every process, grouped by their status
+    List<Long> otherProjectsIds = workFlowDAO.findAllWorkFlows(0, 0)
+                                             .stream()
+                                             .map(WorkFlowEntity::getProjectId)
+                                             .filter(projectId -> !projectsIds.contains(projectId))
+                                             .toList();
+    if (!otherProjectsIds.isEmpty()) {
+      Set<Long> withOwnWorks = getProjectsIdsWithWorksCreatedBy(otherProjectsIds, userMemberships.getKey());
+      otherProjectsIds.stream().filter(withOwnWorks::contains).forEach(projectsIds::add);
+    }
+    return getWorkStatuses(new ArrayList<>(projectsIds));
+  }
+
+  // One query for every process: the distinct projects of the requests the user created
+  private Set<Long> getProjectsIdsWithWorksCreatedBy(List<Long> projectsIds, String userName) {
+    TaskQuery taskQuery = new TaskQuery();
+    taskQuery.setProjectIds(projectsIds);
+    taskQuery.setCreatedBy(userName);
+    List<Long> projectsIdsWithWorks = taskService.selectTaskField(taskQuery, Conditions.TASK_PROJECT);
+    return new HashSet<>(projectsIdsWithWorks);
+  }
+
+  private List<WorkStatus> getWorkStatuses(List<Long> projectsIds) {
+    List<WorkStatus> statuses = new ArrayList<>();
     projectsIds.forEach(projectId -> statuses.addAll(EntityMapper.toWorkStatuses(statusService.getStatuses(projectId))));
     statuses.sort(Comparator.comparing(WorkStatus::getRank));
     return statuses;
