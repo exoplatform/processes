@@ -39,6 +39,7 @@ import javax.jcr.*;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -190,6 +191,8 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
     }
     final Session session = jcrSession;
     final ProjectDto project = projectDto;
+    // The source entity folder a moved attachment left, removed once every attachment is processed
+    AtomicReference<Node> sourceEntityFolder = new AtomicReference<>();
     IntStream.range(0, attachments.size()).forEach(index -> {
       Attachment attachment = attachments.get(index);
       String attachmentId = attachment.getId();
@@ -238,10 +241,11 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
           workspace.move(attachmentNode.getPath(), destPath);
           Node copyNode = (Node) session.getItem(destPath);
           copyNode.addMixin(NodetypeConstant.EXO_HIDDENABLE);
-          if (attachments.size() - 1 == index && isEntityFolder(sourceEntityIdNode, rootNode, sourceEntityType, sourceEntityId)) {
-            sourceEntityIdNode.remove();
-          }
           copyNode.save();
+          if (sourceEntityFolder.get() == null
+              && isSourceEntityFolder(sourceEntityIdNode, rootNode, sourceEntityType, sourceEntityId)) {
+            sourceEntityFolder.set(sourceEntityIdNode);
+          }
         } else {
           session.save();
           Workspace workspace = session.getWorkspace();
@@ -256,6 +260,7 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
         LOG.error("Error while moving or copying attachments", e);
       }
     });
+    removeEmptySourceEntityFolder(sourceEntityFolder.get());
     if (session != null) {
       session.logout();
     }
@@ -577,9 +582,44 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
   }
 
   /**
+   * Removes the source entity folder once every attachment is processed,
+   * whether the list's last one was moved or copied, and only when the folder
+   * holds no node any more, so the committed removal never deletes content.
+   */
+  private void removeEmptySourceEntityFolder(Node sourceEntityFolder) {
+    if (sourceEntityFolder == null) {
+      return;
+    }
+    try {
+      if (!sourceEntityFolder.hasNodes()) {
+        Node parent = sourceEntityFolder.getParent();
+        sourceEntityFolder.remove();
+        // A node save commits only its own subtree: the removal is saved through the removed folder's parent
+        parent.save();
+      }
+    } catch (Exception e) {
+      LOG.error("Error while removing the emptied source folder of the moved attachments", e);
+    }
+  }
+
+  /**
+   * @return true when the node is the source entity's folder in the drive of
+   *         the process's space, or, for a draft, at the root of the drive of
+   *         another existing space, where it stays when the process moves
+   */
+  private boolean isSourceEntityFolder(Node node,
+                                       Node driveRootNode,
+                                       String entityType,
+                                       Long entityId) throws RepositoryException {
+    return isEntityFolder(node, driveRootNode, entityType, entityId)
+        || (node != null && entityId != null && WORK_DRAFT_ENTITY_TYPE.equals(entityType)
+            && node.getPrimaryNodeType().isNodeType(NodetypeConstant.NT_FOLDER)
+            && isEntityFolderInASpaceDrive(node, entityType, entityId));
+  }
+
+  /**
    * @return true when the node is the folder the processes keep for the
-   *         entity's attachments in the process drive, the only source folder a
-   *         move may remove
+   *         entity's attachments in the process drive
    */
   private boolean isEntityFolder(Node node, Node driveRootNode, String entityType, Long entityId) throws RepositoryException {
     return node != null && entityType != null && entityId != null

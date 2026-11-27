@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -38,6 +39,7 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.MockitoJUnitRunner;
@@ -249,6 +251,146 @@ public class ProcessesAttachmentServiceImplTest {
     processesAttachmentService.moveAttachmentsToEntity(1L, 1L, "workflow", 1L, "workdraft", 1L);
     verify(workspace, times(1)).move("srcPath", "destPath/test");
 
+  }
+
+  @Test
+  public void moveAttachmentsToEntitySavesTheRemovalOfTheEmptiedSourceFolder() throws Exception {
+    Node[] folders = moveAttachmentsOutOfSourceFolder(false, false);
+    InOrder order = inOrder(folders[0], folders[1]);
+    order.verify(folders[0]).remove();
+    // The removal is only committed by a save on an ancestor of the removed folder
+    order.verify(folders[1]).save();
+  }
+
+  @Test
+  public void moveAttachmentsToEntityKeepsASourceFolderThatStillHoldsNodes() throws Exception {
+    Node[] folders = moveAttachmentsOutOfSourceFolder(true, false);
+    verify(folders[0], never()).remove();
+    verify(folders[1], never()).save();
+  }
+
+  @Test
+  public void moveAttachmentsToEntityRemovesTheEmptiedSourceFolderWhenTheLastAttachmentIsCopied() throws Exception {
+    // A draft's list ends with a drive pick, which is copied: the folder its moved file left is still removed
+    Node[] folders = moveAttachmentsOutOfSourceFolder(false, true);
+    InOrder order = inOrder(folders[0], folders[1]);
+    order.verify(folders[0]).remove();
+    order.verify(folders[1]).save();
+  }
+
+  @Test
+  public void moveAttachmentsToEntityRemovesTheEmptiedDraftFolderLeftInAnotherSpaceDrive() throws Exception {
+    // A draft saved before its process moved to another space: its folder is in the old space's drive
+    when(spaceService.getSpaceByGroupId("/spaces/old")).thenReturn(new Space());
+    DriveData groupDriveTemplate = new DriveData();
+    groupDriveTemplate.setHomePath("/Groups${groupId}/Documents");
+    when(manageDriveService.getGroupDriveTemplate()).thenReturn(groupDriveTemplate);
+    Node[] folders = moveAttachmentsOutOfSourceFolder(false, false, "workdraft", "/Groups/spaces/old/Documents");
+    InOrder order = inOrder(folders[0], folders[1]);
+    order.verify(folders[0]).remove();
+    order.verify(folders[1]).save();
+  }
+
+  /**
+   * Runs a move of an attachment out of an entity folder, followed, when
+   * lastAttachmentCopied, by the copy of a drive pick, returns {sourceFolder,
+   * sourceFolderParent}.
+   */
+  private Node[] moveAttachmentsOutOfSourceFolder(boolean sourceFolderHoldsNodes,
+                                                  boolean lastAttachmentCopied) throws Exception {
+    return moveAttachmentsOutOfSourceFolder(sourceFolderHoldsNodes, lastAttachmentCopied, "workflow", "path");
+  }
+
+  /**
+   * Same as {@link #moveAttachmentsOutOfSourceFolder(boolean, boolean)}, from
+   * the folder sourceEntityType/1 of the drive whose root path is
+   * sourceDrivePath.
+   */
+  private Node[] moveAttachmentsOutOfSourceFolder(boolean sourceFolderHoldsNodes,
+                                                  boolean lastAttachmentCopied,
+                                                  String sourceEntityType,
+                                                  String sourceDrivePath) throws Exception {
+    Attachment attachment = new Attachment();
+    attachment.setId("1");
+    List<Attachment> attachments = new ArrayList<>(Arrays.asList(attachment));
+    Workspace workspace = mock(Workspace.class);
+    Session session = mock(Session.class);
+    when(session.getWorkspace()).thenReturn(workspace);
+    Node driveRoot = mock(Node.class);
+    when(driveRoot.getPath()).thenReturn("path");
+    when(driveRoot.hasNode(anyString())).thenReturn(true);
+    Node entityTypeFolder = mock(Node.class);
+    when(driveRoot.getNode(anyString())).thenReturn(entityTypeFolder);
+    when(entityTypeFolder.hasNode(anyString())).thenReturn(true);
+    // The source entity folder is an nt:folder at <drive>/<type>/1, parent of the moved node
+    NodeType folderType = mock(NodeType.class);
+    when(folderType.isNodeType(NodetypeConstant.NT_FOLDER)).thenReturn(true);
+    Node sourceDrive = mock(Node.class);
+    when(sourceDrive.getPath()).thenReturn(sourceDrivePath);
+    Node sourceFolderParent = mock(Node.class);
+    when(sourceFolderParent.getName()).thenReturn(sourceEntityType);
+    when(sourceFolderParent.getParent()).thenReturn(sourceDrive);
+    Node sourceFolder = mock(Node.class);
+    when(sourceFolder.getName()).thenReturn("1");
+    when(sourceFolder.getPath()).thenReturn(sourceDrivePath + "/" + sourceEntityType + "/1");
+    when(sourceFolder.getPrimaryNodeType()).thenReturn(folderType);
+    when(sourceFolder.getParent()).thenReturn(sourceFolderParent);
+    when(sourceFolder.hasNodes()).thenReturn(sourceFolderHoldsNodes);
+    Node attachmentNode = mock(Node.class);
+    when(attachmentNode.getName()).thenReturn("test");
+    when(attachmentNode.getPath()).thenReturn("srcPath");
+    when(attachmentNode.getParent()).thenReturn(sourceFolder);
+    Node movedNode = mock(Node.class);
+    when(session.getItem("destPath/test")).thenReturn(movedNode);
+    ProjectDto projectDto = new ProjectDto();
+    projectDto.setId(1L);
+    projectDto.setManager(new HashSet<>(Arrays.asList("manager:/spaces/processes_space")));
+    projectDto.setParticipator(new HashSet<>(Arrays.asList("members:/spaces/processes_space")));
+    Space space = new Space();
+    space.setGroupId("/spaces/processes_space");
+    when(projectService.getProject(1L)).thenReturn(projectDto);
+    PROCESSES_UTILS.when(() -> ProcessesUtils.getProjectParentSpace(1L)).thenReturn(space);
+    UTILS.when(() -> Utils.getSystemSession(sessionProviderService, repositoryService)).thenReturn(session);
+    DriveData driveData = new DriveData();
+    driveData.setHomePath("path");
+    driveData.setName("processes.drive");
+    when(manageDriveService.getGroupDrive("/spaces/processes_space")).thenReturn(driveData);
+    when(session.getItem("path")).thenReturn(driveRoot);
+    when(session.getNodeByUUID("1")).thenReturn(attachmentNode);
+    ExtendedNode destNode = mock(ExtendedNode.class);
+    when(destNode.canAddMixin(NodetypeConstant.EXO_PRIVILEGEABLE)).thenReturn(true);
+    when(destNode.getPath()).thenReturn("destPath");
+    UTILS.when(() -> Utils.getParentFolderNode(session,
+                                               this.manageDriveService,
+                                               this.nodeHierarchyCreator,
+                                               this.nodeFinder,
+                                               driveData.getName(),
+                                               "workdraft/2")).thenReturn(destNode);
+    if (lastAttachmentCopied) {
+      Attachment drivePick = new Attachment();
+      drivePick.setId("2");
+      drivePick.setEXoDrive(true);
+      attachments.add(drivePick);
+      Node pickedNode = mock(Node.class);
+      when(pickedNode.getName()).thenReturn("picked.pdf");
+      when(pickedNode.getPath()).thenReturn("drivePath/picked.pdf");
+      when(session.getNodeByUUID("2")).thenReturn(pickedNode);
+      Node copiedNode = mock(Node.class);
+      when(copiedNode.getName()).thenReturn("picked.pdf");
+      when(copiedNode.getUUID()).thenReturn("3");
+      when(session.getItem("destPath/picked.pdf")).thenReturn(copiedNode);
+      Attachment copiedAttachment = new Attachment();
+      copiedAttachment.setId("3");
+      when(attachmentService.getAttachmentById("3")).thenReturn(copiedAttachment);
+    }
+
+    processesAttachmentService.moveAttachmentsToEntity(attachments, 1L, 1L, sourceEntityType, 2L, "workdraft", 1L);
+
+    verify(workspace).move("srcPath", "destPath/test");
+    if (lastAttachmentCopied) {
+      verify(workspace).copy("drivePath/picked.pdf", "destPath/picked.pdf");
+    }
+    return new Node[] { sourceFolder, sourceFolderParent };
   }
 
   @Test
