@@ -139,9 +139,16 @@ export default {
         }, 200);
       }
     });
-    if (this.showPending) {
-      this.countWorksByWorkflow(false);
-    }
+  },
+  watch: {
+    showPending: {
+      immediate: true,
+      handler(value) {
+        if (value) {
+          this.countWorksByWorkflow(false);
+        }
+      },
+    },
   },
   computed: {
     avatarUrl() {

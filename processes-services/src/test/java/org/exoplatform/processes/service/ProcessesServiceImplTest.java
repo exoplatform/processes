@@ -549,10 +549,14 @@ public class ProcessesServiceImplTest {
     processSpace.setGroupId(PROCESS_SPACE_GROUP);
     when(spaceService.getSpaceByGroupId(PROCESS_SPACE_GROUP)).thenReturn(processSpace);
     when(spaceService.isMember(processSpace, "participant")).thenReturn(true);
+    // "nonmember" is a member of the process's space, so only the visibility check refuses it
+    when(spaceService.isMember(processSpace, "nonmember")).thenReturn(true);
     when(spaceService.isSuperManager("manager")).thenReturn(true);
 
     assertThrows(ObjectNotFoundException.class, () -> processesService.countWorksByWorkflow(OTHER_PROJECT_ID, false, CREATOR_ID));
-    assertThrows(ObjectNotFoundException.class, () -> processesService.countWorksByWorkflow(PROCESS_PROJECT_ID, false, NON_MEMBER_ID));
+    assertThrows("a space member who cannot see the process is refused",
+                 ObjectNotFoundException.class,
+                 () -> processesService.countWorksByWorkflow(PROCESS_PROJECT_ID, false, NON_MEMBER_ID));
     assertThrows(IllegalAccessException.class,
                  () -> processesService.countWorksByWorkflow(PROCESS_PROJECT_ID, false, DISABLED_USER_ID));
     verify(processesStorage, never()).countWorksByWorkflow(anyLong(), anyBoolean());
