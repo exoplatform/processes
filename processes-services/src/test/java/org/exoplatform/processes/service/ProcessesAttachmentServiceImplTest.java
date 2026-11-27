@@ -278,6 +278,19 @@ public class ProcessesAttachmentServiceImplTest {
     order.verify(folders[1]).save();
   }
 
+  @Test
+  public void moveAttachmentsToEntityRemovesTheEmptiedDraftFolderLeftInAnotherSpaceDrive() throws Exception {
+    // A draft saved before its process moved to another space: its folder is in the old space's drive
+    when(spaceService.getSpaceByGroupId("/spaces/old")).thenReturn(new Space());
+    DriveData groupDriveTemplate = new DriveData();
+    groupDriveTemplate.setHomePath("/Groups${groupId}/Documents");
+    when(manageDriveService.getGroupDriveTemplate()).thenReturn(groupDriveTemplate);
+    Node[] folders = moveAttachmentsOutOfSourceFolder(false, false, "workdraft", "/Groups/spaces/old/Documents");
+    InOrder order = inOrder(folders[0], folders[1]);
+    order.verify(folders[0]).remove();
+    order.verify(folders[1]).save();
+  }
+
   /**
    * Runs a move of an attachment out of an entity folder, followed, when
    * lastAttachmentCopied, by the copy of a drive pick, returns {sourceFolder,
@@ -285,6 +298,18 @@ public class ProcessesAttachmentServiceImplTest {
    */
   private Node[] moveAttachmentsOutOfSourceFolder(boolean sourceFolderHoldsNodes,
                                                   boolean lastAttachmentCopied) throws Exception {
+    return moveAttachmentsOutOfSourceFolder(sourceFolderHoldsNodes, lastAttachmentCopied, "workflow", "path");
+  }
+
+  /**
+   * Same as {@link #moveAttachmentsOutOfSourceFolder(boolean, boolean)}, from
+   * the folder sourceEntityType/1 of the drive whose root path is
+   * sourceDrivePath.
+   */
+  private Node[] moveAttachmentsOutOfSourceFolder(boolean sourceFolderHoldsNodes,
+                                                  boolean lastAttachmentCopied,
+                                                  String sourceEntityType,
+                                                  String sourceDrivePath) throws Exception {
     Attachment attachment = new Attachment();
     attachment.setId("1");
     List<Attachment> attachments = new ArrayList<>(Arrays.asList(attachment));
@@ -297,12 +322,17 @@ public class ProcessesAttachmentServiceImplTest {
     Node entityTypeFolder = mock(Node.class);
     when(driveRoot.getNode(anyString())).thenReturn(entityTypeFolder);
     when(entityTypeFolder.hasNode(anyString())).thenReturn(true);
-    // The source entity folder is an nt:folder at <drive>/workflow/1, parent of the moved node
+    // The source entity folder is an nt:folder at <drive>/<type>/1, parent of the moved node
     NodeType folderType = mock(NodeType.class);
     when(folderType.isNodeType(NodetypeConstant.NT_FOLDER)).thenReturn(true);
+    Node sourceDrive = mock(Node.class);
+    when(sourceDrive.getPath()).thenReturn(sourceDrivePath);
     Node sourceFolderParent = mock(Node.class);
+    when(sourceFolderParent.getName()).thenReturn(sourceEntityType);
+    when(sourceFolderParent.getParent()).thenReturn(sourceDrive);
     Node sourceFolder = mock(Node.class);
-    when(sourceFolder.getPath()).thenReturn("path/workflow/1");
+    when(sourceFolder.getName()).thenReturn("1");
+    when(sourceFolder.getPath()).thenReturn(sourceDrivePath + "/" + sourceEntityType + "/1");
     when(sourceFolder.getPrimaryNodeType()).thenReturn(folderType);
     when(sourceFolder.getParent()).thenReturn(sourceFolderParent);
     when(sourceFolder.hasNodes()).thenReturn(sourceFolderHoldsNodes);
@@ -354,7 +384,7 @@ public class ProcessesAttachmentServiceImplTest {
       when(attachmentService.getAttachmentById("3")).thenReturn(copiedAttachment);
     }
 
-    processesAttachmentService.moveAttachmentsToEntity(attachments, 1L, 1L, "workflow", 2L, "workdraft", 1L);
+    processesAttachmentService.moveAttachmentsToEntity(attachments, 1L, 1L, sourceEntityType, 2L, "workdraft", 1L);
 
     verify(workspace).move("srcPath", "destPath/test");
     if (lastAttachmentCopied) {

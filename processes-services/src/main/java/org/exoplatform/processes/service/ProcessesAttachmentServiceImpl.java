@@ -243,7 +243,7 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
           copyNode.addMixin(NodetypeConstant.EXO_HIDDENABLE);
           copyNode.save();
           if (sourceEntityFolder.get() == null
-              && isEntityFolder(sourceEntityIdNode, rootNode, sourceEntityType, sourceEntityId)) {
+              && isSourceEntityFolder(sourceEntityIdNode, rootNode, sourceEntityType, sourceEntityId)) {
             sourceEntityFolder.set(sourceEntityIdNode);
           }
         } else {
@@ -603,9 +603,23 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
   }
 
   /**
+   * @return true when the node is the source entity's folder in the drive of
+   *         the process's space, or, for a draft, at the root of the drive of
+   *         another existing space, where it stays when the process moves
+   */
+  private boolean isSourceEntityFolder(Node node,
+                                       Node driveRootNode,
+                                       String entityType,
+                                       Long entityId) throws RepositoryException {
+    return isEntityFolder(node, driveRootNode, entityType, entityId)
+        || (node != null && entityId != null && WORK_DRAFT_ENTITY_TYPE.equals(entityType)
+            && node.getPrimaryNodeType().isNodeType(NodetypeConstant.NT_FOLDER)
+            && isEntityFolderInASpaceDrive(node, entityType, entityId));
+  }
+
+  /**
    * @return true when the node is the folder the processes keep for the
-   *         entity's attachments in the process drive, the only source folder a
-   *         move may remove
+   *         entity's attachments in the process drive
    */
   private boolean isEntityFolder(Node node, Node driveRootNode, String entityType, Long entityId) throws RepositoryException {
     return node != null && entityType != null && entityId != null
