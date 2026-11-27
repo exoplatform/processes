@@ -34,8 +34,6 @@ import lombok.Data;
 @Entity(name = "Work")
 @Table(name = "PROCESSES_WORK")
 @Data
-@NamedQuery(name = "Work.findAllWorkDraftsByUser", query = "SELECT DISTINCT w FROM Work w where w.creatorId = :userId and w.isDraft = true order by w.id desc")
-@NamedQuery(name = "Work.getWorkDraftByTaskId", query = "SELECT DISTINCT w FROM Work w where w.taskId = :taskId and w.isDraft = true")
 @NamedQuery(name = "Work.findAllWorksByWorkflowId", query = "SELECT DISTINCT w FROM Work w where w.workFlow.id = :workflowId")
 public class WorkEntity implements Serializable {
 
