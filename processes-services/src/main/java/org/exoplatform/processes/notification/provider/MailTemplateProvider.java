@@ -61,8 +61,7 @@ public class MailTemplateProvider extends TemplateProvider {
       if (pluginId.equals(CreateRequestPlugin.ID)) {
         String requestTitle = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_TITLE.getKey());
         String requestDescription = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_DESCRIPTION.getKey());
-        String processTitle = NotificationUtils.getProcessTitle(notificationInfo, language);
-        templateContext.put("PROCESS_TITLE", encoder.encode(processTitle));
+        templateContext.put("PROCESS_TITLE", encodedProcessTitle(notificationInfo, language, encoder));
         templateContext.put("REQUEST_TITLE", encoder.encode(requestTitle));
         templateContext.put("REQUEST_DESCRIPTION", requestDescription);
       }
@@ -90,11 +89,10 @@ public class MailTemplateProvider extends TemplateProvider {
       String comment = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_COMMENT.getKey());
       String requestCommentUrl = notificationInfo.getValueOwnerParameter(NotificationArguments.REQUEST_COMMENT_URL.getKey());
       String language = getLanguage(notificationInfo);
-      String processTitle = NotificationUtils.getProcessTitle(notificationInfo, language);
       TemplateContext templateContext = TemplateContext.newChannelInstance(getChannelKey(), pluginId, language);
       String commentText = NotificationUtils.formatMention(comment);
 
-      templateContext.put("PROCESS_TITLE", encoder.encode(processTitle));
+      templateContext.put("PROCESS_TITLE", encodedProcessTitle(notificationInfo, language, encoder));
       templateContext.put("REQUEST_TITLE", encoder.encode(requestTitle));
       templateContext.put("REQUEST_COMMENT_AUTHOR", encoder.encode(commentAuthor));
       templateContext.put("REQUEST_COMMENT_URL", encoder.encode(requestCommentUrl));
@@ -109,6 +107,21 @@ public class MailTemplateProvider extends TemplateProvider {
     }
   }
   
+  /**
+   * Returns a notification's process title in a recipient's language, HTML
+   * encoded for a mail, or empty when none can be read: the encoder refuses a
+   * null text, and a mail is sent without its title rather than not at all.
+   *
+   * @param notificationInfo the notification
+   * @param language the recipient's language
+   * @param encoder the mail's HTML encoder
+   * @return the encoded process title, or an empty one
+   */
+  private static String encodedProcessTitle(NotificationInfo notificationInfo, String language, HTMLEntityEncoder encoder) {
+    String processTitle = NotificationUtils.getProcessTitle(notificationInfo, language);
+    return processTitle == null ? "" : encoder.encode(processTitle);
+  }
+
   private void buildCommonTemplateParams(TemplateContext templateContext,
                                          NotificationInfo notificationInfo,
                                          String language,

@@ -128,6 +128,7 @@ class MailTemplateProviderTest {
     notificationUtils = mockStatic(NotificationUtils.class);
     notificationUtils.when(() -> NotificationUtils.getUserProfile(anyString())).thenReturn(profile);
     notificationUtils.when(() -> NotificationUtils.formatMention(any())).thenReturn("comment");
+    notificationUtils.when(() -> NotificationUtils.getProcessTitle(any(NotificationInfo.class), anyString())).thenReturn("Translated process");
 
     linkProviderUtils = mockStatic(LinkProviderUtils.class);
     linkProviderUtils.when(LinkProviderUtils::getBaseUrl).thenReturn(BASE_URL);
@@ -183,5 +184,45 @@ class MailTemplateProviderTest {
     assertNotNull(templateContext, "the mail body was not rendered");
     assertEquals(BASE_URL, templateContext.get("COMPANY_LINK"));
     assertEquals(FOOTER_URL, templateContext.get("FOOTER_LINK"));
+    if (!CancelRequestPlugin.ID.equals(pluginId)) {
+      assertEquals("Translated process", templateContext.get("PROCESS_TITLE"));
+    }
+  }
+
+  /**
+   * A request's mail and a comment's mail are still sent when the process
+   * title can't be read: the title is left empty, never passed to the HTML
+   * encoder, which refuses a null text (EXO-94567).
+   * Mutant: the title encoded without the null guard.
+   *
+   * @param pluginId the notification plugin whose mail is built
+   */
+  @ParameterizedTest
+  @ValueSource(strings = { CreateRequestPlugin.ID, RequestCommentPlugin.ID })
+  void aMailIsSentWithAnEmptyTitleWhenNoneCanBeRead(String pluginId) {
+    notificationUtils.when(() -> NotificationUtils.getProcessTitle(any(NotificationInfo.class), anyString())).thenReturn(null);
+    NotificationInfo notification = new NotificationInfo();
+    notification.key(pluginId);
+    notification.setTo(RECEIVER);
+    notification.setLastModifiedDate(System.currentTimeMillis());
+    notification.with(NotificationArguments.REQUEST_CREATOR.getKey(), REQUESTER);
+    notification.with(NotificationArguments.REQUEST_COMMENT_AUTHOR.getKey(), REQUESTER);
+    notification.with(NotificationArguments.REQUEST_TITLE.getKey(), "request");
+    notification.with(NotificationArguments.REQUEST_DESCRIPTION.getKey(), "description");
+    notification.with(NotificationArguments.PROCESS_URL.getKey(), "/process/1");
+    notification.with(NotificationArguments.REQUEST_URL.getKey(), "/request/1");
+    notification.with(NotificationArguments.REQUEST_COMMENT.getKey(), "comment");
+    notification.with(NotificationArguments.REQUEST_COMMENT_URL.getKey(), "/request/1/comments");
+    when(notificationContext.getNotificationInfo()).thenReturn(notification);
+
+    MessageInfo messageInfo = mailTemplateProvider.getTemplateBuilder().get(PluginKey.key(pluginId)).buildMessage(notificationContext);
+
+    assertNotNull(messageInfo);
+    ArgumentCaptor<Exception> exceptions = ArgumentCaptor.forClass(Exception.class);
+    verify(notificationContext, atLeastOnce()).setException(exceptions.capture());
+    exceptions.getAllValues().forEach(e -> assertNull(e, () -> "the mail rendering failed: " + e));
+    TemplateContext templateContext = renderedContext.get();
+    assertNotNull(templateContext, "the mail body was not rendered");
+    assertEquals("", templateContext.get("PROCESS_TITLE"));
   }
 }

@@ -124,6 +124,37 @@ class NotificationUtilsProcessTitleTest {
   }
 
   /**
+   * A process whose translated title reads blank is named by the title the
+   * notification stores, and a notification that stores none names an empty
+   * title, never a null one, so no channel fails on it (EXO-94567).
+   * Mutants: a blank translation returned as is, or a missing stored title
+   * returned as null.
+   *
+   * @throws Exception never, the services are mocks
+   */
+  @Test
+  void aProcessTitleIsNeverBlankWhenStoredNorNull() throws Exception {
+    NotificationInfo notification = NotificationInfo.instance()
+                                                    .with(NotificationArguments.REQUEST_PROCESS.getKey(), "Leave")
+                                                    .with(NotificationArguments.WORKFLOW_ID.getKey(), "9");
+    NotificationInfo untitled = NotificationInfo.instance();
+    NotificationInfo untitledProcess = NotificationInfo.instance().with(NotificationArguments.WORKFLOW_ID.getKey(), "9");
+    WorkFlow workFlow = workFlow();
+    when(processesService.getWorkFlow(9L, null)).thenReturn(workFlow);
+    when(processTranslationService.getTitle(workFlow, Locale.FRENCH)).thenReturn(" ");
+
+    try (MockedStatic<CommonsUtils> commonsUtils = mockStatic(CommonsUtils.class)) {
+      commonsUtils.when(() -> CommonsUtils.getService(ProcessesService.class)).thenReturn(processesService);
+      commonsUtils.when(() -> CommonsUtils.getService(ProcessTranslationService.class)).thenReturn(processTranslationService);
+
+      assertEquals("Leave", NotificationUtils.getProcessTitle(notification, Locale.FRENCH));
+      assertEquals("", NotificationUtils.getProcessTitle(untitled, "fr"));
+      assertEquals("", NotificationUtils.getProcessTitle(untitled, (String) null));
+      assertEquals("", NotificationUtils.getProcessTitle(untitledProcess, Locale.FRENCH));
+    }
+  }
+
+  /**
    * Matches a notification argument by its key: two arguments of one type
    * compare equal whatever their key.
    *

@@ -224,12 +224,14 @@ public class NotificationUtils {
    * Returns the title of a notification's process in a recipient's language:
    * the process the notification names by its id, read as the platform, its
    * title translated, or the title stored in the notification when it names
-   * no process or its process is gone.
+   * no process, its process is gone or its title reads blank. Never null: a
+   * notification that stores no title answers an empty one, so no channel
+   * fails on it.
    *
    * @param notification the notification
    * @param language the recipient's language, as the notification channel
    *          names it, or null for the stored title
-   * @return the process title
+   * @return the process title, empty when none can be read
    */
   public static String getProcessTitle(NotificationInfo notification, String language) {
     return getProcessTitle(notification, toLocale(language));
@@ -240,11 +242,11 @@ public class NotificationUtils {
    *
    * @param notification the notification
    * @param locale the recipient's language, or null for the stored title
-   * @return the process title
+   * @return the process title, empty when none can be read
    * @see #getProcessTitle(NotificationInfo, String)
    */
   public static String getProcessTitle(NotificationInfo notification, Locale locale) {
-    String storedTitle = notification.getValueOwnerParameter(NotificationArguments.REQUEST_PROCESS.getKey());
+    String storedTitle = StringUtils.defaultString(notification.getValueOwnerParameter(NotificationArguments.REQUEST_PROCESS.getKey()));
     String workflowId = notification.getValueOwnerParameter(NotificationArguments.WORKFLOW_ID.getKey());
     if (locale == null || StringUtils.isBlank(workflowId)) {
       return storedTitle;
@@ -254,7 +256,8 @@ public class NotificationUtils {
       if (workFlow == null) {
         return storedTitle;
       }
-      return CommonsUtils.getService(ProcessTranslationService.class).getTitle(workFlow, locale);
+      String title = CommonsUtils.getService(ProcessTranslationService.class).getTitle(workFlow, locale);
+      return StringUtils.isBlank(title) ? storedTitle : title;
     } catch (Exception e) {
       LOG.debug("Can't read the process {} of a notification, its stored title is used", workflowId, e);
       return storedTitle;
