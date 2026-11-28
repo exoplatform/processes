@@ -159,6 +159,24 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
 
   }
 
+  /**
+   * Moves or copies the attachments, through the platform's session, into the
+   * hidden {@code <entity type>/<entity id>} folder of the drive of the
+   * project's space, or of the Public folder of one of the project's managers
+   * when the project has no space, gives that folder the processes' explicit
+   * permissions and hides each moved or copied node. The copies replace their
+   * originals in {@code attachments}. Nothing is checked as the user here: the
+   * callers pass only what they selected.
+   *
+   * @param attachments the attachments to move or copy
+   * @param sourceEntityId the id of the entity they come from
+   * @param sourceEntityType the type of the entity they come from
+   * @param destEntityId the id of the entity they go to
+   * @param destEntityType the type of the entity they go to
+   * @param copy true to copy every attachment, false to move each one that
+   *          wasn't picked from a drive
+   * @param projectId the id of the Task project of the process
+   */
   private void moveOrCopyAttachmentsJcrNodes(List<Attachment> attachments,
                                              Long sourceEntityId,
                                              String sourceEntityType,
@@ -218,13 +236,7 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
           rootNode = (Node) session.getItem(publicFolderPath);
         }
 
-        Node destEntityNode;
-        if (!rootNode.hasNode(destEntityType)) {
-          destEntityNode = rootNode.addNode(destEntityType, NodetypeConstant.NT_FOLDER);
-          destEntityNode.addMixin(NodetypeConstant.EXO_HIDDENABLE);
-        } else {
-          destEntityNode = rootNode.getNode(destEntityType);
-        }
+        Node destEntityNode = getHiddenFolder(rootNode, destEntityType);
         if (!destEntityNode.hasNode(String.valueOf(destEntityId))) {
           destEntityNode.addNode(String.valueOf(destEntityId), NodetypeConstant.NT_FOLDER);
         }
@@ -688,6 +700,32 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
         && node.getPrimaryNodeType().isNodeType(NodetypeConstant.NT_FOLDER);
   }
 
+  /**
+   * Returns the child folder the processes keep under {@code parent}, hidden
+   * from the Documents folder view as the other system folders are: created
+   * hidden when missing, and hidden when it exists without the
+   * {@code exo:hiddenable} mixin, as one made by another path or before the
+   * folders were hidden does. An existing folder that can't take the mixin is
+   * returned as it is, so that the attachments still move into it.
+   *
+   * @param parent the folder that holds it
+   * @param name the folder's name
+   * @return the hidden folder, not saved yet
+   * @throws RepositoryException when the folder can't be read or created
+   */
+  private Node getHiddenFolder(Node parent, String name) throws RepositoryException {
+    if (!parent.hasNode(name)) {
+      Node folder = parent.addNode(name, NodetypeConstant.NT_FOLDER);
+      folder.addMixin(NodetypeConstant.EXO_HIDDENABLE);
+      return folder;
+    }
+    Node folder = parent.getNode(name);
+    if (!folder.isNodeType(NodetypeConstant.EXO_HIDDENABLE) && folder.canAddMixin(NodetypeConstant.EXO_HIDDENABLE)) {
+      folder.addMixin(NodetypeConstant.EXO_HIDDENABLE);
+    }
+    return folder;
+  }
+
   private void processDocument(Node node, String currentUser) {
     try {
       org.exoplatform.social.core.identity.model.Identity identity =
@@ -722,6 +760,19 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
 
   }
 
+  /**
+   * Creates, through the platform's session, the hidden
+   * {@code <entity type>/<entity id>} folder of an entity that has no
+   * attachment to move, in the drive of the project's space, or in the Public
+   * folder of one of the project's managers when the project has no space,
+   * hides it when it already exists, and gives it the processes' explicit
+   * permissions.
+   *
+   * @param userId the identity id of the user the folder is made for
+   * @param projectId the id of the Task project of the process
+   * @param entityType the entity's type
+   * @param entityId the entity's id
+   */
   private void createWorkflowTaskFolder(long userId, long projectId, String entityType, long entityId) {
     org.exoplatform.social.core.identity.model.Identity userIdentity = identityManager.getIdentity(String.valueOf(userId));
     Map<String, String[]> permissions = new HashMap<>();
@@ -770,19 +821,7 @@ public class ProcessesAttachmentServiceImpl implements ProcessesAttachmentServic
         String publicFolderPath = driveData.getHomePath().replace(PRIVATE_FOLDER, PUBLIC_FOLDER);
         rootNode = (Node) session.getItem(publicFolderPath);
       }
-      Node destEntityNode;
-      if (!rootNode.hasNode(entityType)) {
-        destEntityNode = rootNode.addNode(entityType, NodetypeConstant.NT_FOLDER);
-        destEntityNode.addMixin(NodetypeConstant.EXO_HIDDENABLE);
-      } else {
-        destEntityNode = rootNode.getNode(entityType);
-      }
-      if (!destEntityNode.hasNode(String.valueOf(entityId))) {
-        destEntityNode = destEntityNode.addNode(String.valueOf(entityId), NodetypeConstant.NT_FOLDER);
-        destEntityNode.addMixin(NodetypeConstant.EXO_HIDDENABLE);
-      } else {
-        destEntityNode = destEntityNode.getNode(String.valueOf(entityId));
-      }
+      Node destEntityNode = getHiddenFolder(getHiddenFolder(rootNode, entityType), String.valueOf(entityId));
       if (destEntityNode.canAddMixin(NodetypeConstant.EXO_PRIVILEGEABLE)) {
         destEntityNode.addMixin(NodetypeConstant.EXO_PRIVILEGEABLE);
       }
