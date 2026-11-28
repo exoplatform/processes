@@ -1422,6 +1422,22 @@ public class ProcessesServiceImplTest {
     verify(processesStorage, times(1)).saveRequestState(anyLong(), any(), any(), any());
   }
 
+  /**
+   * A task's completion hands the request to the storage, which clears a
+   * leftover cancelled mark; a failure there is logged, never thrown into
+   * Task's broadcast (EXO-94985). Mutation: drop the call, or let the
+   * failure through, and this test fails.
+   */
+  @Test
+  public void aCompletedRequestClearsALeftoverMark() {
+    processesService.requestTaskCompleted(WORK_ID);
+    verify(processesStorage).clearLeftoverCancel(WORK_ID);
+
+    when(processesStorage.clearLeftoverCancel(DECIDED_WORK_ID)).thenThrow(new IllegalStateException("record write refused"));
+    processesService.requestTaskCompleted(DECIDED_WORK_ID);
+    verify(processesStorage).clearLeftoverCancel(DECIDED_WORK_ID);
+  }
+
   @Test
   public void countWorksByWorkflow() throws Exception {
     Throwable exception1 = assertThrows(IllegalArgumentException.class,

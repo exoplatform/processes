@@ -215,6 +215,149 @@ class ProcessesStorageRequestStateTest {
   }
 
   /**
+   * The cancel's own completion keeps its mark: Task's update listener, run
+   * on the cancel's thread while Task broadcasts, finds this completion
+   * marked and clears nothing. Once the cancel returned, the mark is no
+   * longer the cancel's own (EXO-94985). Mutation: drop the thread's marker,
+   * or leave it set after the write, and this test fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  void theCancelsOwnCompletionKeepsItsMark() throws Exception {
+    RequestEntity record = new RequestEntity(40L, 3L, 1L);
+    when(requestDAO.find(40L)).thenReturn(record);
+    TaskDto task = new TaskDto();
+    task.setId(40L);
+    when(taskService.getTask(40L)).thenReturn(task);
+    java.util.List<Boolean> clearedDuringCompletion = new java.util.ArrayList<>();
+    when(taskService.updateTask(task)).thenAnswer(invocation -> {
+      clearedDuringCompletion.add(processesStorage.clearLeftoverCancel(40L));
+      return task;
+    });
+
+    processesStorage.saveRequestState(40L, Boolean.TRUE, null, Boolean.TRUE);
+
+    assertEquals(java.util.List.of(Boolean.FALSE), clearedDuringCompletion);
+    assertEquals(Boolean.TRUE, record.getCanceled());
+    assertTrue(processesStorage.clearLeftoverCancel(40L));
+    assertEquals(Boolean.FALSE, record.getCanceled());
+  }
+
+  /**
+   * A cancel retried by the requester on a request whose mark an interrupted
+   * cancel left keeps the mark through its own completion: the request reads
+   * cancelled (EXO-94985). Mutation: drop the thread's marker check and this
+   * test fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  void aRetriedCancelOverALeftoverMarkReadsCancelled() throws Exception {
+    RequestEntity record = new RequestEntity(40L, 3L, 1L, Boolean.TRUE, null);
+    when(requestDAO.find(40L)).thenReturn(record);
+    TaskDto task = new TaskDto();
+    task.setId(40L);
+    when(taskService.getTask(40L)).thenReturn(task);
+    java.util.List<Boolean> clearedDuringCompletion = new java.util.ArrayList<>();
+    when(taskService.updateTask(task)).thenAnswer(invocation -> {
+      clearedDuringCompletion.add(processesStorage.clearLeftoverCancel(40L));
+      return task;
+    });
+
+    processesStorage.saveRequestState(40L, Boolean.TRUE, null, Boolean.TRUE);
+
+    assertEquals(java.util.List.of(Boolean.FALSE), clearedDuringCompletion);
+    assertEquals(Boolean.TRUE, record.getCanceled());
+    assertTrue(task.isCompleted());
+  }
+
+  /**
+   * A mark left by a cancel interrupted before its completion is cleared when
+   * a manager completes the task, here through processes with Task's
+   * listener run on the same thread: the request then reads decided, not
+   * cancelled. A completion of another task inside a cancel's own clears
+   * that other task's mark too (EXO-94985). Mutation: keep the mark on every
+   * completion, or match any marked completion whatever its task, and this
+   * test fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  void aLeftoverMarkIsClearedByAManagersCompletion() throws Exception {
+    RequestEntity leftover = new RequestEntity(41L, 3L, 1L, Boolean.TRUE, null);
+    when(requestDAO.find(41L)).thenReturn(leftover);
+    TaskDto task = new TaskDto();
+    task.setId(41L);
+    when(taskService.getTask(41L)).thenReturn(task);
+    when(taskService.updateTask(task)).thenAnswer(invocation -> {
+      processesStorage.clearLeftoverCancel(41L);
+      return task;
+    });
+
+    processesStorage.updateWorkCompleted(41L, true);
+
+    assertEquals(Boolean.FALSE, leftover.getCanceled());
+    assertTrue(task.isCompleted());
+
+    RequestEntity canceling = new RequestEntity(40L, 3L, 1L);
+    when(requestDAO.find(40L)).thenReturn(canceling);
+    TaskDto canceled = new TaskDto();
+    canceled.setId(40L);
+    when(taskService.getTask(40L)).thenReturn(canceled);
+    leftover.setCanceled(Boolean.TRUE);
+    java.util.List<Boolean> otherCleared = new java.util.ArrayList<>();
+    when(taskService.updateTask(canceled)).thenAnswer(invocation -> {
+      otherCleared.add(processesStorage.clearLeftoverCancel(41L));
+      return canceled;
+    });
+
+    processesStorage.saveRequestState(40L, Boolean.TRUE, null, Boolean.TRUE);
+
+    assertEquals(java.util.List.of(Boolean.TRUE), otherCleared);
+    assertEquals(Boolean.FALSE, leftover.getCanceled());
+    assertEquals(Boolean.TRUE, canceling.getCanceled());
+  }
+
+  /**
+   * A cancel whose completion fails leaves no marker on its thread: a later
+   * completion of that task clears a mark that stayed (EXO-94985). Mutation:
+   * remove the marker only on success and this test fails.
+   *
+   * @throws Exception never, the mocks throw nothing but the stubbed failure
+   */
+  @Test
+  void aFailedCancelLeavesNoMarker() throws Exception {
+    RequestEntity record = new RequestEntity(40L, 3L, 1L);
+    when(requestDAO.find(40L)).thenReturn(record);
+    TaskDto task = new TaskDto();
+    task.setId(40L);
+    when(taskService.getTask(40L)).thenReturn(task);
+    when(taskService.updateTask(task)).thenThrow(new IllegalStateException("task write refused"));
+    assertThrows(IllegalStateException.class, () -> processesStorage.saveRequestState(40L, Boolean.TRUE, null, Boolean.TRUE));
+
+    record.setCanceled(Boolean.TRUE);
+    assertTrue(processesStorage.clearLeftoverCancel(40L));
+    assertEquals(Boolean.FALSE, record.getCanceled());
+  }
+
+  /**
+   * A completed task with no request record, or a request without the mark,
+   * is not written (EXO-94985). Mutation: write the record whatever its mark,
+   * or without checking it exists, and this test fails.
+   */
+  @Test
+  void aCompletionWithoutMarkWritesNothing() {
+    when(requestDAO.find(42L)).thenReturn(new RequestEntity(42L, 3L, 1L, Boolean.FALSE, null));
+    when(requestDAO.find(43L)).thenReturn(new RequestEntity(43L, 3L, 1L));
+
+    assertFalse(processesStorage.clearLeftoverCancel(42L));
+    assertFalse(processesStorage.clearLeftoverCancel(43L));
+    assertFalse(processesStorage.clearLeftoverCancel(44L));
+    verify(requestDAO, never()).update(any());
+  }
+
+  /**
    * The cancel's broadcast carries the request's task and its project, as
    * the cancel's notification reads them; a task gone or in no project
    * broadcasts nothing. Mutation: broadcast another payload, or broadcast a

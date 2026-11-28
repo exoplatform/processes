@@ -96,6 +96,13 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   public static final String               NO_STATUS                = "processes.project.noStatus";
 
   private static final Log                 LOG                      = ExoLogger.getLogger(ProcessesStorageImpl.class);
+
+  /**
+   * The task id whose completion {@link #saveRequestState} runs on the
+   * current thread, read by {@link #clearLeftoverCancel(long)} from Task's
+   * synchronous update listener (EXO-94985).
+   */
+  private static final ThreadLocal<Long>   STATE_COMPLETION         = new ThreadLocal<>();
   private static final String              WORK_DRAFT_ENTITY_TYPE   = "workdraft";
   private static final String              TASK_ENTITY_TYPE         = "task";
   private static final String              WORKFLOW_ENTITY_TYPE     = "workflow";
@@ -1206,10 +1213,14 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    * again by the next run. The new flags stay on the open task only when that
    * write-back fails too, its failure logged and attached to the thrown one,
    * or when the process stops between the two writes. The request then reads
-   * pending; a cancel retried by the requester completes it as cancelled, a
-   * manager who completes it, in Tasks or in processes, sees it read
-   * cancelled rather than decided, and only a reopen of its task clears the
-   * flags.
+   * pending; a cancel retried by the requester completes it as cancelled, and
+   * any other completion, by a manager in Tasks or in processes, clears the
+   * mark through {@link #clearLeftoverCancel(long)}, so it reads decided. That
+   * clear is a write of its own, after Task's commit: a stop or a failed write
+   * between the two leaves the completed request reading cancelled, and only a
+   * reopen of its task clears it then. The
+   * completion this write runs is marked on the current thread meanwhile, so
+   * that Task's update listener keeps the mark of this cancel.
    */
   @Override
   public Work saveRequestState(long workId, Boolean canceled, Boolean archived, Boolean completed) {
@@ -1223,6 +1234,8 @@ public class ProcessesStorageImpl implements ProcessesStorage {
     if (completed == null) {
       return getWorkById(workId);
     }
+    Long formerStateCompletion = STATE_COMPLETION.get();
+    STATE_COMPLETION.set(workId);
     try {
       return updateWorkCompleted(workId, completed);
     } catch (RuntimeException e) {
@@ -1230,7 +1243,39 @@ public class ProcessesStorageImpl implements ProcessesStorage {
         restoreRequestFlags(request, formerCanceled, formerArchived, e);
       }
       throw e;
+    } finally {
+      if (formerStateCompletion == null) {
+        STATE_COMPLETION.remove();
+      } else {
+        STATE_COMPLETION.set(formerStateCompletion);
+      }
     }
+  }
+
+  /**
+   * {@inheritDoc} The completion a state's write runs is known by its task id
+   * on the current thread, which Task's synchronous update broadcast runs on.
+   * A cancel still running on another thread or node is not known: a
+   * manager's completion landing between that cancel's two writes clears its
+   * mark; the cancel's own completion, read from its stale view of the open
+   * task, is a second completion for Task's listeners and keeps the cleared
+   * mark cleared, so the request reads decided while the cancel still
+   * notifies. That cancel cannot tell,
+   * since what it reads of the task and of the record comes from its own
+   * request's persistence context, loaded before.
+   */
+  @Override
+  public boolean clearLeftoverCancel(long workId) {
+    if (Long.valueOf(workId).equals(STATE_COMPLETION.get())) {
+      return false;
+    }
+    RequestEntity request = requestDAO.find(workId);
+    if (request == null || !Boolean.TRUE.equals(request.getCanceled())) {
+      return false;
+    }
+    request.setCanceled(Boolean.FALSE);
+    requestDAO.update(request);
+    return true;
   }
 
   /**

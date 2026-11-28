@@ -1778,6 +1778,20 @@ public class ProcessesServiceImpl implements ProcessesService {
   }
 
   /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void requestTaskCompleted(long taskId) {
+    try {
+      if (processesStorage.clearLeftoverCancel(taskId)) {
+        LOG.info("The cancelled mark an interrupted cancel left on the request {} was cleared at its task's completion", taskId);
+      }
+    } catch (RuntimeException e) {
+      LOG.warn("The cancelled mark left on the request {} could not be cleared at its task's completion: it reads cancelled", taskId, e);
+    }
+  }
+
+  /**
    * Reads a request its requester acts on: the user must be its creator,
    * whether or not they also manage its process.
    *

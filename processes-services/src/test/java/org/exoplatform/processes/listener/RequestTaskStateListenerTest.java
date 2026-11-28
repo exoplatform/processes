@@ -30,13 +30,14 @@ import org.exoplatform.task.service.TaskPayload;
 
 /**
  * The listener that hands Task's task updates reopening a task to the
- * processes service, which makes its request pending again (EXO-94923).
+ * processes service, which makes its request pending again (EXO-94923), and
+ * those completing a task, which clear a leftover cancelled mark (EXO-94985).
  */
-class RequestTaskReopenedListenerTest {
+class RequestTaskStateListenerTest {
 
   private final ProcessesService           processesService = mock(ProcessesService.class);
 
-  private final RequestTaskReopenedListener listener        = new RequestTaskReopenedListener(processesService);
+  private final RequestTaskStateListener listener         = new RequestTaskStateListener(processesService);
 
   /**
    * An update from completed to not completed is a reopening, handed over
@@ -59,6 +60,26 @@ class RequestTaskReopenedListenerTest {
     verify(processesService, never()).requestTaskReopened(8L);
     verify(processesService, never()).requestTaskReopened(9L);
     verify(processesService, org.mockito.Mockito.times(1)).requestTaskReopened(anyLong());
+  }
+
+  /**
+   * An update from not completed to completed is a completion, handed over
+   * with the task's id; an update that reopens a task, keeps it completed or
+   * keeps it open, and an event without a payload, hand no completion.
+   * Mutation: hand every update over as a completion, or drop the completion
+   * branch, and this test fails.
+   */
+  @Test
+  void onlyACompletionIsHandedOverAsSuch() {
+    listener.onEvent(event(task(6L, false), task(6L, true)));
+    verify(processesService).requestTaskCompleted(6L);
+
+    listener.onEvent(event(task(5L, true), task(5L, false)));
+    listener.onEvent(event(task(7L, true), task(7L, true)));
+    listener.onEvent(event(task(8L, false), task(8L, false)));
+    listener.onEvent(event(null, task(9L, true)));
+    listener.onEvent(new Event<>("exo.task.taskUpdate", null, null));
+    verify(processesService, org.mockito.Mockito.times(1)).requestTaskCompleted(anyLong());
   }
 
   /**

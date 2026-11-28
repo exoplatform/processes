@@ -268,6 +268,20 @@ public interface ProcessesStorage {
   Work saveRequestState(long workId, Boolean canceled, Boolean archived, Boolean completed);
 
   /**
+   * Clears the cancelled mark of a request whose task was just completed,
+   * unless that completion is the one a cancel runs on the current thread
+   * through {@link #saveRequestState}: a mark seen at any other completion
+   * was left by a cancel interrupted before its task's completion. It is the
+   * platform's own write, with no user's permission.
+   *
+   * @param workId the completed request's task id
+   * @return true when a leftover mark was cleared, false when the task has no
+   *         request record, the record has no mark, or the completion is the
+   *         cancel's own
+   */
+  boolean clearLeftoverCancel(long workId);
+
+  /**
    * Broadcasts a committed cancel of a request as
    * {@link org.exoplatform.processes.constant.ProcessesEvents#REQUEST_CANCELED},
    * with the request's task as source and its project as data.
