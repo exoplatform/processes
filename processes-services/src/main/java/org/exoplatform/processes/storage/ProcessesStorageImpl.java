@@ -1252,6 +1252,12 @@ public class ProcessesStorageImpl implements ProcessesStorage {
   /**
    * {@inheritDoc} The completion a state's write runs is known by its task id
    * on the current thread, which Task's synchronous update broadcast runs on.
+   * A cancel still running on another thread or node is not known: a
+   * manager's completion landing between that cancel's two writes clears its
+   * mark, the cancel's own completion is then no transition, and the request
+   * reads decided while the cancel still notifies. That cancel cannot tell,
+   * since what it reads of the task and of the record comes from its own
+   * request's persistence context, loaded before.
    */
   @Override
   public boolean clearLeftoverCancel(long workId) {
