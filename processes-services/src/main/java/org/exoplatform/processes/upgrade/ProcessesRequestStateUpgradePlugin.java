@@ -59,7 +59,8 @@ import org.exoplatform.task.service.TaskService;
  * again: a run stopped between a request's flags and its task's completion
  * leaves the flags written and the task open, which the next run skips; that
  * request then reads pending, and a manager who completes a former
- * « Canceled » one sees it read cancelled. A request the upgrade completes
+ * « Canceled » one sees it read decided, since that completion clears the
+ * leftover flag ({@link ProcessesStorage#clearLeftoverCancel(long)}). A request the upgrade completes
  * whose process's stored project has no column cannot be moved there: its
  * failure stops the run at that request, before the requests after it,
  * until a column is added to that project. Each task it completes fires Task's update listeners once. It runs
