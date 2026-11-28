@@ -417,7 +417,10 @@ public interface ProcessesService {
    * so the completion reads as the manager's decision, never as a cancel. A
    * task that is no request, a request without the mark, or the completion a
    * cancel runs on this thread is left as it is. A failure to clear it is
-   * logged, never thrown. It is the platform's own call, for Task's update
+   * logged, never thrown: the clear is a write of its own after Task's
+   * commit, so a stop or a failed write between the two leaves the request
+   * reading cancelled until its task is reopened. It is the platform's own
+   * call, for Task's update
    * listener: it checks no user's right, so no user path may call it.
    *
    * @param taskId the completed task's id

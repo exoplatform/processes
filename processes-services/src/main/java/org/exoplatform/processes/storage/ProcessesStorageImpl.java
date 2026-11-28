@@ -1215,7 +1215,10 @@ public class ProcessesStorageImpl implements ProcessesStorage {
    * or when the process stops between the two writes. The request then reads
    * pending; a cancel retried by the requester completes it as cancelled, and
    * any other completion, by a manager in Tasks or in processes, clears the
-   * mark through {@link #clearLeftoverCancel(long)}, so it reads decided. The
+   * mark through {@link #clearLeftoverCancel(long)}, so it reads decided. That
+   * clear is a write of its own, after Task's commit: a stop or a failed write
+   * between the two leaves the completed request reading cancelled, and only a
+   * reopen of its task clears it then. The
    * completion this write runs is marked on the current thread meanwhile, so
    * that Task's update listener keeps the mark of this cancel.
    */

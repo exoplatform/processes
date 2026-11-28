@@ -245,6 +245,34 @@ class ProcessesStorageRequestStateTest {
   }
 
   /**
+   * A cancel retried by the requester on a request whose mark an interrupted
+   * cancel left keeps the mark through its own completion: the request reads
+   * cancelled (EXO-94985). Mutation: drop the thread's marker check and this
+   * test fails.
+   *
+   * @throws Exception never, the mocks throw nothing
+   */
+  @Test
+  void aRetriedCancelOverALeftoverMarkReadsCancelled() throws Exception {
+    RequestEntity record = new RequestEntity(40L, 3L, 1L, Boolean.TRUE, null);
+    when(requestDAO.find(40L)).thenReturn(record);
+    TaskDto task = new TaskDto();
+    task.setId(40L);
+    when(taskService.getTask(40L)).thenReturn(task);
+    java.util.List<Boolean> clearedDuringCompletion = new java.util.ArrayList<>();
+    when(taskService.updateTask(task)).thenAnswer(invocation -> {
+      clearedDuringCompletion.add(processesStorage.clearLeftoverCancel(40L));
+      return task;
+    });
+
+    processesStorage.saveRequestState(40L, Boolean.TRUE, null, Boolean.TRUE);
+
+    assertEquals(java.util.List.of(Boolean.FALSE), clearedDuringCompletion);
+    assertEquals(Boolean.TRUE, record.getCanceled());
+    assertTrue(task.isCompleted());
+  }
+
+  /**
    * A mark left by a cancel interrupted before its completion is cleared when
    * a manager completes the task, here through processes with Task's
    * listener run on the same thread: the request then reads decided, not
