@@ -411,6 +411,20 @@ public interface ProcessesService {
   void requestTaskReopened(long taskId);
 
   /**
+   * Reacts to the completion of a task, in Tasks or in processes, otherwise
+   * than by its request's own cancel: a cancelled mark left on the request's
+   * record by a cancel interrupted before its task's completion is cleared,
+   * so the completion reads as the manager's decision, never as a cancel. A
+   * task that is no request, a request without the mark, or the completion a
+   * cancel runs on this thread is left as it is. A failure to clear it is
+   * logged, never thrown. It is the platform's own call, for Task's update
+   * listener: it checks no user's right, so no user path may call it.
+   *
+   * @param taskId the completed task's id
+   */
+  void requestTaskCompleted(long taskId);
+
+  /**
    * Creates a work draft
    *
    * @param work Work draft object

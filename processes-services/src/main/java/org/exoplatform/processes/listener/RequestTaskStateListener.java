@@ -23,26 +23,31 @@ import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.service.TaskPayload;
 
 /**
- * Hands Task's task updates that reopen a task to
+ * Hands Task's task updates that reopen or complete a task to the processes
+ * service, whether the task changed in Tasks or in processes: a reopening to
  * {@link ProcessesService#requestTaskReopened(long)}, which makes a cancelled
- * or archived request pending again, whether it was reopened in Tasks or in
- * processes. Glue only: an update that does not reopen a task is ignored here.
+ * or archived request pending again, and a completion to
+ * {@link ProcessesService#requestTaskCompleted(long)}, which clears the
+ * cancelled mark an interrupted cancel left on the request, so a manager's
+ * decision never reads as a cancel (EXO-94985). Glue only: an update that
+ * neither reopens nor completes a task is ignored here. Task broadcasts its
+ * update synchronously, on the thread that wrote the task.
  */
-public class RequestTaskReopenedListener extends Listener<Object, TaskPayload> {
+public class RequestTaskStateListener extends Listener<Object, TaskPayload> {
 
   private final ProcessesService processesService;
 
   /**
    * Builds the listener.
    *
-   * @param processesService clears the reopened request's state
+   * @param processesService updates the reopened or completed request's state
    */
-  public RequestTaskReopenedListener(ProcessesService processesService) {
+  public RequestTaskStateListener(ProcessesService processesService) {
     this.processesService = processesService;
   }
 
   /**
-   * Hands a task reopened by the update to the processes service.
+   * Hands a task reopened or completed by the update to the processes service.
    *
    * @param event Task's update, its data the task before and after
    */
@@ -51,7 +56,12 @@ public class RequestTaskReopenedListener extends Listener<Object, TaskPayload> {
     TaskPayload payload = event.getData();
     TaskDto before = payload == null ? null : payload.before();
     TaskDto after = payload == null ? null : payload.after();
-    if (after != null && !after.isCompleted() && before != null && before.isCompleted()) {
+    if (after == null || before == null || before.isCompleted() == after.isCompleted()) {
+      return;
+    }
+    if (after.isCompleted()) {
+      processesService.requestTaskCompleted(after.getId());
+    } else {
       processesService.requestTaskReopened(after.getId());
     }
   }

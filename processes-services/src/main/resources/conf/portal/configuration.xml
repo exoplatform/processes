@@ -121,11 +121,13 @@
             <type>org.exoplatform.processes.listener.CancelRequestNotificationListener</type>
         </component-plugin>
         <!-- A task reopened in Tasks or in processes makes its request pending
-             again: its cancelled and archived flags are cleared (EXO-94923). -->
+             again: its cancelled and archived flags are cleared (EXO-94923).
+             A task completed otherwise than by its request's cancel clears
+             the cancelled mark an interrupted cancel left (EXO-94985). -->
         <component-plugin>
             <name>exo.task.taskUpdate</name>
             <set-method>addListener</set-method>
-            <type>org.exoplatform.processes.listener.RequestTaskReopenedListener</type>
+            <type>org.exoplatform.processes.listener.RequestTaskStateListener</type>
         </component-plugin>
         <component-plugin>
             <name>exo.task.taskCommentCreation</name>
