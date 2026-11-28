@@ -1294,4 +1294,179 @@ public class ProcessesAttachmentServiceImplTest {
     permission.setCanDetach(granted);
     return permission;
   }
+
+  @Test
+  public void moveIntoAnExistingVisibleEntityTypeFolderHidesIt() throws Exception {
+    Node workflowFolder = mockFolder(false, true);
+    Workspace workspace = mockMoveFixture("workflow", workflowFolder);
+
+    processesAttachmentService.moveAttachmentsToEntity(List.of(newAttachment()), REQUESTER_ID, 1L, "workflow", 12L, "workflow", PROJECT_ID);
+
+    verify(workflowFolder, times(1)).addMixin(NodetypeConstant.EXO_HIDDENABLE);
+    verify(workspace, times(1)).move("/src/zz-8416-form.pdf", "/drive/workflow/12/zz-8416-form.pdf");
+  }
+
+  @Test
+  public void moveIntoAnAlreadyHiddenEntityTypeFolderLeavesItAsItIs() throws Exception {
+    Node workflowFolder = mockFolder(true, true);
+    Workspace workspace = mockMoveFixture("workflow", workflowFolder);
+
+    processesAttachmentService.moveAttachmentsToEntity(List.of(newAttachment()), REQUESTER_ID, 1L, "workflow", 12L, "workflow", PROJECT_ID);
+
+    verify(workflowFolder, never()).addMixin(NodetypeConstant.EXO_HIDDENABLE);
+    verify(workspace, times(1)).move("/src/zz-8416-form.pdf", "/drive/workflow/12/zz-8416-form.pdf");
+  }
+
+  @Test
+  public void moveIntoAnEntityTypeFolderThatCantBeHiddenStillMovesTheAttachment() throws Exception {
+    Node workflowFolder = mockFolder(false, false);
+    Workspace workspace = mockMoveFixture("workflow", workflowFolder);
+
+    processesAttachmentService.moveAttachmentsToEntity(List.of(newAttachment()), REQUESTER_ID, 1L, "workflow", 12L, "workflow", PROJECT_ID);
+
+    verify(workflowFolder, never()).addMixin(NodetypeConstant.EXO_HIDDENABLE);
+    verify(workspace, times(1)).move("/src/zz-8416-form.pdf", "/drive/workflow/12/zz-8416-form.pdf");
+  }
+
+  @Test
+  public void folderCreationHidesExistingVisibleEntityFolders() throws Exception {
+    Node rootNode = mockSpaceDriveRoot(mock(Session.class));
+    Node workflowFolder = mockFolder(false, true);
+    ExtendedNode entityFolder = mock(ExtendedNode.class);
+    when(entityFolder.canAddMixin(NodetypeConstant.EXO_HIDDENABLE)).thenReturn(true);
+    when(rootNode.hasNode("workflow")).thenReturn(true);
+    when(rootNode.getNode("workflow")).thenReturn(workflowFolder);
+    when(workflowFolder.hasNode("12")).thenReturn(true);
+    when(workflowFolder.getNode("12")).thenReturn(entityFolder);
+
+    processesAttachmentService.moveAttachmentsToEntity(Collections.emptyList(), REQUESTER_ID, 1L, "workflow", 12L, "workflow", PROJECT_ID);
+
+    verify(workflowFolder, times(1)).addMixin(NodetypeConstant.EXO_HIDDENABLE);
+    verify(entityFolder, times(1)).addMixin(NodetypeConstant.EXO_HIDDENABLE);
+    verify(entityFolder, times(1)).setPermissions(any());
+    verify(rootNode, never()).addNode(anyString(), anyString());
+  }
+
+  @Test
+  public void folderCreationCreatesMissingEntityFoldersHidden() throws Exception {
+    Node rootNode = mockSpaceDriveRoot(mock(Session.class));
+    Node workflowFolder = mock(Node.class);
+    ExtendedNode entityFolder = mock(ExtendedNode.class);
+    when(rootNode.hasNode("workflow")).thenReturn(false);
+    when(rootNode.addNode("workflow", NodetypeConstant.NT_FOLDER)).thenReturn(workflowFolder);
+    when(workflowFolder.hasNode("12")).thenReturn(false);
+    when(workflowFolder.addNode("12", NodetypeConstant.NT_FOLDER)).thenReturn(entityFolder);
+
+    processesAttachmentService.moveAttachmentsToEntity(Collections.emptyList(), REQUESTER_ID, 1L, "workflow", 12L, "workflow", PROJECT_ID);
+
+    verify(workflowFolder, times(1)).addMixin(NodetypeConstant.EXO_HIDDENABLE);
+    verify(entityFolder, times(1)).addMixin(NodetypeConstant.EXO_HIDDENABLE);
+    verify(entityFolder, times(1)).setPermissions(any());
+  }
+
+  @Test
+  public void moveIntoAnExistingVisibleTaskFolderLeavesItVisible() throws Exception {
+    Node taskFolder = mockFolder(false, true);
+    Workspace workspace = mockMoveFixture("task", taskFolder);
+
+    processesAttachmentService.moveAttachmentsToEntity(List.of(newAttachment()), REQUESTER_ID, 1L, "workdraft", 12L, "task", PROJECT_ID);
+
+    verify(taskFolder, never()).addMixin(NodetypeConstant.EXO_HIDDENABLE);
+    verify(workspace, times(1)).move("/src/zz-8416-form.pdf", "/drive/task/12/zz-8416-form.pdf");
+  }
+
+  @Test
+  public void folderCreationLeavesExistingVisibleTaskFoldersVisible() throws Exception {
+    Node rootNode = mockSpaceDriveRoot(mock(Session.class));
+    Node taskFolder = mockFolder(false, true);
+    ExtendedNode entityFolder = mock(ExtendedNode.class);
+    when(entityFolder.canAddMixin(NodetypeConstant.EXO_HIDDENABLE)).thenReturn(true);
+    when(rootNode.hasNode("task")).thenReturn(true);
+    when(rootNode.getNode("task")).thenReturn(taskFolder);
+    when(taskFolder.hasNode("12")).thenReturn(true);
+    when(taskFolder.getNode("12")).thenReturn(entityFolder);
+
+    processesAttachmentService.moveAttachmentsToEntity(Collections.emptyList(), REQUESTER_ID, 1L, "workdraft", 12L, "task", PROJECT_ID);
+
+    verify(taskFolder, never()).addMixin(NodetypeConstant.EXO_HIDDENABLE);
+    verify(entityFolder, never()).addMixin(NodetypeConstant.EXO_HIDDENABLE);
+    verify(entityFolder, times(1)).setPermissions(any());
+  }
+
+  /**
+   * Mocks a folder that already exists, with or without the hidden mixin, and
+   * that may or may not take it.
+   */
+  private Node mockFolder(boolean hidden, boolean canBeHidden) throws Exception {
+    Node folder = mock(Node.class);
+    when(folder.isNodeType(NodetypeConstant.EXO_HIDDENABLE)).thenReturn(hidden);
+    when(folder.canAddMixin(NodetypeConstant.EXO_HIDDENABLE)).thenReturn(canBeHidden);
+    return folder;
+  }
+
+  /**
+   * Mocks the project, its space and the space's drive, read through the
+   * given system session, and returns the drive's root folder.
+   */
+  private Node mockSpaceDriveRoot(Session session) throws Exception {
+    ProjectDto projectDto = new ProjectDto();
+    projectDto.setId(PROJECT_ID);
+    projectDto.setManager(new HashSet<>(List.of("manager:" + SPACE_GROUP)));
+    projectDto.setParticipator(new HashSet<>(List.of("member:" + SPACE_GROUP)));
+    when(projectService.getProject(PROJECT_ID)).thenReturn(projectDto);
+    Space space = new Space();
+    space.setGroupId(SPACE_GROUP);
+    PROCESSES_UTILS.when(() -> ProcessesUtils.getProjectParentSpace(PROJECT_ID)).thenReturn(space);
+    UTILS.when(() -> Utils.getSystemSession(sessionProviderService, repositoryService)).thenReturn(session);
+    DriveData driveData = new DriveData();
+    driveData.setHomePath("/drive");
+    driveData.setName("spaces.hr");
+    when(manageDriveService.getGroupDrive(SPACE_GROUP)).thenReturn(driveData);
+    Node rootNode = mock(Node.class);
+    when(rootNode.getPath()).thenReturn("/drive");
+    when(session.getItem("/drive")).thenReturn(rootNode);
+    return rootNode;
+  }
+
+  /**
+   * Mocks a move of one uploaded attachment into {@code <type>/12} of the
+   * space's drive, whose existing type folder is the given one, and returns
+   * the session's workspace.
+   */
+  private Workspace mockMoveFixture(String type, Node typeFolder) throws Exception {
+    Session session = mock(Session.class);
+    Node rootNode = mockSpaceDriveRoot(session);
+    when(rootNode.hasNode(type)).thenReturn(true);
+    when(rootNode.getNode(type)).thenReturn(typeFolder);
+    when(typeFolder.hasNode("12")).thenReturn(true);
+    Node attachmentNode = mock(Node.class);
+    Node sourceFolder = mock(Node.class);
+    when(attachmentNode.getName()).thenReturn("zz-8416-form.pdf");
+    when(attachmentNode.getPath()).thenReturn("/src/zz-8416-form.pdf");
+    when(attachmentNode.getParent()).thenReturn(sourceFolder);
+    when(sourceFolder.getPath()).thenReturn("/src");
+    when(session.getNodeByUUID("a1")).thenReturn(attachmentNode);
+    ExtendedNode destNode = mock(ExtendedNode.class);
+    when(destNode.getPath()).thenReturn("/drive/" + type + "/12");
+    UTILS.when(() -> Utils.getParentFolderNode(session,
+                                               manageDriveService,
+                                               nodeHierarchyCreator,
+                                               nodeFinder,
+                                               "spaces.hr",
+                                               type + "/12"))
+         .thenReturn(destNode);
+    Workspace workspace = mock(Workspace.class);
+    when(session.getWorkspace()).thenReturn(workspace);
+    when(session.getItem("/drive/" + type + "/12/zz-8416-form.pdf")).thenReturn(mock(Node.class));
+    return workspace;
+  }
+
+  /**
+   * @return an attachment uploaded to the request, not picked from a drive
+   */
+  private Attachment newAttachment() {
+    Attachment attachment = new Attachment();
+    attachment.setId("a1");
+    return attachment;
+  }
 }
